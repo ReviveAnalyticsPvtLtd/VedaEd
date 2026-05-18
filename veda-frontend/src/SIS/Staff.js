@@ -1077,6 +1077,9 @@ Sections:
                 <option value="Accountant">Accountant</option>
                 <option value="Admin">Admin</option>
                 <option value="HR">HR</option>
+                <option value="Receptionist">Receptionist</option>
+                <option value="Admission">Admission</option>
+                <option value="Transport">Transport</option>
                 <option value="Other">Other</option>
               </select>
               <input
