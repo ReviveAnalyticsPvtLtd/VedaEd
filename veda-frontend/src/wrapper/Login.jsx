@@ -34,7 +34,8 @@ export default function Login() {
       localStorage.setItem("permissions", JSON.stringify(permissions));
       localStorage.setItem("user", JSON.stringify(user));
 
-      if (role === "admin") navigate("/admin-front");
+      if (role === "superadmin") navigate("/superadmin-front/dashboard");
+      else if (role === "admin") navigate("/admin-front");
       else if (role === "teacher") navigate("/teacher");
       else if (role === "parent") navigate("/parent-front");
       else if (role === "staff") navigate("/staff-front");

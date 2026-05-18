@@ -4,8 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const controller = require("./superadminLandingController");
 const { validateProfilePayload } = require("./superadminLandingValidation");
+const authMiddleware = require("../../middleware/authMiddleware");
+const requireSuperAdmin = require("../../middleware/requireSuperAdminMiddleware");
 
 const router = express.Router();
+
+router.use(authMiddleware, requireSuperAdmin);
 
 const uploadDirectory = path.join(__dirname, "../../../public/uploads");
 if (!fs.existsSync(uploadDirectory)) {

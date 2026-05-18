@@ -400,22 +400,13 @@ function App() {
           <Route index element={<ParentMasterDashboard />} />
         </Route>
       </Route>
-      {/* ================= SUPER ADMIN FRONT ================= */}
-<Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
-  <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
-    {/* FRONT PAGE / LANDING */}
-    <Route index element={<SuperAdminFrontPage />} />
+      {/* ================= SUPER ADMIN (protected) ================= */}
+      <Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
+        <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
+          <Route index element={<SuperAdminFrontPage />} />
+          <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+        </Route>
 
-    {/* MASTER DASHBOARD */}
-    <Route
-      path="dashboard"
-      element={<SuperAdminMasterDashboard />}
-    />
-  </Route>
-</Route>
-
-
- {/* SuperAdmin Layout */}
         <Route path="/superadmin" element={<SuperAdminDashboardLayout />}>
   <Route index element={<Navigate to="dashboard" />} />
   <Route path="dashboard" element={<SuperAdminDashboard />} />
@@ -518,6 +509,7 @@ function App() {
         <Route path="annual" element={<SuperAdminCalendarAnnualCalendar />} />
         <Route path="event-setup" element={<SuperAdminCalendarEventSetup />} />
         <Route path="year-setup" element={<SuperAdminCalendarYearSetup />} />
+      </Route>
       </Route>
 
 <Route

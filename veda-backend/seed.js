@@ -21,7 +21,7 @@ async function seedDatabase() {
     await RolePermission.deleteMany({});
 
     // 1. Create Roles
-    const roles = ['admin', 'teacher', 'parent', 'staff', 'student'];
+    const roles = ['superadmin', 'admin', 'teacher', 'parent', 'staff', 'student'];
     const createdRoles = {};
     for (const roleName of roles) {
       createdRoles[roleName] = await Role.create({ name: roleName });
@@ -53,6 +53,7 @@ async function seedDatabase() {
 
     // 3. Map Permissions to Roles
     const roleMap = {
+      superadmin: ['view_dashboard', 'manage_students', 'manage_staff', 'manage_fees', 'manage_transport'],
       admin: permissions.map(p => p.name),
       teacher: ['view_dashboard', 'view_student', 'edit_student', 'mark_attendance', 'view_attendance'],
       parent: ['view_dashboard', 'view_student', 'view_fees', 'view_transport', 'view_attendance'],
@@ -71,9 +72,19 @@ async function seedDatabase() {
     }
     console.log("Role-Permissions mapped");
 
-    // 4. Create Initial Admin User
+    // 4. Create Initial SuperAdmin User
     await User.create({
-      name: "Super Admin",
+      name: "Platform Super Admin",
+      email: "superadmin@veda.com",
+      password: "password123",
+      roleId: createdRoles['superadmin']._id,
+      status: 'active'
+    });
+    console.log("Initial SuperAdmin user created: superadmin@veda.com / superadmin123");
+
+    // 5. Create Initial School Admin User
+    await User.create({
+      name: "School Admin",
       email: "admin@veda.com",
       password: "password123", // Hashes via pre-save hook
       roleId: createdRoles['admin']._id,

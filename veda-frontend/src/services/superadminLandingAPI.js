@@ -1,5 +1,13 @@
 import config from "../config";
 
+const authHeaders = (extra = {}) => {
+  const token = localStorage.getItem("token");
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+};
+
 const parseResponse = async (response, fallbackMessage) => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -12,7 +20,7 @@ export const superadminLandingAPI = {
   getProfile: async () => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to fetch profile");
   },
@@ -20,7 +28,7 @@ export const superadminLandingAPI = {
   updateProfile: async (data) => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     return parseResponse(response, "Failed to update profile");
@@ -32,6 +40,7 @@ export const superadminLandingAPI = {
 
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile/logo`, {
       method: "PATCH",
+      headers: authHeaders(),
       body: formData,
     });
     return parseResponse(response, "Failed to upload logo");
@@ -40,7 +49,7 @@ export const superadminLandingAPI = {
   getTheme: async () => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to fetch theme");
   },
@@ -48,7 +57,7 @@ export const superadminLandingAPI = {
   updateTheme: async (data) => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     return parseResponse(response, "Failed to update theme");
@@ -57,7 +66,7 @@ export const superadminLandingAPI = {
   getOther: async () => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to fetch other settings");
   },
@@ -65,7 +74,7 @@ export const superadminLandingAPI = {
   updateOther: async (data) => {
     const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     return parseResponse(response, "Failed to update other settings");
