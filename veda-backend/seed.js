@@ -80,17 +80,8 @@ async function seedDatabase() {
       roleId: createdRoles['superadmin']._id,
       status: 'active'
     });
-    console.log("Initial SuperAdmin user created: superadmin@veda.com / superadmin123");
-
-    // 5. Create Initial School Admin User
-    await User.create({
-      name: "School Admin",
-      email: "admin@veda.com",
-      password: "password123", // Hashes via pre-save hook
-      roleId: createdRoles['admin']._id,
-      status: 'active'
-    });
-    console.log("Initial Admin user created: admin@veda.com / password123");
+    console.log("Initial SuperAdmin user created: superadmin@veda.com / password123");
+    console.log("School admins are created dynamically via SuperAdmin Identity & Access.");
 
     // Create a dummy Teacher for testing
     await User.create({

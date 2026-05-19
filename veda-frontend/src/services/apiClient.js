@@ -23,6 +23,8 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       localStorage.removeItem("permissions");
+      localStorage.removeItem("platformPermissions");
+      localStorage.removeItem("user");
     }
     return Promise.reject(error);
   }

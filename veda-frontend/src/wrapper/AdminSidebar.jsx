@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { filterModulesByPermission } from "../utils/adminPermissions";
 import {
   FiUsers,
   FiMessageCircle,
@@ -92,6 +93,7 @@ const MODULES = [
 export default function AdminSidebar() {
   const [open, setOpen] = useState(null);
   const navigate = useNavigate();
+  const visibleModules = useMemo(() => filterModulesByPermission(MODULES), []);
 
   return (
     <aside className="w-64 bg-white shadow-md overflow-y-auto pt-16 ">
@@ -101,9 +103,17 @@ export default function AdminSidebar() {
         Main
       </div>
 
-      {/* Dashboard text (NOT clickable) */}
-      <div className="px-6 py-2 text-gray-800 font-medium">
+      <div
+        onClick={() => navigate("/admin-front")}
+        className="px-6 py-2 text-gray-800 font-medium cursor-pointer hover:text-indigo-600"
+      >
         Dashboard
+      </div>
+      <div
+        onClick={() => navigate("/admin-front/profile")}
+        className="px-6 py-2 text-gray-600 text-sm cursor-pointer hover:text-indigo-600"
+      >
+        Profile & Password
       </div>
 
       {/* Module Heading */}
@@ -112,7 +122,7 @@ export default function AdminSidebar() {
       </div>
 
       {/* Modules */}
-      {MODULES.map((mod) => (
+      {visibleModules.map((mod) => (
         <div key={mod.name}>
           <div
             className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-indigo-50"

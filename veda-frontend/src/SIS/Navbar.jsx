@@ -26,7 +26,7 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
 
   const handleLogout = () => {
     // Clear every auth key set by Login.jsx / apiClient.js
-    ["token", "role", "permissions", "user", "veda_role"].forEach((k) =>
+    ["token", "role", "permissions", "platformPermissions", "user", "veda_role"].forEach((k) =>
       localStorage.removeItem(k)
     );
     navigate("/");
