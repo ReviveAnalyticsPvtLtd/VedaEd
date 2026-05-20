@@ -16,6 +16,10 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import config from "../../config";
 import ProfileAvatar from "../../components/ProfileAvatar";
+import {
+  getStudentDocumentUrl,
+  getLatestPassportPhotoUrlFromDocs,
+} from "../../utils/studentProfileMedia";
 
 /* ================= CONSTANTS ================= */
 
@@ -72,44 +76,6 @@ const initialStudent = {
 };
 const initialDocs = [];
 
-const getBackendBaseUrl = () => {
-  const apiBase = (config.API_BASE_URL || "http://localhost:5000/api").trim();
-  return apiBase.replace(/\/api\/?$/, "");
-};
-
-const encodePathSegments = (value = "") =>
-  value
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-
-const getDocumentUrl = (doc = {}) => {
-  const backendBaseUrl = getBackendBaseUrl();
-  const rawDocPath = doc?.path || doc?.url || doc?.fileUrl || doc?.document || "";
-  const rawPath = String(rawDocPath).replace(/\\/g, "/").trim();
-
-  if (!rawPath) return "";
-  if (rawPath.startsWith("http://") || rawPath.startsWith("https://")) {
-    return encodeURI(rawPath);
-  }
-
-  if (rawPath.includes("public/uploads/")) {
-    const trimmed = rawPath.split("public/uploads/")[1]?.replace(/^\/+/, "") || "";
-    return trimmed ? `${backendBaseUrl}/uploads/${encodePathSegments(trimmed)}` : "";
-  }
-
-  if (rawPath.startsWith("/uploads/")) {
-    return `${backendBaseUrl}${encodeURI(rawPath)}`;
-  }
-
-  if (rawPath.startsWith("uploads/")) {
-    return `${backendBaseUrl}/${encodeURI(rawPath)}`;
-  }
-
-  const filename = rawPath.split("/").pop();
-  return filename ? `${backendBaseUrl}/uploads/${encodeURIComponent(filename)}` : "";
-};
-
 const normalizeDocument = (doc = {}, idx = 0) => ({
   id: doc._id || doc.id || idx + 1,
   _id: doc._id || doc.id || idx + 1,
@@ -117,37 +83,9 @@ const normalizeDocument = (doc = {}, idx = 0) => ({
   type: doc.type || "",
   fileType: doc.fileType || "",
   path: doc.path || "",
-  fileUrl: getDocumentUrl(doc) || "",
+  fileUrl: getStudentDocumentUrl(doc) || "",
   date: doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : "-",
 });
-
-const getLatestPassportPhotoUrl = (docs = []) => {
-  const isImageDoc = (doc) => {
-    const fileType = String(doc?.fileType || "").toLowerCase();
-    const name = String(doc?.name || "").toLowerCase();
-    return fileType.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(name);
-  };
-
-  const hasValidUrl = (doc) => !!doc?.fileUrl;
-
-  const matches = docs.filter((doc) => {
-    const typeText = String(doc.type || "").toLowerCase();
-    const nameText = String(doc.name || "").toLowerCase();
-    const looksPassport =
-      typeText.includes("passport") ||
-      nameText.includes("passport") ||
-      typeText.includes("photo") ||
-      nameText.includes("photo");
-    return looksPassport && isImageDoc(doc) && hasValidUrl(doc);
-  });
-
-  if (matches.length) return matches[matches.length - 1].fileUrl || "";
-
-  const imageDocs = docs.filter((doc) => isImageDoc(doc) && hasValidUrl(doc));
-  if (imageDocs.length) return imageDocs[imageDocs.length - 1].fileUrl || "";
-
-  return "";
-};
 
 const mapStudentForProfile = (raw = {}) => {
   const personal = raw.personalInfo || {};
@@ -432,7 +370,7 @@ const FinalStudentProfile = () => {
 
   const handleDownload = async (doc) => {
     setDocumentError("");
-    const fileUrl = getDocumentUrl(doc);
+    const fileUrl = getStudentDocumentUrl(doc);
     if (!fileUrl) {
       setDocumentError("Document URL is invalid.");
       return;
@@ -464,7 +402,7 @@ const FinalStudentProfile = () => {
 
   const handlePreview = (doc) => {
     setDocumentError("");
-    const fileUrl = getDocumentUrl(doc);
+    const fileUrl = getStudentDocumentUrl(doc);
     if (!fileUrl) {
       setDocumentError("Document URL is invalid.");
       return;
@@ -565,7 +503,7 @@ const FinalStudentProfile = () => {
         <div className="flex flex-col items-center gap-2">
           <ProfileAvatar
             name={data.name || "Student"}
-            imageSrc={getLatestPassportPhotoUrl(documents)}
+            imageSrc={getLatestPassportPhotoUrlFromDocs(documents)}
             sizeClassName="w-24 h-24 sm:w-28 sm:h-28 shrink-0"
             textClassName="text-3xl"
             className="ring-4 ring-indigo-200"

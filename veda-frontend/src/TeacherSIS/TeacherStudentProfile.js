@@ -1,9 +1,14 @@
 // src/TeacherSIS/TeacherStudentProfile.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiInfo, FiFileText, FiCalendar, FiDollarSign, FiBarChart, FiEdit3, FiSave, FiX } from "react-icons/fi";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import api from "../services/apiClient";
+import ProfileAvatar from "../components/ProfileAvatar";
+import {
+  getLatestPassportPhotoUrlFromDocs,
+  normalizeStudentDocumentForAvatar,
+} from "../utils/studentProfileMedia";
 
 const mockPerformance = [
   { term: "Term 1", score: 78 },
@@ -60,55 +65,63 @@ const TabButton = ({ label, isActive, onClick, icon }) => (
 const TeacherStudentProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id: routeStudentId } = useParams();
   const studentData = location.state || null;
+  const resolvedMongoId = routeStudentId || studentData?._id || studentData?.id || null;
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [student, setStudent] = useState(studentData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [documents, setDocuments] = useState(() =>
+    (studentData?.documents || []).map(normalizeStudentDocumentForAvatar)
+  );
 
-  // Fetch student data from backend if ID is provided
+  // Fetch student data from backend when MongoDB id is available
   useEffect(() => {
     const fetchStudent = async () => {
-      if (!id) {
-        console.log("No ID provided in URL params");
+      if (!resolvedMongoId) {
         return;
       }
 
-      console.log("Fetching student with ID:", id);
+      console.log("Fetching student with ID:", resolvedMongoId);
       setLoading(true);
       setError(null);
 
       try {
-        const response = await api.get(`/students/${id}`);
+        const response = await api.get(`/students/${resolvedMongoId}`);
         if (response.data.success && response.data.student) {
-          const studentData = response.data.student;
+          const s = response.data.student;
+          const imageField = s.personalInfo?.image;
 
           // Transform backend data to frontend format
           const transformedStudent = {
-            id: studentData._id,
-            _id: studentData._id,
-            name: studentData.personalInfo?.name || "",
-            stdId: studentData.personalInfo?.stdId || "",
-            grade: studentData.personalInfo?.class || "",
-            section: studentData.personalInfo?.section || "",
-            rollNo: studentData.personalInfo?.rollNo || "",
-            gender: studentData.personalInfo?.gender || "",
-            dob: studentData.personalInfo?.DOB || "",
-            age: studentData.personalInfo?.age || "",
-            address: studentData.personalInfo?.address || "",
-            bloodGroup: studentData.personalInfo?.bloodGroup || "",
-            contact: studentData.personalInfo?.contactDetails?.mobileNumber || "",
-            email: studentData.personalInfo?.contactDetails?.email || "",
-            fee: studentData.personalInfo?.fees || "Due",
-            attendance: studentData.attendance || "N/A",
-            photo: studentData.photo || "https://via.placeholder.com/150",
-            fatherName: studentData.parent?.fatherName || "",
-            motherName: studentData.parent?.motherName || "",
+            id: s._id,
+            _id: s._id,
+            name: s.personalInfo?.name || "",
+            stdId: s.personalInfo?.stdId || "",
+            grade: s.personalInfo?.class || "",
+            section: s.personalInfo?.section || "",
+            rollNo: s.personalInfo?.rollNo || "",
+            gender: s.personalInfo?.gender || "",
+            dob: s.personalInfo?.DOB || "",
+            age: s.personalInfo?.age || "",
+            address: s.personalInfo?.address || "",
+            bloodGroup: s.personalInfo?.bloodGroup || "",
+            contact: s.personalInfo?.contactDetails?.mobileNumber || "",
+            email: s.personalInfo?.contactDetails?.email || "",
+            fee: s.personalInfo?.fees || "Due",
+            attendance: s.attendance || "N/A",
+            photo:
+              (typeof imageField === "string" ? imageField : imageField?.url) ||
+              s.photo ||
+              "",
+            fatherName: s.parent?.fatherName || "",
+            motherName: s.parent?.motherName || "",
           };
 
           setStudent(transformedStudent);
+          setDocuments((s.documents || []).map(normalizeStudentDocumentForAvatar));
         }
       } catch (err) {
         console.error("Error fetching student:", err.response?.data || err.message);
@@ -119,7 +132,13 @@ const TeacherStudentProfile = () => {
     };
 
     fetchStudent();
-  }, [id]);
+  }, [resolvedMongoId]);
+
+  const profileHeaderImageSrc = useMemo(() => {
+    if (!student) return "";
+    const fromDocs = getLatestPassportPhotoUrlFromDocs(documents);
+    return (student.photo || fromDocs || "").trim();
+  }, [student, documents]);
 
   if (!student && !loading) {
     return (
@@ -252,43 +271,62 @@ const TeacherStudentProfile = () => {
             {error}
           </div>
         )}
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6">
           <button onClick={() => navigate(-1)} className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
             <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Class Directory
           </button>
-
-          {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
-            >
-              <FiEdit3 className="w-5 h-5 mr-2" /> Edit
-            </button>
-          ) : (
-            <div className="space-x-2">
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-              >
-                <FiSave className="w-5 h-5 mr-2" /> {loading ? "Saving..." : "Save"}
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                disabled={loading}
-                className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 disabled:opacity-50"
-              >
-                <FiX className="w-5 h-5 mr-2" /> Cancel
-              </button>
-            </div>
-          )}
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-4 mb-3 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-          <img className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-200" src={student.photo || "https://via.placeholder.com/150"} alt={student.name} />
-          <div className="flex-grow text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
-            <p className="text-lg text-indigo-600 font-medium">{student.grade} - {student.section}</p>
+        <div className="bg-white rounded-xl shadow-md p-4 mb-3 flex flex-col items-center text-center gap-4 sm:flex-row sm:items-center sm:text-left sm:gap-6">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <ProfileAvatar
+              name={student.name || "Student"}
+              imageSrc={profileHeaderImageSrc}
+              sizeClassName="w-32 h-32 sm:w-36 sm:h-36"
+              textClassName="text-3xl"
+              className="ring-4 ring-indigo-200"
+            />
+          </div>
+          <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
+              <p className="text-lg text-indigo-600 font-medium">
+                {student.grade} - {student.section}
+              </p>
+              {student.stdId ? (
+                <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 sm:justify-end shrink-0">
+              {!isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                >
+                  <FiEdit3 className="w-5 h-5 mr-2" /> Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <FiSave className="w-5 h-5 mr-2" /> {loading ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    disabled={loading}
+                    className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    <FiX className="w-5 h-5 mr-2" /> Cancel
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

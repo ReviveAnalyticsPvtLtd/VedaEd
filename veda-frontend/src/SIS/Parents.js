@@ -2,14 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiUser, FiDownload, FiChevronDown } from "react-icons/fi";
+import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiDownload, FiChevronDown } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
-import config from "../config";
 import { toastBannerClassName } from "../utils/toastMessageStyle";
 import api from "../services/apiClient";
 import ProfileAvatar from "../components/ProfileAvatar";
-
-const API_BASE_URL = config.API_BASE_URL;
 
 function formatDateTime(value) {
   if (value == null || value === "") return "N/A";
@@ -372,14 +369,10 @@ const handleBulkDelete = async () => {
   const indexOfLast = currentPage * parentsPerPage;
   const indexOfFirst = indexOfLast - parentsPerPage;
   const currentParents = filteredParents.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredParents.length / parentsPerPage);
-
-  const getFieldValue = (field) => "N/A";
-  const getRemainingFields = () => [];
+  const totalPages = Math.ceil(filteredParents.length / parentsPerPage) || 1;
 
   return (
-    <div className="p-0 m-0 min-h-screen">
-
+    <div className="m-0 p-0 w-full max-w-full min-w-0 flex flex-col flex-1 min-h-[calc(100dvh-5.5rem)]">
 
       {successMsg && (
         <div
@@ -408,9 +401,9 @@ const handleBulkDelete = async () => {
         </span>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
-        <h2 className="text-2xl font-bold">Parents</h2>
+        <h2 className="text-2xl font-bold shrink-0">Parents</h2>
 
         <HelpInfo
           title="Parents Module Help"
@@ -446,7 +439,7 @@ Sections:
       </div>
 
 
-      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+      <div className="mb-3 flex shrink-0 gap-4 overflow-x-auto border-b pb-px text-sm text-gray-600 sm:gap-6">
         <button
           onClick={() => {
             setActiveTab("all");
@@ -488,24 +481,26 @@ Sections:
       </div>
 
       {activeTab === "all" && (
-        <div className="bg-white p-3 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-semibold mb-4">Parent List</h3>
-          <div className="flex items-center gap-3 mb-4 w-full">
-            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-              <FiSearch className="text-gray-500 mr-2 text-sm" />
+        <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+          <h3 className="mb-4 text-lg font-semibold">Parent List</h3>
+          <div className="mb-4 w-full space-y-3">
+            <div className="flex min-w-0 max-w-full items-center rounded-md border bg-white px-3 py-2">
+              <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
               <input
                 type="text"
                 placeholder="Search parent name or ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full outline-none "
+                className="w-full min-w-0 outline-none"
               />
             </div>
 
-            <div className="relative group" ref={roleDropdownRef}>
+            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
+            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
+            <div className="relative w-[120px] shrink-0" ref={roleDropdownRef}>
               <button
                 onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
               >
                 <span>{filterRole || "Role"}</span>
                 <FiChevronDown className="text-xs" />
@@ -546,10 +541,10 @@ Sections:
               )}
             </div>
 
-            <div className="relative group" ref={bulkActionRef}>
+            <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
               <button
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+                className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
               >
                 <span>Bulk Action</span>
                 <FiChevronDown className="text-xs" />
@@ -577,11 +572,12 @@ Sections:
   </div>
 )}
             </div>
+            </div>
 
-            <div className="ml-auto relative" ref={dropdownRef}>
+            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+                className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
               >
                 <FiPlus />
                 Add Parent
@@ -611,9 +607,11 @@ Sections:
                 </div>
               )}
             </div>
+            </div>
           </div>
 
-          <table className="w-full border">
+          <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
+          <table className="min-w-[880px] w-full border text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">
@@ -695,22 +693,23 @@ Sections:
             </tbody>
 
           </table>
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+          </div>
+          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
               Page {currentPage} of {totalPages}
             </p>
-            <div className="space-x-2">
+            <div className="flex justify-end gap-2">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50"
+                className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
               </button>
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50"
+                className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
               </button>
@@ -737,24 +736,24 @@ Sections:
         const loginTotalPages = Math.ceil(filteredLoginParents.length / parentsPerPage) || 1;
 
         return (
-          <div className="bg-white p-3 rounded-lg shadow-sm border">
-            <h3 className="text-lg font-semibold mb-4">Login Credentials</h3>
-            <div className="flex items-center gap-3 mb-4 w-full">
-              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-                <FiSearch className="text-gray-500 mr-2 text-sm" />
+          <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+            <h3 className="mb-4 text-lg font-semibold">Login Credentials</h3>
+            <div className="mb-4 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex min-w-0 max-w-full flex-1 items-center rounded-md border bg-white px-3 py-2 sm:max-w-md">
+                <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search parent name or ID"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full outline-none "
+                  className="w-full min-w-0 outline-none"
                 />
               </div>
 
-              <div className="relative group" ref={statusDropdownRef}>
+              <div className="relative w-full shrink-0 sm:w-auto" ref={statusDropdownRef}>
                 <button
                   onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                  className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                  className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500 sm:w-[120px]"
                 >
                   <span>{filterStatus || "Status"}</span>
                   <FiChevronDown className="text-xs" />
@@ -795,7 +794,8 @@ Sections:
                 )}
               </div>
             </div>
-            <table className="w-full border text-sm">
+            <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
+            <table className="min-w-[720px] w-full border text-sm">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="p-2 border">S. no.</th>
@@ -889,23 +889,24 @@ Sections:
                 )}
               </tbody>
             </table>
+            </div>
 
-            <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+            <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
               <p>
                 Page {loginPage} of {loginTotalPages}
               </p>
-              <div className="space-x-2">
+              <div className="flex justify-end gap-2">
                 <button
                   disabled={loginPage === 1}
                   onClick={() => setLoginPage(loginPage - 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
                   disabled={loginPage === loginTotalPages}
                   onClick={() => setLoginPage(loginPage + 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -916,8 +917,8 @@ Sections:
       })()}
 
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
             <h3 className="text-lg font-bold mb-4">Add Parent Manually</h3>
             <form onSubmit={handleAddManually} className="space-y-3">
               <input
@@ -992,9 +993,9 @@ Sections:
         </div>
       )}
       {selectedParent && (
-        <div className="fixed top-0 right-0 h-full w-[380px] bg-white border-l shadow-xl z-50 overflow-y-auto">
-            <div className="flex justify-between items-start p-4 border-b gap-3">
-            <div className="flex-1 min-w-0 flex gap-3">
+        <div className="fixed inset-y-0 right-0 z-50 h-full w-full max-w-[380px] overflow-y-auto border-l bg-white shadow-xl">
+            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-1 gap-3">
               <ProfileAvatar
                 name={selectedParent.name}
                 imageSrc={selectedParent.photo}
@@ -1002,7 +1003,7 @@ Sections:
                 textClassName="text-lg"
               />
               <div className="flex-3 min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
                 <button
                   onClick={() =>
@@ -1010,7 +1011,7 @@ Sections:
                       state: selectedParent,
                     })
                   }
-                  className="text-sm bg-yellow-500 text-white px-8 py-1 rounded"
+                  className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
                 >
                   View Full Profile
                 </button>
@@ -1058,8 +1059,8 @@ Sections:
 
       {/* Password Update Modal */}
       {showPasswordModal && editingPassword && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
             <h3 className="text-lg font-bold mb-4">Update Password for {editingPassword.name}</h3>
             <form onSubmit={(e) => {
               e.preventDefault();

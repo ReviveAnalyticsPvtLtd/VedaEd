@@ -553,6 +553,7 @@ Tools available inside every class:
                     onClick={() =>
                       navigate("/teacher/student-profile", {
                         state: {
+                          _id: selectedStudent._id,
                           id: selectedStudent.personalInfo.stdId,
                           name: selectedStudent.personalInfo.name,
                           grade: selectedStudent.personalInfo.class,
@@ -561,7 +562,13 @@ Tools available inside every class:
                           fee: selectedStudent.personalInfo.fees,
                           attendance: selectedStudent.attendance,
                           password: selectedStudent.personalInfo.password,
-                          photo: selectedStudent.photo,
+                          photo:
+                            selectedStudent.photo ||
+                            selectedStudent.personalInfo?.image?.url ||
+                            (typeof selectedStudent.personalInfo?.image === "string"
+                              ? selectedStudent.personalInfo.image
+                              : "") ||
+                            "",
                           gender: getFieldValue("Gender"),
                           dob: getFieldValue("Date of Birth"),
                           age: getFieldValue("Age"),

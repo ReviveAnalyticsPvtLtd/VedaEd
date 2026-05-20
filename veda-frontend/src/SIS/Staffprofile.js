@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import config from "../config";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { authFetch } from "../services/apiClient";
+import ProfileAvatar, { resolveProfileImage } from "../components/ProfileAvatar";
+import { getLatestPassportPhotoUrlFromDocs } from "../utils/studentProfileMedia";
 import {
   FiArrowLeft,
   FiInfo,
@@ -182,7 +184,11 @@ const StaffProfile = () => {
     paymentStatus: staffRecord.salaryDetails?.paymentStatus || staffRecord.payStatus,
     username: staffRecord.personalInfo?.username,
     password: staffRecord.personalInfo?.password,
-    photo: staffRecord.personalInfo?.image,
+    photo:
+      resolveProfileImage(
+        staffRecord.personalInfo || {},
+        staffRecord.personalInfo?.image || staffRecord.photo
+      ) || "",
     performance: staffRecord.performance || [],
     documents: staffRecord.documents || [],
   });
@@ -256,6 +262,15 @@ const StaffProfile = () => {
       setFormData(staff);
     }
   }, [staff]);
+
+  const profileHeaderImageSrc = useMemo(() => {
+    const fromStaff = resolveProfileImage(
+      formData || {},
+      formData?.photo || staff?.photo || staff?.personalInfo?.image
+    );
+    if (fromStaff) return fromStaff;
+    return getLatestPassportPhotoUrlFromDocs(documents || []);
+  }, [documents, formData, staff]);
 
   if (loading) {
     return (
@@ -831,30 +846,37 @@ const StaffProfile = () => {
         </div>
 
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
-          <img
-            className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-200"
-            src={staff.photo || "https://via.placeholder.com/150"}
-            alt={staff.name}
+        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col items-center text-center gap-4 sm:flex-row sm:items-center sm:text-left sm:gap-6">
+          <ProfileAvatar
+            name={staff.name || "Staff"}
+            imageSrc={profileHeaderImageSrc}
+            sizeClassName="w-32 h-32 sm:w-36 sm:h-36 shrink-0"
+            textClassName="text-3xl"
+            className="ring-4 ring-indigo-200"
           />
-          <div className="flex-grow text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-gray-900">{staff.name}</h1>
-            <p className="text-lg text-indigo-600 font-medium">{staff.role}</p>
-            <div className="mt-3">
-              <span className={statusBadgeClasses(staff.status)}>
-                {staff.status}
-              </span>
+          <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">{staff.name}</h1>
+              <p className="text-lg text-indigo-600 font-medium">{staff.role}</p>
+              <p className="text-sm text-gray-500 font-medium">
+                Staff ID: {staff.staffId || "N/A"}
+              </p>
+              <div className="mt-3">
+                <span className={statusBadgeClasses(staff.status)}>
+                  {staff.status}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Edit / Save / Cancel Buttons */}
-          <div className="flex space-x-2 mt-4 sm:mt-0">
+          <div className="flex flex-wrap justify-center gap-2 sm:justify-end shrink-0">
             {!isEditing ? (
               <button
                 onClick={handleEdit}
                 className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-indigo-700"
               >
-                <FiEdit2 /> <span>Edit</span>
+                <FiEdit2 /> <span>Edit Profile</span>
               </button>
             ) : (
               <>
