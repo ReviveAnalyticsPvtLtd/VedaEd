@@ -7,10 +7,10 @@ import api from "../services/apiClient";
 import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
 import { FiChevronDown, FiUser, FiDownload } from "react-icons/fi";
+import ProfileAvatar, { resolveProfileImage } from "../components/ProfileAvatar";
+import { getLatestPassportPhotoUrlFromDocs } from "../utils/studentProfileMedia";
 
-import config from "../config";
 import { toastBannerClassName } from "../utils/toastMessageStyle";
-const API_BASE_URL = config.API_BASE_URL;
 
 export default function Staff() {
   const [selectedStudents, setSelectedStudents] = useState([]);
@@ -92,6 +92,14 @@ const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
 
 
   const navigate = useNavigate();
+  const resolveStaffPhoto = (staffRecord = {}) => {
+    const fromProfile = resolveProfileImage(
+      staffRecord.personalInfo || {},
+      staffRecord.photo || staffRecord.personalInfo?.image
+    );
+    if (fromProfile) return fromProfile;
+    return getLatestPassportPhotoUrlFromDocs(staffRecord.documents || []);
+  };
 
   useEffect(() => {
     const updatedRaw = sessionStorage.getItem("staffProfileUpdated");
@@ -385,7 +393,7 @@ const handleChange = (e) => {
   const indexOfLast = currentPage * staffPerPage;
   const indexOfFirst = indexOfLast - staffPerPage;
   const currentStaff = filteredStaff.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredStaff.length / staffPerPage);
+  const totalPages = Math.ceil(filteredStaff.length / staffPerPage) || 1;
 
   const getFieldValue = (field) => {
     if (!selectedStaff) return "N/A";
@@ -452,10 +460,6 @@ const handleChange = (e) => {
   };
   // ------- LOGIN TAB STATES -------
   const [searchLogin, setSearchLogin] = useState("");
-  const loginBulkRef = useRef(null);
-  const [showLoginBulk, setShowLoginBulk] = useState(false);
-
-  // Pagination for Login Tab
   const [loginPage, setLoginPage] = useState(1);
   const loginPerPage = 20;
 
@@ -477,11 +481,11 @@ const handleChange = (e) => {
     indexOfLastLogin
   );
 
-  const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage);
+  const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage) || 1;
 
 
   return (
-    <div className="p-0 m-0 min-h-screen">
+    <div className="m-0 flex min-h-[calc(100dvh-5.5rem)] w-full max-w-full min-w-0 flex-1 flex-col p-0">
 
       {successMsg && (
         <div
@@ -507,8 +511,8 @@ const handleChange = (e) => {
         </span>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Staff</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h2 className="shrink-0 text-2xl font-bold">Staff</h2>
 
         <HelpInfo
           title="Staff Module Help"
@@ -546,7 +550,7 @@ Sections:
 
 
       {/* Tabs */}
-      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+      <div className="mb-3 flex shrink-0 gap-4 overflow-x-auto border-b pb-px text-sm text-gray-600 sm:gap-6">
         <button
           onClick={() => setActiveTab("all")}
           className={`pb-2 ${activeTab === "all"
@@ -576,29 +580,32 @@ Sections:
         </button>
       </div>
       {activeTab === "all" && (
-        <div className="bg-white p-3 rounded-lg shadow-sm border">
+        <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
 
-          <h3 className="text-lg font-semibold mb-4">Staff List</h3>
+          <h3 className="mb-4 text-lg font-semibold">Staff List</h3>
 
-          <div className="flex items-center gap-3 mb-4 w-full">
+          <div className="mb-4 w-full space-y-3">
 
             {/* Search */}
-            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-              <FiSearch className="text-gray-500 mr-2 text-sm" />
+            <div className="flex min-w-0 max-w-full items-center rounded-md border bg-white px-3 py-2">
+              <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
               <input
                 type="text"
                 placeholder="Search staff name or ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full outline-none "
+                className="w-full min-w-0 outline-none"
               />
             </div>
 
+            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
+            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
+
             {/* Department Dropdown */}
-            <div className="relative group" ref={deptDropdownRef}>
+            <div className="relative w-[120px] shrink-0" ref={deptDropdownRef}>
               <button
                 onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
               >
                 <span>{filterDept || "Department"}</span>
                 <FiChevronDown className="text-xs" />
@@ -633,10 +640,10 @@ Sections:
             </div>
 
             {/* Status Dropdown */}
-            <div className="relative group" ref={statusDropdownRef}>
+            <div className="relative w-[120px] shrink-0" ref={statusDropdownRef}>
               <button
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
               >
                 <span>{filterStatus || "Status"}</span>
                 <FiChevronDown className="text-xs" />
@@ -670,10 +677,10 @@ Sections:
               )}
             </div>
 
-            <div className="relative group" ref={bulkActionRef}>
+            <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
               <button
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+                className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
               >
                 <span>Bulk Actions</span>
                 <FiChevronDown className="text-xs" />
@@ -707,12 +714,13 @@ Sections:
                 </div>
               )}
             </div>
+            </div>
 
             {/* Add Staff */}
-            <div className="ml-auto relative" ref={dropdownRef}>
+            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+                className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
               >
                 <FiPlus /> Add Staff
               </button>
@@ -742,11 +750,14 @@ Sections:
 
           </div>
 
+          </div>
+
 
 
 
           {/* Staff Table */}
-          <table className="w-full border ">
+          <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
+          <table className="min-w-[920px] w-full border text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">
@@ -799,9 +810,13 @@ Sections:
 
                   <td className="p-2 border text-left">
                     <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
-                        {s.personalInfo?.name?.[0] || "S"}
-                      </span>
+                      <ProfileAvatar
+                        name={s.personalInfo?.name || "Staff"}
+                        imageSrc={resolveStaffPhoto(s)}
+                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                        textClassName="text-xs"
+                        className="ring-2 ring-indigo-100 shrink-0"
+                      />
                       <span>{s.personalInfo?.name}</span>
                     </div>
                   </td>
@@ -840,22 +855,23 @@ Sections:
               )}
             </tbody>
           </table>
+          </div>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <p>Page {currentPage} of {totalPages}</p>
-            <div className="space-x-2">
+            <div className="flex justify-end gap-2">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
+                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
               </button>
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
+                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
               </button>
@@ -866,29 +882,29 @@ Sections:
 
       {/* Login / Others Tabs */}
       {activeTab === "login" && (
-        <div className="bg-white p-3 rounded-lg shadow-sm border">
+        <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
 
           {/* Heading */}
-          <h3 className="text-lg font-semibold mb-4">Staff Login</h3>
+          <h3 className="mb-4 text-lg font-semibold">Staff Login</h3>
 
           {/* Search + Filter + Bulk Actions */}
-          <div className="flex items-center gap-3 mb-4 w-full">
+          <div className="mb-4 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 
             {/* Search */}
-            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-              <FiSearch className="text-gray-500 mr-2 text-sm" />
+            <div className="flex min-w-0 max-w-full flex-1 items-center rounded-md border bg-white px-3 py-2 sm:max-w-md">
+              <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
               <input
                 type="text"
                 placeholder="Search staff name or ID"
                 value={searchLogin}
                 onChange={(e) => setSearchLogin(e.target.value)}
-                className="w-full outline-none "
+                className="w-full min-w-0 outline-none"
               />
             </div>
-            <div className="relative group" ref={bulkActionRef}>
+            <div className="relative w-full shrink-0 sm:w-auto" ref={bulkActionRef}>
               <button
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+                className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500 sm:w-auto"
               >
                 <span>Bulk Actions</span>
                 <FiChevronDown className="text-xs" />
@@ -936,7 +952,8 @@ Sections:
           </div>
 
           {/* Login Table */}
-          <table className="w-full border text-sm">
+          <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
+          <table className="min-w-[680px] w-full border text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">S. no.</th>
@@ -956,9 +973,13 @@ Sections:
 
                   <td className="p-2 border text-left">
                     <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
-                        {s.personalInfo?.name?.[0] || "S"}
-                      </span>
+                      <ProfileAvatar
+                        name={s.personalInfo?.name || "Staff"}
+                        imageSrc={resolveStaffPhoto(s)}
+                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                        textClassName="text-xs"
+                        className="ring-2 ring-indigo-100 shrink-0"
+                      />
                       <span>{s.personalInfo?.name || "N/A"}</span>
                     </div>
                   </td>
@@ -1009,22 +1030,23 @@ Sections:
               )}
             </tbody>
           </table>
+          </div>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <p>Page {loginPage} of {totalLoginPages}</p>
-            <div className="space-x-2">
+            <div className="flex justify-end gap-2">
               <button
                 disabled={loginPage === 1}
                 onClick={() => setLoginPage(loginPage - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
+                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
               </button>
               <button
                 disabled={loginPage === totalLoginPages}
                 onClick={() => setLoginPage(loginPage + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
+                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
               </button>
@@ -1036,8 +1058,8 @@ Sections:
 
 
       {activeTab === "others" && (
-        <div className="bg-gray-200 p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="w-full max-w-full rounded-lg border border-gray-200 bg-gray-200 p-4 sm:p-6">
+          <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-6">
             <h3 className="text-lg font-semibold mb-2">Others</h3>
             <p className="text-sm text-gray-600">
               Yahan aap future me HR documents, leaves, appraisal ya training records jaisi cheezein rakh sakte ho.
@@ -1048,8 +1070,8 @@ Sections:
 
       {/* Add Staff Form */}
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
             <h3 className="text-lg font-bold mb-4">Add Staff Manually</h3>
             <form onSubmit={handleAddManually} className="space-y-3">
               <input
@@ -1077,6 +1099,9 @@ Sections:
                 <option value="Accountant">Accountant</option>
                 <option value="Admin">Admin</option>
                 <option value="HR">HR</option>
+                <option value="Receptionist">Receptionist</option>
+                <option value="Admission">Admission</option>
+                <option value="Transport">Transport</option>
                 <option value="Other">Other</option>
               </select>
               <input
@@ -1111,8 +1136,8 @@ Sections:
 
       {/* Password Update Modal */}
       {showPasswordModal && editingPassword && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
             <h3 className="text-lg font-bold mb-4">Update Password for {editingPassword.personalInfo?.name}</h3>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -1167,25 +1192,34 @@ Sections:
 
       {/* Staff Sidebar */}
       {selectedStaff && (
-        <div className="fixed top-0 right-0 h-full w-[380px] bg-white border-l shadow-xl z-50 overflow-y-auto">
-          <div className="flex justify-between items-start p-4 border-b">
-            <div className="flex-3">
-              <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold">{selectedStaff.personalInfo?.name || "N/A"}</h2>
-                <button
-                  onClick={() =>
-                    navigate(`/admin/staff-profile/${selectedStaff._id}`, {
-                      state: selectedStaff
-                    })
-                  }
-                  className="text-sm bg-yellow-500 text-white px-4 py-1 rounded"
-                >
-                  View Full Profile
-                </button>
+        <div className="fixed inset-y-0 right-0 z-50 h-full w-full max-w-[380px] overflow-y-auto border-l bg-white shadow-xl">
+          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-1 gap-3">
+              <ProfileAvatar
+                name={selectedStaff.personalInfo?.name || "Staff"}
+                imageSrc={resolveStaffPhoto(selectedStaff)}
+                sizeClassName="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem]"
+                textClassName="text-sm"
+                className="shrink-0 ring-2 ring-indigo-100"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <h2 className="break-words text-xl font-semibold">{selectedStaff.personalInfo?.name || "N/A"}</h2>
+                  <button
+                    onClick={() =>
+                      navigate(`/admin/staff-profile/${selectedStaff._id}`, {
+                        state: selectedStaff
+                      })
+                    }
+                    className="shrink-0 rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:py-1"
+                  >
+                    View Full Profile
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Staff ID : {selectedStaff.personalInfo?.staffId || "N/A"}
+                </p>
               </div>
-              <p className="text-sm text-gray-500">
-                Staff ID : {selectedStaff.personalInfo?.staffId || "N/A"}
-              </p>
             </div>
             <button
               className="p-1 rounded hover:bg-gray-100 text-gray-500"

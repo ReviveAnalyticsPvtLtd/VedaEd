@@ -2,17 +2,25 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
-import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiUser, FiDownload, FiChevronDown } from "react-icons/fi";
+import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiDownload, FiChevronDown } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
+import ProfileAvatar from "../components/ProfileAvatar";
 
-import config from "../config";
 import api from "../services/apiClient";
 import { isToastErrorMessage, toastBannerClassName } from "../utils/toastMessageStyle";
-const API_BASE_URL = config.API_BASE_URL;
+import { getLatestPassportPhotoUrlFromDocs } from "../utils/studentProfileMedia";
 
 function normalizeStudentRow(s, idx = 0) {
+  const imageField = s.personalInfo?.image;
+  const profileFromImageField =
+    (typeof imageField === "string" ? imageField : "") ||
+    imageField?.url ||
+    imageField?.path ||
+    imageField?.fileUrl ||
+    "";
+  const profileFromDocuments = getLatestPassportPhotoUrlFromDocs(s.documents || []);
+
   return {
     ...s,
     id: s._id || idx + 1,
@@ -29,7 +37,7 @@ function normalizeStudentRow(s, idx = 0) {
       password: s.personalInfo?.password || "default123",
       fees: s.personalInfo?.fees || "Due",
     },
-    photo: s.photo || s.personalInfo?.image?.url || "https://via.placeholder.com/80",
+    photo: s.photo || profileFromImageField || profileFromDocuments || "",
     address: s.address || s.personalInfo?.address || s.contactInfo?.address || "",
     attendance: s.attendance || "-",
   };
@@ -598,9 +606,7 @@ const handleBulkDelete = async () => {
   };
 
   return (
-    <div className="p-0 m-0 min-h-screen">
-
-
+    <div className="m-0 p-0 w-full max-w-full min-w-0 flex flex-col flex-1 min-h-[calc(100dvh-5.5rem)]">
 
       {successMsg && (
         <div
@@ -629,8 +635,8 @@ const handleBulkDelete = async () => {
         </span>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Students</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-4">
+        <h2 className="text-2xl font-bold shrink-0">Students</h2>
 
         <HelpInfo
           title="Students Page Help"
@@ -688,7 +694,7 @@ Sections:
         />
       </div>
 
-      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+      <div className="flex gap-4 sm:gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto shrink-0 pb-px">
         <button
           onClick={() => {
             setActiveTab("all");
@@ -730,24 +736,26 @@ Sections:
       </div>
 
       {activeTab === "all" && (
-        <div className="bg-white p-3 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full max-w-full flex flex-col flex-1 min-h-0">
           <h3 className="text-lg font-semibold mb-4">Student List</h3>
-          <div className="flex items-center gap-3 mb-4 w-full">
-            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-              <FiSearch className="text-gray-500 mr-2 text-sm" />
+          <div className="mb-4 w-full space-y-3">
+            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-full max-w-full min-w-0">
+              <FiSearch className="text-gray-500 mr-2 text-sm shrink-0" />
               <input
                 type="text"
                 placeholder="Search student name or ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full outline-none text-sm"
+                className="w-full min-w-0 outline-none text-sm"
               />
             </div>
 
-            <div className="relative group" ref={classDropdownRef}>
+            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
+            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
+            <div className="relative w-[120px] shrink-0" ref={classDropdownRef}>
               <button
                 onClick={() => setShowClassDropdown(!showClassDropdown)}
-                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500"
               >
                 <span>{filterClass || "Class"}</span>
                 <FiChevronDown className="text-xs" />
@@ -786,11 +794,11 @@ Sections:
               )}
             </div>
 
-            <div className="relative group" ref={sectionDropdownRef}>
+            <div className="relative shrink-0 w-[120px]" ref={sectionDropdownRef}>
               <button
                 onClick={() => filterClass && setShowSectionDropdown(!showSectionDropdown)}
                 disabled={!filterClass}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>{filterSection || "Section"}</span>
                 <FiChevronDown className="text-xs" />
@@ -833,10 +841,10 @@ Sections:
               )}
             </div>
 
-            <div className="relative group" ref={bulkActionRef}>
+            <div className="relative shrink-0 min-w-[130px]" ref={bulkActionRef}>
               <button
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500"
               >
                 <span>Bulk Actions</span>
                 <FiChevronDown className="text-xs" />
@@ -864,11 +872,12 @@ Sections:
   </div>
 )}
             </div>
+            </div>
 
-            <div className="ml-auto relative" ref={dropdownRef}>
+            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md  flex items-center gap-1"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center justify-center gap-1 whitespace-nowrap"
               >
                 <FiPlus />
                 Add Student
@@ -898,9 +907,11 @@ Sections:
                 </div>
               )}
             </div>
+            </div>
           </div>
 
-          <table className="w-full border ">
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 rounded-md border border-gray-100 sm:border-0">
+          <table className="w-full border text-sm min-w-[720px]">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border w-[50px]">
@@ -948,9 +959,13 @@ Sections:
                   </td>
                   <td className="p-2 border text-left">
                     <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 bg-orange-500 text-white flex items-center justify-center rounded-full">
-                        {s.personalInfo.name[0]}
-                      </span>
+                      <ProfileAvatar
+                        name={s.personalInfo.name || "Student"}
+                        imageSrc={s.photo || ""}
+                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                        textClassName="text-xs"
+                        className="ring-2 ring-indigo-100 shrink-0"
+                      />
                       <span>{s.personalInfo.name}</span>
                     </div>
                   </td>
@@ -1012,12 +1027,13 @@ Sections:
               )}
             </tbody>
           </table>
+          </div>
 
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center text-sm text-gray-500 mt-3">
             <p>
               Page {currentPage} of {totalPages}
             </p>
-            <div className="space-x-2">
+            <div className="flex gap-2 justify-end">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(currentPage - 1)}
@@ -1057,24 +1073,24 @@ Sections:
         const loginTotalPages = Math.ceil(filteredLoginStudents.length / studentsPerPage) || 1;
 
         return (
-          <div className="bg-white p-3 rounded-lg shadow-sm border">
+          <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full max-w-full flex flex-col flex-1 min-h-0">
             <h3 className="text-lg font-semibold mb-4">Login Credentials</h3>
-            <div className="flex items-center gap-3 mb-4 w-full">
-              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-                <FiSearch className="text-gray-500 mr-2 text-sm" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-4 w-full">
+              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-full min-w-0 sm:flex-1 sm:max-w-md">
+                <FiSearch className="text-gray-500 mr-2 text-sm shrink-0" />
                 <input
                   type="text"
                   placeholder="Search student name or ID"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full outline-none "
+                  className="w-full min-w-0 outline-none text-sm"
                 />
               </div>
 
-              <div className="relative group" ref={statusDropdownRef}>
+              <div className="relative group w-full sm:w-auto" ref={statusDropdownRef}>
                 <button
                   onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-full sm:w-[120px] justify-between hover:border-blue-500"
                 >
                   <span>{filterStatus || "Status"}</span>
                   <FiChevronDown className="text-xs" />
@@ -1115,7 +1131,8 @@ Sections:
                 )}
               </div>
             </div>
-            <table className="w-full border ">
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 rounded-md border border-gray-100 sm:border-0">
+            <table className="w-full border text-sm min-w-[640px]">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="p-2 border">S. no.</th>
@@ -1139,9 +1156,13 @@ Sections:
                     </td>
                     <td className="p-2 border text-left">
                       <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 bg-orange-500 text-white flex items-center justify-center rounded-full">
-                          {s.personalInfo?.name?.[0] || "?"}
-                        </span>
+                        <ProfileAvatar
+                          name={s.personalInfo?.name || "Student"}
+                          imageSrc={s.photo || ""}
+                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                          textClassName="text-xs"
+                          className="ring-2 ring-indigo-100 shrink-0"
+                        />
                         <span>{s.personalInfo?.name || "N/A"}</span>
                       </div>
                     </td>
@@ -1228,12 +1249,13 @@ Sections:
                 )}
               </tbody>
             </table>
+            </div>
 
-            <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center text-sm text-gray-500 mt-3">
               <p>
                 Page {loginPage} of {loginTotalPages}
               </p>
-              <div className="space-x-2">
+              <div className="flex gap-2 justify-end">
                 <button
                   disabled={loginPage === 1}
                   onClick={() => setLoginPage(loginPage - 1)}
@@ -1255,8 +1277,8 @@ Sections:
       })()}
 
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Add Student Manually</h3>
             {successMsg && isToastErrorMessage(successMsg) && (
               <div
@@ -1343,16 +1365,22 @@ Sections:
                 disabled={!selectedClassForForm}
               >
                 <option value="">Select Section</option>
-                {selectedClassForForm && classes.find(c => c.name === selectedClassForForm)?.sections?.map((sec) => (
-                  <option key={sec._id || sec} value={sec.name || sec}>
-                    {sec.name || sec}
-                  </option>
-                ))}
-                {!selectedClassForForm && sections.map((sec) => (
-                  <option key={sec._id} value={sec.name}>
-                    {sec.name}
-                  </option>
-                ))}
+                {selectedClassForForm ? (
+                  (formSections.length > 0
+                    ? formSections
+                    : classes.find((c) => c.name === selectedClassForForm)?.sections || []
+                  ).map((sec) => (
+                    <option key={sec._id || sec} value={sec.name || sec}>
+                      {sec.name || sec}
+                    </option>
+                  ))
+                ) : (
+                  sections.map((sec) => (
+                    <option key={sec._id} value={sec.name}>
+                      {sec.name}
+                    </option>
+                  ))
+                )}
               </select>
               <input
                 name="password"
@@ -1391,11 +1419,11 @@ Sections:
       )}
 
       {selectedStudent && (
-        <div className="fixed top-0 h-full w-[380px] bg-white border-l shadow-xl z-50 overflow-y-auto" style={{ left: 'calc(100% - 380px - 36px)' }}>
-          <div className="flex justify-between items-start p-4 border-b">
-            <div className="flex-3">
-              <div className="flex items-center gap-7">
-                <h2 className="text-xl font-semibold">
+        <div className="fixed inset-y-0 right-0 h-full w-full max-w-[380px] bg-white border-l shadow-xl z-50 overflow-y-auto">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start p-4 border-b">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <h2 className="text-xl font-semibold break-words">
                   {selectedStudent.personalInfo?.name || "N/A"}
                 </h2>
 
@@ -1405,7 +1433,7 @@ Sections:
                     console.log("Student _id:", selectedStudent._id);
                     handleViewFullProfile(selectedStudent);
                   }}
-                  className="text-sm bg-yellow-500 text-white px-8 py-1 rounded"
+                  className="text-sm bg-yellow-500 text-white px-4 sm:px-8 py-2 sm:py-1 rounded shrink-0 self-start sm:self-auto"
                 >
                   View Full Profile
                 </button>
@@ -1493,8 +1521,8 @@ Sections:
       )}
 
       {showPasswordModal && editingPassword && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">
               Update Password for {editingPassword.personalInfo?.name}
             </h3>
@@ -1555,6 +1583,7 @@ Sections:
           </div>
         </div>
       )}
+    
     </div>
   );
 }

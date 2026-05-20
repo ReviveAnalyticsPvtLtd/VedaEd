@@ -11,7 +11,6 @@ import {
   FiSave,
   FiX,
 } from "react-icons/fi";
-import config from "../config";
 import { authFetch } from "../services/apiClient";
 import ProfileAvatar from "../components/ProfileAvatar";
 
@@ -26,8 +25,59 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API_BASE_URL = config.API_BASE_URL;
 const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx";
+
+/** Normalize GET/PUT parent payload into UI state (password hash is not stored in React state). */
+const mapApiParentToState = (p) => {
+  if (!p) return null;
+  const legacyChildren = (p.childDetails || []).map((c) => ({
+    name: c.name,
+    grade: c.class != null ? String(c.class) : "N/A",
+    section: c.section != null ? String(c.section) : "N/A",
+    stdId: c.stdId,
+  }));
+  const primaryChildren =
+    (p.children && p.children.length > 0
+      ? p.children.map((child) => ({
+          name: child.personalInfo?.name || child.name,
+          grade:
+            child.personalInfo?.class?.name ||
+            child.personalInfo?.class ||
+            child.grade,
+          section:
+            child.personalInfo?.section?.name ||
+            child.personalInfo?.section ||
+            child.section,
+          stdId: child.personalInfo?.stdId || child.stdId,
+        }))
+      : legacyChildren) || [];
+  return {
+    id: p._id,
+    parentId: p.parentId,
+    name: p.name || p.fatherName,
+    email: p.email,
+    phone: p.phone || p.fatherNumber,
+    status: p.status,
+    occupation: p.occupation || p.fatherOccupation || "Parent",
+    relation: p.relation || p.role || "Parent",
+    address:
+      p.address ||
+      (typeof p.permanentAddress?.line1 === "string" && p.permanentAddress.line1 !== "N/A"
+        ? [
+            p.permanentAddress.line1,
+            p.permanentAddress.line2,
+            p.permanentAddress.city,
+            p.permanentAddress.state,
+            p.permanentAddress.pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : ""),
+    photo: p.photo || p.profilePhoto || "",
+    children: primaryChildren,
+    documents: p.documents || [],
+  };
+};
 
 // Input field component for editing
 const InputField = ({ label, value, onChange }) => (
@@ -85,8 +135,10 @@ const ParentProfile = () => {
   const [meetings, setMeetings] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [pageLoading, setPageLoading] = useState(() => Boolean(resolvedParentId));
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const profilePhotoInputRef = useRef(null);
 
@@ -102,8 +154,8 @@ const ParentProfile = () => {
       }
 
       console.log("Fetching parent with ID:", resolvedParentId);
-      setLoading(true);
-      setError(null);
+      setPageLoading(true);
+      setLoadError(null);
 
       try {
         const response = await authFetch(`/parents/${resolvedParentId}`);
@@ -115,68 +167,21 @@ const ParentProfile = () => {
         console.log("API Response:", data);
 
         if (data.success && data.parent) {
-          console.log("Parent data from API:", data.parent);
-          const p = data.parent;
-          const legacyChildren = (p.childDetails || []).map((c) => ({
-            name: c.name,
-            grade: c.class != null ? String(c.class) : "N/A",
-            section: c.section != null ? String(c.section) : "N/A",
-            stdId: c.stdId,
-          }));
-          const primaryChildren =
-            (p.children && p.children.length > 0
-              ? p.children.map((child) => ({
-                  name: child.personalInfo?.name || child.name,
-                  grade:
-                    child.personalInfo?.class?.name ||
-                    child.personalInfo?.class ||
-                    child.grade,
-                  section:
-                    child.personalInfo?.section?.name ||
-                    child.personalInfo?.section ||
-                    child.section,
-                  stdId: child.personalInfo?.stdId || child.stdId,
-                }))
-              : legacyChildren) || [];
-          // Map backend data to frontend structure (supports getParentbyId + legacy shapes)
-          const mappedParent = {
-            id: p._id,
-            parentId: p.parentId,
-            name: p.name || p.fatherName,
-            email: p.email,
-            phone: p.phone || p.fatherNumber,
-            status: p.status,
-            password: p.password,
-            occupation: p.occupation || p.fatherOccupation || "Parent",
-            relation: p.relation || p.role || "Parent",
-            address:
-              p.address ||
-              (typeof p.permanentAddress?.line1 === "string" && p.permanentAddress.line1 !== "N/A"
-                ? [
-                    p.permanentAddress.line1,
-                    p.permanentAddress.line2,
-                    p.permanentAddress.city,
-                    p.permanentAddress.state,
-                    p.permanentAddress.pincode,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")
-                : ""),
-            photo: p.photo || "",
-            children: primaryChildren,
-            documents: p.documents || [],
-          };
-
-          setParent(mappedParent);
-          console.log("Parent data loaded:", mappedParent);
+          const mappedParent = mapApiParentToState(data.parent);
+          if (mappedParent) {
+            setParent(mappedParent);
+            console.log("Parent data loaded:", mappedParent);
+          } else {
+            throw new Error("Invalid response format");
+          }
         } else {
           throw new Error("Invalid response format");
         }
       } catch (err) {
         console.error("Error fetching parent:", err);
-        setError(err.message);
+        setLoadError(err.message);
       } finally {
-        setLoading(false);
+        setPageLoading(false);
       }
     };
 
@@ -257,7 +262,7 @@ const ParentProfile = () => {
     }
   };
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
@@ -270,14 +275,14 @@ const ParentProfile = () => {
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-red-700 mb-4">
             Error Loading Parent Profile
           </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{loadError}</p>
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
@@ -328,25 +333,25 @@ const ParentProfile = () => {
 
     console.log("Using parent ID:", currentParentId);
 
-    setLoading(true);
-    setError(null);
+    setSaving(true);
+    setSaveError(null);
 
     try {
       // Check if parent data exists
       if (!parent) {
         console.error("No parent data available!");
-        alert("No parent data available. Cannot save.");
+        setSaveError("No parent data available. Cannot save.");
         return;
       }
 
-      // Map frontend data back to backend structure
+      // Do not send password unless you add a dedicated "change password" flow —
+      // the API used to re-hash an echoed bcrypt string and break login.
       const updateData = {
         name: parent.name,
         email: parent.email,
         phone: parent.phone,
         parentId: parent.parentId,
         status: parent.status,
-        password: parent.password,
         occupation: parent.occupation,
         relation: parent.relation,
         address: parent.address,
@@ -354,7 +359,6 @@ const ParentProfile = () => {
 
       console.log("Sending update data:", updateData);
       console.log("Parent ID:", currentParentId);
-      console.log("API URL:", `${API_BASE_URL}/parents/${currentParentId}`);
 
       const response = await authFetch(
         `/parents/${currentParentId}`,
@@ -368,24 +372,30 @@ const ParentProfile = () => {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Backend error:", errorData);
-        throw new Error(errorData.message || "Failed to update parent");
+        let message = "Failed to update parent";
+        try {
+          const errorData = await response.json();
+          message = errorData.message || message;
+        } catch {
+          /* non-JSON error body */
+        }
+        console.error("Backend error:", message);
+        throw new Error(message);
       }
 
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.parent) {
+        const mapped = mapApiParentToState(data.parent);
+        if (mapped) setParent(mapped);
         setIsEditing(false);
-        // Optionally show success message
+        setSaveError(null);
         console.log("Parent updated successfully");
-        alert("Parent info updated successfully!");
       }
     } catch (err) {
       console.error("Error updating parent:", err);
-      setError(err.message);
-      alert("Failed to update parent info.");
+      setSaveError(err.message || "Failed to update parent");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -618,6 +628,14 @@ const ParentProfile = () => {
   return (
     <div className="min-h-screen p-0 m-0">
       <div className="mb-4">
+        {saveError ? (
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            {saveError}
+          </div>
+        ) : null}
         {/* Top Bar */}
         <div className="mb-4 flex justify-between items-center">
           <button
@@ -630,13 +648,19 @@ const ParentProfile = () => {
           {isEditing ? (
             <div className="space-x-2">
               <button
+                type="button"
                 onClick={saveChanges}
-                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700"
+                disabled={saving}
+                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <FiSave className="mr-2" /> Save
+                <FiSave className="mr-2" /> {saving ? "Saving…" : "Save"}
               </button>
               <button
-                onClick={() => setIsEditing(false)}
+                type="button"
+                onClick={() => {
+                  setSaveError(null);
+                  setIsEditing(false);
+                }}
                 className="inline-flex items-center bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400"
               >
                 <FiX className="mr-2" /> Cancel
@@ -684,7 +708,10 @@ const ParentProfile = () => {
               {!isEditing ? (
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setSaveError(null);
+                    setIsEditing(true);
+                  }}
                   className="inline-flex items-center justify-center gap-2 self-center sm:self-start bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 shadow-sm whitespace-nowrap"
                 >
                   <FiEdit3 className="w-4 h-4" />

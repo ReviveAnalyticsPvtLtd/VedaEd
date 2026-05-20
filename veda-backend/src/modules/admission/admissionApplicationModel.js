@@ -110,6 +110,8 @@ const AdmissionApplicationSchema = new Schema(
                 path: String,
                 size: Number,
                 fileType: String,
+                /** True only when uploaded from Admin/Parent profile document API — hide student application docs there */
+                parentProfileUpload: { type: Boolean, default: false },
                 uploadedAt: { type: Date, default: Date.now },
                 verificationStatus: { type: String, enum: ["Pending", "Verified", "Rejected", "pending", "verified", "rejected"], default: "Pending" },
                 verifiedAt: { type: Date },

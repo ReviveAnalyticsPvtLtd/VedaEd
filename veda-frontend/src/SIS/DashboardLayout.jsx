@@ -24,13 +24,13 @@ export default function DashboardLayout() {
 
       {/* MAIN CONTENT */}
       <div
-        className="flex-1 pt-16 overflow-y-auto transition-all"
+        className="flex-1 min-w-0 min-h-0 pt-16 overflow-y-auto transition-all"
         style={{
           marginLeft: isSidebarOpen ? "256px" : "56px",
           transition: "margin-left 0.3s"
         }}
       >
-        <div className="p-3">
+        <div className="p-3 w-full max-w-full min-w-0 min-h-full flex flex-col">
           <Outlet />
         </div>
       </div>

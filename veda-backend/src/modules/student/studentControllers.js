@@ -18,6 +18,18 @@ const safeDocumentPath = (filename) => {
   return path.join(UPLOADS_DIR, normalizedFilename);
 };
 
+/** Admin student profile may use SIS Student _id or AdmissionApplication _id */
+async function findStudentOrAdmissionById(id) {
+  if (!id) return null;
+  const student = await Student.findById(id);
+  if (student) return { kind: "student", doc: student };
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    const application = await AdmissionApplication.findById(id);
+    if (application) return { kind: "application", doc: application };
+  }
+  return null;
+}
+
 const generateUniqueStudentUsername = async (name, dob) => {
   const baseUsername = generateStudentUsernameBase(name, dob) || "user";
   let username = baseUsername;
@@ -29,7 +41,8 @@ const generateUniqueStudentUsername = async (name, dob) => {
   }
 
   return username;
-}
+};
+
 /** Resolve class / section id whether populated ({ _id, name }) or raw ObjectId */
 const refToId = (ref) => {
   if (!ref) return null;
@@ -687,6 +700,21 @@ exports.getStudent = async (req, res) => {
   }
 }; 
 
+/** Names used only for Class/Section lookup; placeholders must not trigger DB lookup failures */
+const normalizeClassSectionLookupName = (raw) => {
+  if (raw == null) return null;
+  if (typeof raw === "object" && raw !== null && raw.name != null) {
+    return normalizeClassSectionLookupName(raw.name);
+  }
+  const s = String(raw).trim();
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  if (s === "-" || lower === "n/a" || lower === "na" || lower === "none" || lower === "—") {
+    return null;
+  }
+  return s;
+};
+
 exports.updateStudent = async (req, res) => {
   console.log("Full request body:", JSON.stringify(req.body, null, 2));
   console.log("Update request for ID:", req.params.id);
@@ -694,7 +722,9 @@ exports.updateStudent = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const { class: className, section: sectionName } = req.body.personalInfo || {};
+    const piRaw = req.body.personalInfo || {};
+    const className = normalizeClassSectionLookupName(piRaw.class);
+    const sectionName = normalizeClassSectionLookupName(piRaw.section);
     console.log("Extracted className:", className, "sectionName:", sectionName);
 
     let existClass = null;
@@ -799,14 +829,27 @@ exports.updateStudent = async (req, res) => {
         : existingStudent.health || {};
 
     // Use $set operator; merge with existing personalInfo so health-only PATCHes do not wipe profile fields
+    const exContact =
+      ex.contactDetails && typeof ex.contactDetails === "object"
+        ? { ...ex.contactDetails }
+        : {};
+    const piContact =
+      pi.contactDetails && typeof pi.contactDetails === "object"
+        ? pi.contactDetails
+        : null;
+    const mergedContactDetails = piContact
+      ? { ...exContact, ...piContact }
+      : pick("contactDetails");
+
     const updateFields = {
       $set: {
         "personalInfo.name": pick("name"),
+        "personalInfo.stdId": pick("stdId"),
         "personalInfo.DOB": pick("DOB"),
         "personalInfo.gender": pick("gender"),
         "personalInfo.age": pick("age"),
         "personalInfo.address": pick("address"),
-        "personalInfo.contactDetails": pick("contactDetails"),
+        "personalInfo.contactDetails": mergedContactDetails,
         "personalInfo.fees": pick("fees"),
         "personalInfo.rollNo": pick("rollNo"),
         "personalInfo.bloodGroup": finalBloodGroup,
@@ -1344,28 +1387,44 @@ exports.uploadDocument = async (req, res) => {
 
     const fileUrl = `/uploads/${req.file.filename}`;
 
-    const student = await Student.findById(studentId);
-    if (!student) {
-      return res.status(404).json({ success: false, message: "Student not found" });
+    const ctx = await findStudentOrAdmissionById(studentId);
+    if (!ctx) {
+      return res.status(404).json({ success: false, message: "Student or admission record not found" });
     }
 
-    // Initialize documents array if it doesn't exist
-    if (!student.documents) {
-      student.documents = [];
-    }
-
-    const documentData = {
+    const baseDoc = {
       name: req.file.originalname,
       path: fileUrl,
       size: req.file.size,
       uploadedAt: new Date(),
     };
 
-    student.documents.push(documentData);
-    await student.save();
-    const savedDocument = student.documents[student.documents.length - 1];
+    if (ctx.kind === "student") {
+      const student = ctx.doc;
+      if (!student.documents) {
+        student.documents = [];
+      }
+      student.documents.push(baseDoc);
+      await student.save();
+      const savedDocument = student.documents[student.documents.length - 1];
+      return res.status(201).json({
+        success: true,
+        message: "Document uploaded successfully",
+        document: savedDocument,
+      });
+    }
 
-    res.status(201).json({
+    const application = ctx.doc;
+    if (!application.documents) {
+      application.documents = [];
+    }
+    application.documents.push({
+      ...baseDoc,
+      fileType: req.file.mimetype || "",
+    });
+    await application.save();
+    const savedDocument = application.documents[application.documents.length - 1];
+    return res.status(201).json({
       success: true,
       message: "Document uploaded successfully",
       document: savedDocument,
@@ -1381,13 +1440,18 @@ exports.getAllDocuments = async (req, res) => {
   try {
     const { studentId } = req.params;
     console.log("Getting documents for studentId:", studentId);
-    const student = await Student.findById(studentId).select("documents");
-
-    if (!student) {
+    const ctx = await findStudentOrAdmissionById(studentId);
+    if (!ctx) {
       return res.status(404).json({ success: false, message: "Student not found [LOC_DOCS]" });
     }
 
-    res.status(200).json(student.documents || []);
+    const raw = ctx.doc.documents || [];
+    // Admission applications share one `documents` array with parent profile uploads (`parentProfileUpload: true`)
+    const list =
+      ctx.kind === "application"
+        ? raw.filter((d) => d && d.parentProfileUpload !== true)
+        : raw;
+    res.status(200).json(list);
   } catch (error) {
     console.error("Error fetching documents:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
@@ -1427,15 +1491,23 @@ exports.downloadDocument = async (req, res) => {
 exports.deleteDocument = async (req, res) => {
   try {
     const { studentId, documentId } = req.params;
-    const student = await Student.findById(studentId);
+    const ctx = await findStudentOrAdmissionById(studentId);
 
-    if (!student) {
+    if (!ctx) {
       return res.status(404).json({ success: false, message: "Student not found" });
     }
 
-    const targetDocument = student.documents.id(documentId);
+    const owner = ctx.doc;
+    const targetDocument = owner.documents.id(documentId);
     if (!targetDocument) {
       return res.status(404).json({ success: false, message: "Document not found" });
+    }
+
+    if (ctx.kind === "application" && targetDocument.parentProfileUpload) {
+      return res.status(403).json({
+        success: false,
+        message: "This file was uploaded from the parent profile and cannot be removed here.",
+      });
     }
 
     if (targetDocument.path) {
@@ -1446,8 +1518,8 @@ exports.deleteDocument = async (req, res) => {
       }
     }
 
-    student.documents.pull({ _id: documentId });
-    await student.save();
+    owner.documents.pull({ _id: documentId });
+    await owner.save();
 
     return res.status(200).json({
       success: true,

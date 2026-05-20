@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiInfo, FiFileText, FiCalendar, FiDollarSign, FiBarChart, FiEdit3, FiSave, FiX } from "react-icons/fi";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import { authFetch } from "../services/apiClient";
+import ProfileAvatar from "../components/ProfileAvatar";
+import {
+  getLatestPassportPhotoUrlFromDocs,
+  normalizeStudentDocumentForAvatar,
+} from "../utils/studentProfileMedia";
 const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx";
+
+/** Admission applications store parent-profile uploads in `documents` with `parentProfileUpload: true` — exclude from student profile */
+const studentProfileDocumentsOnly = (docs) =>
+  Array.isArray(docs) ? docs.filter((d) => d && !d.parentProfileUpload) : [];
 
 const mockPerformance = [
   { term: "Term 1", score: 78 },
@@ -264,7 +273,7 @@ const mapSisStudentToProfile = (studentData = {}) => {
     emergencyName: firstNonEmpty(emergencyContact.name, studentData.emergencyName),
     emergencyRelation: firstNonEmpty(emergencyContact.relation, studentData.emergencyRelation),
     emergencyPhone: firstNonEmpty(emergencyContact.phone, studentData.emergencyPhone),
-    documents: Array.isArray(studentData.documents) ? studentData.documents : [],
+    documents: studentProfileDocumentsOnly(studentData.documents),
   };
 };
 
@@ -300,7 +309,11 @@ const mapAdmissionStudentToProfile = (admissionData = {}, fallbackId = "") => {
     ),
     contact: firstNonEmpty(contact.phone, admissionData.contact),
     email: firstNonEmpty(contact.email, admissionData.email),
-    photo: firstNonEmpty(admissionData.photo),
+    photo: firstNonEmpty(
+      personal.image?.url,
+      typeof personal.image === "string" ? personal.image : "",
+      admissionData.photo
+    ),
     fatherName: firstNonEmpty(parents.father?.name, admissionData.fatherName),
     motherName: firstNonEmpty(parents.mother?.name, admissionData.motherName),
     attendance: "-",
@@ -351,7 +364,7 @@ const mapAdmissionStudentToProfile = (admissionData = {}, fallbackId = "") => {
       emergencyContact.phone,
       admissionData.emergencyContactPhone
     ),
-    documents: Array.isArray(admissionData.documents) ? admissionData.documents : []
+    documents: studentProfileDocumentsOnly(admissionData.documents),
   };
 };
 
@@ -384,15 +397,23 @@ const StudentProfile = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [student, setStudent] = useState(initialMappedStudent);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [pageLoading, setPageLoading] = useState(() => Boolean(resolvedStudentId));
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
   const [profileSource, setProfileSource] = useState(initialSource);
   const [originalStudent, setOriginalStudent] = useState(initialMappedStudent);
+  const [documents, setDocuments] = useState(() =>
+    (initialMappedStudent?.documents || []).map(normalizeStudentDocumentForAvatar)
+  );
 
   // Fetch student data from backend if ID is provided
   useEffect(() => {
+    const ac = new AbortController();
+    const { signal } = ac;
+
     const fetchStudent = async () => {
       if (!resolvedStudentId) {
         console.log("No ID provided in URL params");
@@ -400,59 +421,105 @@ const StudentProfile = () => {
       }
 
       console.log("Fetching student with ID:", resolvedStudentId);
-      setLoading(true);
-      setError(null);
+      setPageLoading(true);
+      setLoadError(null);
 
       try {
-        const response = await authFetch(`/students/${resolvedStudentId}`);
+        const response = await authFetch(`/students/${resolvedStudentId}`, { signal });
+        if (signal.aborted) return;
+
         if (!response.ok) {
+          let serverMessage = "";
+          try {
+            const errBody = await response.json();
+            serverMessage = errBody.message || errBody.error || "";
+          } catch {
+            /* ignore non-JSON error bodies */
+          }
+
+          if (response.status === 401) {
+            throw new Error(serverMessage || "Session expired. Please sign in again.");
+          }
+          if (response.status === 403) {
+            throw new Error(
+              serverMessage || "You do not have permission to view this student."
+            );
+          }
+
           const admissionResponse = await authFetch(
-            `/admission/application/${resolvedStudentId}`
+            `/admission/application/${resolvedStudentId}`,
+            { signal }
           );
+          if (signal.aborted) return;
+
           if (admissionResponse.ok) {
             const admissionPayload = await admissionResponse.json();
             if (admissionPayload?.success && admissionPayload?.data) {
               setProfileSource("Admission");
-              const mappedStudent = mapAdmissionStudentToProfile(admissionPayload.data, resolvedStudentId);
+              const mappedStudent = mapAdmissionStudentToProfile(
+                admissionPayload.data,
+                resolvedStudentId
+              );
               setStudent(mappedStudent);
               setOriginalStudent(mappedStudent);
-              setDocuments(admissionPayload.data.documents || []);
+              setDocuments(studentProfileDocumentsOnly(admissionPayload.data.documents));
+              setDocuments((admissionPayload.data.documents || []).map(normalizeStudentDocumentForAvatar));
               return;
             }
           }
-          throw new Error("Student not found");
+
+          throw new Error(
+            serverMessage ||
+              (response.status === 404
+                ? "No student or admission record exists for this ID."
+                : `Unable to load student (HTTP ${response.status}).`)
+          );
         }
 
         const data = await response.json();
-        if (data.success && data.student) {
-          setProfileSource("SIS");
-          const mappedStudent = mapSisStudentToProfile(data.student);
+        if (signal.aborted) return;
+
+        const raw = data.student ?? data.data;
+        if (data.success && raw) {
+          const source =
+            raw.source === "Admission" || raw.source === "admission"
+              ? "Admission"
+              : "SIS";
+          setProfileSource(source);
+          const mappedStudent = mapAnyStudentToProfile(raw, resolvedStudentId);
           setStudent(mappedStudent);
           setOriginalStudent(mappedStudent);
+          setDocuments(studentProfileDocumentsOnly(raw.documents));
+          return;
+          setDocuments((data.student.documents || []).map(normalizeStudentDocumentForAvatar));
         }
+
+        throw new Error(data.message || "Invalid student response from server.");
       } catch (err) {
+        if (signal.aborted || err.name === "AbortError") return;
         console.error("Error fetching student:", err);
-        setError(err.message);
+        setLoadError(err.message || "Failed to load student.");
       } finally {
-        setLoading(false);
+        if (!signal.aborted) {
+          setPageLoading(false);
+        }
       }
     };
 
     fetchStudent();
+    return () => ac.abort();
   }, [resolvedStudentId]);
-
-  // Fetch documents for the student
-  const [documents, setDocuments] = useState([]);
 
   useEffect(() => {
     const fetchDocuments = async () => {
-      if (!resolvedStudentId || profileSource === "Admission") return;
+      if (!resolvedStudentId) return;
 
       try {
         const response = await authFetch(`/students/documents/${resolvedStudentId}`);
         if (response.ok) {
           const docs = await response.json();
-          setDocuments(docs);
+          setDocuments(studentProfileDocumentsOnly(docs));
+          setDocuments((docs || []).map(normalizeStudentDocumentForAvatar));
         }
       } catch (err) {
         console.error("Error fetching documents:", err);
@@ -489,8 +556,13 @@ const StudentProfile = () => {
     fetchClassesAndSections();
   }, []);
 
-  // Handle loading state
-  if (loading) {
+  const profileHeaderImageSrc = useMemo(() => {
+    if (!student) return "";
+    return firstNonEmpty(student.photo, getLatestPassportPhotoUrlFromDocs(documents));
+  }, [student, documents]);
+
+  // Initial load only — pageLoading is not toggled while saving edits
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
@@ -501,11 +573,11 @@ const StudentProfile = () => {
   }
 
   // Handle error state
-  if (error) {
+  if (loadError) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Error: {error}</h2>
+          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Error: {loadError}</h2>
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
@@ -559,10 +631,11 @@ const StudentProfile = () => {
   };
 
   const handleSave = async () => {
-    if (!student.id) return;
+    const studentId = student.id || resolvedStudentId;
+    if (!studentId) return;
 
-    setLoading(true);
-    setError(null);
+    setSaving(true);
+    setSaveError(null);
 
     try {
       // Find the selected class and section names
@@ -645,12 +718,12 @@ const StudentProfile = () => {
       console.log("Sending class name:", className);
       console.log("Sending section name:", sectionName);
       console.log("Complete update data:", updateData);
-      console.log("Student ID:", resolvedStudentId);
+      console.log("Student ID:", studentId);
 
       const endpoint =
         profileSource === "Admission"
-          ? `/admission/application/${resolvedStudentId}`
-          : `/students/${resolvedStudentId}`;
+          ? `/admission/application/${studentId}`
+          : `/students/${studentId}`;
 
       const requestBody =
         profileSource === "Admission"
@@ -692,46 +765,60 @@ const StudentProfile = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Backend error:", errorData);
-        throw new Error(errorData.message || 'Failed to update student');
+        let message = "Failed to update student";
+        try {
+          const errorData = await response.json();
+          message = errorData.message || message;
+        } catch {
+          /* non-JSON body */
+        }
+        console.error("Backend error:", message);
+        throw new Error(message);
       }
 
       const data = await response.json();
       if (data.success) {
-        const updatedMappedStudent =
-          profileSource === "Admission"
+        const raw = data.student ?? data.data;
+        const updatedMappedStudent = raw
+          ? mapAnyStudentToProfile(raw, studentId)
+          : profileSource === "Admission"
             ? (data.data
-              ? mapAdmissionStudentToProfile(data.data, resolvedStudentId)
+              ? mapAdmissionStudentToProfile(data.data, studentId)
               : student)
             : (data.student
               ? mapSisStudentToProfile(data.student)
               : { ...student, grade: className, section: sectionName });
+        if (raw && (raw.source === "Admission" || raw.source === "admission")) {
+          setProfileSource("Admission");
+        } else if (raw) {
+          setProfileSource("SIS");
+        }
         setStudent(updatedMappedStudent);
         setOriginalStudent(updatedMappedStudent);
         setIsEditing(false);
+        setSaveError(null);
         // Optionally show success message
         console.log('Student updated successfully');
       }
     } catch (err) {
       console.error("Error updating student:", err);
-      setError(err.message);
+      setSaveError(err.message || "Failed to update student");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const refreshDocuments = async () => {
-    if (profileSource === "Admission") return;
+    if (!resolvedStudentId) return;
     const response = await authFetch(`/students/documents/${resolvedStudentId}`);
     if (response.ok) {
       const docs = await response.json();
-      setDocuments(docs);
+      setDocuments(studentProfileDocumentsOnly(docs));
+      setDocuments((docs || []).map(normalizeStudentDocumentForAvatar));
     }
   };
 
   const handleUploadDocument = async (event) => {
-    if (profileSource === "Admission") return;
     const file = event.target.files?.[0];
     if (!file || !resolvedStudentId) return;
 
@@ -760,7 +847,9 @@ const StudentProfile = () => {
 
   const openDocument = async (doc, mode = "preview") => {
     try {
-      const filename = doc?.path?.split("/").pop();
+      const rawPath = doc?.path;
+      if (!rawPath) return;
+      const filename = String(rawPath).split(/[/\\]/).filter(Boolean).pop();
       if (!filename) return;
 
       const response = await authFetch(`/students/${mode}/${filename}`);
@@ -786,7 +875,6 @@ const StudentProfile = () => {
   };
 
   const handleDeleteDocument = async (documentId) => {
-    if (profileSource === "Admission") return;
     if (!resolvedStudentId || !documentId) return;
     if (!window.confirm("Delete this document?")) return;
 
@@ -1157,6 +1245,14 @@ const StudentProfile = () => {
   return (
     <div className="min-h-screen p-0 m-0">
       <div className="mb-4">
+        {saveError ? (
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            {saveError}
+          </div>
+        ) : null}
         <div className="mb-4 flex justify-between items-center">
           <button onClick={() => navigate(-1)} className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
             <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Student Directory
@@ -1167,6 +1263,7 @@ const StudentProfile = () => {
             <button
               onClick={() => {
                 setOriginalStudent(student);
+                setSaveError(null);
                 setIsEditing(true);
               }}
               className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
@@ -1176,14 +1273,18 @@ const StudentProfile = () => {
           ) : (
             <div className="space-x-2">
               <button
+                type="button"
                 onClick={handleSave}
-                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700"
+                disabled={saving}
+                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <FiSave className="w-5 h-5 mr-2" /> Save
+                <FiSave className="w-5 h-5 mr-2" /> {saving ? "Saving…" : "Save"}
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setStudent(originalStudent);
+                  setSaveError(null);
                   setIsEditing(false);
                 }}
                 className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
@@ -1195,11 +1296,60 @@ const StudentProfile = () => {
         </div>
 
         {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-          <img className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-200" src={student.photo || "https://via.placeholder.com/150"} alt={student.name} />
-          <div className="flex-grow text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
-            <p className="text-lg text-indigo-600 font-medium">{student.grade} - {student.section}</p>
+        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col items-center text-center gap-4 sm:flex-row sm:items-center sm:text-left sm:gap-6">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <ProfileAvatar
+              name={student.name || "Student"}
+              imageSrc={profileHeaderImageSrc}
+              sizeClassName="w-32 h-32 sm:w-36 sm:h-36"
+              textClassName="text-3xl"
+              className="ring-4 ring-indigo-200"
+            />
+          </div>
+          <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
+              <p className="text-lg text-indigo-600 font-medium">
+                {student.grade} - {student.section}
+              </p>
+              {student.stdId ? (
+                <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 sm:justify-end shrink-0">
+              {!isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOriginalStudent(student);
+                    setIsEditing(true);
+                  }}
+                  className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                >
+                  <FiEdit3 className="w-5 h-5 mr-2" /> Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700"
+                  >
+                    <FiSave className="w-5 h-5 mr-2" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStudent(originalStudent);
+                      setIsEditing(false);
+                    }}
+                    className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
+                  >
+                    <FiX className="w-5 h-5 mr-2" /> Cancel
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1241,17 +1391,15 @@ const StudentProfile = () => {
                 <h3 className="text-lg font-semibold text-gray-800">
                   Documents
                 </h3>
-                {profileSource !== "Admission" && (
-                  <label className="bg-indigo-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-indigo-700">
-                    Upload Document
-                    <input
-                      type="file"
-                      accept={documentAccept}
-                      className="hidden"
-                      onChange={handleUploadDocument}
-                    />
-                  </label>
-                )}
+                <label className="bg-indigo-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-indigo-700">
+                  Upload Document
+                  <input
+                    type="file"
+                    accept={documentAccept}
+                    className="hidden"
+                    onChange={handleUploadDocument}
+                  />
+                </label>
               </div>
 
               {/* Documents List */}
@@ -1278,14 +1426,12 @@ const StudentProfile = () => {
                         >
                           Download
                         </button>
-                        {profileSource !== "Admission" && (
-                          <button
-                            onClick={() => handleDeleteDocument(doc._id)}
-                            className="text-red-600 hover:underline font-semibold"
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteDocument(doc._id || doc.id)}
+                          className="text-red-600 hover:underline font-semibold"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </li>
                   ))
