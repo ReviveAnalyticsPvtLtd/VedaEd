@@ -8,6 +8,8 @@ import {
   FiMenu,
   FiUser,
   FiHome,
+  FiUserPlus,
+  FiList
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
 
@@ -18,6 +20,7 @@ export default function HRSidebar({
 }) {
   const location = useLocation();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [talentOpen, setTalentOpen] = useState(true);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -28,11 +31,34 @@ export default function HRSidebar({
 
   const menuItems = [
     {
-  name: "Dashboard",
-  path: "/hr/dashboard",
-  icon: <FiHome />,
-}
-,
+      name: "Dashboard",
+      path: "/hr/dashboard",
+      icon: <FiHome />,
+    },
+    {
+      name: "Talent Acquisition",
+      isSubmenu: true,
+      isOpen: talentOpen,
+      toggle: () => setTalentOpen(!talentOpen),
+      icon: <FiUserPlus size={18} />,
+      children: [
+        {
+          name: "Vacancy Setup",
+          path: "/hr/talent-acquisition/vacancy",
+          icon: <FiCheckSquare size={16} />,
+        },
+        {
+          name: "Candidate Application",
+          path: "/hr/talent-acquisition/apply",
+          icon: <FiUserPlus size={16} />,
+        },
+        {
+          name: "Application Pipeline",
+          path: "/hr/talent-acquisition/pipeline",
+          icon: <FiList size={16} />,
+        },
+      ]
+    },
     {
       name: "Staff Directory",
       path: "/hr/staff-directory",
@@ -55,11 +81,10 @@ export default function HRSidebar({
       icon: <FiCheckSquare size={18} />,
     },
     {
-  name: "Support Staff",
-  path: "/hr/support-staff",
-  icon: <FiUsers size={18} />,
-},
-
+      name: "Support Staff",
+      path: "/hr/support-staff",
+      icon: <FiUsers size={18} />,
+    },
   ];
 
   const filteredItems = menuItems.filter((item) =>
@@ -84,6 +109,50 @@ export default function HRSidebar({
       {/* MENU */}
       <ul className="mt-14 space-y-1 px-3">
         {filteredItems.map((item) => {
+          if (item.isSubmenu) {
+            const isAnyChildActive = item.children.some(child => location.pathname.startsWith(child.path));
+            return (
+              <div key={item.name} className="space-y-1">
+                <button
+                  onClick={item.toggle}
+                  className={`flex items-center justify-between w-full h-10 rounded-lg transition-all px-3
+                    ${isSidebarOpen ? "gap-3" : "justify-center"}
+                    ${isAnyChildActive ? "bg-blue-50 text-blue-700 font-semibold" : "hover:bg-gray-100 text-gray-700"}
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex w-6 justify-center">{item.icon}</span>
+                    {isSidebarOpen && <span className="whitespace-nowrap font-medium">{item.name}</span>}
+                  </div>
+                  {isSidebarOpen && (
+                    <span className="text-[10px] text-gray-500 transition-transform duration-200" style={{ display: 'inline-block', transform: item.isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                      ▼
+                    </span>
+                  )}
+                </button>
+                {item.isOpen && isSidebarOpen && (
+                  <div className="pl-6 space-y-1">
+                    {item.children.map(child => {
+                      const isChildActive = location.pathname.startsWith(child.path);
+                      return (
+                        <NavLink
+                          key={child.path}
+                          to={child.path}
+                          className={`flex items-center h-9 rounded-lg transition-all px-3 gap-2 text-sm
+                            ${isChildActive ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-50 text-gray-600"}
+                          `}
+                        >
+                          <span className="flex w-4 justify-center">{child.icon}</span>
+                          <span>{child.name}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           const isActive = item.end
             ? location.pathname === item.path
             : location.pathname.startsWith(item.path);

@@ -152,6 +152,10 @@ import ApproveLeave from "./HR/ApproveLeave/ApproveLeave";
 import SupportStaffList from "./HR/SupportStaff/SupportStaffList";
 import AddSupportStaff from "./HR/SupportStaff/AddSupportStaff";
 import SupportStaffDetails from "./HR/SupportStaff/SupportStaffDetails";
+import TalentAcquisitionLayout from "./HR/TalentAcquisition/TalentAcquisitionLayout";
+import VacancyDashboard from "./HR/TalentAcquisition/VacancyDashboard";
+import ApplicationPipeline from "./HR/TalentAcquisition/ApplicationPipeline";
+import CandidateForm from "./HR/TalentAcquisition/CandidateForm";
 
 // ===== Receptionist Module =====
 import ReceptionistDashboardLayout from "./Receptionist/DashboardLayout";
@@ -766,6 +770,9 @@ function App() {
           <Route path="support-staff" element={<SupportStaffList />} />
           <Route path="support-staff/add" element={<AddSupportStaff />} />
           <Route path="support-staff/details" element={<SupportStaffDetails />} />
+          <Route path="talent-acquisition/vacancy" element={<VacancyDashboard />} />
+          <Route path="talent-acquisition/pipeline" element={<ApplicationPipeline />} />
+          <Route path="talent-acquisition/apply" element={<CandidateForm />} />
         </Route>
       </Route>
 
