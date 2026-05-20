@@ -42,6 +42,7 @@ export default function Login() {
       else if (role === "hr") navigate("/hr");
       else if (role === "receptionist") navigate("/receptionist");
       else if (role === "admission") navigate("/admission");
+      else if (role === "transport") navigate("/admin/transport");
       else navigate("/");
 
     } catch (err) {

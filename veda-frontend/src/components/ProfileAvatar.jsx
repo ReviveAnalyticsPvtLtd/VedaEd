@@ -12,8 +12,17 @@ const IMAGE_KEYS = [
   "passportPhoto",
 ];
 
+const extractImageValue = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    return value.url || value.path || value.fileUrl || value.document || "";
+  }
+  return "";
+};
+
 const resolveUploadsUrl = (value) => {
-  const raw = String(value || "").trim();
+  const raw = String(extractImageValue(value) || "").trim();
   if (!raw || raw === "#" || raw.toLowerCase() === "null" || raw.toLowerCase() === "undefined") return "";
   if (/^https?:\/\//i.test(raw)) return raw;
 
@@ -33,9 +42,11 @@ const resolveUploadsUrl = (value) => {
 };
 
 export const resolveProfileImage = (entity = {}, explicitImage = "") => {
-  if (explicitImage) return resolveUploadsUrl(explicitImage);
+  const resolvedExplicitImage = resolveUploadsUrl(explicitImage);
+  if (resolvedExplicitImage) return resolvedExplicitImage;
   for (const key of IMAGE_KEYS) {
-    if (entity?.[key]) return resolveUploadsUrl(entity[key]);
+    const resolved = resolveUploadsUrl(entity?.[key]);
+    if (resolved) return resolved;
   }
   return "";
 };

@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiInfo, FiFileText, FiCalendar, FiDollarSign, FiBarChart, FiEdit3, FiSave, FiX } from "react-icons/fi";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import { authFetch } from "../services/apiClient";
+import ProfileAvatar from "../components/ProfileAvatar";
+import {
+  getLatestPassportPhotoUrlFromDocs,
+  normalizeStudentDocumentForAvatar,
+} from "../utils/studentProfileMedia";
 const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx";
 
 /** Admission applications store parent-profile uploads in `documents` with `parentProfileUpload: true` — exclude from student profile */
@@ -304,7 +309,11 @@ const mapAdmissionStudentToProfile = (admissionData = {}, fallbackId = "") => {
     ),
     contact: firstNonEmpty(contact.phone, admissionData.contact),
     email: firstNonEmpty(contact.email, admissionData.email),
-    photo: firstNonEmpty(admissionData.photo),
+    photo: firstNonEmpty(
+      personal.image?.url,
+      typeof personal.image === "string" ? personal.image : "",
+      admissionData.photo
+    ),
     fatherName: firstNonEmpty(parents.father?.name, admissionData.fatherName),
     motherName: firstNonEmpty(parents.mother?.name, admissionData.motherName),
     attendance: "-",
@@ -396,6 +405,9 @@ const StudentProfile = () => {
   const [sections, setSections] = useState([]);
   const [profileSource, setProfileSource] = useState(initialSource);
   const [originalStudent, setOriginalStudent] = useState(initialMappedStudent);
+  const [documents, setDocuments] = useState(() =>
+    (initialMappedStudent?.documents || []).map(normalizeStudentDocumentForAvatar)
+  );
 
   // Fetch student data from backend if ID is provided
   useEffect(() => {
@@ -451,6 +463,7 @@ const StudentProfile = () => {
               setStudent(mappedStudent);
               setOriginalStudent(mappedStudent);
               setDocuments(studentProfileDocumentsOnly(admissionPayload.data.documents));
+              setDocuments((admissionPayload.data.documents || []).map(normalizeStudentDocumentForAvatar));
               return;
             }
           }
@@ -478,6 +491,7 @@ const StudentProfile = () => {
           setOriginalStudent(mappedStudent);
           setDocuments(studentProfileDocumentsOnly(raw.documents));
           return;
+          setDocuments((data.student.documents || []).map(normalizeStudentDocumentForAvatar));
         }
 
         throw new Error(data.message || "Invalid student response from server.");
@@ -496,9 +510,6 @@ const StudentProfile = () => {
     return () => ac.abort();
   }, [resolvedStudentId]);
 
-  // Fetch documents for the student
-  const [documents, setDocuments] = useState([]);
-
   useEffect(() => {
     const fetchDocuments = async () => {
       if (!resolvedStudentId) return;
@@ -508,6 +519,7 @@ const StudentProfile = () => {
         if (response.ok) {
           const docs = await response.json();
           setDocuments(studentProfileDocumentsOnly(docs));
+          setDocuments((docs || []).map(normalizeStudentDocumentForAvatar));
         }
       } catch (err) {
         console.error("Error fetching documents:", err);
@@ -546,6 +558,13 @@ const StudentProfile = () => {
 
   // Initial fetch only — do not unmount the whole page while saving edits
   if (pageLoading) {
+  const profileHeaderImageSrc = useMemo(() => {
+    if (!student) return "";
+    return firstNonEmpty(student.photo, getLatestPassportPhotoUrlFromDocs(documents));
+  }, [student, documents]);
+
+  // Handle loading state
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
@@ -797,6 +816,7 @@ const StudentProfile = () => {
     if (response.ok) {
       const docs = await response.json();
       setDocuments(studentProfileDocumentsOnly(docs));
+      setDocuments((docs || []).map(normalizeStudentDocumentForAvatar));
     }
   };
 
@@ -1275,14 +1295,67 @@ const StudentProfile = () => {
               </button>
             </div>
           )}
+        <div className="mb-4">
+          <button onClick={() => navigate(-1)} className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
+            <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Student Directory
+          </button>
         </div>
 
         {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-          <img className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-200" src={student.photo || "https://via.placeholder.com/150"} alt={student.name} />
-          <div className="flex-grow text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
-            <p className="text-lg text-indigo-600 font-medium">{student.grade} - {student.section}</p>
+        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col items-center text-center gap-4 sm:flex-row sm:items-center sm:text-left sm:gap-6">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <ProfileAvatar
+              name={student.name || "Student"}
+              imageSrc={profileHeaderImageSrc}
+              sizeClassName="w-32 h-32 sm:w-36 sm:h-36"
+              textClassName="text-3xl"
+              className="ring-4 ring-indigo-200"
+            />
+          </div>
+          <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
+              <p className="text-lg text-indigo-600 font-medium">
+                {student.grade} - {student.section}
+              </p>
+              {student.stdId ? (
+                <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 sm:justify-end shrink-0">
+              {!isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOriginalStudent(student);
+                    setIsEditing(true);
+                  }}
+                  className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                >
+                  <FiEdit3 className="w-5 h-5 mr-2" /> Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700"
+                  >
+                    <FiSave className="w-5 h-5 mr-2" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStudent(originalStudent);
+                      setIsEditing(false);
+                    }}
+                    className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
+                  >
+                    <FiX className="w-5 h-5 mr-2" /> Cancel
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

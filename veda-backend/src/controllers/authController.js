@@ -149,6 +149,7 @@ exports.login = async (req, res) => {
           else if (normalizedStaffRole === "hr") roleName = "hr";
           else if (normalizedStaffRole === "receptionist") roleName = "receptionist";
           else if (normalizedStaffRole === "admission") roleName = "admission";
+          else if (normalizedStaffRole === "transport") roleName = "transport";
 
           const staffRole = await Role.findOne({ name: roleName });
           if (staffRole) {

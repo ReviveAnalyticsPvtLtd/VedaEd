@@ -41,6 +41,7 @@ const generateUniqueStudentUsername = async (name, dob) => {
   }
 
   return username;
+};
 }
 /** Resolve class / section id whether populated ({ _id, name }) or raw ObjectId */
 const refToId = (ref) => {
