@@ -18,23 +18,17 @@ router.post("/import", authMiddleware, permissionMiddleware("create_student"), s
 // Health-only update: teachers/students with view_student (plus assignment/self checks in controller), or roles with edit_student
 router.put("/:id/health", authMiddleware, studentHealthUpdateMiddleware, studentController.updateStudentHealth);
 
-router.put("/:id", authMiddleware, permissionMiddleware("edit_student"), studentController.updateStudent);       // Update student info (profile)
-router.delete("/:id", authMiddleware, permissionMiddleware("delete_student"), studentController.deleteStudentById);    // Remove student
-router.post("/import", authMiddleware, permissionMiddleware("create_student"), studentController.importStudents);
-router.get("/:id", authMiddleware, permissionMiddleware("view_student"), studentController.getStudent);            // Get one student (PROFILE)
-router.get("/:id/dashboard-stats", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentDashboardStats); // Get student dashboard stats
-router.put("/:id", authMiddleware, permissionMiddleware("edit_student"), studentController.updateStudent);         // Update student info (profile)
-router.delete("/:id", authMiddleware, permissionMiddleware("delete_student"), studentController.deleteStudentById); // Remove student
-
-
+// Static / multi-segment paths MUST be registered before /:id so "documents", "preview", etc. are not captured as ids.
 router.post("/upload", authMiddleware, permissionMiddleware("edit_student"), uploadSingle("file"), studentController.uploadDocument);
-// all docs of a student
 router.get("/documents/:studentId", authMiddleware, permissionMiddleware("view_student"), studentController.getAllDocuments);
-// Preview
 router.get("/preview/:filename", authMiddleware, permissionMiddleware("view_student"), studentController.previewDocument);
-// Download
 router.get("/download/:filename", authMiddleware, permissionMiddleware("view_student"), studentController.downloadDocument);
 router.delete("/documents/:studentId/:documentId", authMiddleware, permissionMiddleware("edit_student"), studentController.deleteDocument);
+
+router.put("/:id", authMiddleware, permissionMiddleware("edit_student"), studentController.updateStudent);
+router.delete("/:id", authMiddleware, permissionMiddleware("delete_student"), studentController.deleteStudentById);
+router.get("/:id/dashboard-stats", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentDashboardStats);
+router.get("/:id", authMiddleware, permissionMiddleware("view_student"), studentController.getStudent);
 
 // Student Authentication
 // router.post("/login", studentController.loginStudent);     // Student login

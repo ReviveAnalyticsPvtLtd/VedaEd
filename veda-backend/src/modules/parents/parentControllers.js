@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const Parent = require("./parentModel");
 const path = require("path");
 const fs = require("fs");
@@ -8,6 +9,7 @@ const {
   normalizeParentIdAccountHolder,
   getPersonForHolder,
   displayRoleForHolder,
+  validateParentAccountForHolder,
 } = require("../admission/parentAccountUtils");
 const { generateNextParentId, peekNextParentId } = require("../../utils/parentIdGenerator");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
@@ -114,6 +116,139 @@ function legacySuffixToHolder(suffix) {
   if (suffix === "m") return "mother";
   if (suffix === "g") return "guardian";
   return null;
+}
+
+/** Admission synthetic route id `adm-<applicationObjectId>` → same shape as getParentbyId uses internally. */
+function buildSyntheticParentDocFromRoute(routeId, application) {
+  if (!application || !routeId) return null;
+  const parsed = parseAdmissionSyntheticParentRouteId(routeId);
+  if (!parsed) return null;
+
+  const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+  const holder = legacyHolder || normalizeParentIdAccountHolder(
+    application.parents?.parentIdAccountHolder,
+    application.parents || {}
+  );
+  const person = getPersonForHolder(application.parents || {}, holder);
+  const name =
+    (person.name && String(person.name).trim()) ||
+    (holder === "father"
+      ? (application.parents?.father?.name || application.personalInfo?.fatherName || application.fatherName)
+      : holder === "mother"
+        ? (application.parents?.mother?.name || application.personalInfo?.motherName || application.motherName)
+        : (application.parents?.guardian?.name || "Guardian"));
+
+  const relLabel = displayRoleForHolder(application.parents || {}, holder);
+  return {
+    _id: routeId,
+    name,
+    email: person.email || application.contactInfo?.email || "",
+    phone: person.phone || application.contactInfo?.phone || "",
+    parentId: application.parents?.parentId || `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`,
+    status: "Active",
+    role: relLabel,
+    relation: relLabel,
+    occupation: person.occupation || "",
+    password: "default123",
+    address: application.contactInfo?.address,
+    contactInfo: application.contactInfo,
+    photo: resolveParentProfilePhotoFromApplication(application),
+    children: [
+      {
+        personalInfo: {
+          stdId: application.personalInfo?.stdId,
+          name: application.personalInfo?.name,
+          class:
+            application.personalInfo?.classApplied ||
+            application.personalInfo?.class ||
+            "",
+          section: application.personalInfo?.section || "",
+          rollNo: application.personalInfo?.rollNo || "",
+        },
+      },
+    ],
+  };
+}
+
+/** Shared GET/PUT response body for ParentProfile.jsx (matches getParentbyId success payload). */
+function formatParentProfileApiData(parentDoc) {
+  const mappedChildren = mapChildrenForParentProfile(parentDoc.children);
+  const displayName =
+    (parentDoc.name && String(parentDoc.name).trim()) ||
+    (parentDoc.fatherName && String(parentDoc.fatherName).trim()) ||
+    (parentDoc.motherName && String(parentDoc.motherName).trim()) ||
+    "N/A";
+  const displayEmail =
+    (parentDoc.email != null && String(parentDoc.email).trim()) ||
+    (parentDoc.contactDetails?.email && String(parentDoc.contactDetails.email).trim()) ||
+    "N/A";
+  const displayPhone =
+    (parentDoc.phone != null && String(parentDoc.phone).trim()) ||
+    (parentDoc.contactDetails?.phone && String(parentDoc.contactDetails.phone).trim()) ||
+    (parentDoc.fatherNumber != null && String(parentDoc.fatherNumber).trim()) ||
+    (parentDoc.motherNumber != null && String(parentDoc.motherNumber).trim()) ||
+    "N/A";
+  const displayOccupation =
+    (parentDoc.occupation != null && String(parentDoc.occupation).trim()) ||
+    (parentDoc.fatherOccupation != null && String(parentDoc.fatherOccupation).trim()) ||
+    "N/A";
+  const displayRelation =
+    (parentDoc.relation != null && String(parentDoc.relation).trim()) ||
+    (parentDoc.role != null && String(parentDoc.role).trim()) ||
+    "N/A";
+  const displayAddress = flattenParentAddress(parentDoc);
+
+  return {
+    _id: parentDoc._id,
+    parentId: parentDoc.parentId,
+    name: displayName,
+    email: displayEmail,
+    phone: displayPhone,
+    occupation: displayOccupation,
+    relation: displayRelation,
+    address: displayAddress || "N/A",
+    status: parentDoc.status || "Active",
+    role: parentDoc.role,
+    photo: parentDoc.photo || "",
+    children: mappedChildren.map((c) => ({
+      name: c.name,
+      grade: c.grade,
+      section: c.section,
+      stdId: c.stdId,
+    })),
+    username: parentDoc.parentId,
+    password: parentDoc.password,
+    fatherName: parentDoc.fatherName || parentDoc.name || "N/A",
+    fatherOccupation: parentDoc.occupation || parentDoc.fatherOccupation || "Parent",
+    fatherNumber: parentDoc.phone || parentDoc.fatherNumber || "N/A",
+    motherName: parentDoc.motherName || "N/A",
+    motherOccupation: parentDoc.motherOccupation || "Home Maker",
+    motherNumber: parentDoc.motherNumber || "N/A",
+    emergencyContact: parentDoc.emergencyContact || parentDoc.phone || "N/A",
+    permanentAddress: parentDoc.permanentAddress || {
+      line1: parentDoc.address || displayAddress || "N/A",
+      line2: "",
+      city: "",
+      state: "",
+      pincode: "",
+    },
+    currentAddress: parentDoc.currentAddress || {
+      line1: parentDoc.address || displayAddress || "N/A",
+      line2: "",
+      city: "",
+      state: "",
+      pincode: "",
+    },
+    childDetails: mappedChildren.map((c) => ({
+      name: c.name,
+      class: c.grade,
+      section: c.section,
+      rollNo: c.rollNo,
+      stdId: c.stdId,
+      attendance: c.attendance,
+      feeStatus: c.feeStatus,
+    })),
+  };
 }
 
 exports.createParents = async (req, res) => {
@@ -376,56 +511,13 @@ exports.getParentbyId = async (req, res) => {
         return res.status(404).json({ success: false, message: "Parent not found in Admissions" });
       }
 
-      const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
-      const holder = legacyHolder || normalizeParentIdAccountHolder(
-        application.parents?.parentIdAccountHolder,
-        application.parents || {}
-      );
-      const person = getPersonForHolder(application.parents || {}, holder);
-      const name =
-        (person.name && String(person.name).trim()) ||
-        (holder === "father"
-          ? (application.parents?.father?.name || application.personalInfo?.fatherName || application.fatherName)
-          : holder === "mother"
-            ? (application.parents?.mother?.name || application.personalInfo?.motherName || application.motherName)
-            : (application.parents?.guardian?.name || "Guardian"));
-
-      const relLabel = displayRoleForHolder(application.parents || {}, holder);
-      parentDoc = {
-        _id: id,
-        name,
-        email: person.email || application.contactInfo?.email || "",
-        phone: person.phone || application.contactInfo?.phone || "",
-        parentId: application.parents?.parentId || `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`,
-        status: "Active",
-        role: relLabel,
-        relation: relLabel,
-        occupation: person.occupation || "",
-        password: "default123",
-        address: application.contactInfo?.address,
-        contactInfo: application.contactInfo,
-        photo: resolveParentProfilePhotoFromApplication(application),
-        children: [
-          {
-            personalInfo: {
-              stdId: application.personalInfo?.stdId,
-              name: application.personalInfo?.name,
-              class:
-                application.personalInfo?.classApplied ||
-                application.personalInfo?.class ||
-                "",
-              section: application.personalInfo?.section || "",
-              rollNo: application.personalInfo?.rollNo || "",
-            },
-          },
-        ],
-      };
+      parentDoc = buildSyntheticParentDocFromRoute(id, application);
     } else if (mongoose.Types.ObjectId.isValid(id)) {
       parentDoc = await Parent.findById(id).populate({
         path: 'children',
         populate: [
-          { path: 'personalInfo.class', select: 'className' },
-          { path: 'personalInfo.section', select: 'sectionName' }
+          { path: 'personalInfo.class', select: 'name' },
+          { path: 'personalInfo.section', select: 'name' }
         ]
       }).lean();
 
@@ -489,84 +581,7 @@ exports.getParentbyId = async (req, res) => {
       });
     }
 
-    const mappedChildren = mapChildrenForParentProfile(parentDoc.children);
-    const displayName =
-      (parentDoc.name && String(parentDoc.name).trim()) ||
-      (parentDoc.fatherName && String(parentDoc.fatherName).trim()) ||
-      (parentDoc.motherName && String(parentDoc.motherName).trim()) ||
-      "N/A";
-    const displayEmail =
-      (parentDoc.email != null && String(parentDoc.email).trim()) ||
-      (parentDoc.contactDetails?.email && String(parentDoc.contactDetails.email).trim()) ||
-      "N/A";
-    const displayPhone =
-      (parentDoc.phone != null && String(parentDoc.phone).trim()) ||
-      (parentDoc.contactDetails?.phone && String(parentDoc.contactDetails.phone).trim()) ||
-      (parentDoc.fatherNumber != null && String(parentDoc.fatherNumber).trim()) ||
-      (parentDoc.motherNumber != null && String(parentDoc.motherNumber).trim()) ||
-      "N/A";
-    const displayOccupation =
-      (parentDoc.occupation != null && String(parentDoc.occupation).trim()) ||
-      (parentDoc.fatherOccupation != null && String(parentDoc.fatherOccupation).trim()) ||
-      "N/A";
-    const displayRelation =
-      (parentDoc.relation != null && String(parentDoc.relation).trim()) ||
-      (parentDoc.role != null && String(parentDoc.role).trim()) ||
-      "N/A";
-    const displayAddress = flattenParentAddress(parentDoc);
-
-    // Format the response: top-level fields for ParentProfile.jsx + legacy father/mother shape
-    const data = {
-      _id: parentDoc._id,
-      parentId: parentDoc.parentId,
-      name: displayName,
-      email: displayEmail,
-      phone: displayPhone,
-      occupation: displayOccupation,
-      relation: displayRelation,
-      address: displayAddress || "N/A",
-      status: parentDoc.status || "Active",
-      role: parentDoc.role,
-      photo: parentDoc.photo || "",
-      children: mappedChildren.map((c) => ({
-        name: c.name,
-        grade: c.grade,
-        section: c.section,
-        stdId: c.stdId,
-      })),
-      username: parentDoc.parentId,
-      password: parentDoc.password,
-      fatherName: parentDoc.fatherName || parentDoc.name || "N/A",
-      fatherOccupation: parentDoc.occupation || parentDoc.fatherOccupation || "Parent",
-      fatherNumber: parentDoc.phone || parentDoc.fatherNumber || "N/A",
-      motherName: parentDoc.motherName || "N/A",
-      motherOccupation: parentDoc.motherOccupation || "Home Maker",
-      motherNumber: parentDoc.motherNumber || "N/A",
-      emergencyContact: parentDoc.emergencyContact || parentDoc.phone || "N/A",
-      permanentAddress: parentDoc.permanentAddress || {
-        line1: parentDoc.address || displayAddress || "N/A",
-        line2: "",
-        city: "",
-        state: "",
-        pincode: "",
-      },
-      currentAddress: parentDoc.currentAddress || {
-        line1: parentDoc.address || displayAddress || "N/A",
-        line2: "",
-        city: "",
-        state: "",
-        pincode: "",
-      },
-      childDetails: mappedChildren.map((c) => ({
-        name: c.name,
-        class: c.grade,
-        section: c.section,
-        rollNo: c.rollNo,
-        stdId: c.stdId,
-        attendance: c.attendance,
-        feeStatus: c.feeStatus,
-      })),
-    };
+    const data = formatParentProfileApiData(parentDoc);
 
     res.status(200).json({
       success: true,
@@ -580,7 +595,7 @@ exports.getParentbyId = async (req, res) => {
       message: "Internal Server Error",
     });
   }
-}
+};
 
 exports.updateParent = async (req, res) => {
   const { id } = req.params;
@@ -594,6 +609,94 @@ exports.updateParent = async (req, res) => {
       });
     }
 
+    if (id.startsWith("adm-")) {
+      const parsed = parseAdmissionSyntheticParentRouteId(id);
+      if (!parsed) {
+        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
+      }
+
+      const application = await AdmissionApplication.findById(parsed.applicationId);
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: "Parent not found in Admissions",
+        });
+      }
+
+      const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+      const existingParents = application.parents?.toObject
+        ? application.parents.toObject()
+        : application.parents || {};
+      const existingContact = application.contactInfo?.toObject
+        ? application.contactInfo.toObject()
+        : application.contactInfo || {};
+
+      const holder = legacyHolder || normalizeParentIdAccountHolder(
+        existingParents.parentIdAccountHolder,
+        existingParents
+      );
+      const personKey =
+        holder === "mother" ? "mother" : holder === "guardian" ? "guardian" : "father";
+
+      const mergedParents = {
+        ...existingParents,
+        father: { ...(existingParents.father || {}) },
+        mother: { ...(existingParents.mother || {}) },
+        guardian: { ...(existingParents.guardian || {}) },
+      };
+
+      const prevPerson = { ...(mergedParents[personKey] || {}) };
+      if (updateData.name !== undefined) prevPerson.name = updateData.name;
+      if (updateData.occupation !== undefined) prevPerson.occupation = updateData.occupation;
+      if (updateData.email !== undefined) prevPerson.email = updateData.email;
+      if (updateData.phone !== undefined) prevPerson.phone = updateData.phone;
+      if (personKey === "guardian" && updateData.relation !== undefined) {
+        prevPerson.relation = updateData.relation;
+      }
+      mergedParents[personKey] = prevPerson;
+
+      if (updateData.parentId !== undefined && String(updateData.parentId || "").trim() !== "") {
+        mergedParents.parentId = String(updateData.parentId).trim();
+      }
+
+      mergedParents.parentIdAccountHolder = normalizeParentIdAccountHolder(
+        mergedParents.parentIdAccountHolder ?? existingParents.parentIdAccountHolder,
+        mergedParents
+      );
+
+      const accErr = validateParentAccountForHolder(
+        mergedParents,
+        mergedParents.parentIdAccountHolder
+      );
+      if (accErr) {
+        return res.status(400).json({ success: false, message: accErr });
+      }
+
+      const mergedContact = { ...existingContact };
+      if (updateData.email !== undefined) mergedContact.email = updateData.email;
+      if (updateData.phone !== undefined) mergedContact.phone = updateData.phone;
+      if (updateData.address !== undefined) mergedContact.address = updateData.address;
+
+      try {
+        await AdmissionApplication.findByIdAndUpdate(
+          parsed.applicationId,
+          { $set: { parents: mergedParents, contactInfo: mergedContact } },
+          { new: true, runValidators: true }
+        );
+      } catch (dbErr) {
+        console.error("Admission parent profile update failed:", dbErr);
+        return res.status(400).json({
+          success: false,
+          message: dbErr.message || "Failed to save admission parent profile",
+        });
+      }
+
+      const fresh = await AdmissionApplication.findById(parsed.applicationId).lean();
+      const syntheticDoc = buildSyntheticParentDocFromRoute(id, fresh);
+      const out = formatParentProfileApiData(syntheticDoc);
+      return res.status(200).json({ success: true, parent: out });
+    }
+
     const parentExist = await Parent.findById(id);
     if (!parentExist) {
       return res.status(404).json({
@@ -604,8 +707,18 @@ exports.updateParent = async (req, res) => {
 
     let unhashedPassword = null;
     if (updateData.password) {
-      unhashedPassword = updateData.password;
-      updateData.password = await bcrypt.hash(unhashedPassword, 10);
+      const pw = String(updateData.password);
+      const looksLikeBcryptHash =
+        pw.startsWith("$2a$") ||
+        pw.startsWith("$2b$") ||
+        pw.startsWith("$2y$");
+      // Client often echoes the stored hash; never re-hash that or login breaks.
+      if (looksLikeBcryptHash) {
+        delete updateData.password;
+      } else {
+        unhashedPassword = pw;
+        updateData.password = await bcrypt.hash(unhashedPassword, 10);
+      }
     }
 
     const updatedParent = await Parent.findByIdAndUpdate(id, updateData, {
@@ -635,7 +748,7 @@ exports.updateParent = async (req, res) => {
       relation: updatedParent.relation,
       address: updatedParent.address,
       children: updatedParent.children,
-      password: unhashedPassword || updatedParent.password,
+      password: unhashedPassword != null ? unhashedPassword : "",
     };
     // console.log("responseData:", responseData);
 
@@ -767,7 +880,7 @@ exports.uploadProfilePhoto = async (req, res) => {
   }
 };
 
-// Document upload for parent
+// Document upload for parent (SIS Parent document, or AdmissionApplication.documents for `adm-...`)
 exports.uploadDocument = async (req, res) => {
   console.log("req.file from uploaddoc parent", req.file);
   console.log("req.body:", req.body);
@@ -785,6 +898,39 @@ exports.uploadDocument = async (req, res) => {
 
     const fileUrl = `/uploads/${req.file.filename}`;
 
+    const documentData = {
+      name: req.file.originalname,
+      path: fileUrl,
+      size: req.file.size,
+      uploadedAt: new Date(),
+      parentProfileUpload: true,
+    };
+    const admissionDocumentData = {
+      ...documentData,
+      fileType: req.file.mimetype || "",
+    };
+
+    if (String(parentId).startsWith("adm-")) {
+      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
+      if (!parsed) {
+        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
+      }
+      const updated = await AdmissionApplication.findByIdAndUpdate(
+        parsed.applicationId,
+        { $push: { documents: admissionDocumentData } },
+        { new: true, runValidators: true }
+      ).select("documents");
+      if (!updated) {
+        return res.status(404).json({ success: false, message: "Admission record not found" });
+      }
+      const savedDocument = updated.documents[updated.documents.length - 1];
+      return res.status(201).json({
+        success: true,
+        message: "Document uploaded successfully",
+        document: savedDocument,
+      });
+    }
+
     const parent = await Parent.findById(parentId);
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -794,13 +940,6 @@ exports.uploadDocument = async (req, res) => {
     if (!parent.documents) {
       parent.documents = [];
     }
-
-    const documentData = {
-      name: req.file.originalname,
-      path: fileUrl,
-      size: req.file.size,
-      uploadedAt: new Date(),
-    };
 
     parent.documents.push(documentData);
     await parent.save();
@@ -822,6 +961,24 @@ exports.getAllDocuments = async (req, res) => {
   try {
     const { parentId } = req.params;
     console.log("Getting documents for parentId:", parentId);
+
+    if (String(parentId).startsWith("adm-")) {
+      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
+      if (!parsed) {
+        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
+      }
+      const app = await AdmissionApplication.findById(parsed.applicationId)
+        .select("documents")
+        .lean();
+      if (!app) {
+        return res.status(404).json({ success: false, message: "Admission record not found" });
+      }
+      const onlyParentUploads = (app.documents || []).filter(
+        (d) => d && d.parentProfileUpload === true
+      );
+      return res.status(200).json(onlyParentUploads);
+    }
+
     const parent = await Parent.findById(parentId).select("documents");
 
     if (!parent) {
@@ -870,6 +1027,41 @@ exports.downloadDocument = async (req, res) => {
 exports.deleteDocument = async (req, res) => {
   try {
     const { parentId, documentId } = req.params;
+
+    if (String(parentId).startsWith("adm-")) {
+      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
+      if (!parsed) {
+        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
+      }
+      const application = await AdmissionApplication.findById(parsed.applicationId);
+      if (!application) {
+        return res.status(404).json({ success: false, message: "Admission record not found" });
+      }
+      const targetDocument = application.documents.id(documentId);
+      if (!targetDocument) {
+        return res.status(404).json({ success: false, message: "Document not found" });
+      }
+      if (!targetDocument.parentProfileUpload) {
+        return res.status(403).json({
+          success: false,
+          message: "Only documents uploaded from the parent profile can be removed here.",
+        });
+      }
+      if (targetDocument.path) {
+        const filename = path.basename(targetDocument.path);
+        const filePath = safeDocumentPath(filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      application.documents.pull({ _id: documentId });
+      await application.save();
+      return res.status(200).json({
+        success: true,
+        message: "Document deleted successfully",
+      });
+    }
+
     const parent = await Parent.findById(parentId);
 
     if (!parent) {

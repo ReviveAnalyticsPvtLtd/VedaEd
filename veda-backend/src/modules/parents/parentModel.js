@@ -74,6 +74,8 @@ const parentSchema = new Schema({
         name: String,
         path: String,
         size: Number,
+        /** Set when uploaded from parent profile so lists can exclude other sources if needed */
+        parentProfileUpload: { type: Boolean, default: false },
         uploadedAt: { type: Date, default: Date.now }
     }]
 }, {timestamps: true});
