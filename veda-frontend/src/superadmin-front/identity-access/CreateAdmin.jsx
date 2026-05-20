@@ -84,6 +84,14 @@ export default function CreateAdmin() {
         navigate(`${BASE}/admins/${res.data._id}/invite-preview`);
         return;
       }
+      if (draft) {
+        navigate(`${BASE}/admins/${res.data._id}/edit`, {
+          state: {
+            draftSavedMessage: res.message || "Draft saved. Continue editing below.",
+          },
+        });
+        return;
+      }
       navigate(`${BASE}/admins`);
     } catch (err) {
       setError(err.message);

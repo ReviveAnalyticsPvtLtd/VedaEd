@@ -125,10 +125,15 @@ exports.getMeta = async (req, res) => {
 exports.listAdmins = async (req, res) => {
   try {
     const { search = "", adminType = "", status = "" } = req.query;
-    const filter = { isDraft: false };
+    const filter = {};
 
     if (adminType) filter.adminType = adminType;
-    if (status) filter.status = status;
+    if (status === "draft") {
+      filter.isDraft = true;
+    } else if (status === "active" || status === "inactive") {
+      filter.isDraft = false;
+      filter.status = status;
+    }
     if (req.query.inviteStatus) filter.inviteStatus = req.query.inviteStatus;
     if (search) {
       filter.$or = [
@@ -260,8 +265,8 @@ exports.createAdmin = async (req, res) => {
       campus: payload.campus,
       scope: payload.scope,
       permissions,
-      inviteStatus: isInviteFlow ? "pending" : "accepted",
-      status: isInviteFlow ? "inactive" : payload.status || "active",
+      inviteStatus: isInviteFlow ? "pending" : payload.isDraft ? "pending" : "accepted",
+      status: payload.isDraft ? "inactive" : isInviteFlow ? "inactive" : payload.status || "active",
       isDraft: !!payload.isDraft,
       ...(storedInitialPassword ? { initialPassword: storedInitialPassword } : {}),
     });
@@ -365,6 +370,17 @@ exports.updateStatus = async (req, res) => {
     const { status } = req.body;
     if (!["active", "inactive"].includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status" });
+    }
+
+    const existing = await PlatformAdmin.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Admin not found" });
+    }
+    if (existing.isDraft) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot change activation status while the admin is still a draft.",
+      });
     }
 
     const admin = await PlatformAdmin.findByIdAndUpdate(

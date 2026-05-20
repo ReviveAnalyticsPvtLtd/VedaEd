@@ -11,6 +11,10 @@ export function getAdminStatusDisplay(admin) {
     return { label: "—", tone: "neutral" };
   }
 
+  if (admin.isDraft) {
+    return { label: "Draft", tone: "warning" };
+  }
+
   const hasAcceptedInvite =
     admin.inviteStatus === "accepted" && Boolean(admin.acceptedAt);
 

@@ -110,6 +110,7 @@ export default function AdminList() {
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
           >
             <option value="">All statuses</option>
+            <option value="draft">Draft</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
@@ -186,18 +187,20 @@ export default function AdminList() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleStatus(admin)}
-                          className={`p-2 rounded-lg ${
-                            admin.status === "active"
-                              ? "hover:bg-red-50 text-red-600"
-                              : "hover:bg-green-50 text-green-600"
-                          }`}
-                          title={admin.status === "active" ? "Deactivate" : "Activate"}
-                        >
-                          {admin.status === "active" ? <FiUserX /> : <FiUserCheck />}
-                        </button>
+                        {!admin.isDraft && (
+                          <button
+                            type="button"
+                            onClick={() => toggleStatus(admin)}
+                            className={`p-2 rounded-lg ${
+                              admin.status === "active"
+                                ? "hover:bg-red-50 text-red-600"
+                                : "hover:bg-green-50 text-green-600"
+                            }`}
+                            title={admin.status === "active" ? "Deactivate" : "Activate"}
+                          >
+                            {admin.status === "active" ? <FiUserX /> : <FiUserCheck />}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

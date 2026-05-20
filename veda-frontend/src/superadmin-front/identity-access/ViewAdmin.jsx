@@ -104,25 +104,27 @@ export default function ViewAdmin() {
                 </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={toggleStatus}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${
-                admin.status === "active"
-                  ? "border-red-200 text-red-600 hover:bg-red-50"
-                  : "border-green-200 text-green-600 hover:bg-green-50"
-              }`}
-            >
-              {admin.status === "active" ? (
-                <>
-                  <FiUserX /> Deactivate
-                </>
-              ) : (
-                <>
-                  <FiUserCheck /> Activate
-                </>
-              )}
-            </button>
+            {!admin.isDraft && (
+              <button
+                type="button"
+                onClick={toggleStatus}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${
+                  admin.status === "active"
+                    ? "border-red-200 text-red-600 hover:bg-red-50"
+                    : "border-green-200 text-green-600 hover:bg-green-50"
+                }`}
+              >
+                {admin.status === "active" ? (
+                  <>
+                    <FiUserX /> Deactivate
+                  </>
+                ) : (
+                  <>
+                    <FiUserCheck /> Activate
+                  </>
+                )}
+              </button>
+            )}
             <Link
               to={`${BASE}/admins/${id}/edit`}
               className="inline-flex items-center gap-2 bg-indigo-600 text-white
