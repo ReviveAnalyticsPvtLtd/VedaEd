@@ -281,6 +281,13 @@ import SuperAdminProfile from "./superadmin-landing-page/SuperAdminProfile";
 import SuperAdminShellLayout from "./wrapper/SuperAdminShellLayout";
 import SuperAdminFrontPage from "./wrapper/SuperAdminFrontPage";
 import SuperAdminMasterDashboard from "./wrapper/SuperAdminMasterDashboard";
+import IdentityAccessAdminList from "./superadmin-front/identity-access/AdminList";
+import IdentityAccessCreateAdmin from "./superadmin-front/identity-access/CreateAdmin";
+import IdentityAccessViewAdmin from "./superadmin-front/identity-access/ViewAdmin";
+import IdentityAccessEditAdmin from "./superadmin-front/identity-access/EditAdmin";
+import IdentityAccessInvitePreview from "./superadmin-front/identity-access/InvitePreview";
+import AcceptInvitation from "./pages/AcceptInvitation";
+import AdminProfile from "./admin-front/AdminProfile";
 
 import SuperAdminSISDashboardLayout from "./SuperAdmin/SIS/SuperAdminSISDashboardLayout";
 import SuperAdminSISDashboard from "./SuperAdmin/SIS/SuperAdminSISDashboard";
@@ -367,6 +374,7 @@ function App() {
       <Routes>
         {/* ================= LOGIN ================= */}
         <Route path="/" element={<Login />} />
+        <Route path="/accept-invitation" element={<AcceptInvitation />} />
         {/* user info pages */}
         <Route path="/form/step-1" element={<Step1 />} />
   <Route path="/form/step-2" element={<Step2 />} />
@@ -379,6 +387,7 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin-front" element={<AdminShellLayout />}>
             <Route index element={<AdminMainDashboard />} />
+            <Route path="profile" element={<AdminProfile />} />
           </Route>
         </Route>
 
@@ -400,22 +409,22 @@ function App() {
           <Route index element={<ParentMasterDashboard />} />
         </Route>
       </Route>
-      {/* ================= SUPER ADMIN FRONT ================= */}
-<Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
-  <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
-    {/* FRONT PAGE / LANDING */}
-    <Route index element={<SuperAdminFrontPage />} />
+      {/* ================= SUPER ADMIN (protected) ================= */}
+      <Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
+        <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
+          <Route index element={<SuperAdminFrontPage />} />
+          <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+          <Route
+            path="identity-access"
+            element={<Navigate to="/superadmin-front/identity-access/admins" replace />}
+          />
+          <Route path="identity-access/admins" element={<IdentityAccessAdminList />} />
+          <Route path="identity-access/admins/create" element={<IdentityAccessCreateAdmin />} />
+          <Route path="identity-access/admins/:id/invite-preview" element={<IdentityAccessInvitePreview />} />
+          <Route path="identity-access/admins/:id/edit" element={<IdentityAccessEditAdmin />} />
+          <Route path="identity-access/admins/:id" element={<IdentityAccessViewAdmin />} />
+        </Route>
 
-    {/* MASTER DASHBOARD */}
-    <Route
-      path="dashboard"
-      element={<SuperAdminMasterDashboard />}
-    />
-  </Route>
-</Route>
-
-
- {/* SuperAdmin Layout */}
         <Route path="/superadmin" element={<SuperAdminDashboardLayout />}>
   <Route index element={<Navigate to="dashboard" />} />
   <Route path="dashboard" element={<SuperAdminDashboard />} />
@@ -518,6 +527,7 @@ function App() {
         <Route path="annual" element={<SuperAdminCalendarAnnualCalendar />} />
         <Route path="event-setup" element={<SuperAdminCalendarEventSetup />} />
         <Route path="year-setup" element={<SuperAdminCalendarYearSetup />} />
+      </Route>
       </Route>
 
 <Route

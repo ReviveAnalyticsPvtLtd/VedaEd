@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import config from "../config";
+import { canViewModule } from "../utils/adminPermissions";
 import {
   PieChart, Pie, Cell,
   BarChart, Bar,
@@ -14,9 +15,19 @@ const COLORS = ["#4F46E5", "#22C55E", "#3B82F6", "#F59E0B", "#EF4444"];
 
 /* ================= DASHBOARD ================= */
 
+const TOP_MODULES = [
+  { title: "Admin SIS", key: "Admin SIS", valueKey: "sis", path: "/admin", format: (s) => `${s?.totalStudents || 0} Students` },
+  { title: "Communication", key: "Communication", valueKey: "communication", path: "/communication", format: (s) => `${((s?.totalNotices || 0) + (s?.totalComplaints || 0))} Logs` },
+  { title: "Calendar", key: "Admin Calendar", valueKey: "calendar", path: "/admincalendar", format: (s) => `${s?.totalEvents || 0} Events` },
+  { title: "Admission", key: "Admission", valueKey: "admission", path: "/admission", format: (s) => `${s?.confirmedAdmissions || 0} Confirmed` },
+  { title: "HR Module", key: "HR Module", valueKey: "hr", path: "/hr", format: (s) => `${s?.totalStaff || 0} Staff` },
+  { title: "Fees", key: "Fees", valueKey: "fees", path: "/fees", format: (s) => `₹${s?.collected || 0} Collected` },
+];
+
 export default function AdminMasterDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const visibleTopModules = useMemo(() => TOP_MODULES.filter((m) => canViewModule(m.key)), []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -64,12 +75,28 @@ export default function AdminMasterDashboard() {
 
       {/* ===== TOP MAJOR MODULES ===== */}
       <div className="grid grid-cols-6 gap-3">
-        <TopCard title="Admin SIS" value={`${sisStats.totalStudents || 0} Students`} to="/admin" />
-        <TopCard title="Communication" value={`${(commStats.totalNotices || 0) + (commStats.totalComplaints || 0)} Logs`} to="/communication" />
-        <TopCard title="Calendar" value={`${stats?.calendar?.totalEvents || 0} Events`} to="/admincalendar" />
-        <TopCard title="Admission" value={`${admissionStats.confirmedAdmissions || 0} Confirmed`} to="/admission" />
-        <TopCard title="HR Module" value={`${hrStats.totalStaff || 0} Staff`} to="/hr" />
-        <TopCard title="Fees" value={`₹${stats?.fees?.collected || 0} Collected`} to="/fees" />
+        {visibleTopModules.map((mod) => {
+          const statBlock =
+            mod.valueKey === "sis"
+              ? sisStats
+              : mod.valueKey === "communication"
+                ? commStats
+                : mod.valueKey === "calendar"
+                  ? stats?.calendar
+                  : mod.valueKey === "admission"
+                    ? admissionStats
+                    : mod.valueKey === "hr"
+                      ? hrStats
+                      : stats?.fees;
+          return (
+            <TopCard
+              key={mod.title}
+              title={mod.title}
+              value={mod.format(statBlock)}
+              to={mod.path}
+            />
+          );
+        })}
       </div>
 
       {/* ===== SIS ===== */}

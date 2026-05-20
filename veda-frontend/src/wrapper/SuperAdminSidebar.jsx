@@ -10,9 +10,24 @@ import {
   FiChevronDown,
   FiTruck,
   FiMenu,
+  FiShield,
 } from "react-icons/fi";
 
 /* ================= MODULE CONFIG ================= */
+
+const IDENTITY_BASE = "/superadmin-front/identity-access";
+
+const PLATFORM_MODULES = [
+  {
+    name: "Identity & Access",
+    icon: <FiShield />,
+    base: IDENTITY_BASE,
+    subs: [
+      { label: "Admin Management", path: `${IDENTITY_BASE}/admins` },
+      { label: "Create Admin", path: `${IDENTITY_BASE}/admins/create` },
+    ],
+  },
+];
 
 const MODULES = [
   {
@@ -96,9 +111,11 @@ export default function SuperAdminSidebar({
   const location = useLocation();
   const [openModule, setOpenModule] = useState(null);
 
-  /* 🔥 AUTO-OPEN MODULE BASED ON URL */
+  const allModules = [...PLATFORM_MODULES, ...MODULES];
+
+  /* AUTO-OPEN MODULE BASED ON URL */
   useEffect(() => {
-    const active = MODULES.find((m) =>
+    const active = allModules.find((m) =>
       location.pathname.startsWith(m.base)
     );
     if (active) setOpenModule(active.name);
@@ -127,7 +144,7 @@ export default function SuperAdminSidebar({
       </button>
 
       <div className="mt-14 px-2">
-        {MODULES.map((mod) => {
+        {allModules.map((mod) => {
           const isOpen = openModule === mod.name;
 
           return (

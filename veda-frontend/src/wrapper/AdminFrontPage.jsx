@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
 import { FiUsers, FiMessageCircle, FiCalendar, FiBriefcase, FiClipboard, FiBookOpen, FiArrowLeft } from "react-icons/fi";
+import { filterModulesByPermission } from "../utils/adminPermissions";
 
 const MODULES = [
   { name: "Admin SIS", path: "/admin", icon: <FiUsers /> },
@@ -12,9 +14,14 @@ const MODULES = [
 
 export default function AdminFrontPage() {
   const navigate = useNavigate();
+  const visibleModules = useMemo(() => filterModulesByPermission(MODULES), []);
 
   const logout = () => {
-    localStorage.removeItem("veda_role");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("permissions");
+    localStorage.removeItem("platformPermissions");
+    localStorage.removeItem("user");
     navigate("/");
   };
 
@@ -29,7 +36,7 @@ export default function AdminFrontPage() {
       </h1>
 
       <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {MODULES.map(m => (
+        {visibleModules.map(m => (
           <div
             key={m.name}
             onClick={() => navigate(m.path)}

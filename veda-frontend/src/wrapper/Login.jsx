@@ -27,14 +27,21 @@ export default function Login() {
         password
       });
 
-      const { token, role, permissions, user } = response.data;
-      
+      const { token, role, permissions, platformPermissions, user } = response.data;
+
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
-      localStorage.setItem("permissions", JSON.stringify(permissions));
+      localStorage.setItem("permissions", JSON.stringify(permissions || []));
       localStorage.setItem("user", JSON.stringify(user));
 
-      if (role === "admin") navigate("/admin-front");
+      if (role === "admin" && platformPermissions) {
+        localStorage.setItem("platformPermissions", JSON.stringify(platformPermissions));
+      } else {
+        localStorage.removeItem("platformPermissions");
+      }
+
+      if (role === "superadmin") navigate("/superadmin-front/dashboard");
+      else if (role === "admin") navigate("/admin-front");
       else if (role === "teacher") navigate("/teacher");
       else if (role === "parent") navigate("/parent-front");
       else if (role === "staff") navigate("/staff-front");

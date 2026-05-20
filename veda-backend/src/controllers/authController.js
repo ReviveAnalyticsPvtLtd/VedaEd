@@ -3,29 +3,47 @@ const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
 const RolePermission = require("../models/RolePermission");
+const {
+  flattenPlatformPermissions,
+  findPlatformAdminByEmployeeId,
+  validatePlatformAdminForLogin,
+} = require("../utils/platformAdminAuth");
+
+const PASSWORD_MIN_LENGTH = 8;
 
 exports.login = async (req, res) => {
   try {
 
-    const { email, password } = req.body;
+    const { email, password, employeeId } = req.body;
+    const loginId = String(email || employeeId || "").trim();
 
     console.log("LOGIN BODY:", req.body);
 
-    // 1️⃣ Check email & password exist
-    if (!email || !password) {
-      console.log("EMAIL OR PASSWORD MISSING");
+    // 1️⃣ Check login id & password exist
+    if (!loginId || !password) {
+      console.log("LOGIN ID OR PASSWORD MISSING");
       return res.status(400).json({
-        message: "Email and password are required"
+        message: "Email, employee ID, or username and password are required",
       });
     }
 
     // 2️⃣ Find user
-    let user = await User.findOne({ email }).populate("roleId");
+    let user = await User.findOne({ email: loginId }).populate("roleId");
+    if (!user && loginId.includes("@")) {
+      user = await User.findOne({ email: loginId.toLowerCase() }).populate("roleId");
+    }
 
-    // Fallback logic if user not found by email
     if (!user) {
-      const isParentID = email.startsWith("PRN-");
-      const isStudentID = email.startsWith("STD-");
+      const platformAdmin = await findPlatformAdminByEmployeeId(loginId);
+      if (platformAdmin?.userId) {
+        user = await User.findById(platformAdmin.userId).populate("roleId");
+      }
+    }
+
+    // Fallback logic if user not found by email or employee ID
+    if (!user) {
+      const isParentID = loginId.startsWith("PRN-");
+      const isStudentID = loginId.startsWith("STD-");
 
       const Role = require("../models/Role");
       const Student = require("../modules/student/studentModels");
@@ -36,12 +54,12 @@ exports.login = async (req, res) => {
       if (isStudentID || (!isParentID && !isStudentID)) {
         // --- STUDENT FALLBACK ---
         let student = await Student.findOne({
-          $or: [{ "personalInfo.stdId": email }, { "personalInfo.username": email }]
+          $or: [{ "personalInfo.stdId": loginId }, { "personalInfo.username": loginId }]
         });
 
         if (!student) {
           student = await AdmissionApplication.findOne({
-            $or: [{ "personalInfo.stdId": email }, { "personalInfo.username": email }]
+            $or: [{ "personalInfo.stdId": loginId }, { "personalInfo.username": loginId }]
           });
         }
 
@@ -51,10 +69,10 @@ exports.login = async (req, res) => {
             user = await User.findOne({ refId: student._id, roleId: studentRole._id }).populate("roleId");
             
             if (!user) {
-              console.log(`Just-in-time student user creation: ${email}`);
+              console.log(`Just-in-time student user creation: ${loginId}`);
               user = await User.create({
                 name: student.personalInfo?.name || "Student",
-                email: student.contactInfo?.email || student.personalInfo?.username || student.personalInfo?.stdId || email,
+                email: student.contactInfo?.email || student.personalInfo?.username || student.personalInfo?.stdId || loginId,
                 password: student.personalInfo?.password || "default123",
                 roleId: studentRole._id,
                 refId: student._id,
@@ -68,21 +86,21 @@ exports.login = async (req, res) => {
 
       if (!user && (isParentID || (!isParentID && !isStudentID))) {
         // --- PARENT FALLBACK ---
-        let parent = await Parent.findOne({ parentId: email });
+        let parent = await Parent.findOne({ parentId: loginId });
         let application = null;
 
         if (!parent) {
           // Check AdmissionApplication by parentId
-          application = await AdmissionApplication.findOne({ "parents.parentId": email });
+          application = await AdmissionApplication.findOne({ "parents.parentId": loginId });
 
           // If not found by parentId, try matching generated PRN-ADM- or PRN-SIS- pattern
           if (!application && isParentID) {
-            const shortId = email.split("-").pop().toLowerCase();
-            if (email.startsWith("PRN-SIS-")) {
+            const shortId = loginId.split("-").pop().toLowerCase();
+            if (loginId.startsWith("PRN-SIS-")) {
               const allParents = await Parent.find({}).select("_id").lean();
               const matchingParent = allParents.find(p => p._id.toString().toLowerCase().endsWith(shortId));
               if (matchingParent) parent = await Parent.findById(matchingParent._id);
-            } else if (email.startsWith("PRN-ADM-")) {
+            } else if (loginId.startsWith("PRN-ADM-")) {
               const allApps = await AdmissionApplication.find({}).select("_id").lean();
               const matchingApp = allApps.find(app => app._id.toString().toLowerCase().endsWith(shortId));
               if (matchingApp) application = await AdmissionApplication.findById(matchingApp._id);
@@ -97,7 +115,7 @@ exports.login = async (req, res) => {
             user = await User.findOne({ refId, roleId: parentRole._id }).populate("roleId");
 
             if (!user) {
-              console.log(`Just-in-time parent user creation: ${email}`);
+              console.log(`Just-in-time parent user creation: ${loginId}`);
               const appParents = application?.parents;
               let admissionAccountName = null;
               if (appParents) {
@@ -117,7 +135,7 @@ exports.login = async (req, res) => {
                   application?.parents?.mother?.name ||
                   application?.parents?.guardian?.name ||
                   "Parent",
-                email: email,
+                email: loginId,
                 password: parent?.password || "default123",
                 roleId: parentRole._id,
                 refId: refId,
@@ -134,9 +152,9 @@ exports.login = async (req, res) => {
         const Staff = require("../modules/staff/staffModels");
         const staff = await Staff.findOne({
           $or: [
-            { "personalInfo.staffId": email },
-            { "personalInfo.username": email },
-            { "personalInfo.email": email }
+            { "personalInfo.staffId": loginId },
+            { "personalInfo.username": loginId },
+            { "personalInfo.email": loginId }
           ]
         });
 
@@ -145,21 +163,23 @@ exports.login = async (req, res) => {
           let roleName = "staff";
 
           if (normalizedStaffRole === "teacher") roleName = "teacher";
-          else if (normalizedStaffRole === "admin") roleName = "admin";
-          else if (normalizedStaffRole === "hr") roleName = "hr";
+          else if (normalizedStaffRole === "admin") {
+            // Platform admins must be created via superadmin identity — no JIT admin users
+            roleName = null;
+          } else if (normalizedStaffRole === "hr") roleName = "hr";
           else if (normalizedStaffRole === "receptionist") roleName = "receptionist";
           else if (normalizedStaffRole === "admission") roleName = "admission";
           else if (normalizedStaffRole === "transport") roleName = "transport";
 
-          const staffRole = await Role.findOne({ name: roleName });
+          const staffRole = roleName ? await Role.findOne({ name: roleName }) : null;
           if (staffRole) {
             user = await User.findOne({ refId: staff._id, roleId: staffRole._id }).populate("roleId");
 
             if (!user) {
-              console.log(`Just-in-time staff user creation: ${email}`);
+              console.log(`Just-in-time staff user creation: ${loginId}`);
               user = await User.create({
                 name: staff.personalInfo?.name || "Staff",
-                email: staff.personalInfo?.email || staff.personalInfo?.username || email,
+                email: staff.personalInfo?.email || staff.personalInfo?.username || loginId,
                 password: staff.personalInfo?.password || "default123",
                 roleId: staffRole._id,
                 refId: staff._id,
@@ -193,27 +213,54 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 4️⃣ Get role
     const roleId = user.roleId._id;
     const roleName = user.roleId.name;
+    const normalizedRole = roleName?.toLowerCase();
+
+    let adminCheck = null;
+
+    if (normalizedRole === "admin") {
+      adminCheck = await validatePlatformAdminForLogin(user);
+      if (!adminCheck.ok) {
+        return res.status(adminCheck.status).json({ message: adminCheck.message });
+      }
+    } else if (user.status === "inactive") {
+      return res.status(403).json({
+        message: "Your account is inactive. Contact your administrator.",
+      });
+    }
 
     console.log("ROLE:", roleName);
 
-    // 5️⃣ Fetch permissions
-    const rolePermissions = await RolePermission
-      .find({ roleId })
-      .populate("permissionId");
+    let permissions = [];
+    let platformPermissions = null;
+    let platformAdminProfile = null;
 
-    const permissions = rolePermissions.map(rp => rp.permissionId.name);
+    if (normalizedRole === "admin" && adminCheck?.platformAdmin) {
+      platformPermissions = adminCheck.platformAdmin.permissions || [];
+      platformAdminProfile = {
+        adminType: adminCheck.platformAdmin.adminType,
+        employeeId: adminCheck.platformAdmin.employeeId,
+        school: adminCheck.platformAdmin.school,
+        campus: adminCheck.platformAdmin.campus,
+        scope: adminCheck.platformAdmin.scope,
+      };
+      permissions = flattenPlatformPermissions(platformPermissions);
+    } else {
+      const rolePermissions = await RolePermission
+        .find({ roleId })
+        .populate("permissionId");
+
+      permissions = rolePermissions.map((rp) => rp.permissionId.name);
+    }
 
     console.log("PERMISSIONS:", permissions);
 
-    // 6️⃣ Generate JWT
     const token = jwt.sign(
       {
         userId: user._id,
         role: roleName,
-        refId: user.refId
+        refId: user.refId,
       },
       process.env.JWT_SECRET || "fallback_secret_key",
       { expiresIn: "7d" }
@@ -225,13 +272,15 @@ exports.login = async (req, res) => {
       token,
       role: roleName,
       permissions,
+      platformPermissions,
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: roleName,
-        refId: user.refId
-      }
+        refId: user.refId,
+        ...(platformAdminProfile || {}),
+      },
     });
 
   } catch (error) {
@@ -240,6 +289,60 @@ exports.login = async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error"
+    });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `New password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be different from your current password",
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("changePassword error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update password",
     });
   }
 };
