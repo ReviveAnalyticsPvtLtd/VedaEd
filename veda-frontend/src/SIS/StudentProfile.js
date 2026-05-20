@@ -556,15 +556,13 @@ const StudentProfile = () => {
     fetchClassesAndSections();
   }, []);
 
-  // Initial fetch only — do not unmount the whole page while saving edits
-  if (pageLoading) {
   const profileHeaderImageSrc = useMemo(() => {
     if (!student) return "";
     return firstNonEmpty(student.photo, getLatestPassportPhotoUrlFromDocs(documents));
   }, [student, documents]);
 
-  // Handle loading state
-  if (loading) {
+  // Initial load only — pageLoading is not toggled while saving edits
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
@@ -1295,10 +1293,6 @@ const StudentProfile = () => {
               </button>
             </div>
           )}
-        <div className="mb-4">
-          <button onClick={() => navigate(-1)} className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
-            <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Student Directory
-          </button>
         </div>
 
         {/* Profile Header */}
