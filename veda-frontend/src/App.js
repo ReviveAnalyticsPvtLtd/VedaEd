@@ -277,6 +277,82 @@ import SuperAdminDashboardLayout from "./superadmin-landing-page/DashboardLayout
 import SuperAdminDashboard from "./superadmin-landing-page/Dashboard";
 import SuperAdminProfile from "./superadmin-landing-page/SuperAdminProfile";
 
+/* ================= SUPER ADMIN ================= */
+import SuperAdminShellLayout from "./wrapper/SuperAdminShellLayout";
+import SuperAdminFrontPage from "./wrapper/SuperAdminFrontPage";
+import SuperAdminMasterDashboard from "./wrapper/SuperAdminMasterDashboard";
+
+import SuperAdminSISDashboardLayout from "./SuperAdmin/SIS/SuperAdminSISDashboardLayout";
+import SuperAdminSISDashboard from "./SuperAdmin/SIS/SuperAdminSISDashboard";
+import SuperAdminSISStudents from "./SuperAdmin/SIS/SuperAdminSISStudents";
+import SuperAdminSISStudentProfile from "./SuperAdmin/SIS/SuperAdminSISStudentProfile";
+import SuperAdminSISStaff from "./SuperAdmin/SIS/SuperAdminSISStaff";
+import SuperAdminSISStaffProfile from "./SuperAdmin/SIS/SuperAdminSISStaffProfile";
+import SuperAdminSISParents from "./SuperAdmin/SIS/SuperAdminSISParents";
+import SuperAdminSISParentProfile from "./SuperAdmin/SIS/SuperAdminSISParentProfile";
+import SuperAdminSISReports from "./SuperAdmin/SIS/SuperAdminSISReports";import SuperAdminSISAttendanceOverview from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceOverview";
+import SuperAdminSISAttendanceByClass from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByClass";
+import SuperAdminSISAttendanceByStudent from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByStudent";
+import SuperAdminSISAttendanceClassDetail from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceClassDetail";
+import SuperAdminSISAttendanceStudentDetail from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceStudentDetail";import SuperAdminSISClasses from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClasses";
+import SuperAdminSISSubjectGroup from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISSubjectGroup";
+import SuperAdminSISAssignTeacher from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAssignTeacher";
+import SuperAdminSISTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISTimetable";
+import SuperAdminSISAddClass from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddClass";
+import SuperAdminSISAddSubject from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddSubject";import SuperAdminFeesDashboardLayout from "./SuperAdmin/Fees/SuperAdminFeesDashboardLayout";
+import SuperAdminFeesDashboard from "./SuperAdmin/Fees/SuperAdminFeesDashboard";
+import SuperAdminFeesCollectFees from "./SuperAdmin/Fees/SuperAdminFeesCollectFees";
+import SuperAdminFeesFeeMaster from "./SuperAdmin/Fees/SuperAdminFeesFeeMaster";
+import SuperAdminFeesFeeGroup from "./SuperAdmin/Fees/SuperAdminFeesFeeGroup";
+import SuperAdminFeesFeeType from "./SuperAdmin/Fees/SuperAdminFeesFeeType";
+import SuperAdminFeesFeeDiscount from "./SuperAdmin/Fees/SuperAdminFeesFeeDiscount";
+import SuperAdminFeesCarryForward from "./SuperAdmin/Fees/SuperAdminFeesCarryForward";
+import SuperAdminFeesFeeReminder from "./SuperAdmin/Fees/SuperAdminFeesFeeReminder";
+import SuperAdminTransportDashboardLayout from "./SuperAdmin/Transport/SuperAdminTransportDashboardLayout";
+import SuperAdminTransportDashboard from "./SuperAdmin/Transport/SuperAdminTransportDashboard";
+import SuperAdminTransportDriverAdmission from "./SuperAdmin/Transport/SuperAdminTransportDriverAdmission";
+import SuperAdminTransportVehicles from "./SuperAdmin/Transport/SuperAdminTransportVehicles";
+import SuperAdminTransportRoutes from "./SuperAdmin/Transport/SuperAdminTransportRoutes";
+import SuperAdminTransportPickupPoints from "./SuperAdmin/Transport/SuperAdminTransportPickupPoints";
+import SuperAdminTransportAssignVehicle from "./SuperAdmin/Transport/SuperAdminTransportAssignVehicle";
+import SuperAdminTransportStudentTransportFees from "./SuperAdmin/Transport/SuperAdminTransportStudentTransportFees";
+import SuperAdminFleetDashboardLayout from "./SuperAdmin/Fleet/SuperAdminFleetDashboardLayout";
+import SuperAdminFleetDashboard from "./SuperAdmin/Fleet/SuperAdminFleetDashboard";
+import SuperAdminFleetVehicles from "./SuperAdmin/Fleet/SuperAdminFleetVehicles";
+import SuperAdminFleetMaintenance from "./SuperAdmin/Fleet/SuperAdminFleetMaintenance";
+import SuperAdminFleetDocuments from "./SuperAdmin/Fleet/SuperAdminFleetDocuments";
+import SuperAdminFleetExpenses from "./SuperAdmin/Fleet/SuperAdminFleetExpenses";
+import SuperAdminFleetFueling from "./SuperAdmin/Fleet/SuperAdminFleetFueling";
+import SuperAdminFleetDriverAllocation from "./SuperAdmin/Fleet/SuperAdminFleetDriverAllocation";
+import SuperAdminHRDashboardLayout from "./SuperAdmin/HR/SuperAdminHRDashboardLayout";
+import SuperAdminHRDashboard from "./SuperAdmin/HR/SuperAdminHRDashboard";
+import SuperAdminHRStaffDirectory from "./SuperAdmin/HR/SuperAdminHRStaffDirectory";
+import SuperAdminHRStaffProfile from "./SuperAdmin/HR/SuperAdminHRStaffProfile";
+import SuperAdminHRAttendance from "./SuperAdmin/HR/SuperAdminHRAttendance";
+import SuperAdminHRPayroll from "./SuperAdmin/HR/SuperAdminHRPayroll";
+import SuperAdminHRLeaveApproval from "./SuperAdmin/HR/SuperAdminHRLeaveApproval";
+import SuperAdminAdmissionDashboardLayout from "./SuperAdmin/Admission/SuperAdminAdmissionDashboardLayout";
+import SuperAdminAdmissionDashboard from "./SuperAdmin/Admission/SuperAdminAdmissionDashboard";
+import SuperAdminAdmissionEnquiry from "./SuperAdmin/Admission/SuperAdminAdmissionEnquiry";
+import SuperAdminAdmissionEntranceList from "./SuperAdmin/Admission/SuperAdminAdmissionEntranceList";
+import SuperAdminAdmissionInterviewList from "./SuperAdmin/Admission/SuperAdminAdmissionInterviewList";
+import SuperAdminAdmissionDocumentVerification from "./SuperAdmin/Admission/SuperAdminAdmissionDocumentVerification";
+import SuperAdminAdmissionApplicationList from "./SuperAdmin/Admission/SuperAdminAdmissionApplicationList";
+import SuperAdminAdmissionApplicationReview from "./SuperAdmin/Admission/SuperAdminAdmissionApplicationReview";
+import SuperAdminAdmissionFinalStudents from "./SuperAdmin/Admission/SuperAdminAdmissionFinalStudents";
+import SuperAdminAdmissionVacancySetup from "./SuperAdmin/Admission/SuperAdminAdmissionVacancySetup";
+import SuperAdminCalendarDashboardLayout from "./SuperAdmin/Calendar/SuperAdminCalendarDashboardLayout";
+import SuperAdminCalendarAnnualCalendar from "./SuperAdmin/Calendar/SuperAdminCalendarAnnualCalendar";
+import SuperAdminCalendarEventSetup from "./SuperAdmin/Calendar/SuperAdminCalendarEventSetup";
+import SuperAdminCalendarYearSetup from "./SuperAdmin/Calendar/SuperAdminCalendarYearSetup";
+import SuperAdminCommunicationDashboardLayout from "./SuperAdmin/Communication/SuperAdminCommunicationDashboardLayout";
+import SuperAdminCommunicationDashboard from "./SuperAdmin/Communication/SuperAdminCommunicationDashboard";
+import SuperAdminCommunicationLogs from "./SuperAdmin/Communication/SuperAdminCommunicationLogs";
+import SuperAdminCommunicationNotices from "./SuperAdmin/Communication/SuperAdminCommunicationNotices";
+import SuperAdminCommunicationMessages from "./SuperAdmin/Communication/SuperAdminCommunicationMessages";
+import SuperAdminCommunicationComplaints from "./SuperAdmin/Communication/SuperAdminCommunicationComplaints";
+
+
 import Step1 from "./UserForm/Step1";
 import Step2 from "./UserForm/Step2";
 import Step3 from "./UserForm/Step3";
@@ -324,6 +400,19 @@ function App() {
           <Route index element={<ParentMasterDashboard />} />
         </Route>
       </Route>
+      {/* ================= SUPER ADMIN FRONT ================= */}
+<Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
+  <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
+    {/* FRONT PAGE / LANDING */}
+    <Route index element={<SuperAdminFrontPage />} />
+
+    {/* MASTER DASHBOARD */}
+    <Route
+      path="dashboard"
+      element={<SuperAdminMasterDashboard />}
+    />
+  </Route>
+</Route>
 
 
  {/* SuperAdmin Layout */}
@@ -332,7 +421,104 @@ function App() {
   <Route path="dashboard" element={<SuperAdminDashboard />} />
   <Route path="settings/profile" element={<SuperAdminProfile />} />
 </Route>
+  {/* ===== SIS ===== */}
+      <Route path="/superadmin/sis" element={<SuperAdminSISDashboardLayout />}>
+        <Route index element={<SuperAdminSISDashboard />} />
+        <Route path="students" element={<SuperAdminSISStudents />} />
+        <Route path="students/:id" element={<SuperAdminSISStudentProfile />} />
+        <Route path="staff" element={<SuperAdminSISStaff />} />
+        <Route path="staff/:id" element={<SuperAdminSISStaffProfile />} />
+        <Route path="parents" element={<SuperAdminSISParents />} />
+        <Route path="parents/:id" element={<SuperAdminSISParentProfile />} />
+        <Route path="reports" element={<SuperAdminSISReports />} />
 
+        <Route path="attendance/overview" element={<SuperAdminSISAttendanceOverview />} />
+        <Route path="attendance/by-class" element={<SuperAdminSISAttendanceByClass />} />
+        <Route path="attendance/by-student" element={<SuperAdminSISAttendanceByStudent />} />
+        <Route path="attendance/class/:id" element={<SuperAdminSISAttendanceClassDetail />} />
+        <Route path="attendance/student/:id" element={<SuperAdminSISAttendanceStudentDetail />} />
+
+        <Route path="classes" element={<SuperAdminSISClasses />} />
+        <Route path="subject-group" element={<SuperAdminSISSubjectGroup />} />
+        <Route path="assign-teacher" element={<SuperAdminSISAssignTeacher />} />
+        <Route path="timetable" element={<SuperAdminSISTimetable />} />
+        <Route path="add-class" element={<SuperAdminSISAddClass />} />
+        <Route path="add-subject" element={<SuperAdminSISAddSubject />} />
+      </Route>
+
+      {/* ===== FEES ===== */}
+      <Route path="/superadmin/fees" element={<SuperAdminFeesDashboardLayout />}>
+        <Route index element={<SuperAdminFeesDashboard />} />
+        <Route path="collect" element={<SuperAdminFeesCollectFees />} />
+        <Route path="fee-master" element={<SuperAdminFeesFeeMaster />} />
+        <Route path="fee-group" element={<SuperAdminFeesFeeGroup />} />
+        <Route path="fee-type" element={<SuperAdminFeesFeeType />} />
+        <Route path="fee-discount" element={<SuperAdminFeesFeeDiscount />} />
+        <Route path="carry-forward" element={<SuperAdminFeesCarryForward />} />
+        <Route path="reminder" element={<SuperAdminFeesFeeReminder />} />
+      </Route>
+
+      {/* ===== TRANSPORT ===== */}
+      <Route path="/superadmin/transport" element={<SuperAdminTransportDashboardLayout />}>
+        <Route index element={<SuperAdminTransportDashboard />} />
+        <Route path="driver-admission" element={<SuperAdminTransportDriverAdmission />} />
+        <Route path="vehicles" element={<SuperAdminTransportVehicles />} />
+        <Route path="routes" element={<SuperAdminTransportRoutes />} />
+        <Route path="pickup-points" element={<SuperAdminTransportPickupPoints />} />
+        <Route path="assign-vehicle" element={<SuperAdminTransportAssignVehicle />} />
+        <Route path="student-fees" element={<SuperAdminTransportStudentTransportFees />} />
+      </Route>
+
+      {/* ===== FLEET ===== */}
+      <Route path="/superadmin/fleet" element={<SuperAdminFleetDashboardLayout />}>
+        <Route index element={<SuperAdminFleetDashboard />} />
+        <Route path="vehicles" element={<SuperAdminFleetVehicles />} />
+        <Route path="maintenance" element={<SuperAdminFleetMaintenance />} />
+        <Route path="documents" element={<SuperAdminFleetDocuments />} />
+        <Route path="expenses" element={<SuperAdminFleetExpenses />} />
+        <Route path="fueling" element={<SuperAdminFleetFueling />} />
+        <Route path="driver-allocation" element={<SuperAdminFleetDriverAllocation />} />
+      </Route>
+
+      {/* ===== HR ===== */}
+      <Route path="/superadmin/hr" element={<SuperAdminHRDashboardLayout />}>
+        <Route index element={<SuperAdminHRDashboard />} />
+        <Route path="staff" element={<SuperAdminHRStaffDirectory />} />
+        <Route path="staff/:id" element={<SuperAdminHRStaffProfile />} />
+        <Route path="attendance" element={<SuperAdminHRAttendance />} />
+        <Route path="payroll" element={<SuperAdminHRPayroll />} />
+        <Route path="leave-approval" element={<SuperAdminHRLeaveApproval />} />
+      </Route>
+
+      {/* ===== ADMISSION ===== */}
+      <Route path="/superadmin/admission" element={<SuperAdminAdmissionDashboardLayout />}>
+        <Route index element={<SuperAdminAdmissionDashboard />} />
+        <Route path="enquiry" element={<SuperAdminAdmissionEnquiry />} />
+        <Route path="entrance" element={<SuperAdminAdmissionEntranceList />} />
+        <Route path="interview" element={<SuperAdminAdmissionInterviewList />} />
+        <Route path="documents" element={<SuperAdminAdmissionDocumentVerification />} />
+        <Route path="applications" element={<SuperAdminAdmissionApplicationList />} />
+        <Route path="review/:id" element={<SuperAdminAdmissionApplicationReview />} />
+        <Route path="final-students" element={<SuperAdminAdmissionFinalStudents />} />
+        <Route path="vacancy-setup" element={<SuperAdminAdmissionVacancySetup />} />
+      </Route>
+
+      {/* ===== COMMUNICATION ===== */}
+      <Route path="/superadmin/communication" element={<SuperAdminCommunicationDashboardLayout />}>
+        <Route index element={<SuperAdminCommunicationDashboard />} />
+        <Route path="logs" element={<SuperAdminCommunicationLogs />} />
+        <Route path="notices" element={<SuperAdminCommunicationNotices />} />
+        <Route path="messages" element={<SuperAdminCommunicationMessages />} />
+        <Route path="complaints" element={<SuperAdminCommunicationComplaints />} />
+      </Route>
+
+      {/* ===== CALENDAR ===== */}
+      <Route path="/superadmin/calendar" element={<SuperAdminCalendarDashboardLayout />}>
+        <Route index element={<Navigate to="annual" />} />
+        <Route path="annual" element={<SuperAdminCalendarAnnualCalendar />} />
+        <Route path="event-setup" element={<SuperAdminCalendarEventSetup />} />
+        <Route path="year-setup" element={<SuperAdminCalendarYearSetup />} />
+      </Route>
 
 <Route
   path="/parent-calendar"
