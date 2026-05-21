@@ -26,7 +26,7 @@ export function useSetupStart() {
       } catch (err) {
         if (!cancelled) {
           console.error("Failed to load setup progress:", err);
-          setToast("❌ Unable to check setup progress. Please try again.");
+          setToast(" Unable to check setup progress. Please try again.");
         }
       } finally {
         if (!cancelled) setLoading(false);

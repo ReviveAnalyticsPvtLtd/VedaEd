@@ -36,7 +36,7 @@ export function useSetupWizardStep2() {
       } catch (err) {
         if (!cancelled) {
           console.error("Failed to load setup progress:", err);
-          setToast("❌ Unable to load saved progress. Please try again.");
+          setToast(" Unable to load saved progress. Please try again.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -60,7 +60,7 @@ export function useSetupWizardStep2() {
   const persistStep = useCallback(
     async (options) => {
       if (!organizationType || !VALID_ORG_TYPES.includes(organizationType)) {
-        setToast("❌ Please select an organization type to continue.");
+        setToast(" Please select an organization type to continue.");
         return false;
       }
 

@@ -5,16 +5,14 @@ import {
   saveSchoolProfile,
   uploadSchoolLogo,
 } from "../../services/setupWizardAPI";
-import {
-  COUNTRY_LOCALIZATION_MAP,
-  DEFAULT_SCHOOL_PROFILE_FORM,
-} from "../constants/schoolProfile";
+import { DEFAULT_SCHOOL_PROFILE_FORM } from "../constants/schoolProfile";
 import {
   SETUP_ROUTES,
   STEP_3_NUMBER,
   STEP_3_PROGRESS,
   STEP_4_NUMBER,
 } from "../constants/setupWizard";
+import { useLocalizationOptions } from "./useLocalizationOptions";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,6 +84,10 @@ export function useSetupWizardStep3() {
   const autoSaveTimer = useRef(null);
   const skipAutoSave = useRef(true);
 
+  const localization = useLocalizationOptions(form, {
+    enabled: !loading,
+  });
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -97,7 +99,7 @@ export function useSetupWizardStep3() {
       } catch (err) {
         if (!cancelled) {
           console.error("Failed to load setup progress:", err);
-          setToast("❌ Unable to load saved progress. Please try again.");
+          setToast(" Unable to load saved progress. Please try again.");
         }
       } finally {
         if (!cancelled) {
@@ -181,7 +183,7 @@ export function useSetupWizardStep3() {
       if (!draft && Object.keys(validationErrors).length > 0) {
         setErrors(validationErrors);
         if (!silent) {
-          setToast("❌ Please complete all required fields before continuing.");
+          setToast(" Please complete all required fields before continuing.");
         }
         return false;
       }
@@ -223,71 +225,91 @@ export function useSetupWizardStep3() {
     }, 1500);
   }, [loading, persistStep]);
 
+  const clearFieldError = useCallback((name) => {
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  }, []);
+
   const updateField = useCallback(
     (name, value) => {
       setForm((prev) => ({ ...prev, [name]: value }));
-      setErrors((prev) => {
-        if (!prev[name]) return prev;
-        const next = { ...prev };
-        delete next[name];
-        return next;
-      });
+      clearFieldError(name);
       scheduleAutoSave();
     },
-    [scheduleAutoSave]
+    [clearFieldError, scheduleAutoSave]
   );
 
   const handleCountryChange = useCallback(
-    (country) => {
-      const localization = COUNTRY_LOCALIZATION_MAP[country];
+    (isoCode) => {
+      if (!isoCode) {
+        setForm((prev) => ({
+          ...prev,
+          country: "",
+          state: "",
+        }));
+        clearFieldError("country");
+        scheduleAutoSave();
+        return;
+      }
+
+      const patch = localization.applyCountrySelection(isoCode);
+      if (!patch) return;
+
       setForm((prev) => ({
         ...prev,
-        country,
-        ...(localization
-          ? {
-              timezone: localization.timezone,
-              currency: localization.currency,
-            }
-          : {}),
+        country: patch.countryName,
+        state: patch.state,
+        timezone: patch.timezone,
+        currency: patch.currency,
       }));
+      clearFieldError("country");
+      clearFieldError("timezone");
+      clearFieldError("currency");
       scheduleAutoSave();
+    },
+    [localization, clearFieldError, scheduleAutoSave]
+  );
+
+  const handleLogoSelect = useCallback(
+    async (file, clientError) => {
+      if (clientError) {
+        setLogoError(clientError);
+        return;
+      }
+      if (!file) return;
+
+      setLogoError("");
+      const preview = URL.createObjectURL(file);
+      setForm((prev) => ({ ...prev, schoolLogoPreview: preview }));
+      setLogoUploading(true);
+
+      try {
+        const res = await uploadSchoolLogo(file);
+        if (!res?.success) {
+          throw new Error(res?.message || "Upload failed");
+        }
+        const path = res?.data?.schoolLogo || "";
+        setForm((prev) => ({
+          ...prev,
+          schoolLogo: path,
+          schoolLogoPreview: preview,
+        }));
+        scheduleAutoSave();
+      } catch (err) {
+        const msg =
+          err?.response?.data?.message || err?.message || "Failed to upload logo";
+        setLogoError(msg);
+        setForm((prev) => ({ ...prev, schoolLogoPreview: "" }));
+      } finally {
+        setLogoUploading(false);
+      }
     },
     [scheduleAutoSave]
   );
-
-  const handleLogoSelect = useCallback(async (file, clientError) => {
-    if (clientError) {
-      setLogoError(clientError);
-      return;
-    }
-    if (!file) return;
-
-    setLogoError("");
-    const preview = URL.createObjectURL(file);
-    setForm((prev) => ({ ...prev, schoolLogoPreview: preview }));
-    setLogoUploading(true);
-
-    try {
-      const res = await uploadSchoolLogo(file);
-      if (!res?.success) {
-        throw new Error(res?.message || "Upload failed");
-      }
-      const path = res?.data?.schoolLogo || "";
-      setForm((prev) => ({
-        ...prev,
-        schoolLogo: path,
-        schoolLogoPreview: preview,
-      }));
-      scheduleAutoSave();
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message || err?.message || "Failed to upload logo";
-      setLogoError(msg);
-      setForm((prev) => ({ ...prev, schoolLogoPreview: "" }));
-    } finally {
-      setLogoUploading(false);
-    }
-  }, [scheduleAutoSave]);
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
@@ -322,6 +344,7 @@ export function useSetupWizardStep3() {
     logoError,
     toast,
     healthItems,
+    localization,
     updateField,
     handleCountryChange,
     handleLogoSelect,

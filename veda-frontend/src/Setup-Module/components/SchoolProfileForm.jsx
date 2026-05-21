@@ -2,13 +2,9 @@ import React from "react";
 import SetupStepHeader from "./SetupStepHeader";
 import SetupFormSection from "./SetupFormSection";
 import SetupFormField from "./SetupFormField";
+import SetupSearchableSelect, { formatCountryOption } from "./SetupSearchableSelect";
 import SchoolLogoUpload from "./SchoolLogoUpload";
 import ThemeColorPicker from "./ThemeColorPicker";
-import {
-  COUNTRY_OPTIONS,
-  CURRENCY_OPTIONS,
-  TIMEZONE_OPTIONS,
-} from "../constants/schoolProfile";
 
 const SchoolProfileForm = ({
   form,
@@ -18,15 +14,23 @@ const SchoolProfileForm = ({
   onLogoSelect,
   logoUploading,
   logoError,
+  localization,
 }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "country") {
-      onCountryChange(value);
-      return;
-    }
     onChange(name, value);
   };
+
+  const {
+    countriesLoading,
+    statesLoading,
+    countryCode,
+    countryOptions,
+    stateOptions,
+    timezoneOptions,
+    currencyOptions,
+    hasStates,
+  } = localization;
 
   return (
     <div className="min-w-0 space-y-6">
@@ -118,24 +122,54 @@ const SchoolProfileForm = ({
             required
             error={errors.address}
           />
-          <SetupFormField
+
+          <SetupSearchableSelect
             label="Country"
             name="country"
-            value={form.country}
-            onChange={handleChange}
-            as="select"
-            options={COUNTRY_OPTIONS}
+            value={countryCode}
+            onChange={onCountryChange}
+            options={countryOptions}
             placeholder="Select Country"
             required
             error={errors.country}
+            isLoading={countriesLoading}
+            formatOptionLabel={formatCountryOption}
+            noOptionsMessage="No countries found"
           />
-          <SetupFormField
-            label="State / Province"
-            name="state"
-            value={form.state}
-            onChange={handleChange}
-            placeholder="e.g. Madhya Pradesh"
-          />
+
+          {hasStates ? (
+            <SetupSearchableSelect
+              label="State / Province"
+              name="state"
+              value={form.state}
+              onChange={(val) => onChange("state", val)}
+              options={stateOptions}
+              placeholder="Select State / Province"
+              isLoading={statesLoading}
+              isDisabled={!countryCode}
+              noOptionsMessage={
+                countryCode ? "No states found for this country" : "Select a country first"
+              }
+            />
+          ) : (
+            <SetupFormField
+              label="State / Province"
+              name="state"
+              value={form.state}
+              onChange={handleChange}
+              placeholder={
+                countryCode
+                  ? "Enter state / province"
+                  : "Select a country first"
+              }
+              hint={
+                countryCode
+                  ? "No predefined states for this country — enter manually."
+                  : undefined
+              }
+            />
+          )}
+
           <SetupFormField
             label="City"
             name="city"
@@ -150,27 +184,40 @@ const SchoolProfileForm = ({
             onChange={handleChange}
             placeholder="e.g. 462001"
           />
-          <SetupFormField
+
+          <SetupSearchableSelect
             label="Time Zone"
             name="timezone"
             value={form.timezone}
-            onChange={handleChange}
-            as="select"
-            options={TIMEZONE_OPTIONS}
+            onChange={(val) => onChange("timezone", val)}
+            options={timezoneOptions}
             placeholder="Select Time Zone"
             required
             error={errors.timezone}
+            isDisabled={!countryCode}
+            isLoading={statesLoading && Boolean(countryCode)}
+            noOptionsMessage={
+              countryCode
+                ? "No timezones found"
+                : "Select a country first"
+            }
           />
-          <SetupFormField
+
+          <SetupSearchableSelect
             label="Currency"
             name="currency"
             value={form.currency}
-            onChange={handleChange}
-            as="select"
-            options={CURRENCY_OPTIONS}
+            onChange={(val) => onChange("currency", val)}
+            options={currencyOptions}
             placeholder="Select Currency"
             required
             error={errors.currency}
+            isDisabled={!countryCode}
+            noOptionsMessage={
+              countryCode
+                ? "No currencies found"
+                : "Select a country first"
+            }
           />
         </div>
       </SetupFormSection>

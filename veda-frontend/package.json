@@ -11,6 +11,8 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.11.0",
+    "countries-and-timezones": "^3.9.0",
+    "country-state-city": "^3.2.1",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",

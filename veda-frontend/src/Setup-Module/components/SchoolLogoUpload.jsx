@@ -3,6 +3,8 @@ import {
   ALLOWED_LOGO_EXTENSIONS,
   ALLOWED_LOGO_TYPES,
   MAX_LOGO_SIZE_MB,
+  MIN_LOGO_SIZE_PX,
+  RECOMMENDED_LOGO_SIZE_PX,
 } from "../constants/schoolProfile";
 import { resolveSchoolLogoUrl } from "../utils/schoolLogoUrl";
 
@@ -102,7 +104,9 @@ const SchoolLogoUpload = ({ logoPath, previewUrl, onFileSelect, uploading, error
             </div>
             <p className="text-sm font-semibold text-setup-heading">Upload school logo</p>
             <p className="mt-1 max-w-xs text-xs text-setup-muted">
-              PNG, JPG, or SVG recommended. Square logo works best.
+              PNG, JPG, or SVG recommended. Square logo works best. Recommended size:{" "}
+              {RECOMMENDED_LOGO_SIZE_PX}×{RECOMMENDED_LOGO_SIZE_PX} px (min. {MIN_LOGO_SIZE_PX}×
+              {MIN_LOGO_SIZE_PX}).
             </p>
           </>
         )}

@@ -22,6 +22,7 @@ const Step3 = () => {
     logoError,
     toast,
     healthItems,
+    localization,
     updateField,
     handleCountryChange,
     handleLogoSelect,
@@ -79,6 +80,7 @@ const Step3 = () => {
           onLogoSelect={handleLogoSelect}
           logoUploading={logoUploading}
           logoError={logoError}
+          localization={localization}
         />
         <SchoolProfileSidebar
           form={form}
