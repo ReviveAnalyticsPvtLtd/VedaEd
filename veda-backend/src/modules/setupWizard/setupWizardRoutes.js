@@ -15,5 +15,10 @@ router.post(
 );
 router.post("/step-3", setupWizardController.saveStep3SchoolProfile);
 router.post("/step-4", setupWizardController.saveStep4SchoolTypeCurriculum);
+router.post(
+  "/recommendation/generate",
+  setupWizardController.generateRecommendation
+);
+router.get("/recommendation", setupWizardController.getRecommendation);
 
 module.exports = router;

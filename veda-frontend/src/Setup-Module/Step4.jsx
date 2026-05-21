@@ -20,6 +20,7 @@ const Step4 = () => {
     saving,
     toast,
     recommendation,
+    recommendationSyncing,
     healthItems,
     smartCheckMessages,
     updateField,
@@ -78,6 +79,7 @@ const Step4 = () => {
         />
         <SchoolTypeCurriculumSidebar
           recommendation={recommendation}
+          recommendationSyncing={recommendationSyncing}
           healthItems={healthItems}
           smartCheckMessages={smartCheckMessages}
         />
@@ -87,7 +89,6 @@ const Step4 = () => {
         onBack={handleBack}
         onContinue={handleSaveContinue}
         saving={saving}
-        primaryColor={form.primaryThemeColor}
       />
     </SetupWizardLayout>
   );

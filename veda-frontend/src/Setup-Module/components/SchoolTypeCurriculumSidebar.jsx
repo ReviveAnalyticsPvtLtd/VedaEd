@@ -5,12 +5,16 @@ import SmartCheckCard from "./SmartCheckCard";
 
 const SchoolTypeCurriculumSidebar = ({
   recommendation,
+  recommendationSyncing,
   healthItems,
   smartCheckMessages,
 }) => {
   return (
     <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
-      <AcademicRecommendationCard recommendation={recommendation} />
+      <AcademicRecommendationCard
+        recommendation={recommendation}
+        syncing={recommendationSyncing}
+      />
       <ProfileHealthCard
         items={healthItems}
         title="Step Health"

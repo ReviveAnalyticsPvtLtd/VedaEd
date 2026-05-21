@@ -31,7 +31,7 @@ const SetupWizardFooter = ({
         onClick={onContinue}
         disabled={saving}
         style={accentStyle}
-        className="w-full rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        className="w-full rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
         {saving ? "Saving..." : continueLabel}
       </button>

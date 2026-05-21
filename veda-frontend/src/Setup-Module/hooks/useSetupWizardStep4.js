@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getSetupWizard,
   saveSchoolTypeCurriculum,
+  generateSetupRecommendation,
+  getSetupRecommendation,
 } from "../../services/setupWizardAPI";
 import {
   DEFAULT_SCHOOL_TYPE_FORM,
@@ -17,13 +19,14 @@ import {
   STEP_5_NUMBER,
 } from "../constants/setupWizard";
 import {
-  getCurriculumRecommendation,
+  generateRecommendation,
   getGradeOrder,
   getSmartCheckMessages,
 } from "../utils/curriculumRecommendations";
 import { findCountryByNameOrCode } from "../services/localizationData";
 
 const VALID_INSTITUTION_TYPES = Object.values(INSTITUTION_TYPES);
+const RECOMMENDATION_DEBOUNCE_MS = 350;
 
 function mapSavedToForm(data) {
   if (!data) return { ...DEFAULT_SCHOOL_TYPE_FORM };
@@ -43,6 +46,16 @@ function mapSavedToForm(data) {
     languagePreference:
       data.languagePreference || LANGUAGE_PREFERENCES.ENGLISH,
     primaryThemeColor: data.primaryThemeColor,
+  };
+}
+
+function buildRecommendationInput(form) {
+  return {
+    institutionType: form.institutionType,
+    country: form.country,
+    curriculumBoard: form.curriculumBoard,
+    gradeFrom: form.gradeFrom,
+    gradeTo: form.gradeTo,
   };
 }
 
@@ -93,58 +106,23 @@ export function useSetupWizardStep4() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recommendationSyncing, setRecommendationSyncing] = useState(false);
   const [toast, setToast] = useState("");
+  const debounceRef = useRef(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await getSetupWizard();
-        if (!cancelled && res?.success && res?.data) {
-          const mapped = mapSavedToForm(res.data);
-          if (!mapped.country && res.data.country) {
-            const match = findCountryByNameOrCode(res.data.country);
-            mapped.country = match?.name || res.data.country;
-          }
-          if (!mapped.curriculumBoard && mapped.country === "India") {
-            mapped.curriculumBoard = mapped.curriculumBoard || "CBSE";
-          }
-          setForm(mapped);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Failed to load setup progress:", err);
-          setToast(" Unable to load saved progress. Please try again.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const recommendation = useMemo(
-    () =>
-      getCurriculumRecommendation({
-        institutionType: form.institutionType,
-        country: form.country,
-        curriculumBoard: form.curriculumBoard,
-        gradeFrom: form.gradeFrom,
-        gradeTo: form.gradeTo,
-      }),
+  const recommendationInput = useMemo(
+    () => buildRecommendationInput(form),
     [form]
   );
 
+  const recommendation = useMemo(
+    () => generateRecommendation(recommendationInput),
+    [recommendationInput]
+  );
+
   const smartCheckMessages = useMemo(
-    () =>
-      getSmartCheckMessages({
-        institutionType: form.institutionType,
-        gradeFrom: form.gradeFrom,
-        gradeTo: form.gradeTo,
-      }),
-    [form.institutionType, form.gradeFrom, form.gradeTo]
+    () => getSmartCheckMessages(recommendationInput),
+    [recommendationInput]
   );
 
   const healthItems = useMemo(
@@ -175,6 +153,75 @@ export function useSetupWizardStep4() {
     [form]
   );
 
+  const syncRecommendationWithServer = useCallback(async (input) => {
+    setRecommendationSyncing(true);
+    try {
+      await generateSetupRecommendation({
+        ...input,
+        persist: false,
+      });
+    } catch (err) {
+      console.warn("Recommendation sync failed:", err);
+    } finally {
+      setRecommendationSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [wizardRes, recRes] = await Promise.all([
+          getSetupWizard(),
+          getSetupRecommendation().catch(() => null),
+        ]);
+
+        if (!cancelled && wizardRes?.success && wizardRes?.data) {
+          const mapped = mapSavedToForm(wizardRes.data);
+          if (!mapped.country && wizardRes.data.country) {
+            const match = findCountryByNameOrCode(wizardRes.data.country);
+            mapped.country = match?.name || wizardRes.data.country;
+          }
+          if (!mapped.curriculumBoard && mapped.country === "India") {
+            mapped.curriculumBoard = mapped.curriculumBoard || "CBSE";
+          }
+          setForm(mapped);
+        }
+
+        if (
+          !cancelled &&
+          recRes?.success &&
+          recRes?.data?.recommendation?.title
+        ) {
+          /* Server recommendation merged on next render via local engine with same inputs */
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load setup progress:", err);
+          setToast(" Unable to load saved progress. Please try again.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      syncRecommendationWithServer(recommendationInput);
+    }, RECOMMENDATION_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [loading, recommendationInput, syncRecommendationWithServer]);
+
   const buildPayload = useCallback(
     ({ advancing = false, draft = false } = {}) => ({
       draft,
@@ -184,11 +231,14 @@ export function useSetupWizardStep4() {
       gradeFrom: form.gradeFrom,
       gradeTo: form.gradeTo,
       languagePreference: form.languagePreference,
+      recommendationType: recommendation.recommendationType,
+      recommendationConfidence: recommendation.confidence,
+      recommendationRules: recommendation.recommendationRules,
       currentStep: advancing ? STEP_5_NUMBER : STEP_4_NUMBER,
       progressPercentage: STEP_4_PROGRESS,
       completedSteps: advancing ? [1, 2, 3, 4] : [1, 2, 3],
     }),
-    [form]
+    [form, recommendation]
   );
 
   const persistStep = useCallback(
@@ -274,6 +324,13 @@ export function useSetupWizardStep4() {
     }
   }, [persistStep, navigate]);
 
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    []
+  );
+
   return {
     form,
     errors,
@@ -281,6 +338,7 @@ export function useSetupWizardStep4() {
     saving,
     toast,
     recommendation,
+    recommendationSyncing,
     healthItems,
     smartCheckMessages,
     updateField,

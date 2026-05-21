@@ -1,5 +1,10 @@
 const { randomUUID } = require("crypto");
 const SetupWizard = require("./setupWizardModel");
+const {
+  generateRecommendation,
+  getSmartCheckMessages,
+  recommendationToStoredFields,
+} = require("./recommendation/recommendationEngine");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -52,6 +57,9 @@ const formatSetupDoc = (doc) => {
     gradeFrom: doc.gradeFrom,
     gradeTo: doc.gradeTo,
     languagePreference: doc.languagePreference,
+    recommendationType: doc.recommendationType,
+    recommendationConfidence: doc.recommendationConfidence,
+    recommendationRules: doc.recommendationRules || [],
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -610,6 +618,14 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
       ? completedSteps.filter((n) => Number.isFinite(Number(n)))
       : [];
 
+    const recommendation = generateRecommendation({
+      institutionType: trimmedInstitution,
+      country: trimmedCountry,
+      curriculumBoard: trimmedBoard,
+      gradeFrom: trimmedGradeFrom,
+      gradeTo: trimmedGradeTo,
+    });
+
     const payload = {
       institutionType: trimmedInstitution || null,
       curriculumCountry: trimmedCountry,
@@ -617,6 +633,7 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
       gradeFrom: trimmedGradeFrom,
       gradeTo: trimmedGradeTo,
       languagePreference: trimmedLanguage || "english",
+      ...recommendationToStoredFields(recommendation),
       currentStep: progressMeta.step,
       progressPercentage: progressMeta.progress,
       setupStatus: "draft",
@@ -628,6 +645,7 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: doc,
+      recommendation,
       message: "School type and curriculum saved successfully",
     });
   } catch (error) {
@@ -635,6 +653,133 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to save school type and curriculum",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/recommendation/generate — run rule engine on inputs */
+exports.generateRecommendation = async (req, res) => {
+  try {
+    const {
+      institutionType,
+      country,
+      curriculumCountry,
+      curriculumBoard,
+      selectedBoard,
+      gradeFrom,
+      gradeTo,
+      persist,
+    } = req.body;
+
+    const recommendation = generateRecommendation({
+      institutionType,
+      country: country || curriculumCountry,
+      curriculumBoard: curriculumBoard || selectedBoard,
+      gradeFrom,
+      gradeTo,
+    });
+
+    const smartChecks = getSmartCheckMessages({
+      institutionType,
+      country: country || curriculumCountry,
+      curriculumBoard: curriculumBoard || selectedBoard,
+      gradeFrom,
+      gradeTo,
+    });
+
+    const shouldPersist = persist === true || persist === "true";
+    if (shouldPersist) {
+      await upsertSetupDoc({
+        ...recommendationToStoredFields(recommendation),
+        institutionType: institutionType || undefined,
+        curriculumCountry: String(country || curriculumCountry || "").trim(),
+        curriculumBoard: String(curriculumBoard || selectedBoard || "").trim(),
+        gradeFrom: String(gradeFrom || "").trim(),
+        gradeTo: String(gradeTo || "").trim(),
+        setupStatus: "draft",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        recommendation,
+        smartChecks,
+      },
+      message: "Recommendation generated successfully",
+    });
+  } catch (error) {
+    console.error("generateRecommendation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate recommendation",
+      error: error.message,
+    });
+  }
+};
+
+/** GET /api/setup-wizard/recommendation — fetch stored or regenerate from wizard */
+exports.getRecommendation = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+
+    if (!doc) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          recommendation: generateRecommendation({}),
+          smartChecks: getSmartCheckMessages({}),
+          source: "default",
+        },
+        message: "No setup found; returning default recommendation",
+      });
+    }
+
+    const fresh = generateRecommendation({
+      institutionType: doc.institutionType,
+      country: doc.curriculumCountry,
+      curriculumBoard: doc.curriculumBoard,
+      gradeFrom: doc.gradeFrom,
+      gradeTo: doc.gradeTo,
+    });
+
+    const merged = {
+      ...fresh,
+      recommendationType:
+        doc.recommendationType || fresh.recommendationType,
+      confidence:
+        doc.recommendationConfidence != null
+          ? doc.recommendationConfidence
+          : fresh.confidence,
+      recommendationRules:
+        doc.recommendationRules?.length > 0
+          ? doc.recommendationRules
+          : fresh.recommendationRules,
+    };
+
+    const smartChecks = getSmartCheckMessages({
+      institutionType: doc.institutionType,
+      country: doc.curriculumCountry,
+      curriculumBoard: doc.curriculumBoard,
+      gradeFrom: doc.gradeFrom,
+      gradeTo: doc.gradeTo,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        recommendation: merged,
+        smartChecks,
+        source: doc.recommendationType ? "stored_regenerated" : "regenerated",
+      },
+      message: "Recommendation loaded successfully",
+    });
+  } catch (error) {
+    console.error("getRecommendation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch recommendation",
       error: error.message,
     });
   }

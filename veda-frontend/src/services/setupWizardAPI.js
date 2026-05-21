@@ -54,3 +54,15 @@ export const saveSchoolTypeCurriculum = async (payload) => {
   const response = await axios.post(`${API_URL}/step-4`, payload);
   return response.data;
 };
+
+/** Generate curriculum recommendation from current selections */
+export const generateSetupRecommendation = async (payload) => {
+  const response = await axios.post(`${API_URL}/recommendation/generate`, payload);
+  return response.data;
+};
+
+/** Fetch stored / regenerated recommendation for step 4 */
+export const getSetupRecommendation = async () => {
+  const response = await axios.get(`${API_URL}/recommendation`);
+  return response.data;
+};

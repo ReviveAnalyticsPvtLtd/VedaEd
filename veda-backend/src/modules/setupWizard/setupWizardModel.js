@@ -45,6 +45,17 @@ const setupWizardSchema = new mongoose.Schema(
       enum: ["english", "hindi", "regional", "other"],
       default: "english",
     },
+    recommendationType: { type: String, default: "" },
+    recommendationConfidence: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    recommendationRules: {
+      type: [String],
+      default: [],
+    },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
     postalCode: { type: String, default: "" },
