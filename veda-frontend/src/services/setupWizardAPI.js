@@ -1,0 +1,28 @@
+import axios from "axios";
+import config from "../config";
+
+const API_URL = `${config.API_BASE_URL}/setup-wizard`;
+
+/** Fetch saved setup wizard progress (start page + prefill) */
+export const getSetupProgress = async () => {
+  const response = await axios.get(`${API_URL}/progress`);
+  return response.data;
+};
+
+/** Initialize a new setup session */
+export const initializeSetup = async () => {
+  const response = await axios.post(`${API_URL}/initialize`);
+  return response.data;
+};
+
+/** Fetch full wizard document for step pages */
+export const getSetupWizard = async () => {
+  const response = await axios.get(API_URL);
+  return response.data;
+};
+
+/** Save step 1 data */
+export const saveSetupProgress = async (payload) => {
+  const response = await axios.post(API_URL, payload);
+  return response.data;
+};

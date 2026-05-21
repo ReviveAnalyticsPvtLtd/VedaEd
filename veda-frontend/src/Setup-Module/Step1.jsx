@@ -1,132 +1,70 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import SetupWizardLayout from "./components/SetupWizardLayout";
+import SetupProgressBar from "./components/SetupProgressBar";
+import WelcomeInfoPanel from "./components/WelcomeInfoPanel";
+import SetupExperienceSelector from "./components/SetupExperienceSelector";
+import { useSetupWizardStep1 } from "./hooks/useSetupWizardStep1";
+import { TOTAL_STEPS, STEP_1_NUMBER, STEP_1_PROGRESS } from "./constants/setupWizard";
+import { toastBannerClassName } from "../utils/toastMessageStyle";
 
 const Step1 = () => {
-  const navigate = useNavigate();
+  const {
+    selectedSetupType,
+    setSelectedSetupType,
+    loading,
+    saving,
+    toast,
+    handleSaveContinue,
+    handleSaveExit,
+  } = useSetupWizardStep1();
 
-  const [form, setForm] = useState({
-    schoolName: "",
-    schoolType: "",
-    affiliation: "",
-    academicYear: "",
-    medium: "English",
-  });
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = () => {
-    // simple validation
-    if (!form.schoolName) {
-      alert("School name required");
-      return;
-    }
-
-    // optionally save in localStorage / context
-    localStorage.setItem("step1Data", JSON.stringify(form));
-
-    // redirect to step2
-    navigate("/form/step-2");
-  };
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-sm font-medium text-gray-500">Loading setup wizard...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-8">
-        
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="bg-indigo-600 text-white p-2 rounded-lg">
-            🎓
-          </div>
-          <h2 className="text-lg font-semibold text-indigo-600">
-            VedaEdu
-          </h2>
+    <SetupWizardLayout onSaveExit={handleSaveExit} saving={saving}>
+      <SetupProgressBar
+        step={STEP_1_NUMBER}
+        total={TOTAL_STEPS}
+        progress={STEP_1_PROGRESS}
+        title="Welcome"
+      />
+
+      {toast && (
+        <div className="px-4 pt-4 sm:px-6">
+          <p
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${toastBannerClassName(toast)}`}
+          >
+            {toast}
+          </p>
         </div>
+      )}
 
-        <h1 className="text-3xl font-bold mb-2">
-          Let’s set up your school
-        </h1>
-        <p className="text-gray-500 mb-6">
-          Begin your digital transformation. You can change these details later.
-        </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2">
+        <WelcomeInfoPanel />
+        <SetupExperienceSelector
+          value={selectedSetupType}
+          onChange={setSelectedSetupType}
+          progress={STEP_1_PROGRESS}
+        />
+      </div>
 
-        {/* Progress */}
-        <div className="flex justify-between text-sm mb-2">
-          <span>STEP 1 OF 5</span>
-          <span>20% COMPLETE</span>
-        </div>
-        <div className="w-full bg-gray-200 h-2 rounded mb-6">
-          <div className="bg-indigo-600 h-2 w-1/5 rounded"></div>
-        </div>
-
-        {/* Form */}
-        <div className="space-y-4">
-          <input
-            type="text"
-            name="schoolName"
-            placeholder="e.g. St. James Global Academy"
-            value={form.schoolName}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-2 focus:outline-indigo-500"
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <select
-              name="schoolType"
-              value={form.schoolType}
-              onChange={handleChange}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option value="">Select Type</option>
-              <option>Public</option>
-              <option>Private</option>
-            </select>
-
-            <select
-              name="affiliation"
-              value={form.affiliation}
-              onChange={handleChange}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option value="">Select Board</option>
-              <option>CBSE</option>
-              <option>ICSE</option>
-              <option>State Board</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="date"
-              name="academicYear"
-              value={form.academicYear}
-              onChange={handleChange}
-              className="border rounded-lg px-4 py-2"
-            />
-
-            <select
-              name="medium"
-              value={form.medium}
-              onChange={handleChange}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option>English</option>
-              <option>Hindi</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Button */}
+      <div className="flex justify-end border-t border-gray-100 px-4 py-5 sm:px-6 sm:py-6">
         <button
-          onClick={handleSubmit}
-          className="w-full mt-6 py-3 rounded-lg text-white font-semibold 
-          bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90"
+          type="button"
+          onClick={handleSaveContinue}
+          disabled={saving}
+          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Continue Setup
+          {saving ? "Saving..." : "Save & Continue"}
         </button>
       </div>
-    </div>
+    </SetupWizardLayout>
   );
 };
 
