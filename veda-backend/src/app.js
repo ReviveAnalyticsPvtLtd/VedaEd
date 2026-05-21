@@ -33,12 +33,8 @@ const entranceExamRoutes = require("./modules/admission/entranceExamRoutes");
 const interviewRoutes = require("./modules/admission/interviewRoutes");
 const chatbotRoutes = require("./modules/chatbot/chatbotRoutes");
 const superadminLandingRoutes = require("./modules/superadminLanding/superadminLandingRoutes");
-<<<<<<< HEAD
 const superadminIdentityRoutes = require("./modules/superadminIdentity/superadminIdentityRoutes");
-
-=======
 const hrRecruitmentRoutes = require("./modules/hrRecruitment/hrRecruitmentRoutes");
->>>>>>> 9fc6cb8 (done)
 
 // Middlewares
 // 
@@ -87,11 +83,8 @@ app.use("/api/admission/entrance-exam", entranceExamRoutes);
 app.use("/api/admission/interview", interviewRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/superadmin-landing", superadminLandingRoutes);
-<<<<<<< HEAD
 app.use("/api/superadmin/identity", superadminIdentityRoutes);
-=======
 app.use("/api/hr-recruitment", hrRecruitmentRoutes);
->>>>>>> 9fc6cb8 (done)
 
 app.use("/api/discipline", require("./modules/discipline/disciplineRoutes"));
 app.use("/api/activities", require("./modules/activity/activityRoutes"));
