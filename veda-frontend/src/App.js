@@ -364,12 +364,12 @@ import SuperAdminCommunicationMessages from "./SuperAdmin/Communication/SuperAdm
 import SuperAdminCommunicationComplaints from "./SuperAdmin/Communication/SuperAdminCommunicationComplaints";
 
 
-import Step1 from "./UserForm/Step1";
-import Step2 from "./UserForm/Step2";
-import Step3 from "./UserForm/Step3";
-import Step4 from "./UserForm/Step4";
-import Step5 from "./UserForm/Step5";
-import Step6 from "./UserForm/Step6";
+import Step1 from "./Setup-Module/Step1";
+import Step2 from "./Setup-Module/Step2";
+import Step3 from "./Setup-Module/Step3";
+import Step4 from "./Setup-Module/Step4";
+import Step5 from "./Setup-Module/Step5";
+import Step6 from "./Setup-Module/Step6";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 function App() {
