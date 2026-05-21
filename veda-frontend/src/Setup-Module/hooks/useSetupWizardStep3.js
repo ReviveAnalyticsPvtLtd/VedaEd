@@ -5,7 +5,10 @@ import {
   saveSchoolProfile,
   uploadSchoolLogo,
 } from "../../services/setupWizardAPI";
-import { DEFAULT_SCHOOL_PROFILE_FORM } from "../constants/schoolProfile";
+import {
+  DEFAULT_LOGO_FRAME_SHAPE,
+  DEFAULT_SCHOOL_PROFILE_FORM,
+} from "../constants/schoolProfile";
 import {
   SETUP_ROUTES,
   STEP_3_NUMBER,
@@ -25,6 +28,7 @@ function mapSavedToForm(data) {
     website: data.website || "",
     schoolLogo: data.schoolLogo || "",
     schoolLogoPreview: "",
+    logoFrameShape: data.logoFrameShape || DEFAULT_LOGO_FRAME_SHAPE,
     primaryThemeColor: data.primaryThemeColor || DEFAULT_SCHOOL_PROFILE_FORM.primaryThemeColor,
     address: data.address || "",
     country: data.country || "",
@@ -80,6 +84,8 @@ export function useSetupWizardStep3() {
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState("");
+  const [logoWarning, setLogoWarning] = useState("");
+  const previewUrlRef = useRef("");
   const [toast, setToast] = useState("");
   const autoSaveTimer = useRef(null);
   const skipAutoSave = useRef(true);
@@ -157,6 +163,7 @@ export function useSetupWizardStep3() {
       establishedYear: String(form.establishedYear || "").trim(),
       website: String(form.website || "").trim(),
       schoolLogo: form.schoolLogo,
+      logoFrameShape: form.logoFrameShape,
       primaryThemeColor: form.primaryThemeColor,
       address: form.address.trim(),
       country: form.country.trim(),
@@ -274,16 +281,27 @@ export function useSetupWizardStep3() {
     [localization, clearFieldError, scheduleAutoSave]
   );
 
+  const revokePreviewUrl = useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = "";
+    }
+  }, []);
+
   const handleLogoSelect = useCallback(
-    async (file, clientError) => {
+    async (file, clientError, clientWarning) => {
       if (clientError) {
         setLogoError(clientError);
+        setLogoWarning("");
         return;
       }
       if (!file) return;
 
       setLogoError("");
+      setLogoWarning(clientWarning || "");
+      revokePreviewUrl();
       const preview = URL.createObjectURL(file);
+      previewUrlRef.current = preview;
       setForm((prev) => ({ ...prev, schoolLogoPreview: preview }));
       setLogoUploading(true);
 
@@ -303,13 +321,26 @@ export function useSetupWizardStep3() {
         const msg =
           err?.response?.data?.message || err?.message || "Failed to upload logo";
         setLogoError(msg);
+        revokePreviewUrl();
         setForm((prev) => ({ ...prev, schoolLogoPreview: "" }));
       } finally {
         setLogoUploading(false);
       }
     },
-    [scheduleAutoSave]
+    [revokePreviewUrl, scheduleAutoSave]
   );
+
+  const handleLogoRemove = useCallback(() => {
+    revokePreviewUrl();
+    setLogoError("");
+    setLogoWarning("");
+    setForm((prev) => ({
+      ...prev,
+      schoolLogo: "",
+      schoolLogoPreview: "",
+    }));
+    scheduleAutoSave();
+  }, [revokePreviewUrl, scheduleAutoSave]);
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
@@ -331,8 +362,9 @@ export function useSetupWizardStep3() {
   useEffect(
     () => () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      revokePreviewUrl();
     },
-    []
+    [revokePreviewUrl]
   );
 
   return {
@@ -342,12 +374,14 @@ export function useSetupWizardStep3() {
     saving,
     logoUploading,
     logoError,
+    logoWarning,
     toast,
     healthItems,
     localization,
     updateField,
     handleCountryChange,
     handleLogoSelect,
+    handleLogoRemove,
     handleSaveContinue,
     handleBack,
     handleSaveExit,

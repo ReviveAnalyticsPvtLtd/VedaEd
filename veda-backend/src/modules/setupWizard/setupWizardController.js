@@ -7,6 +7,12 @@ const VALID_ORGANIZATION_TYPES = [
   "multi_campus",
   "school_group",
 ];
+const VALID_LOGO_FRAME_SHAPES = [
+  "square",
+  "rounded-square",
+  "circle",
+  "flexible",
+];
 
 const getSetupStatus = (doc) => doc?.setupStatus || doc?.status || "draft";
 
@@ -25,6 +31,7 @@ const formatSetupDoc = (doc) => {
     establishedYear: doc.establishedYear,
     website: doc.website,
     schoolLogo: doc.schoolLogo,
+    logoFrameShape: doc.logoFrameShape || "rounded-square",
     primaryThemeColor: doc.primaryThemeColor,
     address: doc.address,
     country: doc.country,
@@ -348,6 +355,7 @@ exports.saveStep3SchoolProfile = async (req, res) => {
       establishedYear,
       website,
       schoolLogo,
+      logoFrameShape,
       primaryThemeColor,
       address,
       country,
@@ -428,6 +436,14 @@ exports.saveStep3SchoolProfile = async (req, res) => {
       });
     }
 
+    const frameShape = String(logoFrameShape || "rounded-square").trim();
+    if (frameShape && !VALID_LOGO_FRAME_SHAPES.includes(frameShape)) {
+      return res.status(400).json({
+        success: false,
+        message: "logoFrameShape must be square, rounded-square, circle, or flexible",
+      });
+    }
+
     const yearStr = String(establishedYear || "").trim();
     if (yearStr) {
       const yearNum = Number(yearStr);
@@ -453,6 +469,7 @@ exports.saveStep3SchoolProfile = async (req, res) => {
       establishedYear: yearStr,
       website: String(website || "").trim(),
       schoolLogo: String(schoolLogo || "").trim(),
+      logoFrameShape: frameShape || "rounded-square",
       primaryThemeColor: themeColor,
       address: trimmedAddress,
       country: trimmedCountry,

@@ -15,6 +15,7 @@ const SchoolProfileSidebar = ({
         primaryThemeColor={form.primaryThemeColor}
         schoolLogo={form.schoolLogo}
         logoPreviewUrl={form.schoolLogoPreview}
+        logoFrameShape={form.logoFrameShape}
       />
       <ProfileHealthCard items={healthItems} />
       <div className="rounded-xl border border-setup-border bg-gray-50 p-5">

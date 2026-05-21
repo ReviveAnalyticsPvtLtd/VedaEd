@@ -1,5 +1,7 @@
 import React from "react";
+import { DEFAULT_LOGO_FRAME_SHAPE } from "../constants/schoolProfile";
 import { resolveSchoolLogoUrl } from "../utils/schoolLogoUrl";
+import LogoPreview from "./LogoPreview";
 
 const SchoolBrandingPreview = ({
   schoolName,
@@ -7,6 +9,7 @@ const SchoolBrandingPreview = ({
   primaryThemeColor,
   schoolLogo,
   logoPreviewUrl,
+  logoFrameShape = DEFAULT_LOGO_FRAME_SHAPE,
 }) => {
   const logoUrl = logoPreviewUrl || resolveSchoolLogoUrl(schoolLogo);
   const displayName = schoolName?.trim() || "Your School Name";
@@ -21,21 +24,16 @@ const SchoolBrandingPreview = ({
         }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 text-lg font-bold backdrop-blur-sm"
-            style={{ borderTop: `3px solid ${primaryThemeColor}` }}
-          >
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt=""
-                className="h-full w-full object-contain p-1"
-              />
-            ) : (
-              <span>V</span>
-            )}
-          </div>
-          <div className="min-w-0">
+          <LogoPreview
+            src={logoUrl}
+            frameShape={logoFrameShape}
+            size="sm"
+            placeholder="V"
+            variant="branding"
+            backgroundColor="#ffffff"
+
+          />
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold uppercase tracking-wide">
               {displayName}
             </p>

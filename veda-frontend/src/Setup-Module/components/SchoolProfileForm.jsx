@@ -3,8 +3,10 @@ import SetupStepHeader from "./SetupStepHeader";
 import SetupFormSection from "./SetupFormSection";
 import SetupFormField from "./SetupFormField";
 import SetupSearchableSelect, { formatCountryOption } from "./SetupSearchableSelect";
+import LogoShapePicker from "./LogoShapePicker";
 import SchoolLogoUpload from "./SchoolLogoUpload";
 import ThemeColorPicker from "./ThemeColorPicker";
+import { resolveSchoolLogoUrl } from "../utils/schoolLogoUrl";
 
 const SchoolProfileForm = ({
   form,
@@ -12,10 +14,14 @@ const SchoolProfileForm = ({
   onChange,
   onCountryChange,
   onLogoSelect,
+  onLogoRemove,
   logoUploading,
   logoError,
+  logoWarning,
   localization,
 }) => {
+  const logoDisplayUrl =
+    form.schoolLogoPreview || resolveSchoolLogoUrl(form.schoolLogo);
   const handleChange = (e) => {
     const { name, value } = e.target;
     onChange(name, value);
@@ -93,10 +99,21 @@ const SchoolProfileForm = ({
         <SchoolLogoUpload
           logoPath={form.schoolLogo}
           previewUrl={form.schoolLogoPreview}
+          frameShape={form.logoFrameShape}
           onFileSelect={onLogoSelect}
+          onRemove={onLogoRemove}
           uploading={logoUploading}
           error={logoError || errors.schoolLogo}
+          warning={logoWarning}
         />
+        <div className="mt-5">
+          <LogoShapePicker
+            value={form.logoFrameShape}
+            onChange={(shape) => onChange("logoFrameShape", shape)}
+            logoUrl={logoDisplayUrl}
+            accentColor={form.primaryThemeColor}
+          />
+        </div>
         <div className="mt-6">
           <ThemeColorPicker
             value={form.primaryThemeColor}

@@ -20,12 +20,14 @@ const Step3 = () => {
     saving,
     logoUploading,
     logoError,
+    logoWarning,
     toast,
     healthItems,
     localization,
     updateField,
     handleCountryChange,
     handleLogoSelect,
+    handleLogoRemove,
     handleSaveContinue,
     handleBack,
     handleSaveExit,
@@ -78,8 +80,10 @@ const Step3 = () => {
           onChange={updateField}
           onCountryChange={handleCountryChange}
           onLogoSelect={handleLogoSelect}
+          onLogoRemove={handleLogoRemove}
           logoUploading={logoUploading}
           logoError={logoError}
+          logoWarning={logoWarning}
           localization={localization}
         />
         <SchoolProfileSidebar

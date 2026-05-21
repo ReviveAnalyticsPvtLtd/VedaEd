@@ -23,6 +23,11 @@ const setupWizardSchema = new mongoose.Schema(
     establishedYear: { type: String, default: "" },
     website: { type: String, default: "" },
     schoolLogo: { type: String, default: "" },
+    logoFrameShape: {
+      type: String,
+      enum: ["square", "rounded-square", "circle", "flexible"],
+      default: "rounded-square",
+    },
     primaryThemeColor: { type: String, default: "#2563EB" },
     address: { type: String, default: "" },
     country: { type: String, default: "" },
