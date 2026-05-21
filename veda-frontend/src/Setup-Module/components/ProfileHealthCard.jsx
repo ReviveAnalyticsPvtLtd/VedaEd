@@ -20,11 +20,15 @@ const StatusRow = ({ label, complete }) => (
   </li>
 );
 
-const ProfileHealthCard = ({ items }) => {
+const ProfileHealthCard = ({
+  items,
+  title = "Profile Health",
+  subtitle = "Required items for this step",
+}) => {
   return (
     <div className="rounded-xl border border-setup-border bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-bold text-setup-heading">Profile Health</h3>
-      <p className="mt-1 text-xs text-setup-muted">Required items for this step</p>
+      <h3 className="text-sm font-bold text-setup-heading">{title}</h3>
+      <p className="mt-1 text-xs text-setup-muted">{subtitle}</p>
       <ul className="mt-4 space-y-3">
         {items.map((item) => (
           <StatusRow key={item.id} label={item.label} complete={item.complete} />

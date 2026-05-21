@@ -6,6 +6,9 @@ export const STEP_2_PROGRESS = 10;
 export const STEP_3_NUMBER = 3;
 export const STEP_3_PROGRESS = 22;
 export const STEP_4_NUMBER = 4;
+export const STEP_4_PROGRESS = 32;
+export const STEP_5_NUMBER = 5;
+export const STEP_5_PROGRESS = 38;
 
 export const SETUP_ROUTES = {
   START: "/setup/start",

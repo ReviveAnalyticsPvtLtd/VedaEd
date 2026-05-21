@@ -48,3 +48,9 @@ export const saveSchoolProfile = async (payload) => {
   const response = await axios.post(`${API_URL}/step-3`, payload);
   return response.data;
 };
+
+/** Save step 4 school type & curriculum */
+export const saveSchoolTypeCurriculum = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-4`, payload);
+  return response.data;
+};

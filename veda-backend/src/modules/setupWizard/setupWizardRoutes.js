@@ -14,5 +14,6 @@ router.post(
   setupWizardController.uploadSchoolLogo
 );
 router.post("/step-3", setupWizardController.saveStep3SchoolProfile);
+router.post("/step-4", setupWizardController.saveStep4SchoolTypeCurriculum);
 
 module.exports = router;

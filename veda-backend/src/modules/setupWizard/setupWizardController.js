@@ -13,6 +13,17 @@ const VALID_LOGO_FRAME_SHAPES = [
   "circle",
   "flexible",
 ];
+const VALID_INSTITUTION_TYPES = [
+  "preschool",
+  "k12_school",
+  "higher_secondary",
+];
+const VALID_LANGUAGE_PREFERENCES = [
+  "english",
+  "hindi",
+  "regional",
+  "other",
+];
 
 const getSetupStatus = (doc) => doc?.setupStatus || doc?.status || "draft";
 
@@ -35,6 +46,12 @@ const formatSetupDoc = (doc) => {
     primaryThemeColor: doc.primaryThemeColor,
     address: doc.address,
     country: doc.country,
+    institutionType: doc.institutionType,
+    curriculumCountry: doc.curriculumCountry,
+    curriculumBoard: doc.curriculumBoard,
+    gradeFrom: doc.gradeFrom,
+    gradeTo: doc.gradeTo,
+    languagePreference: doc.languagePreference,
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -500,6 +517,124 @@ exports.saveStep3SchoolProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to save school profile",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-4 — save school type & curriculum (step 4) */
+exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
+  try {
+    const {
+      institutionType,
+      country,
+      curriculumCountry,
+      curriculumBoard,
+      gradeFrom,
+      gradeTo,
+      languagePreference,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const isDraft = req.body.draft === true || req.body.draft === "true";
+    const trimmedInstitution = String(institutionType || "").trim();
+    const trimmedCountry = String(
+      country || curriculumCountry || ""
+    ).trim();
+    const trimmedBoard = String(curriculumBoard || "").trim();
+    const trimmedGradeFrom = String(gradeFrom || "").trim();
+    const trimmedGradeTo = String(gradeTo || "").trim();
+    const trimmedLanguage = String(languagePreference || "english")
+      .trim()
+      .toLowerCase();
+
+    if (!isDraft) {
+      if (!trimmedInstitution || !VALID_INSTITUTION_TYPES.includes(trimmedInstitution)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "institutionType must be one of: preschool, k12_school, higher_secondary",
+        });
+      }
+
+      if (!trimmedCountry) {
+        return res.status(400).json({
+          success: false,
+          message: "country is required",
+        });
+      }
+
+      if (!trimmedBoard) {
+        return res.status(400).json({
+          success: false,
+          message: "curriculumBoard is required",
+        });
+      }
+
+      if (!trimmedGradeFrom || !trimmedGradeTo) {
+        return res.status(400).json({
+          success: false,
+          message: "gradeFrom and gradeTo are required",
+        });
+      }
+    }
+
+    if (
+      trimmedInstitution &&
+      !VALID_INSTITUTION_TYPES.includes(trimmedInstitution)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "institutionType must be one of: preschool, k12_school, higher_secondary",
+      });
+    }
+
+    if (
+      trimmedLanguage &&
+      !VALID_LANGUAGE_PREFERENCES.includes(trimmedLanguage)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "languagePreference must be one of: english, hindi, regional, other",
+      });
+    }
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      institutionType: trimmedInstitution || null,
+      curriculumCountry: trimmedCountry,
+      curriculumBoard: trimmedBoard,
+      gradeFrom: trimmedGradeFrom,
+      gradeTo: trimmedGradeTo,
+      languagePreference: trimmedLanguage || "english",
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "School type and curriculum saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep4SchoolTypeCurriculum error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save school type and curriculum",
       error: error.message,
     });
   }
