@@ -18,7 +18,7 @@ const SetupProgressBar = ({ step, total, progress, title }) => {
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-full rounded-full bg-setup-primary transition-all duration-300"
+          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500 ease-out"
           style={{ width: barWidth }}
         />
       </div>

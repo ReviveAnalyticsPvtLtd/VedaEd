@@ -26,3 +26,9 @@ export const saveSetupProgress = async (payload) => {
   const response = await axios.post(API_URL, payload);
   return response.data;
 };
+
+/** Save step 2 organization type */
+export const saveOrganizationType = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-2`, payload);
+  return response.data;
+};

@@ -13,6 +13,11 @@ const setupWizardSchema = new mongoose.Schema(
       enum: ["quick", "advanced", "import"],
       default: "quick",
     },
+    organizationType: {
+      type: String,
+      enum: ["single_school", "multi_campus", "school_group"],
+      default: null,
+    },
     currentStep: {
       type: Number,
       min: 1,

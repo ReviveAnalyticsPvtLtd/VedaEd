@@ -6,5 +6,6 @@ router.get("/progress", setupWizardController.getSetupProgress);
 router.post("/initialize", setupWizardController.initializeSetup);
 router.get("/", setupWizardController.getSetupWizard);
 router.post("/", setupWizardController.saveSetupWizard);
+router.post("/step-2", setupWizardController.saveStep2OrganizationType);
 
 module.exports = router;

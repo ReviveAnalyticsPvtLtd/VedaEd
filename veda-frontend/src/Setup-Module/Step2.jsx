@@ -1,35 +1,65 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import SetupWizardLayout from "./components/SetupWizardLayout";
 import SetupProgressBar from "./components/SetupProgressBar";
-import { TOTAL_STEPS } from "./constants/setupWizard";
+import OrganizationTypeSelector from "./components/OrganizationTypeSelector";
+import SetupWizardFooter from "./components/SetupWizardFooter";
+import { useSetupWizardStep2 } from "./hooks/useSetupWizardStep2";
+import {
+  TOTAL_STEPS,
+  STEP_2_NUMBER,
+  STEP_2_PROGRESS,
+} from "./constants/setupWizard";
+import { toastBannerClassName } from "../utils/toastMessageStyle";
 
-/** Placeholder for Step 2 — extend when implementing next wizard step */
 const Step2 = () => {
-  const navigate = useNavigate();
-  const stepProgress = Math.round((2 / TOTAL_STEPS) * 100);
+  const {
+    organizationType,
+    setOrganizationType,
+    loading,
+    saving,
+    toast,
+    handleSaveContinue,
+    handleBack,
+    handleSaveExit,
+  } = useSetupWizardStep2();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-setup-page">
+        <p className="text-sm font-medium text-gray-500">Loading setup wizard...</p>
+      </div>
+    );
+  }
 
   return (
-    <SetupWizardLayout onSaveExit={() => navigate("/")} saving={false}>
+    <SetupWizardLayout onSaveExit={handleSaveExit} saving={saving}>
       <SetupProgressBar
-        step={2}
+        step={STEP_2_NUMBER}
         total={TOTAL_STEPS}
-        progress={stepProgress}
-        title="School Profile"
+        progress={STEP_2_PROGRESS}
+        title="Organization Type"
       />
-      <div className="px-6 py-12 text-center">
-        <h2 className="text-xl font-bold text-gray-900">Step 2 — Coming soon</h2>
-        <p className="mt-2 text-gray-500">
-          School profile configuration will be implemented in the next phase.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate("/setup/step-1")}
-          className="mt-6 text-sm font-medium text-blue-600 hover:underline"
-        >
-          Back to Step 1
-        </button>
-      </div>
+
+      {toast && (
+        <div className="px-6 pt-4">
+          <p
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${toastBannerClassName(toast)}`}
+          >
+            {toast}
+          </p>
+        </div>
+      )}
+
+      <OrganizationTypeSelector
+        value={organizationType}
+        onChange={setOrganizationType}
+      />
+
+      <SetupWizardFooter
+        onBack={handleBack}
+        onContinue={handleSaveContinue}
+        saving={saving}
+      />
     </SetupWizardLayout>
   );
 };
