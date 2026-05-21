@@ -1,43 +1,97 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import SetupWizardLayout from "./components/SetupWizardLayout";
 import SetupProgressBar from "./components/SetupProgressBar";
 import SetupWizardFooter from "./components/SetupWizardFooter";
+import SchoolProfileForm from "./components/SchoolProfileForm";
+import SchoolProfileSidebar from "./components/SchoolProfileSidebar";
+import { useSetupWizardStep3 } from "./hooks/useSetupWizardStep3";
 import {
   TOTAL_STEPS,
   STEP_3_NUMBER,
   STEP_3_PROGRESS,
-  SETUP_ROUTES,
 } from "./constants/setupWizard";
+import { toastBannerClassName } from "../utils/toastMessageStyle";
 
-/** Placeholder for Step 3 — prevents route crash until implemented */
 const Step3 = () => {
-  const navigate = useNavigate();
+  const {
+    form,
+    errors,
+    loading,
+    saving,
+    logoUploading,
+    logoError,
+    toast,
+    healthItems,
+    updateField,
+    handleCountryChange,
+    handleLogoSelect,
+    handleSaveContinue,
+    handleBack,
+    handleSaveExit,
+  } = useSetupWizardStep3();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-setup-page">
+        <p className="text-sm font-medium text-gray-500">Loading setup wizard...</p>
+      </div>
+    );
+  }
 
   return (
-    <SetupWizardLayout onSaveExit={() => navigate(SETUP_ROUTES.START)} saving={false}>
+    <SetupWizardLayout onSaveExit={handleSaveExit} saving={saving}>
       <SetupProgressBar
         step={STEP_3_NUMBER}
         total={TOTAL_STEPS}
         progress={STEP_3_PROGRESS}
         title="School Profile"
       />
-      <div className="px-6 py-12 text-center sm:px-10">
-        <span className="inline-flex w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-setup-primary">
-          Foundation Setup
-        </span>
-        <h2 className="mt-4 text-2xl font-bold text-setup-heading">
-          Step 3 — Coming soon
-        </h2>
-        <p className="mt-2 text-sm text-setup-muted">
-          School profile configuration will be implemented in the next phase.
+
+      <div className="border-b border-setup-border px-6 py-5 sm:px-8">
+        <h1 className="text-xl font-bold text-setup-heading sm:text-2xl">
+          School Profile Setup
+        </h1>
+        <p className="mt-1 text-sm text-setup-muted sm:text-[15px]">
+          Provide your school&apos;s basic information, branding, and contact details
+          to personalize your workspace.
         </p>
       </div>
+
+      {toast && (
+        <div className="px-6 pt-4 sm:px-8">
+          <p
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${toastBannerClassName(toast)}`}
+          >
+            {toast}
+          </p>
+        </div>
+      )}
+
+      <div
+        className="grid grid-cols-1 gap-8 px-6 py-6 sm:px-8 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]"
+        style={{ "--setup-theme": form.primaryThemeColor }}
+      >
+        <SchoolProfileForm
+          form={form}
+          errors={errors}
+          onChange={updateField}
+          onCountryChange={handleCountryChange}
+          onLogoSelect={handleLogoSelect}
+          logoUploading={logoUploading}
+          logoError={logoError}
+        />
+        <SchoolProfileSidebar
+          form={form}
+          healthItems={healthItems}
+          showCountryTip={!form.country}
+        />
+      </div>
+
       <SetupWizardFooter
-        onBack={() => navigate(SETUP_ROUTES.step(2))}
-        onContinue={() => navigate(SETUP_ROUTES.step(4))}
-        saving={false}
-        continueLabel="Continue"
+        onBack={handleBack}
+        onContinue={handleSaveContinue}
+        saving={saving}
+        primaryColor={form.primaryThemeColor}
       />
     </SetupWizardLayout>
   );

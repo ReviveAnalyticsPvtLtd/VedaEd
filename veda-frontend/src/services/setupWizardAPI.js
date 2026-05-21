@@ -32,3 +32,19 @@ export const saveOrganizationType = async (payload) => {
   const response = await axios.post(`${API_URL}/step-2`, payload);
   return response.data;
 };
+
+/** Upload school logo for step 3 */
+export const uploadSchoolLogo = async (file) => {
+  const formData = new FormData();
+  formData.append("schoolLogo", file);
+  const response = await axios.post(`${API_URL}/step-3/logo`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+};
+
+/** Save step 3 school profile */
+export const saveSchoolProfile = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-3`, payload);
+  return response.data;
+};

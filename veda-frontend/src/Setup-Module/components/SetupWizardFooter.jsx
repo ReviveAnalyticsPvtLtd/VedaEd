@@ -6,7 +6,12 @@ const SetupWizardFooter = ({
   saving,
   continueLabel = "Save & Continue",
   showBack = true,
+  primaryColor,
 }) => {
+  const accentStyle = primaryColor
+    ? { backgroundColor: primaryColor }
+    : undefined;
+
   return (
     <div className="flex flex-col-reverse gap-3 border-t border-setup-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:py-6">
       {showBack ? (
@@ -25,7 +30,8 @@ const SetupWizardFooter = ({
         type="button"
         onClick={onContinue}
         disabled={saving}
-        className="w-full rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        style={accentStyle}
+        className="w-full rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
         {saving ? "Saving..." : continueLabel}
       </button>
