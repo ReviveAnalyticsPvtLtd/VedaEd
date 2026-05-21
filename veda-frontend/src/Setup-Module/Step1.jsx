@@ -20,7 +20,7 @@ const Step1 = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-setup-page">
         <p className="text-sm font-medium text-gray-500">Loading setup wizard...</p>
       </div>
     );
@@ -36,7 +36,7 @@ const Step1 = () => {
       />
 
       {toast && (
-        <div className="px-4 pt-4 sm:px-6">
+        <div className="px-6 pt-4">
           <p
             className={`rounded-lg border px-3 py-2 text-sm font-medium ${toastBannerClassName(toast)}`}
           >
@@ -45,8 +45,10 @@ const Step1 = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2">
-        <WelcomeInfoPanel />
+      <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-stretch lg:divide-x lg:divide-setup-border">
+        <div className="min-w-0">
+          <WelcomeInfoPanel />
+        </div>
         <SetupExperienceSelector
           value={selectedSetupType}
           onChange={setSelectedSetupType}
@@ -54,12 +56,12 @@ const Step1 = () => {
         />
       </div>
 
-      <div className="flex justify-end border-t border-gray-100 px-4 py-5 sm:px-6 sm:py-6">
+      <div className="flex justify-end border-t border-setup-border px-6 py-5 sm:py-6">
         <button
           type="button"
           onClick={handleSaveContinue}
           disabled={saving}
-          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? "Saving..." : "Save & Continue"}
         </button>
