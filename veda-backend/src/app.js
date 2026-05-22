@@ -34,6 +34,7 @@ const interviewRoutes = require("./modules/admission/interviewRoutes");
 const chatbotRoutes = require("./modules/chatbot/chatbotRoutes");
 const superadminLandingRoutes = require("./modules/superadminLanding/superadminLandingRoutes");
 const superadminIdentityRoutes = require("./modules/superadminIdentity/superadminIdentityRoutes");
+
 const hrRecruitmentRoutes = require("./modules/hrRecruitment/hrRecruitmentRoutes");
 
 // Middlewares
