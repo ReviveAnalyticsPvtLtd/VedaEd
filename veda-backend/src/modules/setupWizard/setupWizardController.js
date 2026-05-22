@@ -60,6 +60,10 @@ const formatSetupDoc = (doc) => {
     recommendationType: doc.recommendationType,
     recommendationConfidence: doc.recommendationConfidence,
     recommendationRules: doc.recommendationRules || [],
+    enabledModules: doc.enabledModules || [],
+    disabledModules: doc.disabledModules || [],
+    recommendedModules: doc.recommendedModules || [],
+    dependencyWarnings: doc.dependencyWarnings || [],
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -653,6 +657,107 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to save school type and curriculum",
+      error: error.message,
+    });
+  }
+};
+
+const REQUIRED_MODULE_KEYS = [
+  "SIS",
+  "Academics",
+  "Attendance",
+  "Timetable",
+  "Exams",
+  "Fees",
+  "Communication",
+  "Reports",
+];
+
+const OPTIONAL_MODULE_KEYS = [
+  "Transport",
+  "Library",
+  "Health",
+  "Hostel",
+  "LMS",
+  "Inventory",
+  "HR",
+  "Payroll",
+];
+
+const sanitizeModuleKeys = (list, allowed) => {
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.filter((key) => allowed.includes(key)))];
+};
+
+/** POST /api/setup-wizard/step-5 — save module selection (step 5) */
+exports.saveStep5ModuleSelection = async (req, res) => {
+  try {
+    const {
+      enabledModules,
+      disabledModules,
+      recommendedModules,
+      dependencyWarnings,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const optionalEnabled = sanitizeModuleKeys(
+      enabledModules,
+      OPTIONAL_MODULE_KEYS
+    );
+
+    if (optionalEnabled.includes("Payroll") && !optionalEnabled.includes("HR")) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payroll depends on HR. Enable HR before saving Payroll.",
+      });
+    }
+
+    const mergedEnabled = [
+      ...REQUIRED_MODULE_KEYS,
+      ...optionalEnabled,
+    ];
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      enabledModules: mergedEnabled,
+      disabledModules: sanitizeModuleKeys(
+        disabledModules,
+        OPTIONAL_MODULE_KEYS
+      ),
+      recommendedModules: sanitizeModuleKeys(
+        recommendedModules,
+        OPTIONAL_MODULE_KEYS
+      ),
+      dependencyWarnings: Array.isArray(dependencyWarnings)
+        ? dependencyWarnings.filter((w) => typeof w === "string" && w.trim())
+        : [],
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Module selection saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep5ModuleSelection error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save module selection",
       error: error.message,
     });
   }

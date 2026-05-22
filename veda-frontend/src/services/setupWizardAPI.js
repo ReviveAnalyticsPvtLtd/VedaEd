@@ -66,3 +66,9 @@ export const getSetupRecommendation = async () => {
   const response = await axios.get(`${API_URL}/recommendation`);
   return response.data;
 };
+
+/** Save step 5 module selection */
+export const saveModuleSelection = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-5`, payload);
+  return response.data;
+};

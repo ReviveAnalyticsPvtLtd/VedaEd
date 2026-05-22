@@ -56,6 +56,22 @@ const setupWizardSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    enabledModules: {
+      type: [String],
+      default: [],
+    },
+    disabledModules: {
+      type: [String],
+      default: [],
+    },
+    recommendedModules: {
+      type: [String],
+      default: [],
+    },
+    dependencyWarnings: {
+      type: [String],
+      default: [],
+    },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
     postalCode: { type: String, default: "" },
