@@ -496,7 +496,11 @@ const Step8AttendanceRules = () => {
                 <button onClick={()=>navigate("/form/step-7")} className="border px-6 py-3 rounded-xl">
                   Back
                 </button>
-                <button onClick={handleSave,()=>navigate("/form/step-9")}  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg"
+                >
                   Save & Continue
                 </button>
               </div>
