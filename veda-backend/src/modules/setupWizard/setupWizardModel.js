@@ -103,6 +103,62 @@ const setupWizardSchema = new mongoose.Schema(
       ],
       default: "recommended_template",
     },
+    enabledRoles: {
+      type: [String],
+      default: [],
+    },
+    optionalRoles: {
+      type: [String],
+      default: [],
+    },
+    permissionSetupStyle: {
+      type: String,
+      enum: ["recommended", "custom"],
+      default: "recommended",
+    },
+    staffIdFormat: {
+      type: String,
+      default: "EMP-{YEAR}-{SEQ}",
+    },
+    teacherIdFormat: {
+      type: String,
+      default: "TCH-{YEAR}-{SEQ}",
+    },
+    staffCategories: {
+      type: [String],
+      default: [],
+    },
+    departmentSetup: {
+      type: String,
+      enum: ["recommended", "manual", "hierarchical", ""],
+      default: "manual",
+    },
+    approvalWorkflow: {
+      type: String,
+      enum: ["principal", "department_head", "custom", "none", ""],
+      default: "custom",
+    },
+    permissionMatrix: {
+      type: [
+        {
+          role: String,
+          academic: String,
+          fees: String,
+          setup: String,
+          portal: String,
+        },
+      ],
+      default: [],
+    },
+    dependencyStatus: {
+      type: [
+        {
+          module: String,
+          status: String,
+        },
+      ],
+      default: [],
+    },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
     postalCode: { type: String, default: "" },

@@ -17,6 +17,13 @@ router.post("/step-3", setupWizardController.saveStep3SchoolProfile);
 router.post("/step-4", setupWizardController.saveStep4SchoolTypeCurriculum);
 router.post("/step-5", setupWizardController.saveStep5ModuleSelection);
 router.post("/step-6", setupWizardController.saveStep6AcademicStructure);
+router.get("/step-7", setupWizardController.getStep7RolesHrFoundation);
+router.post("/step-7", setupWizardController.saveStep7RolesHrFoundation);
+router.put("/step-7/roles", setupWizardController.updateStep7RoleConfiguration);
+router.delete(
+  "/step-7/roles/:roleKey",
+  setupWizardController.deleteStep7OptionalRole
+);
 router.post(
   "/recommendation/generate",
   setupWizardController.generateRecommendation

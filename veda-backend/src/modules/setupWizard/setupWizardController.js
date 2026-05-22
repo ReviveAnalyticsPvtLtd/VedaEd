@@ -6,6 +6,23 @@ const {
   recommendationToStoredFields,
 } = require("./recommendation/recommendationEngine");
 const { isValidGradeRange } = require("./recommendation/gradeUtils");
+const {
+  CORE_ROLE_KEYS,
+  OPTIONAL_ROLE_KEYS,
+  normalizeOptionalRoles,
+  buildEnabledRoles,
+  validateRoleToggle,
+  validateStep7Payload,
+  generatePermissionMatrix,
+  computeDependencyStatus,
+  getSmartCheckMessages: getRolesHrSmartChecks,
+  mapWizardToStep7Response,
+} = require("./rolesHr/rolesHrFoundationService");
+const {
+  VALID_PERMISSION_STYLES,
+  VALID_DEPARTMENT_SETUP,
+  VALID_APPROVAL_WORKFLOW,
+} = require("./rolesHr/rolesHrFoundation.config");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -75,6 +92,16 @@ const formatSetupDoc = (doc) => {
     sectionMode: doc.sectionMode,
     streams: doc.streams || [],
     subjectFramework: doc.subjectFramework,
+    enabledRoles: doc.enabledRoles || [],
+    optionalRoles: doc.optionalRoles || [],
+    permissionSetupStyle: doc.permissionSetupStyle,
+    staffIdFormat: doc.staffIdFormat,
+    teacherIdFormat: doc.teacherIdFormat,
+    staffCategories: doc.staffCategories || [],
+    departmentSetup: doc.departmentSetup,
+    approvalWorkflow: doc.approvalWorkflow,
+    permissionMatrix: doc.permissionMatrix || [],
+    dependencyStatus: doc.dependencyStatus || [],
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -1074,6 +1101,284 @@ exports.getRecommendation = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch recommendation",
+      error: error.message,
+    });
+  }
+};
+
+const buildStep7PersistPayload = (sanitized, wizardDoc, progressMeta, completedSteps) => {
+  const permissionMatrix = generatePermissionMatrix(
+    sanitized.optionalRoles,
+    sanitized.permissionSetupStyle
+  );
+  const dependencyStatus = computeDependencyStatus({
+    ...wizardDoc,
+    approvalWorkflow: sanitized.approvalWorkflow,
+    subjectFramework: wizardDoc?.subjectFramework,
+    enabledModules: wizardDoc?.enabledModules,
+  });
+
+  return {
+    enabledRoles: buildEnabledRoles(sanitized.optionalRoles),
+    optionalRoles: sanitized.optionalRoles,
+    permissionSetupStyle: sanitized.permissionSetupStyle,
+    staffIdFormat: sanitized.staffIdFormat,
+    teacherIdFormat: sanitized.teacherIdFormat,
+    staffCategories: sanitized.staffCategories,
+    departmentSetup: sanitized.departmentSetup,
+    approvalWorkflow: sanitized.approvalWorkflow,
+    permissionMatrix,
+    dependencyStatus,
+    currentStep: progressMeta.step,
+    progressPercentage: progressMeta.progress,
+    setupStatus: "draft",
+    completedSteps,
+  };
+};
+
+/** GET /api/setup-wizard/step-7 — fetch saved roles & HR foundation */
+exports.getStep7RolesHrFoundation = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const data = mapWizardToStep7Response(doc);
+    const smartChecks = doc
+      ? getRolesHrSmartChecks(doc.enabledModules, data?.optionalRoles)
+      : [];
+
+    return res.status(200).json({
+      success: true,
+      data: data
+        ? {
+            ...data,
+            smartChecks,
+            recommendationText:
+              data.permissionSetupStyle === "custom"
+                ? "Custom mode selected. You can edit detailed permissions before launch, but setup may take longer."
+                : "Use recommended permissions now. Advanced permission tuning can be done later from Setup Center with audit logs.",
+          }
+        : null,
+      message: doc ? "Step 7 data loaded" : "No step 7 data found",
+    });
+  } catch (error) {
+    console.error("getStep7RolesHrFoundation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 7 data",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-7 — save roles & HR foundation */
+exports.saveStep7RolesHrFoundation = async (req, res) => {
+  try {
+    const { currentStep, progressPercentage, completedSteps } = req.body;
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const isDraft = req.body.draft === true || req.body.draft === "true";
+    const validation = validateStep7Payload(req.body, { draft: isDraft });
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.errors.join("; "),
+      });
+    }
+
+    const { sanitized } = validation;
+
+    if (
+      sanitized.permissionSetupStyle &&
+      !VALID_PERMISSION_STYLES.includes(sanitized.permissionSetupStyle)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid permissionSetupStyle",
+      });
+    }
+
+    if (
+      sanitized.departmentSetup &&
+      !VALID_DEPARTMENT_SETUP.includes(sanitized.departmentSetup)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid departmentSetup",
+      });
+    }
+
+    if (
+      sanitized.approvalWorkflow &&
+      !VALID_APPROVAL_WORKFLOW.includes(sanitized.approvalWorkflow)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid approvalWorkflow",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = buildStep7PersistPayload(
+      sanitized,
+      existing,
+      progressMeta,
+      completed
+    );
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(doc),
+      message: "Roles & HR foundation saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep7RolesHrFoundation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save roles & HR foundation",
+      error: error.message,
+    });
+  }
+};
+
+/** PUT /api/setup-wizard/step-7/roles — update optional role configuration */
+exports.updateStep7RoleConfiguration = async (req, res) => {
+  try {
+    const { roleKey, enabled } = req.body;
+
+    if (!roleKey) {
+      return res.status(400).json({
+        success: false,
+        message: "roleKey is required",
+      });
+    }
+
+    const toggleCheck = validateRoleToggle(roleKey, enabled !== false);
+    if (!toggleCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: toggleCheck.message,
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    let optionalRoles = normalizeOptionalRoles(doc.optionalRoles);
+    const shouldEnable = enabled !== false;
+
+    if (shouldEnable && !optionalRoles.includes(roleKey)) {
+      optionalRoles.push(roleKey);
+    } else if (!shouldEnable) {
+      optionalRoles = optionalRoles.filter((r) => r !== roleKey);
+    }
+
+    const permissionMatrix = generatePermissionMatrix(
+      optionalRoles,
+      doc.permissionSetupStyle
+    );
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        optionalRoles,
+        enabledRoles: buildEnabledRoles(optionalRoles),
+        permissionMatrix,
+        dependencyStatus: computeDependencyStatus(doc),
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(updated),
+      message: `Role "${roleKey}" updated`,
+    });
+  } catch (error) {
+    console.error("updateStep7RoleConfiguration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update role configuration",
+      error: error.message,
+    });
+  }
+};
+
+/** DELETE /api/setup-wizard/step-7/roles/:roleKey — remove optional role */
+exports.deleteStep7OptionalRole = async (req, res) => {
+  try {
+    const roleKey = decodeURIComponent(req.params.roleKey || "").trim();
+
+    if (!roleKey) {
+      return res.status(400).json({
+        success: false,
+        message: "roleKey is required",
+      });
+    }
+
+    if (CORE_ROLE_KEYS.includes(roleKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot remove required role "${roleKey}"`,
+      });
+    }
+
+    if (!OPTIONAL_ROLE_KEYS.includes(roleKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown optional role "${roleKey}"`,
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found",
+      });
+    }
+
+    const optionalRoles = normalizeOptionalRoles(doc.optionalRoles).filter(
+      (r) => r !== roleKey
+    );
+
+    const permissionMatrix = generatePermissionMatrix(
+      optionalRoles,
+      doc.permissionSetupStyle
+    );
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        optionalRoles,
+        enabledRoles: buildEnabledRoles(optionalRoles),
+        permissionMatrix,
+        dependencyStatus: computeDependencyStatus(doc),
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(updated),
+      message: `Optional role "${roleKey}" removed`,
+    });
+  } catch (error) {
+    console.error("deleteStep7OptionalRole error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove optional role",
       error: error.message,
     });
   }

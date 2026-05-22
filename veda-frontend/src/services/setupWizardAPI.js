@@ -78,3 +78,28 @@ export const saveAcademicStructure = async (payload) => {
   const response = await axios.post(`${API_URL}/step-6`, payload);
   return response.data;
 };
+
+/** Fetch step 7 roles & HR foundation */
+export const getRolesHrFoundation = async () => {
+  const response = await axios.get(`${API_URL}/step-7`);
+  return response.data;
+};
+
+/** Save step 7 roles & HR foundation */
+export const saveRolesHrFoundation = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-7`, payload);
+  return response.data;
+};
+
+/** Update a single optional role toggle */
+export const updateStep7Role = async (payload) => {
+  const response = await axios.put(`${API_URL}/step-7/roles`, payload);
+  return response.data;
+};
+
+/** Remove an optional role */
+export const deleteStep7Role = async (roleKey) => {
+  const encoded = encodeURIComponent(roleKey);
+  const response = await axios.delete(`${API_URL}/step-7/roles/${encoded}`);
+  return response.data;
+};

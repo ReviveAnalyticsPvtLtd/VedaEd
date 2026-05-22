@@ -264,7 +264,7 @@ export function useSetupWizardStep6() {
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
-    if (ok) navigate(SETUP_ROUTES.step(7));
+    if (ok) navigate("/form/step-7");
   }, [persistStep, navigate]);
 
   const handleBack = useCallback(() => {
