@@ -370,6 +370,10 @@ import Step3 from "./Setup-Module/Step3";
 import Step4 from "./Setup-Module/Step4";
 import Step5 from "./Setup-Module/Step5";
 import Step6 from "./Setup-Module/Step6";
+import Step7 from "./Setup-Module/Step7";
+import Step8 from "./Setup-Module/Step8";
+import Step9 from "./Setup-Module/Step9";
+
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 function App() {
@@ -386,6 +390,9 @@ function App() {
   <Route path="/form/step-4" element={<Step4 />} />
   <Route path="/form/step-5" element={<Step5 />} />
   <Route path="/form/step-6" element={<Step6 />} />
+  <Route path="/form/step-7" element={<Step7 />} />
+  <Route path="/form/step-8" element={<Step8 />} />
+  <Route path="/form/step-9" element={<Step9 />} />
 
         {/* ================= ROLE FRONTS ================= */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
