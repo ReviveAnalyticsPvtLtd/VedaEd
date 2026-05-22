@@ -159,6 +159,71 @@ const setupWizardSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    attendanceMode: {
+      type: String,
+      enum: ["Daily", "Period-wise", "Hybrid", ""],
+      default: "Hybrid",
+    },
+    workingDays: {
+      type: [String],
+      default: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    },
+    schoolStartTime: { type: String, default: "08:00" },
+    schoolEndTime: { type: String, default: "14:30" },
+    halfDayCheckoutTime: { type: String, default: "11:30" },
+    attendanceClosingTime: { type: String, default: "09:30" },
+    lateArrivalAfter: { type: String, default: "08:15" },
+    autoAbsentAfter: { type: String, default: "10:00" },
+    minimumAttendance: {
+      type: Number,
+      min: 50,
+      max: 100,
+      default: 75,
+    },
+    graceMinutes: {
+      type: Number,
+      min: 0,
+      default: 10,
+    },
+    attendancePermissions: {
+      classTeacher: { type: Boolean, default: true },
+      subjectTeacher: { type: Boolean, default: true },
+      adminOverride: { type: Boolean, default: true },
+      biometric: { type: Boolean, default: false },
+    },
+    leaveApprovalRules: {
+      studentLeaveApproval: {
+        type: String,
+        default: "Class Teacher Approval",
+      },
+      staffLeaveApproval: {
+        type: String,
+        default: "Principal Approval",
+      },
+    },
+    leaveTypes: {
+      type: [String],
+      default: ["Sick Leave", "Casual Leave", "Medical Leave"],
+    },
+    parentNotificationRules: {
+      absentAlert: { type: Boolean, default: true },
+      lateArrivalAlert: { type: Boolean, default: true },
+      earlyCheckoutAlert: { type: Boolean, default: true },
+      lowAttendanceWarning: { type: Boolean, default: true },
+    },
+    attendanceDependencyStatus: {
+      type: [
+        {
+          module: String,
+          status: String,
+        },
+      ],
+      default: [],
+    },
+    attendanceSmartChecks: {
+      type: [String],
+      default: [],
+    },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
     postalCode: { type: String, default: "" },

@@ -103,3 +103,27 @@ export const deleteStep7Role = async (roleKey) => {
   const response = await axios.delete(`${API_URL}/step-7/roles/${encoded}`);
   return response.data;
 };
+
+/** Fetch step 8 attendance rules */
+export const getAttendanceRules = async () => {
+  const response = await axios.get(`${API_URL}/step-8`);
+  return response.data;
+};
+
+/** Save step 8 attendance rules */
+export const saveAttendanceRules = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-8`, payload);
+  return response.data;
+};
+
+/** Update step 8 attendance rules */
+export const updateAttendanceRules = async (payload) => {
+  const response = await axios.put(`${API_URL}/step-8`, payload);
+  return response.data;
+};
+
+/** Patch step 8 permission/notification toggles */
+export const patchAttendanceToggle = async (payload) => {
+  const response = await axios.patch(`${API_URL}/step-8/toggles`, payload);
+  return response.data;
+};

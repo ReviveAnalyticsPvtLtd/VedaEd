@@ -24,6 +24,10 @@ router.delete(
   "/step-7/roles/:roleKey",
   setupWizardController.deleteStep7OptionalRole
 );
+router.get("/step-8", setupWizardController.getStep8AttendanceRules);
+router.post("/step-8", setupWizardController.saveStep8AttendanceRules);
+router.put("/step-8", setupWizardController.updateStep8AttendanceRules);
+router.patch("/step-8/toggles", setupWizardController.patchStep8AttendanceToggles);
 router.post(
   "/recommendation/generate",
   setupWizardController.generateRecommendation

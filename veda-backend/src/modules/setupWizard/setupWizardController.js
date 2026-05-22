@@ -23,6 +23,15 @@ const {
   VALID_DEPARTMENT_SETUP,
   VALID_APPROVAL_WORKFLOW,
 } = require("./rolesHr/rolesHrFoundation.config");
+const {
+  validateStep8Payload,
+  mapWizardToStep8Response,
+  applyTogglePatch,
+  computeAttendanceDependencyStatus,
+  getAttendanceSmartChecks,
+  normalizePermissions,
+  normalizeParentNotifications,
+} = require("./attendance/attendanceRulesService");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -102,6 +111,22 @@ const formatSetupDoc = (doc) => {
     approvalWorkflow: doc.approvalWorkflow,
     permissionMatrix: doc.permissionMatrix || [],
     dependencyStatus: doc.dependencyStatus || [],
+    attendanceMode: doc.attendanceMode,
+    workingDays: doc.workingDays || [],
+    schoolStartTime: doc.schoolStartTime,
+    schoolEndTime: doc.schoolEndTime,
+    halfDayCheckoutTime: doc.halfDayCheckoutTime,
+    attendanceClosingTime: doc.attendanceClosingTime,
+    lateArrivalAfter: doc.lateArrivalAfter,
+    autoAbsentAfter: doc.autoAbsentAfter,
+    minimumAttendance: doc.minimumAttendance,
+    graceMinutes: doc.graceMinutes,
+    attendancePermissions: doc.attendancePermissions,
+    leaveApprovalRules: doc.leaveApprovalRules,
+    leaveTypes: doc.leaveTypes || [],
+    parentNotificationRules: doc.parentNotificationRules,
+    attendanceDependencyStatus: doc.attendanceDependencyStatus || [],
+    attendanceSmartChecks: doc.attendanceSmartChecks || [],
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -1379,6 +1404,202 @@ exports.deleteStep7OptionalRole = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to remove optional role",
+      error: error.message,
+    });
+  }
+};
+
+const buildStep8PersistPayload = (sanitized, progressMeta, completedSteps) => ({
+  attendanceMode: sanitized.attendanceMode,
+  workingDays: sanitized.workingDays,
+  schoolStartTime: sanitized.schoolStartTime,
+  schoolEndTime: sanitized.schoolEndTime,
+  halfDayCheckoutTime: sanitized.halfDayCheckoutTime,
+  attendanceClosingTime: sanitized.attendanceClosingTime,
+  lateArrivalAfter: sanitized.lateArrivalAfter,
+  autoAbsentAfter: sanitized.autoAbsentAfter,
+  minimumAttendance: sanitized.minimumAttendance,
+  graceMinutes: sanitized.graceMinutes,
+  attendancePermissions: sanitized.attendancePermissions,
+  leaveApprovalRules: sanitized.leaveApprovalRules,
+  leaveTypes: sanitized.leaveTypes,
+  parentNotificationRules: sanitized.parentNotificationRules,
+  attendanceDependencyStatus: sanitized.attendanceDependencyStatus,
+  attendanceSmartChecks: sanitized.attendanceSmartChecks,
+  currentStep: progressMeta.step,
+  progressPercentage: progressMeta.progress,
+  setupStatus: "draft",
+  completedSteps,
+});
+
+const persistStep8FromBody = async (req, res, { advancingDefaults } = {}) => {
+  const { currentStep, progressPercentage, completedSteps } = req.body;
+  const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+  if (!progressMeta) return null;
+
+  const isDraft = req.body.draft === true || req.body.draft === "true";
+  const validation = validateStep8Payload(req.body, { draft: isDraft });
+
+  if (!validation.valid) {
+    res.status(400).json({
+      success: false,
+      message: validation.errors.join("; "),
+    });
+    return null;
+  }
+
+  const completed = Array.isArray(completedSteps)
+    ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+    : advancingDefaults?.completedSteps || [];
+
+  const payload = buildStep8PersistPayload(
+    validation.sanitized,
+    progressMeta,
+    completed
+  );
+
+  const doc = await upsertSetupDoc(payload);
+  return doc;
+};
+
+/** GET /api/setup-wizard/step-8 — fetch saved attendance rules */
+exports.getStep8AttendanceRules = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const data = mapWizardToStep8Response(doc);
+
+    return res.status(200).json({
+      success: true,
+      data,
+      message: doc ? "Step 8 data loaded" : "No step 8 data found",
+    });
+  } catch (error) {
+    console.error("getStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 8 data",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-8 — save attendance rules */
+exports.saveStep8AttendanceRules = async (req, res) => {
+  try {
+    const doc = await persistStep8FromBody(req, res, {
+      advancingDefaults: { completedSteps: [1, 2, 3, 4, 5, 6, 7, 8] },
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(doc),
+      message: "Attendance rules saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save attendance rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PUT /api/setup-wizard/step-8 — update attendance rules */
+exports.updateStep8AttendanceRules = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const doc = await persistStep8FromBody(req, res);
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(doc),
+      message: "Attendance rules updated successfully",
+    });
+  } catch (error) {
+    console.error("updateStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update attendance rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PATCH /api/setup-wizard/step-8/toggles — update permission/notification toggles */
+exports.patchStep8AttendanceToggles = async (req, res) => {
+  try {
+    const { section, key, enabled } = req.body;
+
+    if (!section || !key) {
+      return res.status(400).json({
+        success: false,
+        message: "section and key are required",
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const patchResult = applyTogglePatch(doc, section, key, enabled);
+    if (!patchResult.ok) {
+      return res.status(400).json({
+        success: false,
+        message: patchResult.message,
+      });
+    }
+
+    const mergedPermissions = normalizePermissions(
+      patchResult.update.attendancePermissions || doc.attendancePermissions
+    );
+    const mergedNotifications = normalizeParentNotifications(
+      patchResult.update.parentNotificationRules || doc.parentNotificationRules
+    );
+
+    const attendanceDependencyStatus = computeAttendanceDependencyStatus(
+      mergedNotifications,
+      doc.minimumAttendance
+    );
+    const attendanceSmartChecks = getAttendanceSmartChecks({
+      attendanceMode: doc.attendanceMode,
+      attendancePermissions: mergedPermissions,
+      attendanceClosingTime: doc.attendanceClosingTime,
+    });
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        ...patchResult.update,
+        attendanceDependencyStatus,
+        attendanceSmartChecks,
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(updated),
+      message: "Attendance toggle updated",
+    });
+  } catch (error) {
+    console.error("patchStep8AttendanceToggles error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update attendance toggle",
       error: error.message,
     });
   }
