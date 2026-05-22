@@ -12,10 +12,12 @@ import {
   DEFAULT_STEP7_FORM,
 } from "../constants/rolesHrFoundation";
 import {
+  STEP_6_NUMBER,
   STEP_7_NUMBER,
   STEP_7_PROGRESS,
   STEP_8_NUMBER,
   STEP_8_PROGRESS,
+  WIZARD_STEP_PATH,
 } from "../constants/setupWizard";
 import {
   CORE_ROLE_COUNT,
@@ -28,8 +30,6 @@ import {
 } from "../utils/rolesHrFoundation";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 
-const STEP6_PATH = "/form/step-6";
-const STEP8_PATH = "/form/step-8";
 const START_PATH = "/setup/start";
 
 export function useSetupWizardStep7() {
@@ -252,11 +252,11 @@ export function useSetupWizardStep7() {
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
-    if (ok) navigate(STEP8_PATH);
+    if (ok) navigate(WIZARD_STEP_PATH(STEP_8_NUMBER));
   }, [persistStep, navigate]);
 
   const handleBack = useCallback(() => {
-    navigate(STEP6_PATH);
+    navigate(WIZARD_STEP_PATH(STEP_6_NUMBER));
   }, [navigate]);
 
   const handleSaveExit = useCallback(async () => {

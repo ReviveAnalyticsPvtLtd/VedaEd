@@ -59,7 +59,9 @@ export function useSetupStart() {
 
   const handleResumeSetup = useCallback(() => {
     const step = progress?.currentStep || 1;
-    navigate(SETUP_ROUTES.step(step));
+    const path =
+      step >= 8 ? SETUP_ROUTES.formStep(step) : SETUP_ROUTES.step(step);
+    navigate(path);
   }, [navigate, progress]);
 
   return {

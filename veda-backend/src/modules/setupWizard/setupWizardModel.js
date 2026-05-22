@@ -224,6 +224,10 @@ const setupWizardSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    feesModuleEnabled: {
+      type: Boolean,
+      default: true,
+    },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
     postalCode: { type: String, default: "" },

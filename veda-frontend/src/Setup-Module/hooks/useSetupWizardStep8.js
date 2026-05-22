@@ -8,11 +8,13 @@ import {
 } from "../../services/setupWizardAPI";
 import { DEFAULT_STEP8_FORM } from "../constants/attendanceRules";
 import {
+  STEP_7_NUMBER,
   STEP_8_NUMBER,
   STEP_8_PROGRESS,
   STEP_9_NUMBER,
   STEP_9_PROGRESS,
   TOTAL_STEPS,
+  WIZARD_STEP_PATH,
 } from "../constants/setupWizard";
 import {
   buildStep8Payload,
@@ -24,8 +26,6 @@ import {
 } from "../utils/attendanceRules";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 
-const STEP7_PATH = "/form/step-7";
-const STEP9_PATH = "/form/step-9";
 const START_PATH = "/setup/start";
 
 export function useSetupWizardStep8() {
@@ -282,11 +282,11 @@ export function useSetupWizardStep8() {
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
-    if (ok) navigate(STEP9_PATH);
+    if (ok) navigate(WIZARD_STEP_PATH(STEP_9_NUMBER));
   }, [persistStep, navigate]);
 
   const handleBack = useCallback(() => {
-    navigate(STEP7_PATH);
+    navigate(WIZARD_STEP_PATH(STEP_7_NUMBER));
   }, [navigate]);
 
   const handleSaveExit = useCallback(async () => {

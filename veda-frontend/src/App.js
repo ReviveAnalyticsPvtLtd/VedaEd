@@ -393,6 +393,8 @@ function App() {
         <Route path="/setup/step-5" element={<Step5 />} />
         <Route path="/setup/step-6" element={<Step6 />} />
         <Route path="/setup/step-7" element={<Step7 />} />
+        <Route path="/setup/step-8" element={<Step8 />} />
+        <Route path="/setup/step-9" element={<Step9 />} />
         <Route path="/form/step-1" element={<Step1 />} />
   <Route path="/form/step-2" element={<Step2 />} />
   <Route path="/form/step-3" element={<Step3 />} />

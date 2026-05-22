@@ -127,3 +127,15 @@ export const patchAttendanceToggle = async (payload) => {
   const response = await axios.patch(`${API_URL}/step-8/toggles`, payload);
   return response.data;
 };
+
+/** Fetch step 9 fees setup progress */
+export const getFeesSetup = async () => {
+  const response = await axios.get(`${API_URL}/step-9`);
+  return response.data;
+};
+
+/** Save step 9 fees setup progress */
+export const saveFeesSetup = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-9`, payload);
+  return response.data;
+};

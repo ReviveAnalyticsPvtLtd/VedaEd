@@ -127,6 +127,7 @@ const formatSetupDoc = (doc) => {
     parentNotificationRules: doc.parentNotificationRules,
     attendanceDependencyStatus: doc.attendanceDependencyStatus || [],
     attendanceSmartChecks: doc.attendanceSmartChecks || [],
+    feesModuleEnabled: doc.feesModuleEnabled,
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -1600,6 +1601,91 @@ exports.patchStep8AttendanceToggles = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update attendance toggle",
+      error: error.message,
+    });
+  }
+};
+
+const mapWizardToStep9Response = (doc) => {
+  if (!doc) return null;
+  const enabledModules = doc.enabledModules || [];
+  return {
+    feesModuleEnabled:
+      doc.feesModuleEnabled !== undefined
+        ? doc.feesModuleEnabled
+        : enabledModules.includes("Fees"),
+    enabledModules,
+    currentStep: doc.currentStep,
+    progressPercentage: doc.progressPercentage,
+    completedSteps: doc.completedSteps || [],
+  };
+};
+
+/** GET /api/setup-wizard/step-9 — fetch fees setup progress */
+exports.getStep9FeesSetup = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: doc ? "Step 9 data loaded" : "No step 9 data found",
+    });
+  } catch (error) {
+    console.error("getStep9FeesSetup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 9 data",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-9 — save fees setup progress */
+exports.saveStep9FeesSetup = async (req, res) => {
+  try {
+    const { currentStep, progressPercentage, completedSteps, feesModuleEnabled } =
+      req.body;
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const enabled =
+      feesModuleEnabled === undefined ? true : feesModuleEnabled !== false;
+
+    let enabledModules = [];
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (existing?.enabledModules?.length) {
+      enabledModules = [...existing.enabledModules];
+    }
+    if (enabled && !enabledModules.includes("Fees")) {
+      enabledModules.push("Fees");
+    }
+    if (!enabled) {
+      enabledModules = enabledModules.filter((m) => m !== "Fees");
+    }
+
+    const doc = await upsertSetupDoc({
+      feesModuleEnabled: enabled,
+      enabledModules,
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      completedSteps: completed,
+      setupStatus: "draft",
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Fees setup saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep9FeesSetup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save fees setup",
       error: error.message,
     });
   }
