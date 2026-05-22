@@ -72,3 +72,9 @@ export const saveModuleSelection = async (payload) => {
   const response = await axios.post(`${API_URL}/step-5`, payload);
   return response.data;
 };
+
+/** Save step 6 academic structure */
+export const saveAcademicStructure = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-6`, payload);
+  return response.data;
+};

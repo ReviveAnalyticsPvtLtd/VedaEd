@@ -5,6 +5,7 @@ const {
   getSmartCheckMessages,
   recommendationToStoredFields,
 } = require("./recommendation/recommendationEngine");
+const { isValidGradeRange } = require("./recommendation/gradeUtils");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -64,6 +65,16 @@ const formatSetupDoc = (doc) => {
     disabledModules: doc.disabledModules || [],
     recommendedModules: doc.recommendedModules || [],
     dependencyWarnings: doc.dependencyWarnings || [],
+    academicYear: doc.academicYear,
+    academicYearPattern: doc.academicYearPattern,
+    academicYearStart: doc.academicYearStart,
+    academicYearEnd: doc.academicYearEnd,
+    termStructure: doc.termStructure,
+    expectedStudents: doc.expectedStudents,
+    maxStudentsPerSection: doc.maxStudentsPerSection,
+    sectionMode: doc.sectionMode,
+    streams: doc.streams || [],
+    subjectFramework: doc.subjectFramework,
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -758,6 +769,184 @@ exports.saveStep5ModuleSelection = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to save module selection",
+      error: error.message,
+    });
+  }
+};
+
+const VALID_ACADEMIC_PATTERNS = ["apr_mar", "jun_may", "aug_jun"];
+const VALID_TERM_STRUCTURES = ["2 Terms", "3 Terms", "Quarters", "Custom"];
+const VALID_SECTION_MODES = ["auto", "manual"];
+const VALID_SUBJECT_FRAMEWORKS = [
+  "recommended_template",
+  "manual",
+  "excel_import",
+  "configure_later",
+];
+const VALID_STREAM_OPTIONS = [
+  "Science",
+  "Commerce",
+  "Arts / Humanities",
+  "Vocational",
+];
+
+/** POST /api/setup-wizard/step-6 — save academic structure (step 6) */
+exports.saveStep6AcademicStructure = async (req, res) => {
+  try {
+    const {
+      academicYear,
+      academicYearPattern,
+      academicYearStart,
+      academicYearEnd,
+      termStructure,
+      gradeFrom,
+      gradeTo,
+      expectedStudents,
+      maxStudentsPerSection,
+      sectionMode,
+      streams,
+      subjectFramework,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const isDraft = req.body.draft === true || req.body.draft === "true";
+    const trimmedYear = String(academicYear || "").trim();
+    const trimmedPattern = String(academicYearPattern || "").trim();
+    const trimmedStart = String(academicYearStart || "").trim();
+    const trimmedEnd = String(academicYearEnd || "").trim();
+    const trimmedTerm = String(termStructure || "").trim();
+    const trimmedGradeFrom = String(gradeFrom || "").trim();
+    const trimmedGradeTo = String(gradeTo || "").trim();
+    const trimmedSectionMode = String(sectionMode || "auto").trim();
+    const trimmedSubjectFramework = String(
+      subjectFramework || "recommended_template"
+    ).trim();
+
+    const parsedExpected = Number(expectedStudents);
+    const parsedMaxPerSection = Number(maxStudentsPerSection);
+
+    if (!isDraft) {
+      if (!trimmedYear) {
+        return res.status(400).json({
+          success: false,
+          message: "academicYear is required",
+        });
+      }
+
+      if (!trimmedGradeFrom || !trimmedGradeTo) {
+        return res.status(400).json({
+          success: false,
+          message: "gradeFrom and gradeTo are required",
+        });
+      }
+
+      if (!isValidGradeRange(trimmedGradeFrom, trimmedGradeTo)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid grade range",
+        });
+      }
+
+      if (!Number.isFinite(parsedExpected) || parsedExpected < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "expectedStudents must be a positive number",
+        });
+      }
+
+      if (!Number.isFinite(parsedMaxPerSection) || parsedMaxPerSection < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "maxStudentsPerSection must be a positive number",
+        });
+      }
+    }
+
+    if (
+      trimmedPattern &&
+      !VALID_ACADEMIC_PATTERNS.includes(trimmedPattern)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid academicYearPattern",
+      });
+    }
+
+    if (trimmedTerm && !VALID_TERM_STRUCTURES.includes(trimmedTerm)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid termStructure",
+      });
+    }
+
+    if (
+      trimmedSectionMode &&
+      !VALID_SECTION_MODES.includes(trimmedSectionMode)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "sectionMode must be auto or manual",
+      });
+    }
+
+    if (
+      trimmedSubjectFramework &&
+      !VALID_SUBJECT_FRAMEWORKS.includes(trimmedSubjectFramework)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subjectFramework",
+      });
+    }
+
+    const sanitizedStreams = Array.isArray(streams)
+      ? [...new Set(streams.filter((s) => VALID_STREAM_OPTIONS.includes(s)))]
+      : [];
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      academicYear: trimmedYear,
+      academicYearPattern: trimmedPattern || "apr_mar",
+      academicYearStart: trimmedStart,
+      academicYearEnd: trimmedEnd,
+      termStructure: trimmedTerm || "2 Terms",
+      gradeFrom: trimmedGradeFrom,
+      gradeTo: trimmedGradeTo,
+      expectedStudents: Number.isFinite(parsedExpected)
+        ? parsedExpected
+        : null,
+      maxStudentsPerSection: Number.isFinite(parsedMaxPerSection)
+        ? parsedMaxPerSection
+        : 40,
+      sectionMode: trimmedSectionMode || "auto",
+      streams: sanitizedStreams,
+      subjectFramework: trimmedSubjectFramework || "recommended_template",
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Academic structure saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep6AcademicStructure error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save academic structure",
       error: error.message,
     });
   }
