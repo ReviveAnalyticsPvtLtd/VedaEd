@@ -34,6 +34,7 @@ const interviewRoutes = require("./modules/admission/interviewRoutes");
 const chatbotRoutes = require("./modules/chatbot/chatbotRoutes");
 const superadminLandingRoutes = require("./modules/superadminLanding/superadminLandingRoutes");
 const superadminIdentityRoutes = require("./modules/superadminIdentity/superadminIdentityRoutes");
+
 const hrRecruitmentRoutes = require("./modules/hrRecruitment/hrRecruitmentRoutes");
 
 // Middlewares
@@ -94,6 +95,7 @@ app.use("/api/calendar", require("./modules/calendar/calendarRoutes"));
 app.use("/api/gradebook", require("./modules/gradebook/gradebookRoutes"));
 app.use("/api/transport", require("./modules/transport/transportRoutes"));
 app.use("/api/institution", require("./modules/institution/institutionRoutes"));
+app.use("/api/setup-wizard", require("./modules/setupWizard/setupWizardRoutes"));
 app.use("/api/academic-years", require("./modules/fees/feeRoutes").academicYearRouter);
 app.use("/api/fee-categories", require("./modules/fees/feeRoutes").feeCategoryRouter);
 app.use("/api/fees", require("./modules/fees/feeRoutes").gradeFeeRouter);

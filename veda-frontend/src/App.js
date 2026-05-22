@@ -364,6 +364,7 @@ import SuperAdminCommunicationMessages from "./SuperAdmin/Communication/SuperAdm
 import SuperAdminCommunicationComplaints from "./SuperAdmin/Communication/SuperAdminCommunicationComplaints";
 
 
+import ProjectStartPage from "./Setup-Module/ProjectStartPage";
 import Step1 from "./Setup-Module/Step1";
 import Step2 from "./Setup-Module/Step2";
 import Step3 from "./Setup-Module/Step3";
@@ -384,6 +385,13 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
         {/* user info pages */}
+        <Route path="/setup/start" element={<ProjectStartPage />} />
+        <Route path="/setup/step-1" element={<Step1 />} />
+        <Route path="/setup/step-2" element={<Step2 />} />
+        <Route path="/setup/step-3" element={<Step3 />} />
+        <Route path="/setup/step-4" element={<Step4 />} />
+        <Route path="/setup/step-5" element={<Step5 />} />
+        <Route path="/setup/step-6" element={<Step6 />} />
         <Route path="/form/step-1" element={<Step1 />} />
   <Route path="/form/step-2" element={<Step2 />} />
   <Route path="/form/step-3" element={<Step3 />} />
