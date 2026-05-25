@@ -784,3 +784,375 @@ exports.getRecommendation = async (req, res) => {
     });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP 10 — Fee Setup
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VALID_FEE_FREQUENCIES = ["monthly", "quarterly", "term_wise", "annual"];
+const VALID_LATE_FEE_TYPES = [
+  "fixed_amount",
+  "daily_penalty",
+  "percentage_penalty",
+  "no_late_fee",
+];
+const VALID_PARTIAL_PAYMENT = ["allow", "do_not_allow", "allow_with_approval"];
+const VALID_REFUND_POLICY = [
+  "manual_refund_approval",
+  "no_refund",
+  "auto_refund_rules",
+];
+const VALID_PAYMENT_MODES = ["online_offline", "online_only", "offline_only"];
+
+/** POST /api/setup-wizard/step-10 — save fee setup */
+exports.saveStep10FeeSetup = async (req, res) => {
+  try {
+    const {
+      feeCollectionFrequency,
+      feeCategories,
+      discounts,
+      lateFeeType,
+      lateFeeValue,
+      graceDays,
+      partialPayment,
+      refundPolicy,
+      paymentModes,
+      feeReminders,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const freq = String(feeCollectionFrequency || "quarterly").trim();
+    if (!VALID_FEE_FREQUENCIES.includes(freq)) {
+      return res.status(400).json({
+        success: false,
+        message: "feeCollectionFrequency must be one of: monthly, quarterly, term_wise, annual",
+      });
+    }
+
+    const lateType = String(lateFeeType || "fixed_amount").trim();
+    if (!VALID_LATE_FEE_TYPES.includes(lateType)) {
+      return res.status(400).json({
+        success: false,
+        message: "lateFeeType must be one of: fixed_amount, daily_penalty, percentage_penalty, no_late_fee",
+      });
+    }
+
+    const partial = String(partialPayment || "allow").trim();
+    if (!VALID_PARTIAL_PAYMENT.includes(partial)) {
+      return res.status(400).json({
+        success: false,
+        message: "partialPayment must be one of: allow, do_not_allow, allow_with_approval",
+      });
+    }
+
+    const refund = String(refundPolicy || "manual_refund_approval").trim();
+    if (!VALID_REFUND_POLICY.includes(refund)) {
+      return res.status(400).json({
+        success: false,
+        message: "refundPolicy must be one of: manual_refund_approval, no_refund, auto_refund_rules",
+      });
+    }
+
+    const modes = String(paymentModes || "online_offline").trim();
+    if (!VALID_PAYMENT_MODES.includes(modes)) {
+      return res.status(400).json({
+        success: false,
+        message: "paymentModes must be one of: online_offline, online_only, offline_only",
+      });
+    }
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      feeCollectionFrequency: freq,
+      feeCategories: Array.isArray(feeCategories) ? feeCategories : [],
+      discounts: {
+        siblingDiscount: Boolean(discounts?.siblingDiscount),
+        meritScholarship: Boolean(discounts?.meritScholarship),
+        needBasedConcession: Boolean(discounts?.needBasedConcession),
+        staffChildDiscount: Boolean(discounts?.staffChildDiscount),
+      },
+      lateFeeType: lateType,
+      lateFeeValue: Number(lateFeeValue) || 0,
+      graceDays: Number(graceDays) || 0,
+      partialPayment: partial,
+      refundPolicy: refund,
+      paymentModes: modes,
+      feeReminders: {
+        beforeDueDate: Boolean(feeReminders?.beforeDueDate),
+        onDueDate: Boolean(feeReminders?.onDueDate),
+        afterDueDate: Boolean(feeReminders?.afterDueDate),
+        lowBalanceReminder: Boolean(feeReminders?.lowBalanceReminder),
+        scholarshipApprovalAlert: Boolean(feeReminders?.scholarshipApprovalAlert),
+      },
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Fee setup saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep10FeeSetup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save fee setup",
+      error: error.message,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP 11 — Communication Setup
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VALID_ID_CARD_TEMPLATES = ["standard_school_id", "minimal_id", "custom_later"];
+const VALID_FEE_RECEIPT_TEMPLATES = ["standard_receipt", "detailed_receipt", "custom_later"];
+const VALID_REPORT_CARD_TEMPLATES = ["board_specific", "simple_report_card", "custom_later"];
+const VALID_CERTIFICATE_TEMPLATES = ["standard_certificate", "custom_later"];
+
+/** POST /api/setup-wizard/step-11 — save communication setup */
+exports.saveStep11CommunicationSetup = async (req, res) => {
+  try {
+    const {
+      communicationChannels,
+      notificationTriggers,
+      announcementPermissions,
+      documentTemplates,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      communicationChannels: {
+        email: Boolean(communicationChannels?.email),
+        sms: Boolean(communicationChannels?.sms),
+        whatsapp: Boolean(communicationChannels?.whatsapp),
+        pushInApp: Boolean(communicationChannels?.pushInApp),
+      },
+      notificationTriggers: {
+        studentAbsent: Boolean(notificationTriggers?.studentAbsent),
+        feeDueReminder: Boolean(notificationTriggers?.feeDueReminder),
+        examResultPublished: Boolean(notificationTriggers?.examResultPublished),
+        homeworkPublished: Boolean(notificationTriggers?.homeworkPublished),
+        emergencyAlert: Boolean(notificationTriggers?.emergencyAlert),
+        transportUpdates: Boolean(notificationTriggers?.transportUpdates),
+      },
+      announcementPermissions: {
+        principal: Boolean(announcementPermissions?.principal),
+        schoolAdmin: Boolean(announcementPermissions?.schoolAdmin),
+        classTeacher: Boolean(announcementPermissions?.classTeacher),
+        subjectTeacher: Boolean(announcementPermissions?.subjectTeacher),
+        transportManager: Boolean(announcementPermissions?.transportManager),
+      },
+      documentTemplates: {
+        idCardTemplate: String(documentTemplates?.idCardTemplate || "standard"),
+        feeReceiptTemplate: String(documentTemplates?.feeReceiptTemplate || "standard"),
+        reportCardTemplate: String(documentTemplates?.reportCardTemplate || "board_specific"),
+        certificateTemplate: String(documentTemplates?.certificateTemplate || "standard"),
+      },
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Communication setup saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep11CommunicationSetup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save communication setup",
+      error: error.message,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP 12 — Review & Launch
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** POST /api/setup-wizard/step-12/launch — confirm and launch school setup */
+exports.launchSchoolSetup = async (req, res) => {
+  try {
+    const { launchConfirmed, currentStep, progressPercentage, completedSteps } =
+      req.body;
+
+    if (!launchConfirmed) {
+      return res.status(400).json({
+        success: false,
+        message: "Launch confirmation is required. Set launchConfirmed to true.",
+      });
+    }
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    // Build a snapshot of the current wizard state
+    const existingDoc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const snapshot = existingDoc ? existingDoc.toObject() : {};
+
+    const payload = {
+      launchConfirmed: true,
+      launchSnapshot: {
+        ...snapshot,
+        snapshotVersion: "V1",
+        snapshotCreatedAt: new Date().toISOString(),
+      },
+      launchedAt: new Date(),
+      currentStep: progressMeta.step,
+      progressPercentage: 100,
+      setupStatus: "completed",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "School setup launched successfully. Configuration snapshot created.",
+    });
+  } catch (error) {
+    console.error("launchSchoolSetup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to launch school setup",
+      error: error.message,
+    });
+  }
+};
+
+/** GET /api/setup-wizard/step-12/review — get full review summary for launch page */
+exports.getSetupReview = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "No setup wizard data found",
+      });
+    }
+
+    const completedCount = doc.completedSteps?.length || 0;
+    const totalSections = 12;
+    const readinessScore = Math.round((completedCount / totalSections) * 100);
+
+    const sections = [
+      {
+        key: "schoolProfile",
+        label: "School Profile",
+        desc: "Name, branding, localization, contacts configured.",
+        done: Boolean(doc.schoolName && doc.schoolCode && doc.address),
+      },
+      {
+        key: "academicStructure",
+        label: "Academic Structure",
+        desc: "Academic year, grades, sections, streams, subjects mode configured.",
+        done: Boolean(doc.gradeFrom && doc.gradeTo),
+      },
+      {
+        key: "rolesHR",
+        label: "Roles & HR",
+        desc: "Core roles, optional roles, staff categories, permissions configured.",
+        done: doc.completedSteps?.includes(7) || false,
+      },
+      {
+        key: "attendance",
+        label: "Attendance",
+        desc: "Hybrid mode, late rules, leave approvals, parent alerts configured.",
+        done: doc.completedSteps?.includes(8) || false,
+      },
+      {
+        key: "exams",
+        label: "Exams & Gradebook",
+        desc: "Term exams, marks + grade, report card, grade scale configured.",
+        done: doc.completedSteps?.includes(9) || false,
+      },
+      {
+        key: "fees",
+        label: "Fees",
+        desc: "Quarterly fees, categories, late fee, discounts, reminders configured.",
+        done: Boolean(doc.feeCollectionFrequency),
+      },
+      {
+        key: "communication",
+        label: "Communication",
+        desc: "Channels, triggers, message templates, documents configured.",
+        done: Boolean(
+          doc.communicationChannels?.email !== undefined
+        ),
+      },
+      {
+        key: "optionalModules",
+        label: "Optional Modules",
+        desc: "Transport / Library / Health mini setup can run after launch.",
+        done: false,
+        later: true,
+      },
+    ];
+
+    const warnings = [];
+    if (!doc.gradeFrom || !doc.gradeTo) {
+      warnings.push("Subject details may need review. Review subject lists before timetable creation.");
+    }
+    warnings.push(
+      "Optional modules not fully configured. Transport, Library, Health, and other optional modules can be configured using mini setup wizards after launch."
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        doc: formatSetupDoc(doc),
+        readinessScore: Math.min(94, readinessScore),
+        sectionsComplete: sections.filter((s) => s.done).length,
+        totalSections,
+        warnings,
+        blockingIssues: 0,
+        sections,
+        isLaunched: doc.setupStatus === "completed",
+        launchedAt: doc.launchedAt,
+      },
+      message: "Setup review loaded successfully",
+    });
+  } catch (error) {
+    console.error("getSetupReview error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load setup review",
+      error: error.message,
+    });
+  }
+};

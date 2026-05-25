@@ -375,6 +375,9 @@ import Step7 from "./Setup-Module/Step7";
 import Step8 from "./Setup-Module/Step8";
 import Step9 from "./Setup-Module/Step9";
 
+import Step10 from "./Setup-Module/Step10";
+import Step11 from "./Setup-Module/Step11";
+import Step12 from "./Setup-Module/Step12";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 function App() {
@@ -392,6 +395,9 @@ function App() {
         <Route path="/setup/step-4" element={<Step4 />} />
         <Route path="/setup/step-5" element={<Step5 />} />
         <Route path="/setup/step-6" element={<Step6 />} />
+        <Route path="/setup/step-10" element={<Step10 />} />
+        <Route path="/setup/step-11" element={<Step11 />} />
+        <Route path="/setup/step-12" element={<Step12 />} />
         <Route path="/form/step-1" element={<Step1 />} />
   <Route path="/form/step-2" element={<Step2 />} />
   <Route path="/form/step-3" element={<Step3 />} />

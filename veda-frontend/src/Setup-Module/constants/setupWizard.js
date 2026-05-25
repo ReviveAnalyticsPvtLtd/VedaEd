@@ -9,6 +9,22 @@ export const STEP_4_NUMBER = 4;
 export const STEP_4_PROGRESS = 32;
 export const STEP_5_NUMBER = 5;
 export const STEP_5_PROGRESS = 38;
+export const STEP_6_NUMBER = 6;
+export const STEP_6_PROGRESS = 46;
+export const STEP_7_NUMBER = 7;
+export const STEP_7_PROGRESS = 54;
+export const STEP_8_NUMBER = 8;
+export const STEP_8_PROGRESS = 62;
+export const STEP_9_NUMBER = 9;
+export const STEP_9_PROGRESS = 70;
+export const STEP_10_NUMBER = 10;
+export const STEP_10_PROGRESS = 78;
+export const STEP_11_NUMBER = 11;
+export const STEP_11_PROGRESS = 86;
+export const STEP_12_NUMBER = 12;
+export const STEP_12_PROGRESS = 94;
+export const STEP_13_NUMBER = 13;
+export const STEP_13_PROGRESS = 100;
 
 export const SETUP_ROUTES = {
   START: "/setup/start",

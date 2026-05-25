@@ -86,6 +86,93 @@ const setupWizardSchema = new mongoose.Schema(
       enum: ["draft", "completed"],
       default: "draft",
     },
+
+    // ── Step 10: Fee Setup ──────────────────────────────────────────────
+    feeCollectionFrequency: {
+      type: String,
+      enum: ["monthly", "quarterly", "term_wise", "annual"],
+      default: "quarterly",
+    },
+    feeCategories: {
+      type: [
+        {
+          name: { type: String, default: "" },
+          type: { type: String, default: "" },
+          appliesTo: { type: String, default: "" },
+          status: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    discounts: {
+      siblingDiscount: { type: Boolean, default: false },
+      meritScholarship: { type: Boolean, default: false },
+      needBasedConcession: { type: Boolean, default: false },
+      staffChildDiscount: { type: Boolean, default: false },
+    },
+    lateFeeType: {
+      type: String,
+      enum: ["fixed_amount", "daily_penalty", "percentage_penalty", "no_late_fee"],
+      default: "fixed_amount",
+    },
+    lateFeeValue: { type: Number, default: 100 },
+    graceDays: { type: Number, default: 7 },
+    partialPayment: {
+      type: String,
+      enum: ["allow", "do_not_allow", "allow_with_approval"],
+      default: "allow",
+    },
+    refundPolicy: {
+      type: String,
+      enum: ["manual_refund_approval", "no_refund", "auto_refund_rules"],
+      default: "manual_refund_approval",
+    },
+    paymentModes: {
+      type: String,
+      enum: ["online_offline", "online_only", "offline_only"],
+      default: "online_offline",
+    },
+    feeReminders: {
+      beforeDueDate: { type: Boolean, default: true },
+      onDueDate: { type: Boolean, default: true },
+      afterDueDate: { type: Boolean, default: true },
+      lowBalanceReminder: { type: Boolean, default: false },
+      scholarshipApprovalAlert: { type: Boolean, default: false },
+    },
+
+    // ── Step 11: Communication Setup ────────────────────────────────────
+    communicationChannels: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
+      pushInApp: { type: Boolean, default: true },
+    },
+    notificationTriggers: {
+      studentAbsent: { type: Boolean, default: true },
+      feeDueReminder: { type: Boolean, default: true },
+      examResultPublished: { type: Boolean, default: true },
+      homeworkPublished: { type: Boolean, default: false },
+      emergencyAlert: { type: Boolean, default: true },
+      transportUpdates: { type: Boolean, default: false },
+    },
+    announcementPermissions: {
+      principal: { type: Boolean, default: true },
+      schoolAdmin: { type: Boolean, default: true },
+      classTeacher: { type: Boolean, default: false },
+      subjectTeacher: { type: Boolean, default: false },
+      transportManager: { type: Boolean, default: false },
+    },
+    documentTemplates: {
+      idCardTemplate: { type: String, default: "standard" },
+      feeReceiptTemplate: { type: String, default: "standard" },
+      reportCardTemplate: { type: String, default: "board_specific" },
+      certificateTemplate: { type: String, default: "standard" },
+    },
+
+    // ── Step 12: Review & Launch ─────────────────────────────────────────
+    launchConfirmed: { type: Boolean, default: false },
+    launchSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+    launchedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
