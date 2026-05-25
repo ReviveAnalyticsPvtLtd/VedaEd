@@ -165,5 +165,26 @@ export const deleteExaminationWeightageRow = async (rowId) => {
   const response = await axios.delete(
     `${API_URL}/step-9/weightage-rows/${encoded}`
   );
+/** Save step 10 fee setup */
+export const saveFeeSetup = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-10`, payload);
+  return response.data;
+};
+
+/** Save step 11 communication setup */
+export const saveCommunicationSetup = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-11`, payload);
+  return response.data;
+};
+
+/** Get step 12 review summary */
+export const getSetupReview = async () => {
+  const response = await axios.get(`${API_URL}/step-12/review`);
+  return response.data;
+};
+
+/** Launch school setup (step 12) */
+export const launchSchoolSetup = async (payload) => {
+  const response = await axios.post(`${API_URL}/step-12/launch`, payload);
   return response.data;
 };
