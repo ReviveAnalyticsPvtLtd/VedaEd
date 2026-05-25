@@ -16,7 +16,7 @@ export const STEP_7_PROGRESS = 64;
 export const STEP_8_NUMBER = 8;
 export const STEP_8_PROGRESS = 72;
 export const STEP_9_NUMBER = 9;
-export const STEP_9_PROGRESS = 80;
+export const STEP_9_PROGRESS = 82;
 
 export const WIZARD_STEP_PATH = (stepNumber) => `/form/step-${stepNumber}`;
 

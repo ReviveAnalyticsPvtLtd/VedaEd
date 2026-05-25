@@ -128,14 +128,42 @@ export const patchAttendanceToggle = async (payload) => {
   return response.data;
 };
 
-/** Fetch step 9 fees setup progress */
-export const getFeesSetup = async () => {
+/** Fetch step 9 examination & gradebook setup */
+export const getExaminationGradebookSetup = async () => {
   const response = await axios.get(`${API_URL}/step-9`);
   return response.data;
 };
 
-/** Save step 9 fees setup progress */
-export const saveFeesSetup = async (payload) => {
+/** Save step 9 examination & gradebook setup */
+export const saveExaminationGradebookSetup = async (payload) => {
   const response = await axios.post(`${API_URL}/step-9`, payload);
+  return response.data;
+};
+
+/** Update step 9 examination & gradebook setup */
+export const updateExaminationGradebookSetup = async (payload) => {
+  const response = await axios.put(`${API_URL}/step-9`, payload);
+  return response.data;
+};
+
+/** Patch grade scale settings independently */
+export const patchExaminationGradeScale = async (payload) => {
+  const response = await axios.patch(`${API_URL}/step-9/grade-scale`, payload);
+  return response.data;
+};
+
+/** Remove one grade row */
+export const deleteExaminationGradeRow = async (rowId) => {
+  const encoded = encodeURIComponent(rowId);
+  const response = await axios.delete(`${API_URL}/step-9/grade-rows/${encoded}`);
+  return response.data;
+};
+
+/** Remove one assessment weightage row */
+export const deleteExaminationWeightageRow = async (rowId) => {
+  const encoded = encodeURIComponent(rowId);
+  const response = await axios.delete(
+    `${API_URL}/step-9/weightage-rows/${encoded}`
+  );
   return response.data;
 };

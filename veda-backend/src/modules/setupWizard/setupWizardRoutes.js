@@ -28,8 +28,18 @@ router.get("/step-8", setupWizardController.getStep8AttendanceRules);
 router.post("/step-8", setupWizardController.saveStep8AttendanceRules);
 router.put("/step-8", setupWizardController.updateStep8AttendanceRules);
 router.patch("/step-8/toggles", setupWizardController.patchStep8AttendanceToggles);
-router.get("/step-9", setupWizardController.getStep9FeesSetup);
-router.post("/step-9", setupWizardController.saveStep9FeesSetup);
+router.get("/step-9", setupWizardController.getStep9ExaminationGradebook);
+router.post("/step-9", setupWizardController.saveStep9ExaminationGradebook);
+router.put("/step-9", setupWizardController.updateStep9ExaminationGradebook);
+router.patch("/step-9/grade-scale", setupWizardController.patchStep9GradeScale);
+router.delete(
+  "/step-9/grade-rows/:rowId",
+  setupWizardController.deleteStep9GradeRow
+);
+router.delete(
+  "/step-9/weightage-rows/:rowId",
+  setupWizardController.deleteStep9WeightageRow
+);
 router.post(
   "/recommendation/generate",
   setupWizardController.generateRecommendation

@@ -32,6 +32,14 @@ const {
   normalizePermissions,
   normalizeParentNotifications,
 } = require("./attendance/attendanceRulesService");
+const {
+  getDefaultStep9State,
+  validateStep9Payload,
+  buildStep9PersistPayload,
+  mapWizardToStep9Response,
+  removeGradeRow,
+  removeWeightageRow,
+} = require("./examination/examinationGradebookService");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -128,6 +136,7 @@ const formatSetupDoc = (doc) => {
     attendanceDependencyStatus: doc.attendanceDependencyStatus || [],
     attendanceSmartChecks: doc.attendanceSmartChecks || [],
     feesModuleEnabled: doc.feesModuleEnabled,
+    step9ExaminationGradebook: doc.step9ExaminationGradebook || null,
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -1606,32 +1615,81 @@ exports.patchStep8AttendanceToggles = async (req, res) => {
   }
 };
 
-const mapWizardToStep9Response = (doc) => {
-  if (!doc) return null;
-  const enabledModules = doc.enabledModules || [];
-  return {
-    feesModuleEnabled:
-      doc.feesModuleEnabled !== undefined
-        ? doc.feesModuleEnabled
-        : enabledModules.includes("Fees"),
-    enabledModules,
-    currentStep: doc.currentStep,
-    progressPercentage: doc.progressPercentage,
-    completedSteps: doc.completedSteps || [],
+const persistStep9ExaminationGradebook = async (
+  req,
+  res,
+  { existingWizardDoc = null, action = "step9_saved" } = {}
+) => {
+  const { currentStep, progressPercentage, completedSteps, publishingAction, revertToVersionNumber } =
+    req.body;
+  const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+  if (!progressMeta) return null;
+
+  const wizardDoc =
+    existingWizardDoc || (await SetupWizard.findOne().sort({ updatedAt: -1 }));
+  const currentConfig = wizardDoc?.step9ExaminationGradebook || getDefaultStep9State(wizardDoc);
+  const mergedPayload = {
+    ...currentConfig,
+    ...req.body,
   };
+
+  const isDraft = req.body.draft === true || req.body.draft === "true";
+  const validation = validateStep9Payload(mergedPayload, wizardDoc, { draft: isDraft });
+  if (!validation.valid) {
+    res.status(400).json({
+      success: false,
+      message: validation.errors.join("; "),
+    });
+    return null;
+  }
+
+  const completed = Array.isArray(completedSteps)
+    ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+    : [];
+
+  const actor =
+    req.user?.email ||
+    req.user?.id ||
+    req.body.updatedBy ||
+    req.body.actor ||
+    "system";
+
+  const nextStep9Payload = buildStep9PersistPayload({
+    sanitized: {
+      ...validation.sanitized,
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+    },
+    existingConfig: currentConfig,
+    wizardDoc,
+    actor,
+    action,
+    publishingAction,
+    revertToVersionNumber,
+  });
+
+  const doc = await upsertSetupDoc({
+    step9ExaminationGradebook: nextStep9Payload,
+    currentStep: progressMeta.step,
+    progressPercentage: progressMeta.progress,
+    completedSteps: completed,
+    setupStatus: "draft",
+  });
+
+  return doc;
 };
 
-/** GET /api/setup-wizard/step-9 — fetch fees setup progress */
-exports.getStep9FeesSetup = async (req, res) => {
+/** GET /api/setup-wizard/step-9 — fetch examination & gradebook setup */
+exports.getStep9ExaminationGradebook = async (req, res) => {
   try {
     const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
     return res.status(200).json({
       success: true,
-      data: mapWizardToStep9Response(doc),
+      data: mapWizardToStep9Response(doc || {}),
       message: doc ? "Step 9 data loaded" : "No step 9 data found",
     });
   } catch (error) {
-    console.error("getStep9FeesSetup error:", error);
+    console.error("getStep9ExaminationGradebook error:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch step 9 data",
@@ -1640,52 +1698,201 @@ exports.getStep9FeesSetup = async (req, res) => {
   }
 };
 
-/** POST /api/setup-wizard/step-9 — save fees setup progress */
-exports.saveStep9FeesSetup = async (req, res) => {
+/** POST /api/setup-wizard/step-9 — save examination & gradebook setup */
+exports.saveStep9ExaminationGradebook = async (req, res) => {
   try {
-    const { currentStep, progressPercentage, completedSteps, feesModuleEnabled } =
-      req.body;
-    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
-    if (!progressMeta) return;
-
-    const completed = Array.isArray(completedSteps)
-      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
-      : [];
-
-    const enabled =
-      feesModuleEnabled === undefined ? true : feesModuleEnabled !== false;
-
-    let enabledModules = [];
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
-    if (existing?.enabledModules?.length) {
-      enabledModules = [...existing.enabledModules];
-    }
-    if (enabled && !enabledModules.includes("Fees")) {
-      enabledModules.push("Fees");
-    }
-    if (!enabled) {
-      enabledModules = enabledModules.filter((m) => m !== "Fees");
-    }
-
-    const doc = await upsertSetupDoc({
-      feesModuleEnabled: enabled,
-      enabledModules,
-      currentStep: progressMeta.step,
-      progressPercentage: progressMeta.progress,
-      completedSteps: completed,
-      setupStatus: "draft",
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      action: "step9_saved",
     });
+    if (!doc) return;
 
     return res.status(200).json({
       success: true,
       data: mapWizardToStep9Response(doc),
-      message: "Fees setup saved successfully",
+      message: "Examination & gradebook setup saved successfully",
     });
   } catch (error) {
-    console.error("saveStep9FeesSetup error:", error);
+    console.error("saveStep9ExaminationGradebook error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to save fees setup",
+      message: "Failed to save examination & gradebook setup",
+      error: error.message,
+    });
+  }
+};
+
+/** PUT /api/setup-wizard/step-9 — update examination & gradebook rules */
+exports.updateStep9ExaminationGradebook = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "step9_updated",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Examination & gradebook rules updated successfully",
+    });
+  } catch (error) {
+    console.error("updateStep9ExaminationGradebook error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update examination & gradebook rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PATCH /api/setup-wizard/step-9/grade-scale — update grade scale independently */
+exports.patchStep9GradeScale = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    const mergedPayload = {
+      ...currentStep9,
+      gradeScaleScope:
+        req.body.gradeScaleScope ?? currentStep9.gradeScaleScope,
+      defaultPassingMarks:
+        req.body.defaultPassingMarks ?? currentStep9.defaultPassingMarks,
+      gradeTable: req.body.gradeTable ?? currentStep9.gradeTable,
+      resultDisplayFormat:
+        req.body.resultDisplayFormat ?? currentStep9.resultDisplayFormat,
+      currentStep: req.body.currentStep ?? currentStep9.currentStep ?? 9,
+      progressPercentage:
+        req.body.progressPercentage ?? currentStep9.progressPercentage ?? 82,
+      completedSteps: req.body.completedSteps ?? existing.completedSteps ?? [],
+    };
+
+    req.body = mergedPayload;
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "grade_scale_patched",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Grade scale updated successfully",
+    });
+  } catch (error) {
+    console.error("patchStep9GradeScale error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update grade scale",
+      error: error.message,
+    });
+  }
+};
+
+/** DELETE /api/setup-wizard/step-9/grade-rows/:rowId — remove grade row */
+exports.deleteStep9GradeRow = async (req, res) => {
+  try {
+    const rowId = decodeURIComponent(req.params.rowId || "").trim();
+    if (!rowId) {
+      return res.status(400).json({
+        success: false,
+        message: "rowId is required",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    req.body = {
+      ...removeGradeRow(currentStep9, rowId),
+      currentStep: currentStep9.currentStep || 9,
+      progressPercentage: currentStep9.progressPercentage || 82,
+      completedSteps: existing.completedSteps || [],
+    };
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "grade_row_deleted",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Grade row removed successfully",
+    });
+  } catch (error) {
+    console.error("deleteStep9GradeRow error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove grade row",
+      error: error.message,
+    });
+  }
+};
+
+/** DELETE /api/setup-wizard/step-9/weightage-rows/:rowId — remove weightage row */
+exports.deleteStep9WeightageRow = async (req, res) => {
+  try {
+    const rowId = decodeURIComponent(req.params.rowId || "").trim();
+    if (!rowId) {
+      return res.status(400).json({
+        success: false,
+        message: "rowId is required",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    req.body = {
+      ...removeWeightageRow(currentStep9, rowId),
+      currentStep: currentStep9.currentStep || 9,
+      progressPercentage: currentStep9.progressPercentage || 82,
+      completedSteps: existing.completedSteps || [],
+    };
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "weightage_row_deleted",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Assessment weightage row removed successfully",
+    });
+  } catch (error) {
+    console.error("deleteStep9WeightageRow error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove assessment weightage row",
       error: error.message,
     });
   }

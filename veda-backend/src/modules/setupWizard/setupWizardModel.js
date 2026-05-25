@@ -1,6 +1,132 @@
 const mongoose = require("mongoose");
 const { randomUUID } = require("crypto");
 
+const step9GradeRowSchema = new mongoose.Schema(
+  {
+    rowId: {
+      type: String,
+      default: () => randomUUID(),
+    },
+    grade: { type: String, default: "" },
+    minPercentage: { type: Number, min: 0, max: 100, default: 0 },
+    maxPercentage: { type: Number, min: 0, max: 100, default: 0 },
+    description: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const step9WeightageRowSchema = new mongoose.Schema(
+  {
+    rowId: {
+      type: String,
+      default: () => randomUUID(),
+    },
+    assessmentName: { type: String, default: "" },
+    weightValue: { type: Number, min: 0, max: 100, default: 0 },
+    weightType: { type: String, default: "% Weight" },
+  },
+  { _id: false }
+);
+
+const step9DependencyStatusSchema = new mongoose.Schema(
+  {
+    module: { type: String, default: "" },
+    status: { type: String, default: "Feeds" },
+  },
+  { _id: false }
+);
+
+const step9AuditLogSchema = new mongoose.Schema(
+  {
+    logId: { type: String, default: () => randomUUID() },
+    action: { type: String, default: "" },
+    message: { type: String, default: "" },
+    versionNumber: { type: Number, default: 1 },
+    actor: { type: String, default: "system" },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const step9VersionSnapshotSchema = new mongoose.Schema(
+  {
+    versionId: { type: String, default: () => randomUUID() },
+    versionNumber: { type: Number, default: 1 },
+    action: { type: String, default: "" },
+    reason: { type: String, default: "" },
+    actor: { type: String, default: "system" },
+    snapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const step9ExaminationGradebookSchema = new mongoose.Schema(
+  {
+    assessmentModel: { type: String, default: "Term Exams" },
+    resultDisplayFormat: { type: String, default: "Marks + Grade" },
+    gradeScaleScope: { type: String, default: "Globally" },
+    defaultPassingMarks: { type: Number, min: 0, max: 100, default: 33 },
+    gradeTable: {
+      type: [step9GradeRowSchema],
+      default: [],
+    },
+    assessmentWeightage: {
+      type: [step9WeightageRowSchema],
+      default: [],
+    },
+    reportCardFormat: { type: String, default: "Board-specific Standard" },
+    resultPublishingMode: { type: String, default: "Admin Approval Required" },
+    reportCardSections: {
+      type: [String],
+      default: [],
+    },
+    dependencyStatus: {
+      type: [step9DependencyStatusSchema],
+      default: [],
+    },
+    recommendationMessage: { type: String, default: "" },
+    smartChecks: {
+      type: [String],
+      default: [],
+    },
+    currentStep: { type: Number, default: 9 },
+    progressPercentage: { type: Number, min: 0, max: 100, default: 82 },
+    assessmentModelLogic: { type: String, default: "" },
+    publishingState: {
+      type: String,
+      enum: ["draft", "approval_pending", "scheduled", "published", "reverted"],
+      default: "draft",
+    },
+    approvalWorkflowStatus: {
+      type: String,
+      enum: [
+        "not_requested",
+        "pending",
+        "approved",
+        "rejected",
+        "scheduled",
+        "reverted",
+      ],
+      default: "not_requested",
+    },
+    scheduledPublishAt: { type: Date, default: null },
+    lastPublishedAt: { type: Date, default: null },
+    lastPublishedVersion: { type: Number, default: null },
+    currentVersion: { type: Number, default: 1 },
+    versionHistory: {
+      type: [step9VersionSnapshotSchema],
+      default: [],
+    },
+    auditLogs: {
+      type: [step9AuditLogSchema],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
 const setupWizardSchema = new mongoose.Schema(
   {
     setupId: {
@@ -227,6 +353,10 @@ const setupWizardSchema = new mongoose.Schema(
     feesModuleEnabled: {
       type: Boolean,
       default: true,
+    },
+    step9ExaminationGradebook: {
+      type: step9ExaminationGradebookSchema,
+      default: () => ({}),
     },
     state: { type: String, default: "" },
     city: { type: String, default: "" },
