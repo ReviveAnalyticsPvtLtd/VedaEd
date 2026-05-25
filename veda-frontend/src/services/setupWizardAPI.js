@@ -165,6 +165,9 @@ export const deleteExaminationWeightageRow = async (rowId) => {
   const response = await axios.delete(
     `${API_URL}/step-9/weightage-rows/${encoded}`
   );
+  return response.data;
+};
+
 /** Save step 10 fee setup */
 export const saveFeeSetup = async (payload) => {
   const response = await axios.post(`${API_URL}/step-10`, payload);

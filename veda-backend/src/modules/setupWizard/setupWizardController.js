@@ -1254,6 +1254,34 @@ exports.saveStep7RolesHrFoundation = async (req, res) => {
     }
 
     const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = buildStep7PersistPayload(
+      sanitized,
+      existing,
+      progressMeta,
+      completed
+    );
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(doc),
+      message: "Roles & HR foundation saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep7RolesHrFoundation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save roles & HR foundation",
+      error: error.message,
+    });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 10 — Fee Setup
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1299,7 +1327,8 @@ exports.saveStep10FeeSetup = async (req, res) => {
     if (!VALID_FEE_FREQUENCIES.includes(freq)) {
       return res.status(400).json({
         success: false,
-        message: "feeCollectionFrequency must be one of: monthly, quarterly, term_wise, annual",
+        message:
+          "feeCollectionFrequency must be one of: monthly, quarterly, term_wise, annual",
       });
     }
 
@@ -1307,7 +1336,8 @@ exports.saveStep10FeeSetup = async (req, res) => {
     if (!VALID_LATE_FEE_TYPES.includes(lateType)) {
       return res.status(400).json({
         success: false,
-        message: "lateFeeType must be one of: fixed_amount, daily_penalty, percentage_penalty, no_late_fee",
+        message:
+          "lateFeeType must be one of: fixed_amount, daily_penalty, percentage_penalty, no_late_fee",
       });
     }
 
@@ -1315,7 +1345,8 @@ exports.saveStep10FeeSetup = async (req, res) => {
     if (!VALID_PARTIAL_PAYMENT.includes(partial)) {
       return res.status(400).json({
         success: false,
-        message: "partialPayment must be one of: allow, do_not_allow, allow_with_approval",
+        message:
+          "partialPayment must be one of: allow, do_not_allow, allow_with_approval",
       });
     }
 
@@ -1323,7 +1354,8 @@ exports.saveStep10FeeSetup = async (req, res) => {
     if (!VALID_REFUND_POLICY.includes(refund)) {
       return res.status(400).json({
         success: false,
-        message: "refundPolicy must be one of: manual_refund_approval, no_refund, auto_refund_rules",
+        message:
+          "refundPolicy must be one of: manual_refund_approval, no_refund, auto_refund_rules",
       });
     }
 
@@ -1339,12 +1371,6 @@ exports.saveStep10FeeSetup = async (req, res) => {
       ? completedSteps.filter((n) => Number.isFinite(Number(n)))
       : [];
 
-    const payload = buildStep7PersistPayload(
-      sanitized,
-      existing,
-      progressMeta,
-      completed
-    );
     const payload = {
       feeCollectionFrequency: freq,
       feeCategories: Array.isArray(feeCategories) ? feeCategories : [],
@@ -1377,14 +1403,6 @@ exports.saveStep10FeeSetup = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: mapWizardToStep7Response(doc),
-      message: "Roles & HR foundation saved successfully",
-    });
-  } catch (error) {
-    console.error("saveStep7RolesHrFoundation error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save roles & HR foundation",
       data: doc,
       message: "Fee setup saved successfully",
     });
@@ -1604,6 +1622,11 @@ exports.getStep8AttendanceRules = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch step 8 data",
+      error: error.message,
+    });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 11 — Communication Setup
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1988,6 +2011,11 @@ exports.patchStep9GradeScale = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update grade scale",
+      error: error.message,
+    });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 12 — Review & Launch
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2138,6 +2166,11 @@ exports.deleteStep9WeightageRow = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to remove assessment weightage row",
+      error: error.message,
+    });
+  }
+};
+
 /** GET /api/setup-wizard/step-12/review — get full review summary for launch page */
 exports.getSetupReview = async (req, res) => {
   try {
