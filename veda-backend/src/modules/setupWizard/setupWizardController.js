@@ -5,6 +5,41 @@ const {
   getSmartCheckMessages,
   recommendationToStoredFields,
 } = require("./recommendation/recommendationEngine");
+const { isValidGradeRange } = require("./recommendation/gradeUtils");
+const {
+  CORE_ROLE_KEYS,
+  OPTIONAL_ROLE_KEYS,
+  normalizeOptionalRoles,
+  buildEnabledRoles,
+  validateRoleToggle,
+  validateStep7Payload,
+  generatePermissionMatrix,
+  computeDependencyStatus,
+  getSmartCheckMessages: getRolesHrSmartChecks,
+  mapWizardToStep7Response,
+} = require("./rolesHr/rolesHrFoundationService");
+const {
+  VALID_PERMISSION_STYLES,
+  VALID_DEPARTMENT_SETUP,
+  VALID_APPROVAL_WORKFLOW,
+} = require("./rolesHr/rolesHrFoundation.config");
+const {
+  validateStep8Payload,
+  mapWizardToStep8Response,
+  applyTogglePatch,
+  computeAttendanceDependencyStatus,
+  getAttendanceSmartChecks,
+  normalizePermissions,
+  normalizeParentNotifications,
+} = require("./attendance/attendanceRulesService");
+const {
+  getDefaultStep9State,
+  validateStep9Payload,
+  buildStep9PersistPayload,
+  mapWizardToStep9Response,
+  removeGradeRow,
+  removeWeightageRow,
+} = require("./examination/examinationGradebookService");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -60,6 +95,48 @@ const formatSetupDoc = (doc) => {
     recommendationType: doc.recommendationType,
     recommendationConfidence: doc.recommendationConfidence,
     recommendationRules: doc.recommendationRules || [],
+    enabledModules: doc.enabledModules || [],
+    disabledModules: doc.disabledModules || [],
+    recommendedModules: doc.recommendedModules || [],
+    dependencyWarnings: doc.dependencyWarnings || [],
+    academicYear: doc.academicYear,
+    academicYearPattern: doc.academicYearPattern,
+    academicYearStart: doc.academicYearStart,
+    academicYearEnd: doc.academicYearEnd,
+    termStructure: doc.termStructure,
+    expectedStudents: doc.expectedStudents,
+    maxStudentsPerSection: doc.maxStudentsPerSection,
+    sectionMode: doc.sectionMode,
+    streams: doc.streams || [],
+    subjectFramework: doc.subjectFramework,
+    enabledRoles: doc.enabledRoles || [],
+    optionalRoles: doc.optionalRoles || [],
+    permissionSetupStyle: doc.permissionSetupStyle,
+    staffIdFormat: doc.staffIdFormat,
+    teacherIdFormat: doc.teacherIdFormat,
+    staffCategories: doc.staffCategories || [],
+    departmentSetup: doc.departmentSetup,
+    approvalWorkflow: doc.approvalWorkflow,
+    permissionMatrix: doc.permissionMatrix || [],
+    dependencyStatus: doc.dependencyStatus || [],
+    attendanceMode: doc.attendanceMode,
+    workingDays: doc.workingDays || [],
+    schoolStartTime: doc.schoolStartTime,
+    schoolEndTime: doc.schoolEndTime,
+    halfDayCheckoutTime: doc.halfDayCheckoutTime,
+    attendanceClosingTime: doc.attendanceClosingTime,
+    lateArrivalAfter: doc.lateArrivalAfter,
+    autoAbsentAfter: doc.autoAbsentAfter,
+    minimumAttendance: doc.minimumAttendance,
+    graceMinutes: doc.graceMinutes,
+    attendancePermissions: doc.attendancePermissions,
+    leaveApprovalRules: doc.leaveApprovalRules,
+    leaveTypes: doc.leaveTypes || [],
+    parentNotificationRules: doc.parentNotificationRules,
+    attendanceDependencyStatus: doc.attendanceDependencyStatus || [],
+    attendanceSmartChecks: doc.attendanceSmartChecks || [],
+    feesModuleEnabled: doc.feesModuleEnabled,
+    step9ExaminationGradebook: doc.step9ExaminationGradebook || null,
     state: doc.state,
     city: doc.city,
     postalCode: doc.postalCode,
@@ -658,6 +735,285 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
   }
 };
 
+const REQUIRED_MODULE_KEYS = [
+  "SIS",
+  "Academics",
+  "Attendance",
+  "Timetable",
+  "Exams",
+  "Fees",
+  "Communication",
+  "Reports",
+];
+
+const OPTIONAL_MODULE_KEYS = [
+  "Transport",
+  "Library",
+  "Health",
+  "Hostel",
+  "LMS",
+  "Inventory",
+  "HR",
+  "Payroll",
+];
+
+const sanitizeModuleKeys = (list, allowed) => {
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.filter((key) => allowed.includes(key)))];
+};
+
+/** POST /api/setup-wizard/step-5 — save module selection (step 5) */
+exports.saveStep5ModuleSelection = async (req, res) => {
+  try {
+    const {
+      enabledModules,
+      disabledModules,
+      recommendedModules,
+      dependencyWarnings,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const optionalEnabled = sanitizeModuleKeys(
+      enabledModules,
+      OPTIONAL_MODULE_KEYS
+    );
+
+    if (optionalEnabled.includes("Payroll") && !optionalEnabled.includes("HR")) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payroll depends on HR. Enable HR before saving Payroll.",
+      });
+    }
+
+    const mergedEnabled = [
+      ...REQUIRED_MODULE_KEYS,
+      ...optionalEnabled,
+    ];
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      enabledModules: mergedEnabled,
+      disabledModules: sanitizeModuleKeys(
+        disabledModules,
+        OPTIONAL_MODULE_KEYS
+      ),
+      recommendedModules: sanitizeModuleKeys(
+        recommendedModules,
+        OPTIONAL_MODULE_KEYS
+      ),
+      dependencyWarnings: Array.isArray(dependencyWarnings)
+        ? dependencyWarnings.filter((w) => typeof w === "string" && w.trim())
+        : [],
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Module selection saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep5ModuleSelection error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save module selection",
+      error: error.message,
+    });
+  }
+};
+
+const VALID_ACADEMIC_PATTERNS = ["apr_mar", "jun_may", "aug_jun"];
+const VALID_TERM_STRUCTURES = ["2 Terms", "3 Terms", "Quarters", "Custom"];
+const VALID_SECTION_MODES = ["auto", "manual"];
+const VALID_SUBJECT_FRAMEWORKS = [
+  "recommended_template",
+  "manual",
+  "excel_import",
+  "configure_later",
+];
+const VALID_STREAM_OPTIONS = [
+  "Science",
+  "Commerce",
+  "Arts / Humanities",
+  "Vocational",
+];
+
+/** POST /api/setup-wizard/step-6 — save academic structure (step 6) */
+exports.saveStep6AcademicStructure = async (req, res) => {
+  try {
+    const {
+      academicYear,
+      academicYearPattern,
+      academicYearStart,
+      academicYearEnd,
+      termStructure,
+      gradeFrom,
+      gradeTo,
+      expectedStudents,
+      maxStudentsPerSection,
+      sectionMode,
+      streams,
+      subjectFramework,
+      currentStep,
+      progressPercentage,
+      completedSteps,
+    } = req.body;
+
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const isDraft = req.body.draft === true || req.body.draft === "true";
+    const trimmedYear = String(academicYear || "").trim();
+    const trimmedPattern = String(academicYearPattern || "").trim();
+    const trimmedStart = String(academicYearStart || "").trim();
+    const trimmedEnd = String(academicYearEnd || "").trim();
+    const trimmedTerm = String(termStructure || "").trim();
+    const trimmedGradeFrom = String(gradeFrom || "").trim();
+    const trimmedGradeTo = String(gradeTo || "").trim();
+    const trimmedSectionMode = String(sectionMode || "auto").trim();
+    const trimmedSubjectFramework = String(
+      subjectFramework || "recommended_template"
+    ).trim();
+
+    const parsedExpected = Number(expectedStudents);
+    const parsedMaxPerSection = Number(maxStudentsPerSection);
+
+    if (!isDraft) {
+      if (!trimmedYear) {
+        return res.status(400).json({
+          success: false,
+          message: "academicYear is required",
+        });
+      }
+
+      if (!trimmedGradeFrom || !trimmedGradeTo) {
+        return res.status(400).json({
+          success: false,
+          message: "gradeFrom and gradeTo are required",
+        });
+      }
+
+      if (!isValidGradeRange(trimmedGradeFrom, trimmedGradeTo)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid grade range",
+        });
+      }
+
+      if (!Number.isFinite(parsedExpected) || parsedExpected < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "expectedStudents must be a positive number",
+        });
+      }
+
+      if (!Number.isFinite(parsedMaxPerSection) || parsedMaxPerSection < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "maxStudentsPerSection must be a positive number",
+        });
+      }
+    }
+
+    if (
+      trimmedPattern &&
+      !VALID_ACADEMIC_PATTERNS.includes(trimmedPattern)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid academicYearPattern",
+      });
+    }
+
+    if (trimmedTerm && !VALID_TERM_STRUCTURES.includes(trimmedTerm)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid termStructure",
+      });
+    }
+
+    if (
+      trimmedSectionMode &&
+      !VALID_SECTION_MODES.includes(trimmedSectionMode)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "sectionMode must be auto or manual",
+      });
+    }
+
+    if (
+      trimmedSubjectFramework &&
+      !VALID_SUBJECT_FRAMEWORKS.includes(trimmedSubjectFramework)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subjectFramework",
+      });
+    }
+
+    const sanitizedStreams = Array.isArray(streams)
+      ? [...new Set(streams.filter((s) => VALID_STREAM_OPTIONS.includes(s)))]
+      : [];
+
+    const completed = Array.isArray(completedSteps)
+      ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+      : [];
+
+    const payload = {
+      academicYear: trimmedYear,
+      academicYearPattern: trimmedPattern || "apr_mar",
+      academicYearStart: trimmedStart,
+      academicYearEnd: trimmedEnd,
+      termStructure: trimmedTerm || "2 Terms",
+      gradeFrom: trimmedGradeFrom,
+      gradeTo: trimmedGradeTo,
+      expectedStudents: Number.isFinite(parsedExpected)
+        ? parsedExpected
+        : null,
+      maxStudentsPerSection: Number.isFinite(parsedMaxPerSection)
+        ? parsedMaxPerSection
+        : 40,
+      sectionMode: trimmedSectionMode || "auto",
+      streams: sanitizedStreams,
+      subjectFramework: trimmedSubjectFramework || "recommended_template",
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+      setupStatus: "draft",
+      completedSteps: completed,
+    };
+
+    const doc = await upsertSetupDoc(payload);
+
+    return res.status(200).json({
+      success: true,
+      data: doc,
+      message: "Academic structure saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep6AcademicStructure error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save academic structure",
+      error: error.message,
+    });
+  }
+};
+
 /** POST /api/setup-wizard/recommendation/generate — run rule engine on inputs */
 exports.generateRecommendation = async (req, res) => {
   try {
@@ -785,6 +1141,119 @@ exports.getRecommendation = async (req, res) => {
   }
 };
 
+const buildStep7PersistPayload = (sanitized, wizardDoc, progressMeta, completedSteps) => {
+  const permissionMatrix = generatePermissionMatrix(
+    sanitized.optionalRoles,
+    sanitized.permissionSetupStyle
+  );
+  const dependencyStatus = computeDependencyStatus({
+    ...wizardDoc,
+    approvalWorkflow: sanitized.approvalWorkflow,
+    subjectFramework: wizardDoc?.subjectFramework,
+    enabledModules: wizardDoc?.enabledModules,
+  });
+
+  return {
+    enabledRoles: buildEnabledRoles(sanitized.optionalRoles),
+    optionalRoles: sanitized.optionalRoles,
+    permissionSetupStyle: sanitized.permissionSetupStyle,
+    staffIdFormat: sanitized.staffIdFormat,
+    teacherIdFormat: sanitized.teacherIdFormat,
+    staffCategories: sanitized.staffCategories,
+    departmentSetup: sanitized.departmentSetup,
+    approvalWorkflow: sanitized.approvalWorkflow,
+    permissionMatrix,
+    dependencyStatus,
+    currentStep: progressMeta.step,
+    progressPercentage: progressMeta.progress,
+    setupStatus: "draft",
+    completedSteps,
+  };
+};
+
+/** GET /api/setup-wizard/step-7 — fetch saved roles & HR foundation */
+exports.getStep7RolesHrFoundation = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const data = mapWizardToStep7Response(doc);
+    const smartChecks = doc
+      ? getRolesHrSmartChecks(doc.enabledModules, data?.optionalRoles)
+      : [];
+
+    return res.status(200).json({
+      success: true,
+      data: data
+        ? {
+            ...data,
+            smartChecks,
+            recommendationText:
+              data.permissionSetupStyle === "custom"
+                ? "Custom mode selected. You can edit detailed permissions before launch, but setup may take longer."
+                : "Use recommended permissions now. Advanced permission tuning can be done later from Setup Center with audit logs.",
+          }
+        : null,
+      message: doc ? "Step 7 data loaded" : "No step 7 data found",
+    });
+  } catch (error) {
+    console.error("getStep7RolesHrFoundation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 7 data",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-7 — save roles & HR foundation */
+exports.saveStep7RolesHrFoundation = async (req, res) => {
+  try {
+    const { currentStep, progressPercentage, completedSteps } = req.body;
+    const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+    if (!progressMeta) return;
+
+    const isDraft = req.body.draft === true || req.body.draft === "true";
+    const validation = validateStep7Payload(req.body, { draft: isDraft });
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.errors.join("; "),
+      });
+    }
+
+    const { sanitized } = validation;
+
+    if (
+      sanitized.permissionSetupStyle &&
+      !VALID_PERMISSION_STYLES.includes(sanitized.permissionSetupStyle)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid permissionSetupStyle",
+      });
+    }
+
+    if (
+      sanitized.departmentSetup &&
+      !VALID_DEPARTMENT_SETUP.includes(sanitized.departmentSetup)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid departmentSetup",
+      });
+    }
+
+    if (
+      sanitized.approvalWorkflow &&
+      !VALID_APPROVAL_WORKFLOW.includes(sanitized.approvalWorkflow)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid approvalWorkflow",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 10 — Fee Setup
 // ─────────────────────────────────────────────────────────────────────────────
@@ -870,6 +1339,12 @@ exports.saveStep10FeeSetup = async (req, res) => {
       ? completedSteps.filter((n) => Number.isFinite(Number(n)))
       : [];
 
+    const payload = buildStep7PersistPayload(
+      sanitized,
+      existing,
+      progressMeta,
+      completed
+    );
     const payload = {
       feeCollectionFrequency: freq,
       feeCategories: Array.isArray(feeCategories) ? feeCategories : [],
@@ -902,6 +1377,14 @@ exports.saveStep10FeeSetup = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      data: mapWizardToStep7Response(doc),
+      message: "Roles & HR foundation saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep7RolesHrFoundation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save roles & HR foundation",
       data: doc,
       message: "Fee setup saved successfully",
     });
@@ -915,6 +1398,212 @@ exports.saveStep10FeeSetup = async (req, res) => {
   }
 };
 
+/** PUT /api/setup-wizard/step-7/roles — update optional role configuration */
+exports.updateStep7RoleConfiguration = async (req, res) => {
+  try {
+    const { roleKey, enabled } = req.body;
+
+    if (!roleKey) {
+      return res.status(400).json({
+        success: false,
+        message: "roleKey is required",
+      });
+    }
+
+    const toggleCheck = validateRoleToggle(roleKey, enabled !== false);
+    if (!toggleCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: toggleCheck.message,
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    let optionalRoles = normalizeOptionalRoles(doc.optionalRoles);
+    const shouldEnable = enabled !== false;
+
+    if (shouldEnable && !optionalRoles.includes(roleKey)) {
+      optionalRoles.push(roleKey);
+    } else if (!shouldEnable) {
+      optionalRoles = optionalRoles.filter((r) => r !== roleKey);
+    }
+
+    const permissionMatrix = generatePermissionMatrix(
+      optionalRoles,
+      doc.permissionSetupStyle
+    );
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        optionalRoles,
+        enabledRoles: buildEnabledRoles(optionalRoles),
+        permissionMatrix,
+        dependencyStatus: computeDependencyStatus(doc),
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(updated),
+      message: `Role "${roleKey}" updated`,
+    });
+  } catch (error) {
+    console.error("updateStep7RoleConfiguration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update role configuration",
+      error: error.message,
+    });
+  }
+};
+
+/** DELETE /api/setup-wizard/step-7/roles/:roleKey — remove optional role */
+exports.deleteStep7OptionalRole = async (req, res) => {
+  try {
+    const roleKey = decodeURIComponent(req.params.roleKey || "").trim();
+
+    if (!roleKey) {
+      return res.status(400).json({
+        success: false,
+        message: "roleKey is required",
+      });
+    }
+
+    if (CORE_ROLE_KEYS.includes(roleKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot remove required role "${roleKey}"`,
+      });
+    }
+
+    if (!OPTIONAL_ROLE_KEYS.includes(roleKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown optional role "${roleKey}"`,
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found",
+      });
+    }
+
+    const optionalRoles = normalizeOptionalRoles(doc.optionalRoles).filter(
+      (r) => r !== roleKey
+    );
+
+    const permissionMatrix = generatePermissionMatrix(
+      optionalRoles,
+      doc.permissionSetupStyle
+    );
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        optionalRoles,
+        enabledRoles: buildEnabledRoles(optionalRoles),
+        permissionMatrix,
+        dependencyStatus: computeDependencyStatus(doc),
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep7Response(updated),
+      message: `Optional role "${roleKey}" removed`,
+    });
+  } catch (error) {
+    console.error("deleteStep7OptionalRole error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove optional role",
+      error: error.message,
+    });
+  }
+};
+
+const buildStep8PersistPayload = (sanitized, progressMeta, completedSteps) => ({
+  attendanceMode: sanitized.attendanceMode,
+  workingDays: sanitized.workingDays,
+  schoolStartTime: sanitized.schoolStartTime,
+  schoolEndTime: sanitized.schoolEndTime,
+  halfDayCheckoutTime: sanitized.halfDayCheckoutTime,
+  attendanceClosingTime: sanitized.attendanceClosingTime,
+  lateArrivalAfter: sanitized.lateArrivalAfter,
+  autoAbsentAfter: sanitized.autoAbsentAfter,
+  minimumAttendance: sanitized.minimumAttendance,
+  graceMinutes: sanitized.graceMinutes,
+  attendancePermissions: sanitized.attendancePermissions,
+  leaveApprovalRules: sanitized.leaveApprovalRules,
+  leaveTypes: sanitized.leaveTypes,
+  parentNotificationRules: sanitized.parentNotificationRules,
+  attendanceDependencyStatus: sanitized.attendanceDependencyStatus,
+  attendanceSmartChecks: sanitized.attendanceSmartChecks,
+  currentStep: progressMeta.step,
+  progressPercentage: progressMeta.progress,
+  setupStatus: "draft",
+  completedSteps,
+});
+
+const persistStep8FromBody = async (req, res, { advancingDefaults } = {}) => {
+  const { currentStep, progressPercentage, completedSteps } = req.body;
+  const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+  if (!progressMeta) return null;
+
+  const isDraft = req.body.draft === true || req.body.draft === "true";
+  const validation = validateStep8Payload(req.body, { draft: isDraft });
+
+  if (!validation.valid) {
+    res.status(400).json({
+      success: false,
+      message: validation.errors.join("; "),
+    });
+    return null;
+  }
+
+  const completed = Array.isArray(completedSteps)
+    ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+    : advancingDefaults?.completedSteps || [];
+
+  const payload = buildStep8PersistPayload(
+    validation.sanitized,
+    progressMeta,
+    completed
+  );
+
+  const doc = await upsertSetupDoc(payload);
+  return doc;
+};
+
+/** GET /api/setup-wizard/step-8 — fetch saved attendance rules */
+exports.getStep8AttendanceRules = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const data = mapWizardToStep8Response(doc);
+
+    return res.status(200).json({
+      success: true,
+      data,
+      message: doc ? "Step 8 data loaded" : "No step 8 data found",
+    });
+  } catch (error) {
+    console.error("getStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 8 data",
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 11 — Communication Setup
 // ─────────────────────────────────────────────────────────────────────────────
@@ -995,6 +1684,310 @@ exports.saveStep11CommunicationSetup = async (req, res) => {
   }
 };
 
+/** POST /api/setup-wizard/step-8 — save attendance rules */
+exports.saveStep8AttendanceRules = async (req, res) => {
+  try {
+    const doc = await persistStep8FromBody(req, res, {
+      advancingDefaults: { completedSteps: [1, 2, 3, 4, 5, 6, 7, 8] },
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(doc),
+      message: "Attendance rules saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save attendance rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PUT /api/setup-wizard/step-8 — update attendance rules */
+exports.updateStep8AttendanceRules = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const doc = await persistStep8FromBody(req, res);
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(doc),
+      message: "Attendance rules updated successfully",
+    });
+  } catch (error) {
+    console.error("updateStep8AttendanceRules error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update attendance rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PATCH /api/setup-wizard/step-8/toggles — update permission/notification toggles */
+exports.patchStep8AttendanceToggles = async (req, res) => {
+  try {
+    const { section, key, enabled } = req.body;
+
+    if (!section || !key) {
+      return res.status(400).json({
+        success: false,
+        message: "section and key are required",
+      });
+    }
+
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const patchResult = applyTogglePatch(doc, section, key, enabled);
+    if (!patchResult.ok) {
+      return res.status(400).json({
+        success: false,
+        message: patchResult.message,
+      });
+    }
+
+    const mergedPermissions = normalizePermissions(
+      patchResult.update.attendancePermissions || doc.attendancePermissions
+    );
+    const mergedNotifications = normalizeParentNotifications(
+      patchResult.update.parentNotificationRules || doc.parentNotificationRules
+    );
+
+    const attendanceDependencyStatus = computeAttendanceDependencyStatus(
+      mergedNotifications,
+      doc.minimumAttendance
+    );
+    const attendanceSmartChecks = getAttendanceSmartChecks({
+      attendanceMode: doc.attendanceMode,
+      attendancePermissions: mergedPermissions,
+      attendanceClosingTime: doc.attendanceClosingTime,
+    });
+
+    const updated = await SetupWizard.findByIdAndUpdate(
+      doc._id,
+      {
+        ...patchResult.update,
+        attendanceDependencyStatus,
+        attendanceSmartChecks,
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep8Response(updated),
+      message: "Attendance toggle updated",
+    });
+  } catch (error) {
+    console.error("patchStep8AttendanceToggles error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update attendance toggle",
+      error: error.message,
+    });
+  }
+};
+
+const persistStep9ExaminationGradebook = async (
+  req,
+  res,
+  { existingWizardDoc = null, action = "step9_saved" } = {}
+) => {
+  const { currentStep, progressPercentage, completedSteps, publishingAction, revertToVersionNumber } =
+    req.body;
+  const progressMeta = validateStepProgress(currentStep, progressPercentage, res);
+  if (!progressMeta) return null;
+
+  const wizardDoc =
+    existingWizardDoc || (await SetupWizard.findOne().sort({ updatedAt: -1 }));
+  const currentConfig = wizardDoc?.step9ExaminationGradebook || getDefaultStep9State(wizardDoc);
+  const mergedPayload = {
+    ...currentConfig,
+    ...req.body,
+  };
+
+  const isDraft = req.body.draft === true || req.body.draft === "true";
+  const validation = validateStep9Payload(mergedPayload, wizardDoc, { draft: isDraft });
+  if (!validation.valid) {
+    res.status(400).json({
+      success: false,
+      message: validation.errors.join("; "),
+    });
+    return null;
+  }
+
+  const completed = Array.isArray(completedSteps)
+    ? completedSteps.filter((n) => Number.isFinite(Number(n)))
+    : [];
+
+  const actor =
+    req.user?.email ||
+    req.user?.id ||
+    req.body.updatedBy ||
+    req.body.actor ||
+    "system";
+
+  const nextStep9Payload = buildStep9PersistPayload({
+    sanitized: {
+      ...validation.sanitized,
+      currentStep: progressMeta.step,
+      progressPercentage: progressMeta.progress,
+    },
+    existingConfig: currentConfig,
+    wizardDoc,
+    actor,
+    action,
+    publishingAction,
+    revertToVersionNumber,
+  });
+
+  const doc = await upsertSetupDoc({
+    step9ExaminationGradebook: nextStep9Payload,
+    currentStep: progressMeta.step,
+    progressPercentage: progressMeta.progress,
+    completedSteps: completed,
+    setupStatus: "draft",
+  });
+
+  return doc;
+};
+
+/** GET /api/setup-wizard/step-9 — fetch examination & gradebook setup */
+exports.getStep9ExaminationGradebook = async (req, res) => {
+  try {
+    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc || {}),
+      message: doc ? "Step 9 data loaded" : "No step 9 data found",
+    });
+  } catch (error) {
+    console.error("getStep9ExaminationGradebook error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch step 9 data",
+      error: error.message,
+    });
+  }
+};
+
+/** POST /api/setup-wizard/step-9 — save examination & gradebook setup */
+exports.saveStep9ExaminationGradebook = async (req, res) => {
+  try {
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      action: "step9_saved",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Examination & gradebook setup saved successfully",
+    });
+  } catch (error) {
+    console.error("saveStep9ExaminationGradebook error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save examination & gradebook setup",
+      error: error.message,
+    });
+  }
+};
+
+/** PUT /api/setup-wizard/step-9 — update examination & gradebook rules */
+exports.updateStep9ExaminationGradebook = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "step9_updated",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Examination & gradebook rules updated successfully",
+    });
+  } catch (error) {
+    console.error("updateStep9ExaminationGradebook error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update examination & gradebook rules",
+      error: error.message,
+    });
+  }
+};
+
+/** PATCH /api/setup-wizard/step-9/grade-scale — update grade scale independently */
+exports.patchStep9GradeScale = async (req, res) => {
+  try {
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    const mergedPayload = {
+      ...currentStep9,
+      gradeScaleScope:
+        req.body.gradeScaleScope ?? currentStep9.gradeScaleScope,
+      defaultPassingMarks:
+        req.body.defaultPassingMarks ?? currentStep9.defaultPassingMarks,
+      gradeTable: req.body.gradeTable ?? currentStep9.gradeTable,
+      resultDisplayFormat:
+        req.body.resultDisplayFormat ?? currentStep9.resultDisplayFormat,
+      currentStep: req.body.currentStep ?? currentStep9.currentStep ?? 9,
+      progressPercentage:
+        req.body.progressPercentage ?? currentStep9.progressPercentage ?? 82,
+      completedSteps: req.body.completedSteps ?? existing.completedSteps ?? [],
+    };
+
+    req.body = mergedPayload;
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "grade_scale_patched",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Grade scale updated successfully",
+    });
+  } catch (error) {
+    console.error("patchStep9GradeScale error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update grade scale",
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 12 — Review & Launch
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1054,6 +2047,97 @@ exports.launchSchoolSetup = async (req, res) => {
   }
 };
 
+/** DELETE /api/setup-wizard/step-9/grade-rows/:rowId — remove grade row */
+exports.deleteStep9GradeRow = async (req, res) => {
+  try {
+    const rowId = decodeURIComponent(req.params.rowId || "").trim();
+    if (!rowId) {
+      return res.status(400).json({
+        success: false,
+        message: "rowId is required",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    req.body = {
+      ...removeGradeRow(currentStep9, rowId),
+      currentStep: currentStep9.currentStep || 9,
+      progressPercentage: currentStep9.progressPercentage || 82,
+      completedSteps: existing.completedSteps || [],
+    };
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "grade_row_deleted",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Grade row removed successfully",
+    });
+  } catch (error) {
+    console.error("deleteStep9GradeRow error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove grade row",
+      error: error.message,
+    });
+  }
+};
+
+/** DELETE /api/setup-wizard/step-9/weightage-rows/:rowId — remove weightage row */
+exports.deleteStep9WeightageRow = async (req, res) => {
+  try {
+    const rowId = decodeURIComponent(req.params.rowId || "").trim();
+    if (!rowId) {
+      return res.status(400).json({
+        success: false,
+        message: "rowId is required",
+      });
+    }
+
+    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Setup wizard not found. Complete earlier steps first.",
+      });
+    }
+
+    const currentStep9 = existing.step9ExaminationGradebook || getDefaultStep9State(existing);
+    req.body = {
+      ...removeWeightageRow(currentStep9, rowId),
+      currentStep: currentStep9.currentStep || 9,
+      progressPercentage: currentStep9.progressPercentage || 82,
+      completedSteps: existing.completedSteps || [],
+    };
+
+    const doc = await persistStep9ExaminationGradebook(req, res, {
+      existingWizardDoc: existing,
+      action: "weightage_row_deleted",
+    });
+    if (!doc) return;
+
+    return res.status(200).json({
+      success: true,
+      data: mapWizardToStep9Response(doc),
+      message: "Assessment weightage row removed successfully",
+    });
+  } catch (error) {
+    console.error("deleteStep9WeightageRow error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove assessment weightage row",
 /** GET /api/setup-wizard/step-12/review — get full review summary for launch page */
 exports.getSetupReview = async (req, res) => {
   try {

@@ -395,6 +395,9 @@ function App() {
         <Route path="/setup/step-4" element={<Step4 />} />
         <Route path="/setup/step-5" element={<Step5 />} />
         <Route path="/setup/step-6" element={<Step6 />} />
+        <Route path="/setup/step-7" element={<Step7 />} />
+        <Route path="/setup/step-8" element={<Step8 />} />
+        <Route path="/setup/step-9" element={<Step9 />} />
         <Route path="/setup/step-10" element={<Step10 />} />
         <Route path="/setup/step-11" element={<Step11 />} />
         <Route path="/setup/step-12" element={<Step12 />} />

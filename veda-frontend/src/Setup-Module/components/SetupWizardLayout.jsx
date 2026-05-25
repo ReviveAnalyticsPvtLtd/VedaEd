@@ -13,7 +13,7 @@ const SetupWizardLayout = ({ children, onSaveExit, saving }) => {
               <p className="text-lg font-bold leading-tight text-setup-heading">
                 VedaSchool
               </p>
-              <p className="text-sm text-setup-muted">Complete Setup Wizard</p>
+              <p className="text-sm text-setup-muted">School Setup Wizard</p>
             </div>
           </div>
           <button
