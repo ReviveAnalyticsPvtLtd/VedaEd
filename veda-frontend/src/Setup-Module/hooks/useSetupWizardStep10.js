@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { getSetupWizard, saveFeeSetup } from "../../services/setupWizardAPI";
 import {
   SETUP_ROUTES,
+  STEP_9_NUMBER,
   STEP_10_NUMBER,
   STEP_10_PROGRESS,
   STEP_11_NUMBER,
+  WIZARD_STEP_PATH,
 } from "../constants/setupWizard";
 
 const DEFAULT_CATEGORIES = [
@@ -150,11 +152,11 @@ export function useSetupWizardStep10() {
 
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep({ advancing: true });
-    if (ok) navigate(SETUP_ROUTES.step(11));
+    if (ok) navigate(WIZARD_STEP_PATH(STEP_11_NUMBER));
   }, [persistStep, navigate]);
 
   const handleBack = useCallback(() => {
-    navigate(SETUP_ROUTES.step(9));
+    navigate(WIZARD_STEP_PATH(STEP_9_NUMBER));
   }, [navigate]);
 
   const handleSaveExit = useCallback(async () => {

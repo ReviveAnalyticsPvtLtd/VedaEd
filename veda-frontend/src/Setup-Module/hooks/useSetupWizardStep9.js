@@ -8,6 +8,7 @@ import {
 } from "../../services/setupWizardAPI";
 import {
   STEP_8_NUMBER,
+  STEP_10_NUMBER,
   WIZARD_STEP_PATH,
 } from "../constants/setupWizard";
 import {
@@ -304,9 +305,9 @@ export function useSetupWizardStep9() {
   const handleSaveContinue = useCallback(async () => {
     const ok = await persistStep();
     if (ok) {
-      setToast("Examination & gradebook setup saved successfully.");
+      navigate(WIZARD_STEP_PATH(STEP_10_NUMBER));
     }
-  }, [persistStep]);
+  }, [persistStep, navigate]);
 
   const handleBack = useCallback(() => {
     navigate(WIZARD_STEP_PATH(STEP_8_NUMBER));

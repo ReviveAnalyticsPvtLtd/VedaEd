@@ -410,6 +410,9 @@ function App() {
   <Route path="/form/step-7" element={<Step7 />} />
   <Route path="/form/step-8" element={<Step8 />} />
   <Route path="/form/step-9" element={<Step9 />} />
+        <Route path="/form/step-10" element={<Step10 />} />
+        <Route path="/form/step-11" element={<Step11 />} />
+        <Route path="/form/step-12" element={<Step12 />} />
 
         {/* ================= ROLE FRONTS ================= */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
