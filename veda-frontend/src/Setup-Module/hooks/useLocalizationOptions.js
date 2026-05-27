@@ -6,10 +6,13 @@ import {
   getCurrencyOptionsForCountry,
   getDefaultsForCountry,
   getPrimaryCurrencyCode,
+  getCitiesForState,
   getStatesForCountry,
   getTimezonesForCountry,
   loadAllCountries,
+  resolveStateName,
 } from "../services/localizationData";
+import { lookupPostalCode } from "../services/postalCodeLookup";
 
 /**
  * Dynamic country / state / timezone / currency options for Step 3.
@@ -22,6 +25,8 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
   const [stateOptions, setStateOptions] = useState([]);
   const [timezoneOptions, setTimezoneOptions] = useState([]);
   const [currencyOptions, setCurrencyOptions] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [postalLookupLoading, setPostalLookupLoading] = useState(false);
 
   const countryOptions = useMemo(() => {
     if (!enabled) return [];
@@ -33,6 +38,15 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
     const timer = setTimeout(() => setCountriesLoading(false), 0);
     return () => clearTimeout(timer);
   }, [enabled]);
+
+  const refreshCityOptions = useCallback((isoCode, stateName, savedCity) => {
+    if (!isoCode || !stateName) {
+      setCityOptions([]);
+      return;
+    }
+    const cities = getCitiesForState(isoCode, stateName);
+    setCityOptions(ensureOptionInList(cities, savedCity, savedCity));
+  }, []);
 
   const loadCountryDependencies = useCallback((isoCode, savedState, savedTimezone, savedCurrency) => {
     if (!isoCode) {
@@ -57,10 +71,11 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
       setCurrencyOptions(
         ensureOptionInList(currencies, savedCurrency, savedCurrency)
       );
+      refreshCityOptions(isoCode, savedState, "");
     } finally {
       setStatesLoading(false);
     }
-  }, []);
+  }, [refreshCityOptions]);
 
   /** Sync dropdown data when form is prefilled from API */
   useEffect(() => {
@@ -89,16 +104,17 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
         ensureOptionInList([], form.currency, form.currency)
       );
       setStateOptions([]);
+      setCityOptions([]);
     }
-  }, [
-    enabled,
-    countriesLoading,
-    form.country,
-    form.state,
-    form.timezone,
-    form.currency,
-    loadCountryDependencies,
-  ]);
+  }, [enabled, countriesLoading, form.country, loadCountryDependencies]);
+
+  useEffect(() => {
+    if (!enabled || !countryCode) {
+      setCityOptions([]);
+      return;
+    }
+    refreshCityOptions(countryCode, form.state, form.city);
+  }, [enabled, countryCode, form.state, form.city, refreshCityOptions]);
 
   const applyCountrySelection = useCallback(
     (isoCode) => {
@@ -114,6 +130,7 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
       setStateOptions(states);
       setTimezoneOptions(timezones);
       setCurrencyOptions(currencies);
+      setCityOptions([]);
 
       const currency =
         defaults.currency ||
@@ -131,7 +148,51 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
     [countryOptions]
   );
 
+  const lookupFromPostalCode = useCallback(
+    async (postalCode) => {
+      if (!countryCode || !postalCode?.trim()) return null;
+
+      setPostalLookupLoading(true);
+      try {
+        return await lookupPostalCode(countryCode, postalCode);
+      } finally {
+        setPostalLookupLoading(false);
+      }
+    },
+    [countryCode]
+  );
+
+  const applyPostalLookupResult = useCallback(
+    (result) => {
+      if (!result || !countryCode) return null;
+
+      const states =
+        stateOptions.length > 0
+          ? stateOptions
+          : getStatesForCountry(countryCode);
+      const resolvedState = resolveStateName(
+        countryCode,
+        result.state,
+        states
+      );
+
+      setStateOptions(ensureOptionInList(states, resolvedState, resolvedState));
+
+      const cities = resolvedState
+        ? getCitiesForState(countryCode, resolvedState)
+        : [];
+      setCityOptions(ensureOptionInList(cities, result.city, result.city));
+
+      return {
+        state: resolvedState,
+        city: result.city || "",
+      };
+    },
+    [countryCode, stateOptions]
+  );
+
   const hasStates = stateOptions.length > 0;
+  const hasCities = cityOptions.length > 0;
 
   return {
     countriesLoading,
@@ -141,8 +202,14 @@ export function useLocalizationOptions(form, { enabled = true } = {}) {
     stateOptions,
     timezoneOptions,
     currencyOptions,
+    cityOptions,
+    postalLookupLoading,
     hasStates,
+    hasCities,
     applyCountrySelection,
+    lookupFromPostalCode,
+    applyPostalLookupResult,
+    refreshCityOptions,
     findCountryByNameOrCode,
   };
 }

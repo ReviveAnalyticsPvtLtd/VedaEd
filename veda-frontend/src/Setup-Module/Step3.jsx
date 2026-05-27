@@ -24,7 +24,17 @@ const Step3 = () => {
     toast,
     healthItems,
     localization,
+    phoneDial,
+    phoneNational,
+    phoneOptions,
+    phoneMaxLength,
     updateField,
+    updateEstablishedYear,
+    handleStateChange,
+    handlePostalCodeChange,
+    handlePhoneDialChange,
+    handlePhoneNationalChange,
+    handleEmergencyContactChange,
     handleCountryChange,
     handleLogoSelect,
     handleLogoRemove,
@@ -78,6 +88,16 @@ const Step3 = () => {
           form={form}
           errors={errors}
           onChange={updateField}
+          onEstablishedYearChange={updateEstablishedYear}
+          onStateChange={handleStateChange}
+          onPostalCodeChange={handlePostalCodeChange}
+          phoneDial={phoneDial}
+          phoneNational={phoneNational}
+          phoneOptions={phoneOptions}
+          phoneMaxLength={phoneMaxLength}
+          onPhoneDialChange={handlePhoneDialChange}
+          onPhoneNationalChange={handlePhoneNationalChange}
+          onEmergencyContactChange={handleEmergencyContactChange}
           onCountryChange={handleCountryChange}
           onLogoSelect={handleLogoSelect}
           onLogoRemove={handleLogoRemove}

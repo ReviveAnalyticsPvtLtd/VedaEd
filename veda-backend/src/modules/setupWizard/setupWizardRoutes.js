@@ -4,6 +4,7 @@ const setupWizardController = require("./setupWizardController");
 const imageUpload = require("../../middleware/imageUpload");
 
 router.get("/progress", setupWizardController.getSetupProgress);
+router.get("/postal-lookup", setupWizardController.lookupPostalCode);
 router.post("/initialize", setupWizardController.initializeSetup);
 router.get("/", setupWizardController.getSetupWizard);
 router.post("/", setupWizardController.saveSetupWizard);
