@@ -27,6 +27,38 @@ import {
 } from "../utils/academicStructure";
 import { isValidGradeRange } from "../recommendation/gradeUtils";
 
+const ACADEMIC_YEAR_REGEX = /^(\d{4})-(\d{4})$/;
+
+function normalizeAcademicYearInput(value) {
+  return String(value || "")
+    .replace(/[^\d-]/g, "")
+    .slice(0, 9);
+}
+
+function isValidAcademicYearRange(academicYear) {
+  const currentYear = new Date().getFullYear();
+  const match = String(academicYear || "").match(ACADEMIC_YEAR_REGEX);
+  if (!match) {
+    return "Academic year must be in YYYY-YYYY format (e.g., 2026-2027)";
+  }
+
+  const startYear = Number(match[1]);
+  const endYear = Number(match[2]);
+  if (endYear !== startYear + 1) {
+    return "Academic year must be continuous (e.g., 2026-2027)";
+  }
+
+  if (startYear < currentYear) {
+    return `Academic year must start from ${currentYear} or later`;
+  }
+
+  return "";
+}
+
+function academicYearNeedsReset(academicYear) {
+  return Boolean(isValidAcademicYearRange(academicYear));
+}
+
 function mergeFormWithDefaults(saved, step4Grades) {
   const base = { ...DEFAULT_ACADEMIC_FORM };
   const mapped = mapWizardDataToAcademicForm(saved) || {};
@@ -49,6 +81,13 @@ function mergeFormWithDefaults(saved, step4Grades) {
     merged.streams = DEFAULT_ACADEMIC_FORM.streams;
   }
 
+  if (academicYearNeedsReset(merged.academicYear)) {
+    merged.academicYear = base.academicYear;
+    merged.academicYearPattern = base.academicYearPattern;
+    merged.academicYearStart = base.academicYearStart;
+    merged.academicYearEnd = base.academicYearEnd;
+  }
+
   return merged;
 }
 
@@ -56,7 +95,12 @@ function validateForm(form) {
   const errors = {};
 
   if (!form.academicYear?.trim()) {
-    errors.academicYear = "Academic year name is required";
+    errors.academicYear = "Academic year is required";
+  } else {
+    const academicYearError = isValidAcademicYearRange(form.academicYear);
+    if (academicYearError) {
+      errors.academicYear = academicYearError;
+    }
   }
 
   if (!form.gradeFrom?.trim()) {
@@ -159,7 +203,10 @@ export function useSetupWizardStep6() {
 
   const updateField = useCallback((name, value) => {
     const numericFields = ["expectedStudents", "maxStudentsPerSection"];
-    const nextValue = numericFields.includes(name) ? Number(value) : value;
+    let nextValue = numericFields.includes(name) ? Number(value) : value;
+    if (name === "academicYear") {
+      nextValue = normalizeAcademicYearInput(value);
+    }
     setForm((prev) => ({ ...prev, [name]: nextValue }));
     setErrors((prev) => {
       const next = { ...prev };

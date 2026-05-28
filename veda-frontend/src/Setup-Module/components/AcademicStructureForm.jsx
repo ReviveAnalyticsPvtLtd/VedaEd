@@ -49,10 +49,11 @@ const AcademicStructureForm = ({
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SetupFormField
-            label="Academic Year Name"
+            label="Academic Year"
             name="academicYear"
             value={form.academicYear}
             onChange={(e) => onFieldChange("academicYear", e.target.value)}
+            placeholder="YYYY-YYYY (e.g., 2026-2027)"
             error={errors.academicYear}
             required
           />

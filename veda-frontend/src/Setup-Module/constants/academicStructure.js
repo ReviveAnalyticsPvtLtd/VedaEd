@@ -6,10 +6,26 @@ export const ACADEMIC_YEAR_PATTERNS = [
   { value: "aug_jun", label: "August – June" },
 ];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const NEXT_YEAR = CURRENT_YEAR + 1;
+const toAcademicYearLabel = (startYear) => `${startYear}-${startYear + 1}`;
+
 export const PATTERN_DATE_PRESETS = {
-  apr_mar: { start: "2026-04-01", end: "2027-03-31", label: "2026–2027" },
-  jun_may: { start: "2026-06-01", end: "2027-05-31", label: "2026–2027" },
-  aug_jun: { start: "2026-08-01", end: "2027-06-30", label: "2026–2027" },
+  apr_mar: {
+    start: `${CURRENT_YEAR}-04-01`,
+    end: `${NEXT_YEAR}-03-31`,
+    label: toAcademicYearLabel(CURRENT_YEAR),
+  },
+  jun_may: {
+    start: `${CURRENT_YEAR}-06-01`,
+    end: `${NEXT_YEAR}-05-31`,
+    label: toAcademicYearLabel(CURRENT_YEAR),
+  },
+  aug_jun: {
+    start: `${CURRENT_YEAR}-08-01`,
+    end: `${NEXT_YEAR}-06-30`,
+    label: toAcademicYearLabel(CURRENT_YEAR),
+  },
 };
 
 export const STREAM_OPTIONS = [
@@ -65,10 +81,10 @@ export const DEPENDENCY_MODULES = [
 ];
 
 export const DEFAULT_ACADEMIC_FORM = {
-  academicYear: "2026–2027",
+  academicYear: toAcademicYearLabel(CURRENT_YEAR),
   academicYearPattern: "apr_mar",
-  academicYearStart: "2026-04-01",
-  academicYearEnd: "2027-03-31",
+  academicYearStart: `${CURRENT_YEAR}-04-01`,
+  academicYearEnd: `${NEXT_YEAR}-03-31`,
   termStructure: "2 Terms",
   gradeFrom: "Grade 1",
   gradeTo: "Grade 12",
