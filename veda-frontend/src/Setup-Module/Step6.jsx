@@ -22,6 +22,7 @@ const Step6 = () => {
     estimatedSections,
     showStreams,
     gradeRangeLabel,
+    lockedGradeRange,
     recommendationText,
     dependencyStatus,
     smartCheckMessages,
@@ -72,6 +73,7 @@ const Step6 = () => {
           estimatedSections={estimatedSections}
           showStreams={showStreams}
           streamOptions={streamOptions}
+          lockedGradeRange={lockedGradeRange}
           onFieldChange={updateField}
           onPatternChange={handlePatternChange}
           onTermSelect={handleTermSelect}
