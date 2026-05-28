@@ -115,6 +115,36 @@ export const getSmartCheckMessages = (
   return messages;
 };
 
+export const getAutoRecommendedRoles = (enabledModules = []) => {
+  const modules = new Set(enabledModules || []);
+  const autoRoles = new Set();
+
+  Object.entries(MODULE_ROLE_MAP).forEach(([moduleKey, roleKey]) => {
+    if (modules.has(moduleKey)) {
+      autoRoles.add(roleKey);
+    }
+  });
+
+  return [...autoRoles];
+};
+
+export const getModuleDrivenRoleKeys = () => {
+  return [...new Set(Object.values(MODULE_ROLE_MAP))];
+};
+
+export const syncOptionalRolesWithModules = (
+  optionalRoles = [],
+  enabledModules = []
+) => {
+  const autoRoles = new Set(getAutoRecommendedRoles(enabledModules));
+  const moduleDrivenRoles = new Set(getModuleDrivenRoleKeys());
+  const preservedManualRoles = (optionalRoles || []).filter(
+    (role) => !moduleDrivenRoles.has(role)
+  );
+
+  return [...new Set([...preservedManualRoles, ...autoRoles])];
+};
+
 export const resolveDependencyStatus = (
   serverStatus,
   wizardMeta = {}

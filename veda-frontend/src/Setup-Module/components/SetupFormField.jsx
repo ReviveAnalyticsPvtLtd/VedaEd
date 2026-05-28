@@ -16,6 +16,7 @@ const SetupFormField = ({
   options = [],
   error,
   rows = 3,
+  disabled = false,
   inputMode,
   maxLength,
   onKeyDown,
@@ -36,6 +37,7 @@ const SetupFormField = ({
           onChange={onChange}
           placeholder={placeholder}
           rows={rows}
+          disabled={disabled}
           className={`${inputClassName} resize-y min-h-[88px]`}
         />
       ) : as === "select" ? (
@@ -44,7 +46,8 @@ const SetupFormField = ({
           name={name}
           value={value}
           onChange={onChange}
-          className={`${inputClassName} cursor-pointer`}
+          disabled={disabled}
+          className={`${inputClassName} ${disabled ? "cursor-not-allowed bg-gray-100 text-gray-500" : "cursor-pointer"}`}
         >
           <option value="">{placeholder || "Select"}</option>
           {options.map((opt) => (
@@ -62,6 +65,7 @@ const SetupFormField = ({
           onChange={onChange}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
+          disabled={disabled}
           inputMode={inputMode}
           maxLength={maxLength}
           className={inputClassName}

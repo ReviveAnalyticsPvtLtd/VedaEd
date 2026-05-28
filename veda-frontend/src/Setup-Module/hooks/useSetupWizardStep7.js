@@ -12,6 +12,7 @@ import {
   DEFAULT_STEP7_FORM,
 } from "../constants/rolesHrFoundation";
 import {
+  SETUP_TYPES,
   STEP_6_NUMBER,
   STEP_7_NUMBER,
   STEP_7_PROGRESS,
@@ -22,10 +23,12 @@ import {
 import {
   CORE_ROLE_COUNT,
   generatePermissionMatrix,
+  getModuleDrivenRoleKeys,
   getRecommendationText,
   getSmartCheckMessages,
   mapWizardDataToStep7Form,
   resolveDependencyStatus,
+  syncOptionalRolesWithModules,
   validateStep7Form,
 } from "../utils/rolesHrFoundation";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
@@ -36,12 +39,15 @@ export function useSetupWizardStep7() {
   const navigate = useNavigate();
   const [form, setForm] = useState(DEFAULT_STEP7_FORM);
   const [permissionMatrix, setPermissionMatrix] = useState([]);
+  const [customPermissionMatrix, setCustomPermissionMatrix] = useState([]);
   const [enabledModules, setEnabledModules] = useState([]);
   const [wizardMeta, setWizardMeta] = useState({});
+  const [selectedSetupType, setSelectedSetupType] = useState(SETUP_TYPES.QUICK);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const moduleDrivenRoleKeys = useMemo(() => getModuleDrivenRoleKeys(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +61,7 @@ export function useSetupWizardStep7() {
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
           const w = wizardRes.data;
           setEnabledModules(w.enabledModules || []);
+          setSelectedSetupType(w.selectedSetupType || SETUP_TYPES.QUICK);
           setWizardMeta({
             subjectFramework: w.subjectFramework,
             approvalWorkflow: w.approvalWorkflow,
@@ -64,8 +71,22 @@ export function useSetupWizardStep7() {
 
         if (!cancelled && step7Res?.success && step7Res?.data) {
           const d = step7Res.data;
-          setForm(mapWizardDataToStep7Form(d));
+          const baseForm = mapWizardDataToStep7Form(d);
+          const wizardModules = wizardRes?.data?.enabledModules || [];
+          const stepModules = d.enabledModules || [];
+          const effectiveModules =
+            stepModules.length > 0 ? stepModules : wizardModules;
+          setForm({
+            ...baseForm,
+            optionalRoles: syncOptionalRolesWithModules(
+              baseForm.optionalRoles,
+              effectiveModules
+            ),
+          });
           setPermissionMatrix(d.permissionMatrix || []);
+          if (d.permissionSetupStyle === "custom") {
+            setCustomPermissionMatrix(d.permissionMatrix || []);
+          }
           if (d.enabledModules?.length) {
             setEnabledModules(d.enabledModules);
           }
@@ -74,7 +95,14 @@ export function useSetupWizardStep7() {
             approvalWorkflow: d.approvalWorkflow,
           }));
         } else if (!cancelled && wizardRes?.success && wizardRes?.data) {
-          setForm(mapWizardDataToStep7Form(wizardRes.data));
+          const baseForm = mapWizardDataToStep7Form(wizardRes.data);
+          setForm({
+            ...baseForm,
+            optionalRoles: syncOptionalRolesWithModules(
+              baseForm.optionalRoles,
+              wizardRes.data.enabledModules || []
+            ),
+          });
         }
 
         if (!cancelled) {
@@ -98,14 +126,64 @@ export function useSetupWizardStep7() {
 
   const optionalRolesOnCount = form.optionalRoles.length;
 
-  const displayPermissionMatrix = useMemo(
-    () =>
-      generatePermissionMatrix(
-        form.optionalRoles,
-        form.permissionSetupStyle
-      ),
-    [form.optionalRoles, form.permissionSetupStyle]
-  );
+  useEffect(() => {
+    const generatedMatrix = generatePermissionMatrix(
+      form.optionalRoles,
+      form.permissionSetupStyle
+    );
+
+    setPermissionMatrix((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) {
+        if (
+          form.permissionSetupStyle === "custom" &&
+          Array.isArray(customPermissionMatrix) &&
+          customPermissionMatrix.length > 0
+        ) {
+          const previousByRole = new Map(
+            customPermissionMatrix.map((row) => [row.role, row])
+          );
+          return generatedMatrix.map((row) => {
+            const previousRow = previousByRole.get(row.role);
+            if (!previousRow) {
+              return row;
+            }
+            return {
+              ...row,
+              academic: previousRow.academic ?? row.academic,
+              fees: previousRow.fees ?? row.fees,
+              setup: previousRow.setup ?? row.setup,
+              portal: previousRow.portal ?? row.portal,
+            };
+          });
+        }
+        return generatedMatrix;
+      }
+
+      if (form.permissionSetupStyle !== "custom") {
+        return generatedMatrix;
+      }
+
+      // Preserve user edits when custom mode is active.
+      const sourceMatrix =
+        Array.isArray(customPermissionMatrix) && customPermissionMatrix.length > 0
+          ? customPermissionMatrix
+          : prev;
+      const previousByRole = new Map(sourceMatrix.map((row) => [row.role, row]));
+      return generatedMatrix.map((row) => {
+        const previousRow = previousByRole.get(row.role);
+        if (!previousRow) {
+          return row;
+        }
+        return {
+          ...row,
+          academic: previousRow.academic ?? row.academic,
+          fees: previousRow.fees ?? row.fees,
+          setup: previousRow.setup ?? row.setup,
+          portal: previousRow.portal ?? row.portal,
+        };
+      });
+    });
+  }, [form.optionalRoles, form.permissionSetupStyle, customPermissionMatrix]);
 
   const recommendationText = useMemo(
     () => getRecommendationText(form.permissionSetupStyle),
@@ -135,8 +213,27 @@ export function useSetupWizardStep7() {
     });
   }, []);
 
+  const updatePermissionCell = useCallback(
+    (role, column, value) => {
+      if (form.permissionSetupStyle !== "custom") {
+        return;
+      }
+      setPermissionMatrix((prev) => {
+        const next = prev.map((row) =>
+          row.role === role ? { ...row, [column]: value } : row
+        );
+        setCustomPermissionMatrix(next);
+        return next;
+      });
+    },
+    [form.permissionSetupStyle]
+  );
+
   const toggleOptionalRole = useCallback(
     async (roleKey, enabled) => {
+      if (moduleDrivenRoleKeys.includes(roleKey)) {
+        return;
+      }
       setForm((prev) => {
         const next = enabled
           ? [...new Set([...prev.optionalRoles, roleKey])]
@@ -159,7 +256,7 @@ export function useSetupWizardStep7() {
         console.error("Role toggle sync failed:", err);
       }
     },
-    []
+    [moduleDrivenRoleKeys]
   );
 
   const removeOptionalRole = useCallback(async (roleKey) => {
@@ -201,11 +298,12 @@ export function useSetupWizardStep7() {
       staffCategories: form.staffCategories,
       departmentSetup: form.departmentSetup,
       approvalWorkflow: form.approvalWorkflow,
+      permissionMatrix,
       currentStep: advancing ? STEP_8_NUMBER : STEP_7_NUMBER,
       progressPercentage: advancing ? STEP_8_PROGRESS : STEP_7_PROGRESS,
       completedSteps: advancing ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6],
     }),
-    [form]
+    [form, permissionMatrix]
   );
 
   const persistStep = useCallback(
@@ -233,6 +331,9 @@ export function useSetupWizardStep7() {
         }
         if (res.data?.permissionMatrix) {
           setPermissionMatrix(res.data.permissionMatrix);
+          if (form.permissionSetupStyle === "custom") {
+            setCustomPermissionMatrix(res.data.permissionMatrix);
+          }
         }
         setToast(advancing ? "Progress saved successfully" : "Draft saved");
         return true;
@@ -267,6 +368,13 @@ export function useSetupWizardStep7() {
     }
   }, [persistStep, navigate]);
 
+  const handleSavePermissions = useCallback(async () => {
+    const ok = await persistStep({ advancing: false, draft: true });
+    if (ok) {
+      setToast("Permissions saved successfully.");
+    }
+  }, [persistStep]);
+
   return {
     form,
     errors,
@@ -274,16 +382,20 @@ export function useSetupWizardStep7() {
     saving,
     toast,
     toastBannerClassName,
-    permissionMatrix: displayPermissionMatrix,
+    permissionMatrix,
     coreRoleCount: CORE_ROLE_COUNT,
     optionalRolesOnCount,
     recommendationText,
     smartCheckMessages,
     dependencyStatus,
+    selectedSetupType,
+    moduleDrivenRoleKeys,
     updateField,
+    updatePermissionCell,
     toggleOptionalRole,
     removeOptionalRole,
     toggleCategory,
+    handleSavePermissions,
     handleSaveContinue,
     handleBack,
     handleSaveExit,

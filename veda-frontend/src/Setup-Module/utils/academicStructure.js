@@ -72,9 +72,13 @@ export function getSmartCheckMessages(form) {
 
 export function mapWizardDataToAcademicForm(data) {
   if (!data) return null;
+  const normalizedAcademicYear = String(data.academicYear || "").replace(
+    /[–—]/g,
+    "-"
+  );
 
   return {
-    academicYear: data.academicYear || "",
+    academicYear: normalizedAcademicYear,
     academicYearPattern: data.academicYearPattern || "apr_mar",
     academicYearStart: data.academicYearStart || "",
     academicYearEnd: data.academicYearEnd || "",

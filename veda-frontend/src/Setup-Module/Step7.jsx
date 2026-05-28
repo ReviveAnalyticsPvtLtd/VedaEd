@@ -6,6 +6,7 @@ import RolesHrFoundationForm from "./components/RolesHrFoundationForm";
 import RolesHrFoundationSidebar from "./components/RolesHrFoundationSidebar";
 import { useSetupWizardStep7 } from "./hooks/useSetupWizardStep7";
 import {
+  SETUP_TYPES,
   TOTAL_STEPS,
   STEP_7_NUMBER,
   STEP_7_PROGRESS,
@@ -25,9 +26,13 @@ const Step7 = () => {
     recommendationText,
     smartCheckMessages,
     dependencyStatus,
+    selectedSetupType,
+    moduleDrivenRoleKeys,
     updateField,
+    updatePermissionCell,
     toggleOptionalRole,
     toggleCategory,
+    handleSavePermissions,
     handleSaveContinue,
     handleBack,
     handleSaveExit,
@@ -65,9 +70,14 @@ const Step7 = () => {
           form={form}
           errors={errors}
           permissionMatrix={permissionMatrix}
+          moduleDrivenRoleKeys={moduleDrivenRoleKeys}
+          showBasicHrFoundation={selectedSetupType === SETUP_TYPES.ADVANCED}
           onFieldChange={updateField}
+          onPermissionCellChange={updatePermissionCell}
           onToggleOptionalRole={toggleOptionalRole}
           onToggleCategory={toggleCategory}
+          onSavePermissions={handleSavePermissions}
+          saving={saving}
         />
         <RolesHrFoundationSidebar
           coreRoleCount={coreRoleCount}

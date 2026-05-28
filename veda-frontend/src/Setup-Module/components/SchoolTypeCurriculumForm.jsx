@@ -29,7 +29,10 @@ const SchoolTypeCurriculumForm = ({
     () => getBoardOptionsForCountry(form.country),
     [form.country]
   );
-  const gradeOptions = useMemo(() => getGradeSelectOptions(), []);
+  const gradeOptions = useMemo(
+    () => getGradeSelectOptions(form.institutionType),
+    [form.institutionType]
+  );
 
   return (
     <div className="space-y-6">

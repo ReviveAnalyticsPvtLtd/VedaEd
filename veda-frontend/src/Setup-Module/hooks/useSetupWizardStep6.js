@@ -6,6 +6,7 @@ import {
 } from "../../services/setupWizardAPI";
 import {
   DEFAULT_ACADEMIC_FORM,
+  SUBJECT_FRAMEWORK_OPTIONS,
   STREAM_OPTIONS,
 } from "../constants/academicStructure";
 import {
@@ -27,15 +28,49 @@ import {
 } from "../utils/academicStructure";
 import { isValidGradeRange } from "../recommendation/gradeUtils";
 
+const ACADEMIC_YEAR_REGEX = /^(\d{4})-(\d{4})$/;
+
+function normalizeAcademicYearInput(value) {
+  return String(value || "")
+    .replace(/[^\d-]/g, "")
+    .slice(0, 9);
+}
+
+function isValidAcademicYearRange(academicYear) {
+  const currentYear = new Date().getFullYear();
+  const match = String(academicYear || "").match(ACADEMIC_YEAR_REGEX);
+  if (!match) {
+    return "Academic year must be in YYYY-YYYY format (e.g., 2026-2027)";
+  }
+
+  const startYear = Number(match[1]);
+  const endYear = Number(match[2]);
+  if (endYear !== startYear + 1) {
+    return "Academic year must be continuous (e.g., 2026-2027)";
+  }
+
+  if (startYear < currentYear) {
+    return `Academic year must start from ${currentYear} or later`;
+  }
+
+  return "";
+}
+
+function academicYearNeedsReset(academicYear) {
+  return Boolean(isValidAcademicYearRange(academicYear));
+}
+
 function mergeFormWithDefaults(saved, step4Grades) {
   const base = { ...DEFAULT_ACADEMIC_FORM };
   const mapped = mapWizardDataToAcademicForm(saved) || {};
+  const resolvedGradeFrom = step4Grades?.gradeFrom || mapped.gradeFrom || base.gradeFrom;
+  const resolvedGradeTo = step4Grades?.gradeTo || mapped.gradeTo || base.gradeTo;
 
   const merged = {
     ...base,
     ...mapped,
-    gradeFrom: mapped.gradeFrom || step4Grades?.gradeFrom || base.gradeFrom,
-    gradeTo: mapped.gradeTo || step4Grades?.gradeTo || base.gradeTo,
+    gradeFrom: resolvedGradeFrom,
+    gradeTo: resolvedGradeTo,
   };
 
   if (!merged.academicYear && merged.academicYearStart) {
@@ -49,6 +84,20 @@ function mergeFormWithDefaults(saved, step4Grades) {
     merged.streams = DEFAULT_ACADEMIC_FORM.streams;
   }
 
+  if (academicYearNeedsReset(merged.academicYear)) {
+    merged.academicYear = base.academicYear;
+    merged.academicYearPattern = base.academicYearPattern;
+    merged.academicYearStart = base.academicYearStart;
+    merged.academicYearEnd = base.academicYearEnd;
+  }
+
+  const allowedSubjectFrameworks = new Set(
+    SUBJECT_FRAMEWORK_OPTIONS.map((option) => option.key)
+  );
+  if (!allowedSubjectFrameworks.has(merged.subjectFramework)) {
+    merged.subjectFramework = base.subjectFramework;
+  }
+
   return merged;
 }
 
@@ -56,7 +105,12 @@ function validateForm(form) {
   const errors = {};
 
   if (!form.academicYear?.trim()) {
-    errors.academicYear = "Academic year name is required";
+    errors.academicYear = "Academic year is required";
+  } else {
+    const academicYearError = isValidAcademicYearRange(form.academicYear);
+    if (academicYearError) {
+      errors.academicYear = academicYearError;
+    }
   }
 
   if (!form.gradeFrom?.trim()) {
@@ -91,6 +145,10 @@ function validateForm(form) {
 export function useSetupWizardStep6() {
   const navigate = useNavigate();
   const [form, setForm] = useState(DEFAULT_ACADEMIC_FORM);
+  const [lockedGradeRange, setLockedGradeRange] = useState({
+    gradeFrom: DEFAULT_ACADEMIC_FORM.gradeFrom,
+    gradeTo: DEFAULT_ACADEMIC_FORM.gradeTo,
+  });
   const [curriculumBoard, setCurriculumBoard] = useState("");
   const [institutionType, setInstitutionType] = useState("");
   const [errors, setErrors] = useState({});
@@ -105,12 +163,17 @@ export function useSetupWizardStep6() {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
           const data = res.data;
+          const step4Grades = {
+            gradeFrom: data.gradeFrom,
+            gradeTo: data.gradeTo,
+          };
           setForm(
-            mergeFormWithDefaults(data, {
-              gradeFrom: data.gradeFrom,
-              gradeTo: data.gradeTo,
-            })
+            mergeFormWithDefaults(data, step4Grades)
           );
+          setLockedGradeRange((prev) => ({
+            gradeFrom: step4Grades.gradeFrom || prev.gradeFrom,
+            gradeTo: step4Grades.gradeTo || prev.gradeTo,
+          }));
           setCurriculumBoard(data.curriculumBoard || "");
           setInstitutionType(data.institutionType || "");
         }
@@ -158,8 +221,12 @@ export function useSetupWizardStep6() {
   }, [curriculumBoard]);
 
   const updateField = useCallback((name, value) => {
+    if (name === "gradeFrom" || name === "gradeTo") return;
     const numericFields = ["expectedStudents", "maxStudentsPerSection"];
-    const nextValue = numericFields.includes(name) ? Number(value) : value;
+    let nextValue = numericFields.includes(name) ? Number(value) : value;
+    if (name === "academicYear") {
+      nextValue = normalizeAcademicYearInput(value);
+    }
     setForm((prev) => ({ ...prev, [name]: nextValue }));
     setErrors((prev) => {
       const next = { ...prev };
@@ -202,8 +269,8 @@ export function useSetupWizardStep6() {
       academicYearStart: form.academicYearStart,
       academicYearEnd: form.academicYearEnd,
       termStructure: form.termStructure,
-      gradeFrom: form.gradeFrom,
-      gradeTo: form.gradeTo,
+      gradeFrom: lockedGradeRange.gradeFrom,
+      gradeTo: lockedGradeRange.gradeTo,
       expectedStudents: Number(form.expectedStudents),
       maxStudentsPerSection: Number(form.maxStudentsPerSection),
       sectionMode: form.sectionMode,
@@ -213,7 +280,7 @@ export function useSetupWizardStep6() {
       progressPercentage: advancing ? STEP_7_PROGRESS : STEP_6_PROGRESS,
       completedSteps: advancing ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5],
     }),
-    [form, showStreams]
+    [form, showStreams, lockedGradeRange]
   );
 
   const persistStep = useCallback(
@@ -288,6 +355,7 @@ export function useSetupWizardStep6() {
     estimatedSections,
     showStreams,
     gradeRangeLabel,
+    lockedGradeRange,
     recommendationText,
     dependencyStatus,
     smartCheckMessages,

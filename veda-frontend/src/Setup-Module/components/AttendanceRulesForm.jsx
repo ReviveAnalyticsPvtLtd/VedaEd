@@ -30,6 +30,7 @@ const AttendanceRulesForm = ({
   onToggleLeaveType,
   onTogglePermission,
   onToggleNotification,
+  showLeaveApprovalRules = true,
 }) => {
   return (
     <div className="space-y-6">
@@ -142,75 +143,6 @@ const AttendanceRulesForm = ({
       </SetupFormSection>
 
       <SetupFormSection
-        title="Late, Half-day & Absent Rules"
-        subtitle="Set thresholds used by reports, parent alerts, and attendance analytics."
-        badge="Recommended"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Late Arrival After
-            </label>
-            <input
-              type="time"
-              className={inputClass}
-              value={form.lateArrivalAfter}
-              onChange={(e) => onFieldChange("lateArrivalAfter", e.target.value)}
-            />
-            <p className="mt-1 text-xs text-setup-muted">
-              Students arriving after this time are marked late.
-            </p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Auto Absent After
-            </label>
-            <input
-              type="time"
-              className={inputClass}
-              value={form.autoAbsentAfter}
-              onChange={(e) => onFieldChange("autoAbsentAfter", e.target.value)}
-            />
-            <p className="mt-1 text-xs text-setup-muted">
-              If not marked present by this time, mark absent automatically.
-            </p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Minimum Attendance %
-            </label>
-            <input
-              type="number"
-              min={50}
-              max={100}
-              className={inputClass}
-              value={form.minimumAttendance}
-              onChange={(e) =>
-                onFieldChange("minimumAttendance", e.target.value)
-              }
-            />
-            {fieldError(errors, "minimumAttendance")}
-          </div>
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Grace Minutes
-            </label>
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={form.graceMinutes}
-              onChange={(e) => onFieldChange("graceMinutes", e.target.value)}
-            />
-            <p className="mt-1 text-xs text-setup-muted">
-              Optional buffer before late rule applies.
-            </p>
-            {fieldError(errors, "graceMinutes")}
-          </div>
-        </div>
-      </SetupFormSection>
-
-      <SetupFormSection
         title="Who Can Mark Attendance?"
         subtitle="Define responsibility and avoid unauthorized attendance changes."
         required
@@ -238,77 +170,79 @@ const AttendanceRulesForm = ({
         </div>
       </SetupFormSection>
 
-      <SetupFormSection
-        title="Leave & Approval Rules"
-        subtitle="Configure student and staff leave workflows."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Student Leave Approval
-            </label>
-            <select
-              className={selectClass}
-              value={form.leaveApprovalRules.studentLeaveApproval}
-              onChange={(e) =>
-                onFieldChange("leaveApprovalRules", {
-                  ...form.leaveApprovalRules,
-                  studentLeaveApproval: e.target.value,
-                })
-              }
-            >
-              {LEAVE_APPROVAL_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Staff Leave Approval
-            </label>
-            <select
-              className={selectClass}
-              value={form.leaveApprovalRules.staffLeaveApproval}
-              onChange={(e) =>
-                onFieldChange("leaveApprovalRules", {
-                  ...form.leaveApprovalRules,
-                  staffLeaveApproval: e.target.value,
-                })
-              }
-            >
-              {LEAVE_APPROVAL_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <p className="mb-3 mt-5 text-sm font-medium text-setup-heading">Leave Types</p>
-        <div className="flex flex-wrap gap-2">
-          {LEAVE_TYPES.map((type) => {
-            const active = form.leaveTypes.includes(type);
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => onToggleLeaveType(type)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  active
-                    ? "border-setup-primary bg-setup-primary text-white"
-                    : "border-setup-border bg-white text-setup-heading hover:border-blue-300"
-                }`}
+      {showLeaveApprovalRules ? (
+        <SetupFormSection
+          title="Leave & Approval Rules"
+          subtitle="Configure student and staff leave workflows."
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium text-setup-heading">
+                Student Leave Approval
+              </label>
+              <select
+                className={selectClass}
+                value={form.leaveApprovalRules.studentLeaveApproval}
+                onChange={(e) =>
+                  onFieldChange("leaveApprovalRules", {
+                    ...form.leaveApprovalRules,
+                    studentLeaveApproval: e.target.value,
+                  })
+                }
               >
-                {type}
-              </button>
-            );
-          })}
-        </div>
-        {fieldError(errors, "leaveTypes")}
-      </SetupFormSection>
+                {LEAVE_APPROVAL_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-setup-heading">
+                Staff Leave Approval
+              </label>
+              <select
+                className={selectClass}
+                value={form.leaveApprovalRules.staffLeaveApproval}
+                onChange={(e) =>
+                  onFieldChange("leaveApprovalRules", {
+                    ...form.leaveApprovalRules,
+                    staffLeaveApproval: e.target.value,
+                  })
+                }
+              >
+                {LEAVE_APPROVAL_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <p className="mb-3 mt-5 text-sm font-medium text-setup-heading">Leave Types</p>
+          <div className="flex flex-wrap gap-2">
+            {LEAVE_TYPES.map((type) => {
+              const active = form.leaveTypes.includes(type);
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => onToggleLeaveType(type)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "border-setup-primary bg-setup-primary text-white"
+                      : "border-setup-border bg-white text-setup-heading hover:border-blue-300"
+                  }`}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+          {fieldError(errors, "leaveTypes")}
+        </SetupFormSection>
+      ) : null}
 
       <SetupFormSection
         title="Parent Notification Rules"

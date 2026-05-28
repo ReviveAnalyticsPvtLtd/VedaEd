@@ -11,14 +11,28 @@ import {
 } from "../constants/rolesHrFoundation";
 import { formatIdPreview, permissionChipClass } from "../utils/rolesHrFoundation";
 
+const PERMISSION_OPTIONS = {
+  academic: ["No", "View", "Manage"],
+  fees: ["No", "View", "Pay", "Manage"],
+  setup: ["No", "Limited", "Custom", "HR", "Manage"],
+  portal: ["No", "View", "Class", "Own Child", "Finance", "Staff"],
+};
+
 const RolesHrFoundationForm = ({
   form,
   errors,
   permissionMatrix,
+  moduleDrivenRoleKeys = [],
+  showBasicHrFoundation = true,
   onFieldChange,
+  onPermissionCellChange,
   onToggleOptionalRole,
   onToggleCategory,
+  onSavePermissions,
+  saving = false,
 }) => {
+  const isCustomPermissionMode = form.permissionSetupStyle === "custom";
+
   return (
     <div className="space-y-6">
       <SetupStepHeader
@@ -47,14 +61,19 @@ const RolesHrFoundationForm = ({
               locked
             />
           ))}
-          {OPTIONAL_ROLES.map((role) => (
+          {OPTIONAL_ROLES.map((role) => {
+            const isModuleDrivenRole = moduleDrivenRoleKeys.includes(role.key);
+            return (
             <RoleCard
               key={role.key}
               role={role}
               enabled={form.optionalRoles.includes(role.key)}
+              locked={isModuleDrivenRole}
+              autoLocked={isModuleDrivenRole}
               onToggle={onToggleOptionalRole}
             />
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -91,6 +110,7 @@ const RolesHrFoundationForm = ({
         </div>
       </section>
 
+      {showBasicHrFoundation ? (
       <section className="rounded-xl border border-setup-border bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-bold text-setup-heading">
@@ -209,11 +229,14 @@ const RolesHrFoundationForm = ({
           </div>
         </div>
       </section>
+      ) : null}
 
       <section className="rounded-xl border border-setup-border bg-white p-5 shadow-sm sm:p-6">
         <h3 className="text-base font-bold text-setup-heading">Permission Preview</h3>
         <p className="mt-1 text-sm text-setup-muted">
-          Initial matrix generated from recommended permissions.
+          {isCustomPermissionMode
+            ? "Customize role permissions for each module."
+            : "Initial matrix generated from recommended permissions."}
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[520px] border-separate border-spacing-y-2 text-sm">
@@ -242,11 +265,27 @@ const RolesHrFoundationForm = ({
                         idx === 3 ? "rounded-r-lg" : ""
                       }`}
                     >
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${permissionChipClass(row[col])}`}
-                      >
-                        {row[col]}
-                      </span>
+                      {isCustomPermissionMode ? (
+                        <select
+                          value={row[col]}
+                          onChange={(e) =>
+                            onPermissionCellChange(row.role, col, e.target.value)
+                          }
+                          className="w-full rounded-md border border-setup-border bg-white px-2 py-1 text-xs font-semibold text-setup-heading focus:outline-none focus:ring-2 focus:ring-setup-primary"
+                        >
+                          {PERMISSION_OPTIONS[col].map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${permissionChipClass(row[col])}`}
+                        >
+                          {row[col]}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -254,6 +293,18 @@ const RolesHrFoundationForm = ({
             </tbody>
           </table>
         </div>
+        {isCustomPermissionMode ? (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={onSavePermissions}
+              disabled={saving}
+              className="rounded-lg bg-setup-primary px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save Permissions"}
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

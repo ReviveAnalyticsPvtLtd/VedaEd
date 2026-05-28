@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import SetupStepHeader from "./SetupStepHeader";
 import SetupFormSection from "./SetupFormSection";
 import SetupFormField from "./SetupFormField";
@@ -8,7 +8,6 @@ import {
   SUBJECT_FRAMEWORK_OPTIONS,
   TERM_OPTIONS,
 } from "../constants/academicStructure";
-import { getGradeSelectOptions } from "../utils/curriculumRecommendations";
 
 const chipBase =
   "rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200";
@@ -22,6 +21,7 @@ const AcademicStructureForm = ({
   estimatedSections,
   showStreams,
   streamOptions,
+  lockedGradeRange,
   onFieldChange,
   onPatternChange,
   onTermSelect,
@@ -29,11 +29,6 @@ const AcademicStructureForm = ({
   onSubjectFrameworkSelect,
   onToggleStream,
 }) => {
-  const gradeOptions = useMemo(
-    () => getGradeSelectOptions().map((g) => g.value),
-    []
-  );
-
   return (
     <div className="space-y-6">
       <SetupStepHeader
@@ -49,10 +44,11 @@ const AcademicStructureForm = ({
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SetupFormField
-            label="Academic Year Name"
+            label="Academic Year"
             name="academicYear"
             value={form.academicYear}
             onChange={(e) => onFieldChange("academicYear", e.target.value)}
+            placeholder="YYYY-YYYY (e.g., 2026-2027)"
             error={errors.academicYear}
             required
           />
@@ -123,21 +119,21 @@ const AcademicStructureForm = ({
           <SetupFormField
             label="Grade From"
             name="gradeFrom"
-            as="select"
-            value={form.gradeFrom}
-            onChange={(e) => onFieldChange("gradeFrom", e.target.value)}
-            options={gradeOptions}
+            value={lockedGradeRange?.gradeFrom || form.gradeFrom}
+            onChange={() => {}}
             error={errors.gradeFrom || errors.gradeRange}
+            disabled
+            hint="Locked from Step 4 (School Type & Curriculum)."
             required
           />
           <SetupFormField
             label="Grade To"
             name="gradeTo"
-            as="select"
-            value={form.gradeTo}
-            onChange={(e) => onFieldChange("gradeTo", e.target.value)}
-            options={gradeOptions}
+            value={lockedGradeRange?.gradeTo || form.gradeTo}
+            onChange={() => {}}
             error={errors.gradeTo}
+            disabled
+            hint="Locked from Step 4 (School Type & Curriculum)."
             required
           />
           <SetupFormField

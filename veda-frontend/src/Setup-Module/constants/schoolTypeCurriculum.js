@@ -96,13 +96,13 @@ export const DEFAULT_SCHOOL_TYPE_FORM = {
   institutionType: INSTITUTION_TYPES.K12,
   country: "",
   curriculumBoard: "",
-  gradeFrom: "Grade 1",
+  gradeFrom: "Nursery",
   gradeTo: "Grade 12",
   languagePreference: LANGUAGE_PREFERENCES.ENGLISH,
 };
 
 export const INSTITUTION_DEFAULT_GRADES = {
   [INSTITUTION_TYPES.PRESCHOOL]: { from: "Nursery", to: "UKG" },
-  [INSTITUTION_TYPES.K12]: { from: "Grade 1", to: "Grade 12" },
+  [INSTITUTION_TYPES.K12]: { from: "Nursery", to: "Grade 12" },
   [INSTITUTION_TYPES.HIGHER_SECONDARY]: { from: "Grade 11", to: "Grade 12" },
 };
