@@ -40,6 +40,7 @@ const {
   removeGradeRow,
   removeWeightageRow,
 } = require("./examination/examinationGradebookService");
+const { lookupPostalCode } = require("../../services/postalCodeLookup");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -2432,6 +2433,44 @@ exports.getSetupReview = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to load setup review",
+      error: error.message,
+    });
+  }
+};
+
+/** GET /api/setup-wizard/postal-lookup?country=IN&code=462001 */
+exports.lookupPostalCode = async (req, res) => {
+  try {
+    const country = String(req.query.country || "").trim().toUpperCase();
+    const code = String(req.query.code || "").trim();
+
+    if (!country || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "country and code query parameters are required",
+      });
+    }
+
+    const result = await lookupPostalCode(country, code);
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "No address found for this postal code",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        state: result.state || "",
+        city: result.city || "",
+      },
+    });
+  } catch (error) {
+    console.error("lookupPostalCode error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Postal code lookup failed",
       error: error.message,
     });
   }

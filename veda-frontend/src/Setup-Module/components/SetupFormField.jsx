@@ -16,6 +16,9 @@ const SetupFormField = ({
   options = [],
   error,
   rows = 3,
+  inputMode,
+  maxLength,
+  onKeyDown,
 }) => {
   const fieldId = `setup-field-${name}`;
 
@@ -57,7 +60,10 @@ const SetupFormField = ({
           name={name}
           value={value}
           onChange={onChange}
+          onKeyDown={onKeyDown}
           placeholder={placeholder}
+          inputMode={inputMode}
+          maxLength={maxLength}
           className={inputClassName}
         />
       )}
