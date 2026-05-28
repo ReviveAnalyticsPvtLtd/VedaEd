@@ -29,8 +29,10 @@ const Step7 = () => {
     selectedSetupType,
     moduleDrivenRoleKeys,
     updateField,
+    updatePermissionCell,
     toggleOptionalRole,
     toggleCategory,
+    handleSavePermissions,
     handleSaveContinue,
     handleBack,
     handleSaveExit,
@@ -71,8 +73,11 @@ const Step7 = () => {
           moduleDrivenRoleKeys={moduleDrivenRoleKeys}
           showBasicHrFoundation={selectedSetupType === SETUP_TYPES.ADVANCED}
           onFieldChange={updateField}
+          onPermissionCellChange={updatePermissionCell}
           onToggleOptionalRole={toggleOptionalRole}
           onToggleCategory={toggleCategory}
+          onSavePermissions={handleSavePermissions}
+          saving={saving}
         />
         <RolesHrFoundationSidebar
           coreRoleCount={coreRoleCount}

@@ -1141,11 +1141,58 @@ exports.getRecommendation = async (req, res) => {
   }
 };
 
-const buildStep7PersistPayload = (sanitized, wizardDoc, progressMeta, completedSteps) => {
-  const permissionMatrix = generatePermissionMatrix(
+const mergePermissionMatrixByRole = (baseMatrix = [], sourceMatrix = []) => {
+  const sourceByRole = new Map(
+    (Array.isArray(sourceMatrix) ? sourceMatrix : [])
+      .filter((row) => row && typeof row.role === "string")
+      .map((row) => [row.role, row])
+  );
+
+  return (Array.isArray(baseMatrix) ? baseMatrix : []).map((row) => {
+    const sourceRow = sourceByRole.get(row.role);
+    if (!sourceRow) {
+      return row;
+    }
+    return {
+      ...row,
+      academic:
+        typeof sourceRow.academic === "string" && sourceRow.academic.trim()
+          ? sourceRow.academic.trim()
+          : row.academic,
+      fees:
+        typeof sourceRow.fees === "string" && sourceRow.fees.trim()
+          ? sourceRow.fees.trim()
+          : row.fees,
+      setup:
+        typeof sourceRow.setup === "string" && sourceRow.setup.trim()
+          ? sourceRow.setup.trim()
+          : row.setup,
+      portal:
+        typeof sourceRow.portal === "string" && sourceRow.portal.trim()
+          ? sourceRow.portal.trim()
+          : row.portal,
+    };
+  });
+};
+
+const buildStep7PersistPayload = (
+  sanitized,
+  wizardDoc,
+  progressMeta,
+  completedSteps,
+  reqBody = {}
+) => {
+  const generatedPermissionMatrix = generatePermissionMatrix(
     sanitized.optionalRoles,
     sanitized.permissionSetupStyle
   );
+  const permissionMatrix =
+    sanitized.permissionSetupStyle === "custom"
+      ? mergePermissionMatrixByRole(
+          generatedPermissionMatrix,
+          reqBody.permissionMatrix
+        )
+      : generatedPermissionMatrix;
   const dependencyStatus = computeDependencyStatus({
     ...wizardDoc,
     approvalWorkflow: sanitized.approvalWorkflow,
@@ -1262,7 +1309,8 @@ exports.saveStep7RolesHrFoundation = async (req, res) => {
       sanitized,
       existing,
       progressMeta,
-      completed
+      completed,
+      req.body
     );
 
     const doc = await upsertSetupDoc(payload);
@@ -1453,10 +1501,17 @@ exports.updateStep7RoleConfiguration = async (req, res) => {
       optionalRoles = optionalRoles.filter((r) => r !== roleKey);
     }
 
-    const permissionMatrix = generatePermissionMatrix(
+    const generatedPermissionMatrix = generatePermissionMatrix(
       optionalRoles,
       doc.permissionSetupStyle
     );
+    const permissionMatrix =
+      doc.permissionSetupStyle === "custom"
+        ? mergePermissionMatrixByRole(
+            generatedPermissionMatrix,
+            doc.permissionMatrix
+          )
+        : generatedPermissionMatrix;
 
     const updated = await SetupWizard.findByIdAndUpdate(
       doc._id,
@@ -1522,10 +1577,17 @@ exports.deleteStep7OptionalRole = async (req, res) => {
       (r) => r !== roleKey
     );
 
-    const permissionMatrix = generatePermissionMatrix(
+    const generatedPermissionMatrix = generatePermissionMatrix(
       optionalRoles,
       doc.permissionSetupStyle
     );
+    const permissionMatrix =
+      doc.permissionSetupStyle === "custom"
+        ? mergePermissionMatrixByRole(
+            generatedPermissionMatrix,
+            doc.permissionMatrix
+          )
+        : generatedPermissionMatrix;
 
     const updated = await SetupWizard.findByIdAndUpdate(
       doc._id,
