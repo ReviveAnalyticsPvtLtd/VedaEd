@@ -1,4 +1,4 @@
-import { Country, State } from "country-state-city";
+import { City, Country, State } from "country-state-city";
 import ct from "countries-and-timezones";
 
 /** Display labels — matches legacy saved values in setup wizard */
@@ -71,6 +71,16 @@ const COUNTRY_NAME_ALIASES = {
   UAE: "United Arab Emirates",
 };
 
+/** Postal API / legacy spellings → country-state-city library names (India) */
+const STATE_NAME_ALIASES = {
+  Orissa: "Odisha",
+  Pondicherry: "Puducherry",
+  Uttaranchal: "Uttarakhand",
+  Chattisgarh: "Chhattisgarh",
+  "NCT of Delhi": "Delhi",
+  "Andaman and Nicobar Islands": "Andaman and Nicobar Islands",
+};
+
 let countriesCache = null;
 
 export function isoToFlagEmoji(isoCode) {
@@ -136,6 +146,56 @@ export function getStatesForCountry(isoCode) {
       isoCode: s.isoCode,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function findStateInCountry(isoCode, stateName) {
+  if (!isoCode || !stateName) return null;
+  const needle = String(stateName).trim().toLowerCase();
+  if (!needle) return null;
+
+  return (
+    State.getStatesOfCountry(isoCode).find(
+      (s) =>
+        s.name.toLowerCase() === needle ||
+        s.isoCode.toLowerCase() === needle
+    ) || null
+  );
+}
+
+export function getCitiesForState(countryIso, stateName) {
+  const state = findStateInCountry(countryIso, stateName);
+  if (!state) return [];
+
+  return City.getCitiesOfState(countryIso, state.isoCode)
+    .map((c) => ({
+      value: c.name,
+      label: c.name,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Match API state string to a known state option value */
+export function resolveStateName(isoCode, rawState, stateOptions = []) {
+  const raw = String(rawState || "").trim();
+  if (!raw) return "";
+
+  const fromList = stateOptions.find(
+    (o) => o.value.toLowerCase() === raw.toLowerCase()
+  );
+  if (fromList) return fromList.value;
+
+  const alias = STATE_NAME_ALIASES[raw] || raw;
+  const matched = findStateInCountry(isoCode, alias);
+  if (matched) return matched.name;
+
+  if (alias !== raw) {
+    const fromAliasList = stateOptions.find(
+      (o) => o.value.toLowerCase() === alias.toLowerCase()
+    );
+    if (fromAliasList) return fromAliasList.value;
+  }
+
+  return raw;
 }
 
 export function getTimezonesForCountry(isoCode) {

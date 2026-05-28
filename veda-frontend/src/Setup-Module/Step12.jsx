@@ -93,9 +93,9 @@ const Step12 = () => {
     );
   }
 
-  const readiness = reviewData?.readinessScore ?? 94;
+  const readiness = reviewData?.readinessScore ?? 0;
   const sectionsComplete = reviewData?.sectionsComplete ?? 0;
-  const totalSections = reviewData?.totalSections ?? 12;
+  const totalSections = reviewData?.totalSections ?? 0;
   const warnings = reviewData?.warnings ?? [];
   const sections = reviewData?.sections ?? [];
 

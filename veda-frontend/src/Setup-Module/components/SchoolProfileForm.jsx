@@ -3,7 +3,10 @@ import SetupStepHeader from "./SetupStepHeader";
 import SetupFormSection from "./SetupFormSection";
 import SetupFormField from "./SetupFormField";
 import SetupSearchableSelect, { formatCountryOption } from "./SetupSearchableSelect";
+import SetupPhoneField from "./SetupPhoneField";
 import LogoShapePicker from "./LogoShapePicker";
+import { blockNonDigitNumberKeys } from "../utils/inputFilters";
+import { getPhoneLengthRule } from "../services/phoneValidation";
 import SchoolLogoUpload from "./SchoolLogoUpload";
 import ThemeColorPicker from "./ThemeColorPicker";
 import { resolveSchoolLogoUrl } from "../utils/schoolLogoUrl";
@@ -12,6 +15,16 @@ const SchoolProfileForm = ({
   form,
   errors,
   onChange,
+  onEstablishedYearChange,
+  onStateChange,
+  onPostalCodeChange,
+  phoneDial,
+  phoneNational,
+  phoneOptions,
+  phoneMaxLength,
+  onPhoneDialChange,
+  onPhoneNationalChange,
+  onEmergencyContactChange,
   onCountryChange,
   onLogoSelect,
   onLogoRemove,
@@ -33,10 +46,22 @@ const SchoolProfileForm = ({
     countryCode,
     countryOptions,
     stateOptions,
+    cityOptions,
     timezoneOptions,
     currencyOptions,
+    postalLookupLoading,
     hasStates,
+    hasCities,
   } = localization;
+
+  const phoneHint = countryCode
+    ? (() => {
+        const { min, max } = getPhoneLengthRule(countryCode);
+        return min === max
+          ? `Enter ${min} digits for the selected country code.`
+          : `Enter ${min}–${max} digits for the selected country code.`;
+      })()
+    : "Select a country code, then enter your phone number.";
 
   return (
     <div className="min-w-0 space-y-6">
@@ -75,9 +100,12 @@ const SchoolProfileForm = ({
             label="Established Year"
             name="establishedYear"
             value={form.establishedYear}
-            onChange={handleChange}
+            onChange={(e) => onEstablishedYearChange(e.target.value)}
+            onKeyDown={blockNonDigitNumberKeys}
             placeholder="e.g. 1995"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
             error={errors.establishedYear}
           />
           <SetupFormField
@@ -159,7 +187,7 @@ const SchoolProfileForm = ({
               label="State / Province"
               name="state"
               value={form.state}
-              onChange={(val) => onChange("state", val)}
+              onChange={onStateChange}
               options={stateOptions}
               placeholder="Select State / Province"
               isLoading={statesLoading}
@@ -187,19 +215,57 @@ const SchoolProfileForm = ({
             />
           )}
 
-          <SetupFormField
-            label="City"
-            name="city"
-            value={form.city}
-            onChange={handleChange}
-            placeholder="e.g. Bhopal"
-          />
+          {hasCities ? (
+            <SetupSearchableSelect
+              label="City"
+              name="city"
+              value={form.city}
+              onChange={(val) => onChange("city", val)}
+              options={cityOptions}
+              placeholder={
+                form.state ? "Select or type city" : "Select state first"
+              }
+              isDisabled={!form.state}
+              isCreatable
+              creatableHint="Pick from the list or type a custom city name."
+              noOptionsMessage={
+                form.state ? "Type to add a city" : "Select state first"
+              }
+            />
+          ) : (
+            <SetupFormField
+              label="City"
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              placeholder={
+                form.state
+                  ? "Enter city name"
+                  : countryCode
+                    ? "Select or enter state first"
+                    : "Select country first"
+              }
+              hint={
+                form.state
+                  ? "No predefined cities for this state — enter manually."
+                  : undefined
+              }
+            />
+          )}
           <SetupFormField
             label="Postal Code"
             name="postalCode"
             value={form.postalCode}
-            onChange={handleChange}
-            placeholder="e.g. 462001"
+            onChange={(e) => onPostalCodeChange(e.target.value)}
+            placeholder={countryCode === "IN" ? "e.g. 462001" : "e.g. 10001"}
+            hint={
+              postalLookupLoading
+                ? "Looking up address..."
+                : countryCode
+                  ? "Enter postal code to auto-fill state and city."
+                  : "Select country first."
+            }
+            inputMode="numeric"
           />
 
           <SetupSearchableSelect
@@ -253,12 +319,16 @@ const SchoolProfileForm = ({
             type="email"
             error={errors.officialEmail}
           />
-          <SetupFormField
+          <SetupPhoneField
             label="Phone Number"
-            name="phoneNumber"
-            value={form.phoneNumber}
-            onChange={handleChange}
-            placeholder="+91 98765 43210"
+            dialCode={phoneDial}
+            nationalNumber={phoneNational}
+            onDialChange={onPhoneDialChange}
+            onNationalChange={onPhoneNationalChange}
+            dialOptions={phoneOptions}
+            maxLength={phoneMaxLength}
+            placeholder="9876543210"
+            hint={phoneHint}
             error={errors.phoneNumber}
           />
           <SetupFormField
@@ -274,8 +344,11 @@ const SchoolProfileForm = ({
             label="Emergency Contact"
             name="emergencyContact"
             value={form.emergencyContact}
-            onChange={handleChange}
+            onChange={(e) => onEmergencyContactChange(e.target.value)}
             placeholder="Emergency number"
+            type="tel"
+            inputMode="numeric"
+            maxLength={15}
           />
         </div>
       </SetupFormSection>

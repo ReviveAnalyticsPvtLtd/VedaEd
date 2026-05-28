@@ -25,7 +25,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.2.2",
     "multer": "^2.0.2",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^8.0.7",
+    "postalcodes-india": "^1.1.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
