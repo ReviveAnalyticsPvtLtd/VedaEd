@@ -8,6 +8,7 @@ import {
 } from "../../services/setupWizardAPI";
 import { DEFAULT_STEP8_FORM } from "../constants/attendanceRules";
 import {
+  SETUP_TYPES,
   STEP_7_NUMBER,
   STEP_8_NUMBER,
   STEP_8_PROGRESS,
@@ -38,6 +39,7 @@ export function useSetupWizardStep8() {
   const [recommendationText, setRecommendationText] = useState("");
   const [dependencyStatus, setDependencyStatus] = useState([]);
   const [smartCheckMessages, setSmartCheckMessages] = useState([]);
+  const [selectedSetupType, setSelectedSetupType] = useState(SETUP_TYPES.QUICK);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +49,10 @@ export function useSetupWizardStep8() {
           getSetupWizard(),
           getAttendanceRules(),
         ]);
+
+        if (!cancelled && wizardRes?.success && wizardRes?.data) {
+          setSelectedSetupType(wizardRes.data.selectedSetupType || SETUP_TYPES.QUICK);
+        }
 
         if (!cancelled && step8Res?.success && step8Res?.data) {
           const d = step8Res.data;
@@ -308,6 +314,7 @@ export function useSetupWizardStep8() {
     recommendationText: displayRecommendation,
     dependencyStatus: displayDependencyStatus,
     smartCheckMessages: displaySmartChecks,
+    showLeaveApprovalRules: selectedSetupType === SETUP_TYPES.ADVANCED,
     totalSteps: TOTAL_STEPS,
     updateField,
     toggleWorkingDay,

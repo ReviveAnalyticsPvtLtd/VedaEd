@@ -23,6 +23,7 @@ const Step8AttendanceRules = () => {
     recommendationText,
     dependencyStatus,
     smartCheckMessages,
+    showLeaveApprovalRules,
     updateField,
     toggleWorkingDay,
     toggleLeaveType,
@@ -69,6 +70,7 @@ const Step8AttendanceRules = () => {
           onToggleLeaveType={toggleLeaveType}
           onTogglePermission={togglePermission}
           onToggleNotification={toggleNotification}
+          showLeaveApprovalRules={showLeaveApprovalRules}
         />
         <AttendanceRulesSidebar
           summary={summary}

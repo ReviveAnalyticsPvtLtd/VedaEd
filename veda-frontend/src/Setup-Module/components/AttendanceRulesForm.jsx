@@ -30,6 +30,7 @@ const AttendanceRulesForm = ({
   onToggleLeaveType,
   onTogglePermission,
   onToggleNotification,
+  showLeaveApprovalRules = true,
 }) => {
   return (
     <div className="space-y-6">
@@ -169,77 +170,79 @@ const AttendanceRulesForm = ({
         </div>
       </SetupFormSection>
 
-      <SetupFormSection
-        title="Leave & Approval Rules"
-        subtitle="Configure student and staff leave workflows."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Student Leave Approval
-            </label>
-            <select
-              className={selectClass}
-              value={form.leaveApprovalRules.studentLeaveApproval}
-              onChange={(e) =>
-                onFieldChange("leaveApprovalRules", {
-                  ...form.leaveApprovalRules,
-                  studentLeaveApproval: e.target.value,
-                })
-              }
-            >
-              {LEAVE_APPROVAL_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-setup-heading">
-              Staff Leave Approval
-            </label>
-            <select
-              className={selectClass}
-              value={form.leaveApprovalRules.staffLeaveApproval}
-              onChange={(e) =>
-                onFieldChange("leaveApprovalRules", {
-                  ...form.leaveApprovalRules,
-                  staffLeaveApproval: e.target.value,
-                })
-              }
-            >
-              {LEAVE_APPROVAL_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <p className="mb-3 mt-5 text-sm font-medium text-setup-heading">Leave Types</p>
-        <div className="flex flex-wrap gap-2">
-          {LEAVE_TYPES.map((type) => {
-            const active = form.leaveTypes.includes(type);
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => onToggleLeaveType(type)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  active
-                    ? "border-setup-primary bg-setup-primary text-white"
-                    : "border-setup-border bg-white text-setup-heading hover:border-blue-300"
-                }`}
+      {showLeaveApprovalRules ? (
+        <SetupFormSection
+          title="Leave & Approval Rules"
+          subtitle="Configure student and staff leave workflows."
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium text-setup-heading">
+                Student Leave Approval
+              </label>
+              <select
+                className={selectClass}
+                value={form.leaveApprovalRules.studentLeaveApproval}
+                onChange={(e) =>
+                  onFieldChange("leaveApprovalRules", {
+                    ...form.leaveApprovalRules,
+                    studentLeaveApproval: e.target.value,
+                  })
+                }
               >
-                {type}
-              </button>
-            );
-          })}
-        </div>
-        {fieldError(errors, "leaveTypes")}
-      </SetupFormSection>
+                {LEAVE_APPROVAL_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-setup-heading">
+                Staff Leave Approval
+              </label>
+              <select
+                className={selectClass}
+                value={form.leaveApprovalRules.staffLeaveApproval}
+                onChange={(e) =>
+                  onFieldChange("leaveApprovalRules", {
+                    ...form.leaveApprovalRules,
+                    staffLeaveApproval: e.target.value,
+                  })
+                }
+              >
+                {LEAVE_APPROVAL_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <p className="mb-3 mt-5 text-sm font-medium text-setup-heading">Leave Types</p>
+          <div className="flex flex-wrap gap-2">
+            {LEAVE_TYPES.map((type) => {
+              const active = form.leaveTypes.includes(type);
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => onToggleLeaveType(type)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "border-setup-primary bg-setup-primary text-white"
+                      : "border-setup-border bg-white text-setup-heading hover:border-blue-300"
+                  }`}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+          {fieldError(errors, "leaveTypes")}
+        </SetupFormSection>
+      ) : null}
 
       <SetupFormSection
         title="Parent Notification Rules"
