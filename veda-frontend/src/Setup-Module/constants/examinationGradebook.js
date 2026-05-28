@@ -7,7 +7,7 @@ import {
   FiTarget,
 } from "react-icons/fi";
 
-export const STEP_9_TOTAL_STEPS = 10;
+export const STEP_9_TOTAL_STEPS = 13;
 export const STEP_9_NUMBER = 9;
 export const STEP_9_PROGRESS = 82;
 

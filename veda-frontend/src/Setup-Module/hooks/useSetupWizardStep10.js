@@ -85,7 +85,11 @@ export function useSetupWizardStep10() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
-          setForm(mapSavedToForm(res.data));
+          const completedSteps = res.data.completedSteps || [];
+          // Only prefill if step 10 was previously completed (resume flow)
+          if (completedSteps.includes(10)) {
+            setForm(mapSavedToForm(res.data));
+          }
         }
       } catch (err) {
         if (!cancelled) {

@@ -100,7 +100,13 @@ export function useSetupWizardStep3() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
-          setForm(mapSavedToForm(res.data));
+          const completedSteps = res.data.completedSteps || [];
+          // Only prefill if step 3 was previously completed (resume flow)
+          // Fresh start: completedSteps is empty or doesn't include step 3
+          if (completedSteps.includes(STEP_3_NUMBER)) {
+            setForm(mapSavedToForm(res.data));
+          }
+          // else: leave form as blank DEFAULT_SCHOOL_PROFILE_FORM
         }
       } catch (err) {
         if (!cancelled) {
