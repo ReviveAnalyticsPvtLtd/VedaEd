@@ -243,6 +243,8 @@ exports.getSetupWizard = async (req, res) => {
 /** POST /api/setup-wizard/initialize — create or reset setup session */
 exports.initializeSetup = async (req, res) => {
   try {
+    // Full reset payload — clears ALL data fields so a fresh start
+    // never shows data from a previous session
     const payload = {
       setupId: randomUUID(),
       currentStep: 1,
@@ -250,15 +252,176 @@ exports.initializeSetup = async (req, res) => {
       progressPercentage: 0,
       setupStatus: "draft",
       selectedSetupType: "quick",
+
+      // ── Step 2 ──
+      // organizationType and institutionType are unset (null) on fresh start
+      // handled via $unset below — not included in $set to avoid enum validation
+
+      // ── Step 3: School Profile ──
+      schoolName: "",
+      schoolCode: "",
+      establishedYear: "",
+      website: "",
+      schoolLogo: "",
+      logoFrameShape: "rounded-square",
+      primaryThemeColor: "#2563EB",
+      address: "",
+      country: "",
+      state: "",
+      city: "",
+      postalCode: "",
+      timezone: "",
+      currency: "",
+      officialEmail: "",
+      phoneNumber: "",
+      supportEmail: "",
+      emergencyContact: "",
+
+      // ── Step 4: School Type & Curriculum ──
+      // institutionType is unset via $unset below
+      curriculumCountry: "",
+      curriculumBoard: "",
+      gradeFrom: "",
+      gradeTo: "",
+      languagePreference: "english",
+      recommendationType: "",
+      recommendationConfidence: null,
+      recommendationRules: [],
+
+      // ── Step 5: Modules ──
+      enabledModules: [],
+      disabledModules: [],
+      recommendedModules: [],
+      dependencyWarnings: [],
+
+      // ── Step 6: Academic Structure ──
+      academicYear: "",
+      academicYearPattern: "apr_mar",
+      academicYearStart: "",
+      academicYearEnd: "",
+      termStructure: "2 Terms",
+      expectedStudents: null,
+      maxStudentsPerSection: 40,
+      sectionMode: "auto",
+      streams: [],
+      subjectFramework: "recommended_template",
+
+      // ── Step 7: Roles & HR ──
+      enabledRoles: [],
+      optionalRoles: [],
+      permissionSetupStyle: "recommended",
+      staffIdFormat: "EMP-{YEAR}-{SEQ}",
+      teacherIdFormat: "TCH-{YEAR}-{SEQ}",
+      staffCategories: [],
+      departmentSetup: "manual",
+      approvalWorkflow: "custom",
+      permissionMatrix: [],
+      dependencyStatus: [],
+
+      // ── Step 8: Attendance ──
+      attendanceMode: "Hybrid",
+      workingDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      schoolStartTime: "08:00",
+      schoolEndTime: "14:30",
+      halfDayCheckoutTime: "11:30",
+      attendanceClosingTime: "09:30",
+      lateArrivalAfter: "08:15",
+      autoAbsentAfter: "10:00",
+      minimumAttendance: 75,
+      graceMinutes: 10,
+      attendancePermissions: {
+        classTeacher: true,
+        subjectTeacher: true,
+        adminOverride: true,
+        biometric: false,
+      },
+      leaveApprovalRules: {
+        studentLeaveApproval: "Class Teacher Approval",
+        staffLeaveApproval: "Principal Approval",
+      },
+      leaveTypes: ["Sick Leave", "Casual Leave", "Medical Leave"],
+      parentNotificationRules: {
+        absentAlert: true,
+        lateArrivalAlert: true,
+        earlyCheckoutAlert: true,
+        lowAttendanceWarning: true,
+      },
+      attendanceDependencyStatus: [],
+      attendanceSmartChecks: [],
+
+      // ── Step 9: Examination & Gradebook ──
+      feesModuleEnabled: true,
+      step9ExaminationGradebook: {},
+
+      // ── Step 10: Fee Setup ──
+      feeCollectionFrequency: "quarterly",
+      feeCategories: [],
+      discounts: {
+        siblingDiscount: false,
+        meritScholarship: false,
+        needBasedConcession: false,
+        staffChildDiscount: false,
+      },
+      lateFeeType: "fixed_amount",
+      lateFeeValue: 100,
+      graceDays: 7,
+      partialPayment: "allow",
+      refundPolicy: "manual_refund_approval",
+      paymentModes: "online_offline",
+      feeReminders: {
+        beforeDueDate: true,
+        onDueDate: true,
+        afterDueDate: true,
+        lowBalanceReminder: false,
+        scholarshipApprovalAlert: false,
+      },
+
+      // ── Step 11: Communication ──
+      communicationChannels: {
+        email: true,
+        sms: true,
+        whatsapp: true,
+        pushInApp: true,
+      },
+      notificationTriggers: {
+        studentAbsent: true,
+        feeDueReminder: true,
+        examResultPublished: true,
+        homeworkPublished: false,
+        emergencyAlert: true,
+        transportUpdates: false,
+      },
+      announcementPermissions: {
+        principal: true,
+        schoolAdmin: true,
+        classTeacher: false,
+        subjectTeacher: false,
+        transportManager: false,
+      },
+      documentTemplates: {
+        idCardTemplate: "standard",
+        feeReceiptTemplate: "standard",
+        reportCardTemplate: "board_specific",
+        certificateTemplate: "standard",
+      },
+
+      // ── Step 12: Launch ──
+      launchConfirmed: false,
+      launchSnapshot: null,
+      launchedAt: null,
     };
 
     const existing = await SetupWizard.findOne();
     let doc;
     if (existing) {
-      doc = await SetupWizard.findByIdAndUpdate(existing._id, payload, {
-        new: true,
-        runValidators: true,
-      });
+      doc = await SetupWizard.findByIdAndUpdate(
+        existing._id,
+        {
+          $set: payload,
+          $unset: { organizationType: "", institutionType: "" },
+        },
+        { new: true, runValidators: false }
+      );
     } else {
       doc = await SetupWizard.create(payload);
     }

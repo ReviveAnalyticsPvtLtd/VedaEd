@@ -27,10 +27,14 @@ export function useSetupWizardStep2() {
     (async () => {
       try {
         const res = await getSetupWizard();
-        if (!cancelled && res?.success && res?.data?.organizationType) {
-          const saved = res.data.organizationType;
-          if (VALID_ORG_TYPES.includes(saved)) {
-            setOrganizationType(saved);
+        if (!cancelled && res?.success && res?.data) {
+          const completedSteps = res.data.completedSteps || [];
+          // Only prefill if step 2 was previously completed (resume flow)
+          if (completedSteps.includes(STEP_2_NUMBER)) {
+            const saved = res.data.organizationType;
+            if (VALID_ORG_TYPES.includes(saved)) {
+              setOrganizationType(saved);
+            }
           }
         }
       } catch (err) {

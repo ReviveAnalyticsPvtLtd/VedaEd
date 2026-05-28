@@ -177,15 +177,20 @@ export function useSetupWizardStep4() {
         ]);
 
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
-          const mapped = mapSavedToForm(wizardRes.data);
-          if (!mapped.country && wizardRes.data.country) {
-            const match = findCountryByNameOrCode(wizardRes.data.country);
-            mapped.country = match?.name || wizardRes.data.country;
+          const completedSteps = wizardRes.data.completedSteps || [];
+          // Only prefill if step 4 was previously completed (resume flow)
+          if (completedSteps.includes(STEP_4_NUMBER)) {
+            const mapped = mapSavedToForm(wizardRes.data);
+            if (!mapped.country && wizardRes.data.country) {
+              const match = findCountryByNameOrCode(wizardRes.data.country);
+              mapped.country = match?.name || wizardRes.data.country;
+            }
+            if (!mapped.curriculumBoard && mapped.country === "India") {
+              mapped.curriculumBoard = mapped.curriculumBoard || "CBSE";
+            }
+            setForm(mapped);
           }
-          if (!mapped.curriculumBoard && mapped.country === "India") {
-            mapped.curriculumBoard = mapped.curriculumBoard || "CBSE";
-          }
-          setForm(mapped);
+          // else: leave form as blank DEFAULT_SCHOOL_TYPE_FORM
         }
 
         if (

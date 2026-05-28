@@ -170,6 +170,13 @@ export function useSetupWizardStep3() {
           const parsed = parseStoredPhone(mapped.phoneNumber, defaultDial);
           setPhoneDial(parsed.dialCode || defaultDial);
           setPhoneNational(parsed.national);
+          const completedSteps = res.data.completedSteps || [];
+          // Only prefill if step 3 was previously completed (resume flow)
+          // Fresh start: completedSteps is empty or doesn't include step 3
+          if (completedSteps.includes(STEP_3_NUMBER)) {
+            setForm(mapSavedToForm(res.data));
+          }
+          // else: leave form as blank DEFAULT_SCHOOL_PROFILE_FORM
         }
       } catch (err) {
         if (!cancelled) {

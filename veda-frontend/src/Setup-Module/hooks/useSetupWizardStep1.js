@@ -23,8 +23,12 @@ export function useSetupWizardStep1() {
     (async () => {
       try {
         const res = await getSetupWizard();
-        if (!cancelled && res?.success && res?.data?.selectedSetupType) {
-          setSelectedSetupType(res.data.selectedSetupType);
+        if (!cancelled && res?.success && res?.data) {
+          const completedSteps = res.data.completedSteps || [];
+          // Only prefill if step 1 was previously completed (resume flow)
+          if (completedSteps.includes(STEP_1_NUMBER) && res.data.selectedSetupType) {
+            setSelectedSetupType(res.data.selectedSetupType);
+          }
         }
       } catch (err) {
         if (!cancelled) {
