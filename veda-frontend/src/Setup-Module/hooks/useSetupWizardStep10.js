@@ -10,17 +10,146 @@ import {
   WIZARD_STEP_PATH,
 } from "../constants/setupWizard";
 
-const DEFAULT_CATEGORIES = [
-  { name: "Tuition Fee", type: "Recurring", appliesTo: "All Students", status: "Required" },
-  { name: "Admission Fee", type: "One-time", appliesTo: "New Admissions", status: "Required" },
-  { name: "Exam Fee", type: "Term-wise", appliesTo: "All Students", status: "Required" },
-  { name: "Transport Fee", type: "Optional", appliesTo: "Transport Students", status: "Optional" },
-  { name: "Activity Fee", type: "Annual", appliesTo: "All Students", status: "Optional" },
+// ─── Base categories always present ───────────────────────────────────────
+const BASE_CATEGORIES = [
+  {
+    key: "tuition",
+    name: "Tuition Fee",
+    type: "Recurring",
+    appliesTo: "All Students",
+    status: "Required",
+    source: "core",
+    enabled: true,
+  },
+  {
+    key: "admission",
+    name: "Admission Fee",
+    type: "One-time",
+    appliesTo: "New Admissions",
+    status: "Required",
+    source: "core",
+    enabled: true,
+  },
+  {
+    key: "exam",
+    name: "Exam Fee",
+    type: "Term-wise",
+    appliesTo: "All Students",
+    status: "Required",
+    source: "core",
+    enabled: true,
+  },
 ];
+
+// ─── Module-driven categories (added when module is enabled in step 5) ────
+const MODULE_CATEGORIES = [
+  {
+    key: "transport",
+    name: "Transport Fee",
+    type: "Optional",
+    appliesTo: "Transport Students",
+    status: "Optional",
+    source: "module",
+    requiredModule: "Transport",
+    enabled: false,
+  },
+  {
+    key: "library",
+    name: "Library Fee",
+    type: "Annual",
+    appliesTo: "All Students",
+    status: "Optional",
+    source: "module",
+    requiredModule: "Library",
+    enabled: false,
+  },
+  {
+    key: "health",
+    name: "Health & Medical Fee",
+    type: "Annual",
+    appliesTo: "All Students",
+    status: "Optional",
+    source: "module",
+    requiredModule: "Health",
+    enabled: false,
+  },
+  {
+    key: "hostel",
+    name: "Hostel Fee",
+    type: "Recurring",
+    appliesTo: "Hostel Students",
+    status: "Optional",
+    source: "module",
+    requiredModule: "Hostel",
+    enabled: false,
+  },
+  {
+    key: "lms",
+    name: "LMS / Digital Content Fee",
+    type: "Annual",
+    appliesTo: "All Students",
+    status: "Optional",
+    source: "module",
+    requiredModule: "LMS",
+    enabled: false,
+  },
+];
+
+// ─── Role-driven categories (added when role is enabled in step 7) ────────
+const ROLE_CATEGORIES = [
+  {
+    key: "activity",
+    name: "Activity Fee",
+    type: "Annual",
+    appliesTo: "All Students",
+    status: "Optional",
+    source: "role",
+    requiredRole: "Class Coordinator",
+    enabled: false,
+  },
+];
+
+/**
+ * Build the full category list by merging base + module-driven + role-driven.
+ * enabledModules  — from step 5 (e.g. ["Transport","Library","Health"])
+ * optionalRoles   — from step 7 (e.g. ["Transport Manager","Class Coordinator"])
+ * savedCategories — previously saved by the user in step 10
+ */
+function buildCategories(enabledModules = [], optionalRoles = [], savedCategories = []) {
+  const savedMap = {};
+  savedCategories.forEach((c) => {
+    if (c.key) savedMap[c.key] = c;
+  });
+
+  const all = [
+    ...BASE_CATEGORIES,
+    ...MODULE_CATEGORIES.map((cat) => ({
+      ...cat,
+      enabled: enabledModules.includes(cat.requiredModule),
+    })),
+    ...ROLE_CATEGORIES.map((cat) => ({
+      ...cat,
+      enabled: optionalRoles.includes(cat.requiredRole),
+    })),
+  ];
+
+  return all.map((cat) => {
+    const saved = savedMap[cat.key];
+    return {
+      ...cat,
+      // Preserve user's enabled toggle if they previously saved it
+      enabled: saved ? saved.enabled : cat.enabled,
+      // Preserve user's custom type/appliesTo/status if they edited
+      type: saved?.type || cat.type,
+      appliesTo: saved?.appliesTo || cat.appliesTo,
+      status: saved?.status || cat.status,
+    };
+  });
+}
 
 const DEFAULT_FORM = {
   feeCollectionFrequency: "quarterly",
-  feeCategories: DEFAULT_CATEGORIES,
+  feeCategories: buildCategories([], []),
   discounts: {
     siblingDiscount: false,
     meritScholarship: false,
@@ -40,16 +169,18 @@ const DEFAULT_FORM = {
     lowBalanceReminder: false,
     scholarshipApprovalAlert: false,
   },
+  // Context from previous steps (read-only display)
+  enabledModules: [],
+  optionalRoles: [],
+  termStructure: "",
+  curriculumBoard: "",
 };
 
-function mapSavedToForm(data) {
-  if (!data) return { ...DEFAULT_FORM };
+function mapSavedToForm(data, enabledModules, optionalRoles) {
+  const savedCategories = Array.isArray(data.feeCategories) ? data.feeCategories : [];
   return {
     feeCollectionFrequency: data.feeCollectionFrequency || "quarterly",
-    feeCategories:
-      Array.isArray(data.feeCategories) && data.feeCategories.length > 0
-        ? data.feeCategories
-        : DEFAULT_CATEGORIES,
+    feeCategories: buildCategories(enabledModules, optionalRoles, savedCategories),
     discounts: {
       siblingDiscount: Boolean(data.discounts?.siblingDiscount),
       meritScholarship: Boolean(data.discounts?.meritScholarship),
@@ -69,6 +200,10 @@ function mapSavedToForm(data) {
       lowBalanceReminder: data.feeReminders?.lowBalanceReminder ?? false,
       scholarshipApprovalAlert: data.feeReminders?.scholarshipApprovalAlert ?? false,
     },
+    enabledModules,
+    optionalRoles,
+    termStructure: data.termStructure || "",
+    curriculumBoard: data.curriculumBoard || "",
   };
 }
 
@@ -85,10 +220,30 @@ export function useSetupWizardStep10() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
-          const completedSteps = res.data.completedSteps || [];
-          // Only prefill if step 10 was previously completed (resume flow)
-          if (completedSteps.includes(10)) {
-            setForm(mapSavedToForm(res.data));
+          const data = res.data;
+          const completedSteps = data.completedSteps || [];
+
+          // Always read context from previous steps (modules + roles)
+          const enabledModules = Array.isArray(data.enabledModules)
+            ? data.enabledModules
+            : [];
+          const optionalRoles = Array.isArray(data.optionalRoles)
+            ? data.optionalRoles
+            : [];
+
+          if (completedSteps.includes(STEP_10_NUMBER)) {
+            // Resume: restore saved form + rebuild categories with current modules/roles
+            setForm(mapSavedToForm(data, enabledModules, optionalRoles));
+          } else {
+            // Fresh: build categories from modules/roles, rest is defaults
+            setForm((prev) => ({
+              ...prev,
+              feeCategories: buildCategories(enabledModules, optionalRoles, []),
+              enabledModules,
+              optionalRoles,
+              termStructure: data.termStructure || "",
+              curriculumBoard: data.curriculumBoard || "",
+            }));
           }
         }
       } catch (err) {
@@ -121,9 +276,33 @@ export function useSetupWizardStep10() {
     }));
   }, []);
 
+  // Toggle a category's enabled state
+  const toggleCategory = useCallback((key) => {
+    setForm((prev) => ({
+      ...prev,
+      feeCategories: prev.feeCategories.map((cat) =>
+        cat.key === key ? { ...cat, enabled: !cat.enabled } : cat
+      ),
+    }));
+  }, []);
+
   const buildPayload = useCallback(
     ({ advancing = false } = {}) => ({
-      ...form,
+      // Only save the enabled categories to the backend
+      feeCollectionFrequency: form.feeCollectionFrequency,
+      feeCategories: form.feeCategories
+        .filter((c) => c.enabled)
+        .map(({ key, name, type, appliesTo, status, source }) => ({
+          key, name, type, appliesTo, status, source,
+        })),
+      discounts: form.discounts,
+      lateFeeType: form.lateFeeType,
+      lateFeeValue: form.lateFeeValue,
+      graceDays: form.graceDays,
+      partialPayment: form.partialPayment,
+      refundPolicy: form.refundPolicy,
+      paymentModes: form.paymentModes,
+      feeReminders: form.feeReminders,
       currentStep: advancing ? STEP_11_NUMBER : STEP_10_NUMBER,
       progressPercentage: STEP_10_PROGRESS,
       completedSteps: advancing
@@ -168,14 +347,19 @@ export function useSetupWizardStep10() {
     if (ok) navigate(SETUP_ROUTES.START);
   }, [persistStep, navigate]);
 
+  // Derived counts for sidebar
+  const enabledCategoryCount = form.feeCategories.filter((c) => c.enabled).length;
+
   return {
     form,
     loading,
     saving,
     toast,
+    enabledCategoryCount,
     updateField,
     updateDiscount,
     updateReminder,
+    toggleCategory,
     handleSaveContinue,
     handleBack,
     handleSaveExit,
