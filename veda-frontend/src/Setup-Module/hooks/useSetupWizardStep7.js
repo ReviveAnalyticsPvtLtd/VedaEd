@@ -12,6 +12,7 @@ import {
   DEFAULT_STEP7_FORM,
 } from "../constants/rolesHrFoundation";
 import {
+  SETUP_TYPES,
   STEP_6_NUMBER,
   STEP_7_NUMBER,
   STEP_7_PROGRESS,
@@ -22,10 +23,12 @@ import {
 import {
   CORE_ROLE_COUNT,
   generatePermissionMatrix,
+  getModuleDrivenRoleKeys,
   getRecommendationText,
   getSmartCheckMessages,
   mapWizardDataToStep7Form,
   resolveDependencyStatus,
+  syncOptionalRolesWithModules,
   validateStep7Form,
 } from "../utils/rolesHrFoundation";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
@@ -38,10 +41,12 @@ export function useSetupWizardStep7() {
   const [permissionMatrix, setPermissionMatrix] = useState([]);
   const [enabledModules, setEnabledModules] = useState([]);
   const [wizardMeta, setWizardMeta] = useState({});
+  const [selectedSetupType, setSelectedSetupType] = useState(SETUP_TYPES.QUICK);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const moduleDrivenRoleKeys = useMemo(() => getModuleDrivenRoleKeys(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +60,7 @@ export function useSetupWizardStep7() {
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
           const w = wizardRes.data;
           setEnabledModules(w.enabledModules || []);
+          setSelectedSetupType(w.selectedSetupType || SETUP_TYPES.QUICK);
           setWizardMeta({
             subjectFramework: w.subjectFramework,
             approvalWorkflow: w.approvalWorkflow,
@@ -64,7 +70,18 @@ export function useSetupWizardStep7() {
 
         if (!cancelled && step7Res?.success && step7Res?.data) {
           const d = step7Res.data;
-          setForm(mapWizardDataToStep7Form(d));
+          const baseForm = mapWizardDataToStep7Form(d);
+          const wizardModules = wizardRes?.data?.enabledModules || [];
+          const stepModules = d.enabledModules || [];
+          const effectiveModules =
+            stepModules.length > 0 ? stepModules : wizardModules;
+          setForm({
+            ...baseForm,
+            optionalRoles: syncOptionalRolesWithModules(
+              baseForm.optionalRoles,
+              effectiveModules
+            ),
+          });
           setPermissionMatrix(d.permissionMatrix || []);
           if (d.enabledModules?.length) {
             setEnabledModules(d.enabledModules);
@@ -74,7 +91,14 @@ export function useSetupWizardStep7() {
             approvalWorkflow: d.approvalWorkflow,
           }));
         } else if (!cancelled && wizardRes?.success && wizardRes?.data) {
-          setForm(mapWizardDataToStep7Form(wizardRes.data));
+          const baseForm = mapWizardDataToStep7Form(wizardRes.data);
+          setForm({
+            ...baseForm,
+            optionalRoles: syncOptionalRolesWithModules(
+              baseForm.optionalRoles,
+              wizardRes.data.enabledModules || []
+            ),
+          });
         }
 
         if (!cancelled) {
@@ -137,6 +161,9 @@ export function useSetupWizardStep7() {
 
   const toggleOptionalRole = useCallback(
     async (roleKey, enabled) => {
+      if (moduleDrivenRoleKeys.includes(roleKey)) {
+        return;
+      }
       setForm((prev) => {
         const next = enabled
           ? [...new Set([...prev.optionalRoles, roleKey])]
@@ -159,7 +186,7 @@ export function useSetupWizardStep7() {
         console.error("Role toggle sync failed:", err);
       }
     },
-    []
+    [moduleDrivenRoleKeys]
   );
 
   const removeOptionalRole = useCallback(async (roleKey) => {
@@ -280,6 +307,8 @@ export function useSetupWizardStep7() {
     recommendationText,
     smartCheckMessages,
     dependencyStatus,
+    selectedSetupType,
+    moduleDrivenRoleKeys,
     updateField,
     toggleOptionalRole,
     removeOptionalRole,

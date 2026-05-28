@@ -13,10 +13,12 @@ const RoleCard = ({
   role,
   enabled,
   locked = false,
+  autoLocked = false,
   onToggle,
 }) => {
   const Icon = getRoleIcon(role.icon);
-  const isActive = locked || enabled;
+  const isActive = enabled;
+  const isToggleDisabled = locked;
 
   return (
     <div
@@ -34,14 +36,18 @@ const RoleCard = ({
         >
           <Icon className="h-5 w-5" aria-hidden />
         </div>
-        {!locked ? (
+        {!isToggleDisabled ? (
           <ModuleToggle
             checked={enabled}
             onChange={() => onToggle(role.key, !enabled)}
             ariaLabel={`Toggle ${role.key}`}
           />
         ) : (
-          <ModuleToggle checked disabled ariaLabel={`${role.key} required`} />
+          <ModuleToggle
+            checked={enabled}
+            disabled
+            ariaLabel={`${role.key} locked`}
+          />
         )}
       </div>
 
@@ -51,6 +57,11 @@ const RoleCard = ({
       </p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {autoLocked ? (
+          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+            Auto from Module Selection
+          </span>
+        ) : null}
         {(role.tags || []).map((tag) => (
           <span
             key={tag.label}

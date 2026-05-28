@@ -15,6 +15,8 @@ const RolesHrFoundationForm = ({
   form,
   errors,
   permissionMatrix,
+  moduleDrivenRoleKeys = [],
+  showBasicHrFoundation = true,
   onFieldChange,
   onToggleOptionalRole,
   onToggleCategory,
@@ -47,14 +49,19 @@ const RolesHrFoundationForm = ({
               locked
             />
           ))}
-          {OPTIONAL_ROLES.map((role) => (
+          {OPTIONAL_ROLES.map((role) => {
+            const isModuleDrivenRole = moduleDrivenRoleKeys.includes(role.key);
+            return (
             <RoleCard
               key={role.key}
               role={role}
               enabled={form.optionalRoles.includes(role.key)}
+              locked={isModuleDrivenRole}
+              autoLocked={isModuleDrivenRole}
               onToggle={onToggleOptionalRole}
             />
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -91,6 +98,7 @@ const RolesHrFoundationForm = ({
         </div>
       </section>
 
+      {showBasicHrFoundation ? (
       <section className="rounded-xl border border-setup-border bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-bold text-setup-heading">
@@ -209,6 +217,7 @@ const RolesHrFoundationForm = ({
           </div>
         </div>
       </section>
+      ) : null}
 
       <section className="rounded-xl border border-setup-border bg-white p-5 shadow-sm sm:p-6">
         <h3 className="text-base font-bold text-setup-heading">Permission Preview</h3>
