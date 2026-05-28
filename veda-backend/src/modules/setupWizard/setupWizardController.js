@@ -1583,9 +1583,22 @@ exports.saveStep10FeeSetup = async (req, res) => {
       ? completedSteps.filter((n) => Number.isFinite(Number(n)))
       : [];
 
+    // Sanitize feeCategories — preserve key, source, enabled alongside existing fields
+    const sanitizedCategories = Array.isArray(feeCategories)
+      ? feeCategories.map((cat) => ({
+          key: String(cat.key || "").trim(),
+          name: String(cat.name || "").trim(),
+          type: String(cat.type || "").trim(),
+          appliesTo: String(cat.appliesTo || "").trim(),
+          status: String(cat.status || "").trim(),
+          source: String(cat.source || "core").trim(),
+          enabled: Boolean(cat.enabled !== false), // default true unless explicitly false
+        }))
+      : [];
+
     const payload = {
       feeCollectionFrequency: freq,
-      feeCategories: Array.isArray(feeCategories) ? feeCategories : [],
+      feeCategories: sanitizedCategories,
       discounts: {
         siblingDiscount: Boolean(discounts?.siblingDiscount),
         meritScholarship: Boolean(discounts?.meritScholarship),

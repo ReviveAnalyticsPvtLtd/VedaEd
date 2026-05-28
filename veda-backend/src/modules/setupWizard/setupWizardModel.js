@@ -398,10 +398,13 @@ const setupWizardSchema = new mongoose.Schema(
     feeCategories: {
       type: [
         {
+          key: { type: String, default: "" },
           name: { type: String, default: "" },
           type: { type: String, default: "" },
           appliesTo: { type: String, default: "" },
           status: { type: String, default: "" },
+          source: { type: String, default: "core" },
+          enabled: { type: Boolean, default: true },
         },
       ],
       default: [],
