@@ -57,16 +57,6 @@ export const SUBJECT_FRAMEWORK_OPTIONS = [
       "Apply CBSE/K12 subject templates based on grades and streams.",
   },
   {
-    key: "manual",
-    title: "Create Manually",
-    description: "Enter subjects, electives, and groups manually.",
-  },
-  {
-    key: "excel_import",
-    title: "Import from Excel",
-    description: "Upload existing subject structure from a spreadsheet.",
-  },
-  {
     key: "configure_later",
     title: "Configure Later",
     description: "Continue setup, but timetable and exams may remain locked.",

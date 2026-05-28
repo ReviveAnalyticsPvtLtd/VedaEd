@@ -6,6 +6,7 @@ import {
 } from "../../services/setupWizardAPI";
 import {
   DEFAULT_ACADEMIC_FORM,
+  SUBJECT_FRAMEWORK_OPTIONS,
   STREAM_OPTIONS,
 } from "../constants/academicStructure";
 import {
@@ -88,6 +89,13 @@ function mergeFormWithDefaults(saved, step4Grades) {
     merged.academicYearPattern = base.academicYearPattern;
     merged.academicYearStart = base.academicYearStart;
     merged.academicYearEnd = base.academicYearEnd;
+  }
+
+  const allowedSubjectFrameworks = new Set(
+    SUBJECT_FRAMEWORK_OPTIONS.map((option) => option.key)
+  );
+  if (!allowedSubjectFrameworks.has(merged.subjectFramework)) {
+    merged.subjectFramework = base.subjectFramework;
   }
 
   return merged;
