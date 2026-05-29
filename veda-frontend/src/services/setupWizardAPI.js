@@ -49,6 +49,18 @@ export const saveSchoolProfile = async (payload) => {
   return response.data;
 };
 
+/** Lookup state/city from postal code (step 3 address autofill) */
+export const lookupPostalCode = async (countryIso, postalCode) => {
+  const response = await axios.get(`${API_URL}/postal-lookup`, {
+    params: {
+      country: countryIso,
+      code: postalCode,
+    },
+    timeout: 10000,
+  });
+  return response.data;
+};
+
 /** Save step 4 school type & curriculum */
 export const saveSchoolTypeCurriculum = async (payload) => {
   const response = await axios.post(`${API_URL}/step-4`, payload);

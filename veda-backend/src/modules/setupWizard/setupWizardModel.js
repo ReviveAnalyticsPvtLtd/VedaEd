@@ -144,7 +144,7 @@ const setupWizardSchema = new mongoose.Schema(
     },
     organizationType: {
       type: String,
-      enum: ["single_school", "multi_campus", "school_group"],
+      enum: ["single_school", "multi_campus", "school_group", null],
       default: null,
     },
     schoolName: { type: String, default: "" },
@@ -162,7 +162,7 @@ const setupWizardSchema = new mongoose.Schema(
     country: { type: String, default: "" },
     institutionType: {
       type: String,
-      enum: ["preschool", "k12_school", "higher_secondary"],
+      enum: ["preschool", "k12_school", "higher_secondary", null],
       default: null,
     },
     curriculumCountry: { type: String, default: "" },
