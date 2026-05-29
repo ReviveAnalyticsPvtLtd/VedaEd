@@ -469,9 +469,17 @@ const validateAssessmentWeightage = (weightageRows, errors, prefix) => {
   }
 };
 
-const validateStep9Payload = (payload = {}, wizardDoc = {}, { draft = false } = {}) => {
+const validateStep9Payload = (
+  payload = {},
+  wizardDoc = {},
+  { draft = false, advancedSetup } = {}
+) => {
   const sanitized = normalizeStep9State(payload, wizardDoc);
   const errors = [];
+  const isAdvancedSetup =
+    advancedSetup === undefined
+      ? wizardDoc?.selectedSetupType === "advanced"
+      : Boolean(advancedSetup);
 
   if (!draft && !sanitized.assessmentModel) {
     errors.push("assessmentModel is required");
@@ -496,10 +504,12 @@ const validateStep9Payload = (payload = {}, wizardDoc = {}, { draft = false } = 
     sanitized.resultDisplayFormat,
     sanitized.gpaScaleType
   );
-  validateAssessmentWeightage(sanitized.assessmentWeightage, errors, "");
 
-  if (!sanitized.reportCardSections.length) {
-    errors.push("Select at least one report card section");
+  if (isAdvancedSetup) {
+    validateAssessmentWeightage(sanitized.assessmentWeightage, errors, "");
+    if (!sanitized.reportCardSections.length) {
+      errors.push("Select at least one report card section");
+    }
   }
 
   return {
