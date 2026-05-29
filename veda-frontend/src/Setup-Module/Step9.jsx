@@ -9,6 +9,7 @@ import SmartCheckCard from "./components/SmartCheckCard";
 import { useSetupWizardStep9 } from "./hooks/useSetupWizardStep9";
 import {
   ASSESSMENT_MODEL_OPTIONS,
+  GPA_SCALE_TYPE_OPTIONS,
   GRADE_SCALE_SCOPE_OPTIONS,
   REPORT_CARD_FORMAT_OPTIONS,
   REPORT_CARD_SECTION_OPTIONS,
@@ -18,9 +19,102 @@ import {
   STEP_9_PROGRESS,
 } from "./constants/examinationGradebook";
 
+const FieldError = ({ message, className = "" }) =>
+  message ? (
+    <p className={`text-sm font-medium text-red-600 ${className}`}>{message}</p>
+  ) : null;
+
+const TableCellInput = ({ label, ...props }) => (
+  <div>
+    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-setup-muted md:sr-only">
+      {label}
+    </label>
+    <input
+      {...props}
+      className="h-12 w-full rounded-[16px] border border-slate-200 bg-white px-4 text-[15px] text-setup-heading outline-none transition focus:border-blue-500"
+    />
+  </div>
+);
+
+const ScaleTable = ({
+  columns,
+  rows,
+  rowErrors,
+  emptyRowLabel,
+  onUpdateRow,
+  onRemoveRow,
+}) => {
+  const columnCount = columns.length;
+  const gridTemplate = `repeat(${columnCount}, minmax(0, 1fr)) 44px`;
+
+  return (
+    <>
+      <div
+        className="mt-8 hidden gap-6 px-3 text-sm font-semibold uppercase tracking-[0.18em] text-setup-muted md:grid"
+        style={{ gridTemplateColumns: gridTemplate }}
+      >
+        {columns.map((column) => (
+          <span key={column.key}>{column.label}</span>
+        ))}
+        <span className="text-center"> </span>
+      </div>
+
+      <div className="mt-3 space-y-4">
+        {rows.map((row) => (
+          <div
+            key={row.rowId}
+            className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-3 md:p-3.5"
+          >
+            <div
+              className="grid gap-2.5 md:items-center md:gap-4"
+              style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr)) 44px` }}
+            >
+              {columns.map((column) => (
+                <TableCellInput
+                  key={column.key}
+                  label={column.label}
+                  type={column.inputType}
+                  min={column.min}
+                  max={column.max}
+                  step={column.step}
+                  value={row[column.key] ?? ""}
+                  placeholder={column.label}
+                  onChange={(event) =>
+                    onUpdateRow(row.rowId, column.key, event.target.value)
+                  }
+                />
+              ))}
+              <div className="flex items-center justify-end md:justify-center">
+                <button
+                  type="button"
+                  onClick={() => onRemoveRow(row.rowId)}
+                  disabled={rows.length === 1}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Delete row"
+                >
+                  <FiTrash2 />
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+              <FieldError message={rowErrors?.[row.rowId]} className="text-xs" />
+              {rows.length === 1 ? (
+                <span className="text-xs font-medium text-setup-muted">
+                  {emptyRowLabel}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+};
+
 const Step9ExaminationSetup = () => {
   const {
     form,
+    scaleTableConfig,
     errors,
     loading,
     saving,
@@ -35,6 +129,9 @@ const Step9ExaminationSetup = () => {
     updateField,
     selectAssessmentModel,
     selectResultDisplayFormat,
+    selectGpaScaleType,
+    previewGpa,
+    showAdvancedExamOptions,
     toggleReportCardSection,
     updateGradeRow,
     addGradeRow,
@@ -138,11 +235,17 @@ const Step9ExaminationSetup = () => {
           </SetupFormSection>
 
           <SetupFormSection
-            title="Marks Range & Grade Scale"
-            subtitle="Define the default grade boundaries. These can be global, grade-wise, or subject-wise."
+            title={scaleTableConfig.title}
+            subtitle={scaleTableConfig.subtitle}
             required
           >
-            <div className="grid gap-5 md:grid-cols-2">
+            <div
+              className={`grid gap-5 ${
+                form.resultDisplayFormat === "GPA"
+                  ? "md:grid-cols-2"
+                  : "md:grid-cols-2"
+              }`}
+            >
               <SelectField
                 label="Apply Grade Scale"
                 value={form.gradeScaleScope}
@@ -150,99 +253,55 @@ const Step9ExaminationSetup = () => {
                 inputClassName="h-12 rounded-[18px] px-4 text-base"
                 onChange={(event) => updateField("gradeScaleScope", event.target.value)}
               />
-              <InputField
-                label="Default Passing Marks %"
-                type="number"
-                min={0}
-                max={100}
-                value={form.defaultPassingMarks}
-                error={errors.defaultPassingMarks}
-                inputClassName="h-12 rounded-[18px] px-4 text-base"
-                onChange={(event) =>
-                  updateField("defaultPassingMarks", event.target.value)
-                }
-              />
+              {form.resultDisplayFormat === "GPA" ? (
+                <SelectField
+                  label="GPA Scale Type"
+                  value={form.gpaScaleType}
+                  options={GPA_SCALE_TYPE_OPTIONS}
+                  error={errors.gpaScaleType}
+                  inputClassName="h-12 rounded-[18px] px-4 text-base"
+                  onChange={(event) => selectGpaScaleType(event.target.value)}
+                />
+              ) : (
+                <InputField
+                  label="Default Passing Marks %"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.defaultPassingMarks}
+                  error={errors.defaultPassingMarks}
+                  inputClassName="h-12 rounded-[18px] px-4 text-base"
+                  onChange={(event) =>
+                    updateField("defaultPassingMarks", event.target.value)
+                  }
+                />
+              )}
             </div>
 
-            <div className="mt-8 hidden grid-cols-[1fr_1fr_1fr_1.1fr_44px] gap-6 px-3 text-sm font-semibold uppercase tracking-[0.18em] text-setup-muted md:grid">
-              <span>Grade</span>
-              <span>Min %</span>
-              <span>Max %</span>
-              <span>Description</span>
-              <span className="text-center"> </span>
-            </div>
+            {form.resultDisplayFormat === "GPA" ? (
+              <div className="mt-5 rounded-[18px] border border-blue-100 bg-blue-50/80 px-4 py-3.5">
+                <p className="text-sm font-semibold text-setup-heading">
+                  GPA calculation ({form.gpaScaleType} scale)
+                </p>
+                <p className="mt-1 text-sm text-setup-muted">
+                  Weighted GPA = Σ(GPA Value × Credits) ÷ Σ(Credits)
+                </p>
+                <p className="mt-2 text-lg font-bold text-blue-700">
+                  {previewGpa !== null
+                    ? `Preview: ${previewGpa} / ${form.gpaScaleType.replace(".0", "")}`
+                    : "Enter GPA values and credits to preview"}
+                </p>
+              </div>
+            ) : null}
 
-            <div className="mt-3 space-y-4">
-              {form.gradeTable.map((row) => (
-                <div
-                  key={row.rowId}
-                  className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-3 md:p-3.5"
-                >
-                  <div className="grid gap-2.5 md:grid-cols-[1fr_1fr_1fr_1.1fr_44px] md:items-center md:gap-4">
-                    <TableCellInput
-                      label="Grade"
-                      value={row.grade}
-                      placeholder="Grade"
-                      onChange={(event) =>
-                        updateGradeRow(row.rowId, "grade", event.target.value)
-                      }
-                    />
-                    <TableCellInput
-                      label="Min %"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={row.minPercentage}
-                      placeholder="Min %"
-                      onChange={(event) =>
-                        updateGradeRow(row.rowId, "minPercentage", event.target.value)
-                      }
-                    />
-                    <TableCellInput
-                      label="Max %"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={row.maxPercentage}
-                      placeholder="Max %"
-                      onChange={(event) =>
-                        updateGradeRow(row.rowId, "maxPercentage", event.target.value)
-                      }
-                    />
-                    <TableCellInput
-                      label="Description"
-                      value={row.description}
-                      placeholder="Description"
-                      onChange={(event) =>
-                        updateGradeRow(row.rowId, "description", event.target.value)
-                      }
-                    />
-                    <div className="flex items-center justify-end md:justify-center">
-                      <button
-                        type="button"
-                        onClick={() => removeGradeRow(row.rowId)}
-                        disabled={form.gradeTable.length === 1}
-                        className="flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Delete grade row"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-                    <FieldError
-                      message={errors.gradeTableRows?.[row.rowId]}
-                      className="text-xs"
-                    />
-                    {form.gradeTable.length === 1 ? (
-                      <span className="text-xs font-medium text-setup-muted">
-                        Minimum one grade row required
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ScaleTable
+              columns={scaleTableConfig.columns}
+              rows={form.gradeTable}
+              rowErrors={errors.gradeTableRows}
+              emptyRowLabel={scaleTableConfig.emptyRowLabel}
+              onUpdateRow={updateGradeRow}
+              onRemoveRow={removeGradeRow}
+            />
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <FieldError message={errors.gradeTable} />
@@ -252,11 +311,12 @@ const Step9ExaminationSetup = () => {
                 className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
               >
                 <FiPlus />
-                Add Grade Row
+                {scaleTableConfig.addButtonLabel}
               </button>
             </div>
           </SetupFormSection>
 
+          {showAdvancedExamOptions ? (
           <SetupFormSection
             title="Assessment Weightage"
             subtitle="Set how different assessment components contribute to the final result."
@@ -346,7 +406,9 @@ const Step9ExaminationSetup = () => {
               </button>
             </div>
           </SetupFormSection>
+          ) : null}
 
+          {showAdvancedExamOptions ? (
           <SetupFormSection
             title="Report Card Setup"
             subtitle="Choose the default report card style and publishing control."
@@ -386,13 +448,15 @@ const Step9ExaminationSetup = () => {
               <FieldError message={errors.reportCardSections} className="mt-3" />
             </div>
           </SetupFormSection>
+          ) : null}
         </div>
 
         <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
           <div className="overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-5 text-white shadow-lg">
             <h3 className="text-base font-bold">Exam Summary</h3>
             <p className="mt-2 text-sm leading-relaxed text-blue-100">
-              {summary.model} with {summary.resultType} is being prepared.
+              {summary.model} with {summary.resultType} ({summary.scaleDetail}) is being
+              prepared.
             </p>
             <div className="mt-4 space-y-2">
               {[
@@ -533,18 +597,6 @@ const SelectField = ({
   </div>
 );
 
-const TableCellInput = ({ label, ...props }) => (
-  <div>
-    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-setup-muted md:sr-only">
-      {label}
-    </label>
-    <input
-      {...props}
-      className="h-12 w-full rounded-[16px] border border-slate-200 bg-white px-4 text-[15px] text-setup-heading outline-none transition focus:border-blue-500"
-    />
-  </div>
-);
-
 const TableCellSelect = ({ label, options, ...props }) => (
   <div>
     <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-setup-muted md:sr-only">
@@ -562,10 +614,5 @@ const TableCellSelect = ({ label, options, ...props }) => (
     </select>
   </div>
 );
-
-const FieldError = ({ message, className = "" }) =>
-  message ? (
-    <p className={`text-sm font-medium text-red-600 ${className}`}>{message}</p>
-  ) : null;
 
 export default Step9ExaminationSetup;

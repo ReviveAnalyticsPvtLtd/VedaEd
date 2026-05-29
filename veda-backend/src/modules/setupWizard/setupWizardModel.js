@@ -11,6 +11,8 @@ const step9GradeRowSchema = new mongoose.Schema(
     minPercentage: { type: Number, min: 0, max: 100, default: 0 },
     maxPercentage: { type: Number, min: 0, max: 100, default: 0 },
     description: { type: String, default: "" },
+    gpaPoints: { type: Number, min: 0, max: 10, default: null },
+    credits: { type: Number, min: 0, default: 1 },
   },
   { _id: false }
 );
@@ -66,6 +68,7 @@ const step9ExaminationGradebookSchema = new mongoose.Schema(
   {
     assessmentModel: { type: String, default: "Term Exams" },
     resultDisplayFormat: { type: String, default: "Marks + Grade" },
+    gpaScaleType: { type: String, default: "4.0" },
     gradeScaleScope: { type: String, default: "Globally" },
     defaultPassingMarks: { type: Number, min: 0, max: 100, default: 33 },
     gradeTable: {
