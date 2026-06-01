@@ -378,13 +378,25 @@ import Step9 from "./Setup-Module/Step9";
 import Step10 from "./Setup-Module/Step10";
 import Step11 from "./Setup-Module/Step11";
 import Step12 from "./Setup-Module/Step12";
+
+import Question1 from "./onboarding2/Question1";
+import Question2 from "./onboarding2/Question2";
+import Question3 from "./onboarding2/Question3";
+import Question4 from "./onboarding2/Question4";
+import Question5 from "./onboarding2/Question5";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
+
 
 function App() {
   return (
     <>
       <Routes>
         {/* ================= LOGIN ================= */}
+        <Route path="/question1" element={<Question1 />} />
+        <Route path="/question2" element={<Question2 />} />
+        <Route path="/question3" element={<Question3 />} />
+        <Route path="/question4" element={<Question4 />} />
+        <Route path="/question5" element={<Question5 />} />
         <Route path="/" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
         {/* user info pages */}
