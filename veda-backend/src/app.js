@@ -124,7 +124,7 @@ app.use((err, req, res, next) => {
   console.error('Global Error:', err);
   if (err?.name === "MulterError") {
     return res.status(400).json({
-      message: err.message || "File upload validation failed",
+      message: err.message || "File upload validation failed .",
     });
   }
   res.status(err.status || 500).json({
