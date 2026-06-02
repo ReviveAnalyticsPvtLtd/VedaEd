@@ -96,8 +96,20 @@ const Step12 = () => {
   const readiness = reviewData?.readinessScore ?? 0;
   const sectionsComplete = reviewData?.sectionsComplete ?? 0;
   const totalSections = reviewData?.totalSections ?? 0;
+  const configSectionsComplete = reviewData?.configSectionsComplete ?? 0;
+  const configSectionsTotal = reviewData?.configSectionsTotal ?? 0;
   const warnings = reviewData?.warnings ?? [];
+  const blockingIssues = reviewData?.blockingIssues ?? 0;
+  const blockingMessages = reviewData?.blockingMessages ?? [];
+  const launchReady = reviewData?.launchReady ?? false;
+  const launchStatusLabel = reviewData?.launchStatusLabel ?? "Review Warnings";
   const sections = reviewData?.sections ?? [];
+
+  const healthSubtitle = launchReady
+    ? "All mandatory areas are ready. Review warnings before launch."
+    : blockingIssues
+      ? "Resolve blocking issues before you can launch."
+      : "Mandatory setup is in progress. Review warnings before launch.";
 
   return (
     <SetupWizardLayout onSaveExit={handleBack} saving={launching}>
@@ -145,32 +157,73 @@ const Step12 = () => {
                   <h3 className="text-base font-semibold text-setup-heading">
                     Setup Health Check
                   </h3>
-                  <p className="mt-0.5 text-sm text-setup-muted">
-                    All mandatory areas are ready. Review warnings before launch.
-                  </p>
+                  <p className="mt-0.5 text-sm text-setup-muted">{healthSubtitle}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                  Launch Ready
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                    launchReady
+                      ? "bg-green-100 text-green-700"
+                      : blockingIssues
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  {launchStatusLabel}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div className="rounded-xl bg-green-50 p-4 text-center">
-                  <p className="text-2xl font-bold text-green-700">{readiness}%</p>
-                  <p className="mt-1 text-xs text-green-600">Readiness Score</p>
+                <div
+                  className={`rounded-xl p-4 text-center ${
+                    readiness >= 80 ? "bg-green-50" : "bg-yellow-50"
+                  }`}
+                >
+                  <p
+                    className={`text-2xl font-bold ${
+                      readiness >= 80 ? "text-green-700" : "text-yellow-700"
+                    }`}
+                  >
+                    {readiness}%
+                  </p>
+                  <p
+                    className={`mt-1 text-xs ${
+                      readiness >= 80 ? "text-green-600" : "text-yellow-600"
+                    }`}
+                  >
+                    Readiness Score
+                  </p>
+                  <p className="mt-1 text-[10px] text-setup-muted">
+                    {configSectionsComplete}/{configSectionsTotal} config areas
+                  </p>
                 </div>
                 <div className="rounded-xl bg-blue-50 p-4 text-center">
                   <p className="text-2xl font-bold text-blue-700">
                     {sectionsComplete}/{totalSections}
                   </p>
-                  <p className="mt-1 text-xs text-blue-600">Sections Complete</p>
+                  <p className="mt-1 text-xs text-blue-600">Wizard Steps Done</p>
                 </div>
                 <div className="rounded-xl bg-yellow-50 p-4 text-center">
                   <p className="text-2xl font-bold text-yellow-700">{warnings.length}</p>
                   <p className="mt-1 text-xs text-yellow-600">Warnings</p>
                 </div>
-                <div className="rounded-xl bg-gray-50 p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-700">0</p>
-                  <p className="mt-1 text-xs text-gray-500">Blocking Issues</p>
+                <div
+                  className={`rounded-xl p-4 text-center ${
+                    blockingIssues ? "bg-red-50" : "bg-gray-50"
+                  }`}
+                >
+                  <p
+                    className={`text-2xl font-bold ${
+                      blockingIssues ? "text-red-700" : "text-gray-700"
+                    }`}
+                  >
+                    {blockingIssues}
+                  </p>
+                  <p
+                    className={`mt-1 text-xs ${
+                      blockingIssues ? "text-red-600" : "text-gray-500"
+                    }`}
+                  >
+                    Blocking Issues
+                  </p>
                 </div>
               </div>
             </div>
@@ -239,6 +292,33 @@ const Step12 = () => {
               </div>
             </div>
 
+            {blockingMessages.length > 0 && (
+              <div className="rounded-2xl border border-red-300 bg-red-50 p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <h3 className="text-base font-semibold text-setup-heading">
+                    Blocking Issues
+                  </h3>
+                  <span className="shrink-0 rounded-full bg-red-200 px-3 py-1 text-xs font-bold text-red-800">
+                    {blockingIssues} Issue{blockingIssues !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <p className="mb-3 text-xs text-red-700">
+                  These must be resolved before launch.
+                </p>
+                <div className="space-y-2">
+                  {blockingMessages.map((message) => (
+                    <div
+                      key={message}
+                      className="flex items-start gap-2 rounded-lg border border-red-200 bg-white p-3"
+                    >
+                      <span className="mt-0.5 text-red-500">✕</span>
+                      <p className="text-xs text-red-800">{message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Warnings */}
             {warnings.length > 0 && (
               <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-5">
@@ -305,21 +385,34 @@ const Step12 = () => {
               <h3 className="mb-3 text-base font-semibold">School Readiness</h3>
               <div className="mb-4 text-center">
                 <p className="text-4xl font-bold">{readiness}%</p>
-                <p className="mt-1 text-sm font-semibold text-blue-200">READY</p>
+                <p className="mt-1 text-sm font-semibold text-blue-200">
+                  {launchReady ? "READY" : blockingIssues ? "BLOCKED" : "IN PROGRESS"}
+                </p>
               </div>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span className="text-blue-100">Mandatory setup complete</span>
+                  <span className={launchReady ? "text-green-300" : "text-yellow-300"}>
+                    {launchReady ? "✓" : "○"}
+                  </span>
+                  <span className="text-blue-100">
+                    {configSectionsComplete}/{configSectionsTotal} mandatory config areas
+                  </span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span className="text-blue-100">No blocking dependencies</span>
+                  <span className={blockingIssues ? "text-red-300" : "text-green-300"}>
+                    {blockingIssues ? "✕" : "✓"}
+                  </span>
+                  <span className="text-blue-100">
+                    {blockingIssues
+                      ? `${blockingIssues} blocking issue(s)`
+                      : "No blocking dependencies"}
+                  </span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-yellow-300">⚠</span>
                   <span className="text-blue-100">
-                    {warnings.length} warning{warnings.length !== 1 ? "s" : ""} can be handled later
+                    {warnings.length} warning{warnings.length !== 1 ? "s" : ""}{" "}
+                    {blockingIssues ? "after blockers are fixed" : "can be handled later"}
                   </span>
                 </li>
               </ul>
@@ -375,7 +468,7 @@ const Step12 = () => {
           <button
             type="button"
             onClick={handleLaunch}
-            disabled={launching || !confirmed}
+            disabled={launching || !confirmed || blockingIssues > 0}
             className="w-full rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:from-green-700 hover:to-emerald-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {launching ? "Launching..." : "🚀 Launch School"}
