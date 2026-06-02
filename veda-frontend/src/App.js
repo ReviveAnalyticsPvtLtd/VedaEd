@@ -479,7 +479,10 @@ function App() {
         <Route path="students" element={<SuperAdminSISStudents />} />
         <Route path="students/:id" element={<SuperAdminSISStudentProfile />} />
         <Route path="staff" element={<SuperAdminSISStaff />} />
-        <Route path="staff/:id" element={<SuperAdminSISStaffProfile />} />
+<Route
+  path="staff-profile/:id"
+  element={<SuperAdminSISStaffProfile />}
+/>
         <Route path="parents" element={<SuperAdminSISParents />} />
         <Route path="parents/:id" element={<SuperAdminSISParentProfile />} />
         <Route path="reports" element={<SuperAdminSISReports />} />
