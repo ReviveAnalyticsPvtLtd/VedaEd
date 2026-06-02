@@ -96,6 +96,8 @@ app.use("/api/gradebook", require("./modules/gradebook/gradebookRoutes"));
 app.use("/api/transport", require("./modules/transport/transportRoutes"));
 app.use("/api/institution", require("./modules/institution/institutionRoutes"));
 app.use("/api/setup-wizard", require("./modules/setupWizard/setupWizardRoutes"));
+app.use("/api/onboarding", require("./modules/onboarding/onboardingRoutes"));
+app.use("/api/workspace", require("./modules/workspace/workspaceRoutes"));
 app.use("/api/academic-years", require("./modules/fees/feeRoutes").academicYearRouter);
 app.use("/api/fee-categories", require("./modules/fees/feeRoutes").feeCategoryRouter);
 app.use("/api/fees", require("./modules/fees/feeRoutes").gradeFeeRouter);
