@@ -160,6 +160,17 @@ export default function Login() {
           <p className="text-xs text-gray-400 text-center mt-5">
             Secure login • Role-based access
           </p>
+
+          <p className="text-sm text-center mt-4 text-gray-600">
+            New school?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/onboarding/step-1")}
+              className="font-semibold text-indigo-600 hover:underline"
+            >
+              Create your school account
+            </button>
+          </p>
         </form>
       </div>
     </div>

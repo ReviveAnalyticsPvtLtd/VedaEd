@@ -8,6 +8,11 @@ const {
   findPlatformAdminByEmployeeId,
   validatePlatformAdminForLogin,
 } = require("../utils/platformAdminAuth");
+const {
+  checkUserExists,
+  registerWithEmail,
+  buildOnboardingSessionPayload,
+} = require("../services/onboardingAuthSessionService");
 
 const PASSWORD_MIN_LENGTH = 8;
 
@@ -201,15 +206,20 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 3️⃣ Compare password
     const isMatch = await bcrypt.compare(password, user.password);
 
     console.log("PASSWORD MATCH:", isMatch);
 
     if (!isMatch) {
       console.log("PASSWORD WRONG");
+      if (user.authProvider === "google") {
+        return res.status(401).json({
+          message:
+            "Invalid credentials. Sign in with Google or use the password you set during onboarding.",
+        });
+      }
       return res.status(401).json({
-        message: "Invalid credentials"
+        message: "Invalid credentials",
       });
     }
 
@@ -268,7 +278,8 @@ exports.login = async (req, res) => {
 
     console.log("LOGIN SUCCESS");
 
-    return res.json({
+    const response = {
+      success: true,
       token,
       role: roleName,
       permissions,
@@ -279,9 +290,21 @@ exports.login = async (req, res) => {
         email: user.email,
         role: roleName,
         refId: user.refId,
+        authProvider: user.authProvider,
         ...(platformAdminProfile || {}),
       },
-    });
+    };
+
+    if (normalizedRole === "admin") {
+      try {
+        const session = await buildOnboardingSessionPayload(user._id);
+        Object.assign(response, session);
+      } catch (sessionError) {
+        console.error("onboarding session load error:", sessionError);
+      }
+    }
+
+    return res.json(response);
 
   } catch (error) {
 
@@ -289,6 +312,36 @@ exports.login = async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error"
+    });
+  }
+};
+
+exports.checkUser = async (req, res) => {
+  try {
+    const result = await checkUserExists(req.body?.email);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Could not check user",
+    });
+  }
+};
+
+exports.register = async (req, res) => {
+  try {
+    const result = await registerWithEmail(req.body);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("register error:", error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Registration failed",
+      code: error.code,
+      fieldErrors: error.fieldErrors,
+      errors: error.errors,
     });
   }
 };

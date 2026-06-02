@@ -364,6 +364,17 @@ import SuperAdminCommunicationMessages from "./SuperAdmin/Communication/SuperAdm
 import SuperAdminCommunicationComplaints from "./SuperAdmin/Communication/SuperAdminCommunicationComplaints";
 
 
+import OnboardingStep1 from "./Onboarding-Module/OnboardingStep1";
+import OnboardingStep2 from "./Onboarding-Module/OnboardingStep2";
+import OnboardingStep3 from "./Onboarding-Module/OnboardingStep3";
+import OnboardingStep4 from "./Onboarding-Module/OnboardingStep4";
+import OnboardingStep5 from "./Onboarding-Module/OnboardingStep5";
+import OnboardingStep6 from "./Onboarding-Module/OnboardingStep6";
+import OnboardingProcessPending from "./Onboarding-Module/OnboardingProcessPending";
+import OnboardingEmail from "./Onboarding-Module/OnboardingEmail";
+import OnboardingStepPlaceholder from "./Onboarding-Module/OnboardingStepPlaceholder";
+import OnboardingRoute from "./wrapper/OnboardingRoute";
+
 import ProjectStartPage from "./Setup-Module/ProjectStartPage";
 import Step1 from "./Setup-Module/Step1";
 import Step2 from "./Setup-Module/Step2";
@@ -399,7 +410,23 @@ function App() {
         <Route path="/question5" element={<Question5 />} />
         <Route path="/" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
-        {/* user info pages */}
+
+        {/* ================= ONBOARDING (account creation — separate from setup) ================= */}
+        <Route path="/onboarding/step-1" element={<OnboardingStep1 />} />
+        <Route path="/onboarding/email" element={<OnboardingEmail />} />
+        <Route element={<OnboardingRoute />}>
+          <Route path="/onboarding/step-2" element={<OnboardingStep2 />} />
+          <Route path="/onboarding/step-3" element={<OnboardingStep3 />} />
+          <Route path="/onboarding/step-4" element={<OnboardingStep4 />} />
+          <Route path="/onboarding/step-5" element={<OnboardingStep5 />} />
+          <Route path="/onboarding/step-6" element={<OnboardingStep6 />} />
+          <Route
+            path="/onboarding/process-pending"
+            element={<OnboardingProcessPending />}
+          />
+        </Route>
+
+        {/* user info pages — school setup wizard (after onboarding) */}
         <Route path="/setup/start" element={<ProjectStartPage />} />
         <Route path="/setup/step-1" element={<Step1 />} />
         <Route path="/setup/step-2" element={<Step2 />} />

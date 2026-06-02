@@ -2,3 +2,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Full-width Google Sign-In button (@react-oauth/google) on onboarding */
+.onboarding-google-login {
+  width: 100%;
+}
+.onboarding-google-login > div {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+.onboarding-google-login iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Onboarding form inputs: white by default; light blue only when browser autofill applies */
+.onboarding-field-input {
+  background-color: #ffffff;
+}
+
+.onboarding-field-input:-webkit-autofill,
+.onboarding-field-input:-webkit-autofill:hover,
+.onboarding-field-input:-webkit-autofill:focus,
+.onboarding-field-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #eff6ff inset !important;
+  box-shadow: 0 0 0 1000px #eff6ff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+}
+
+.onboarding-field-input:-moz-autofill {
+  background-color: #eff6ff !important;
+}
+
+.onboarding-otp-box {
+  background-color: #ffffff;
+}
