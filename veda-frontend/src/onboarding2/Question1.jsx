@@ -12,11 +12,7 @@ const Question1 = () => {
   const [selectedType, setSelectedType] = useState("School");
   const [loading, setLoading] = useState(false);
 
-  const handleContinue = () => {
-
-    localStorage.setItem("institutionType", selectedType);
-
-    navigate("/question2");
+ 
   // continue handler
   const handleContinue = async () => {
     setLoading(true);

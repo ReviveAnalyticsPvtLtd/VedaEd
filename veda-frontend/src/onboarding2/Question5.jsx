@@ -14,28 +14,18 @@ const Question5 = () => {
   const [loading, setLoading] = useState(false);
 
   const handleFinish = async () => {
-    setLoading(true);
-    try {
-      // FINAL DATA
-      const onboardingData = {
-        institutionType: localStorage.getItem("institutionType"),
-        studentStrength: localStorage.getItem("studentStrength"),
-        branches: localStorage.getItem("branches"),
-        board: localStorage.getItem("board"),
-        currentSystem: selectedERP,
-      };
 
-      console.log("ONBOARDING DATA:", onboardingData);
+  setLoading(true);
 
-      // Save to backend
-      await saveSurveyData(onboardingData);
+  try {
 
-      // Clear localStorage after successful submission
-      localStorage.removeItem("institutionType");
-      localStorage.removeItem("studentStrength");
-      localStorage.removeItem("branches");
-      localStorage.removeItem("board");
-      localStorage.removeItem("currentSystem");
+    // FINAL DATA
+    const onboardingData = {
+      institutionType:
+        localStorage.getItem("institutionType"),
+
+      studentStrength:
+        localStorage.getItem("studentStrength"),
 
       branches:
         localStorage.getItem("branches"),
@@ -46,19 +36,46 @@ const Question5 = () => {
       currentSystem: selectedERP,
     };
 
-    console.log("ONBOARDING DATA:", onboardingData);
+    console.log(
+      "ONBOARDING DATA:",
+      onboardingData
+    );
+
+    // SAVE TO BACKEND
+    await saveSurveyData(onboardingData);
+
+    // SAVE CURRENT SYSTEM
+    localStorage.setItem(
+      "currentSystem",
+      selectedERP
+    );
+
+    // CLEAR STORAGE
+    localStorage.removeItem("institutionType");
+    localStorage.removeItem("studentStrength");
+    localStorage.removeItem("branches");
+    localStorage.removeItem("board");
+    localStorage.removeItem("currentSystem");
 
     // NAVIGATE TO PAYOUT
     navigate("/payout");
-      // Redirect to dashboard
-      navigate("/admin-front");
-    } catch (error) {
-      console.error("Error saving survey data:", error);
-      alert("Failed to save data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+
+  } catch (error) {
+
+    console.error(
+      "Error saving survey data:",
+      error
+    );
+
+    alert(
+      "Failed to save data. Please try again."
+    );
+
+  } finally {
+
+    setLoading(false);
+  }
+};
 
   const options = [
     {
