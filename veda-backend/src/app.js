@@ -96,6 +96,8 @@ app.use("/api/gradebook", require("./modules/gradebook/gradebookRoutes"));
 app.use("/api/transport", require("./modules/transport/transportRoutes"));
 app.use("/api/institution", require("./modules/institution/institutionRoutes"));
 app.use("/api/setup-wizard", require("./modules/setupWizard/setupWizardRoutes"));
+app.use("/api/onboarding", require("./modules/onboarding/onboardingRoutes"));
+app.use("/api/workspace", require("./modules/workspace/workspaceRoutes"));
 app.use("/api/academic-years", require("./modules/fees/feeRoutes").academicYearRouter);
 app.use("/api/fee-categories", require("./modules/fees/feeRoutes").feeCategoryRouter);
 app.use("/api/fees", require("./modules/fees/feeRoutes").gradeFeeRouter);
@@ -122,7 +124,7 @@ app.use((err, req, res, next) => {
   console.error('Global Error:', err);
   if (err?.name === "MulterError") {
     return res.status(400).json({
-      message: err.message || "File upload validation failed",
+      message: err.message || "File upload validation failed .",
     });
   }
   res.status(err.status || 500).json({

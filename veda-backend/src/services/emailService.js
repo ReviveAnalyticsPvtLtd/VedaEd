@@ -69,4 +69,32 @@ const sendAdminInvitationEmail = async ({
   return info;
 };
 
-module.exports = { sendAdminInvitationEmail };
+const sendEmailVerificationOtp = async ({ to, otp }) => {
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const text = [
+    "Your verification code is:",
+    "",
+    otp,
+    "",
+    "This code will expire in 2 minutes.",
+    "",
+    "If you did not request this code, please ignore this email.",
+  ].join("\n");
+
+  const info = await getTransporter().sendMail({
+    from: `"VedaSchool" <${from}>`,
+    to,
+    subject: "Verify Your Email Address",
+    text,
+    html: [
+      "<p>Your verification code is:</p>",
+      `<p style="font-size:24px;font-weight:bold;letter-spacing:4px;margin:16px 0;">${otp}</p>`,
+      "<p>This code will expire in 2 minutes.</p>",
+      "<p>If you did not request this code, please ignore this email.</p>",
+    ].join(""),
+  });
+
+  return info;
+};
+
+module.exports = { sendAdminInvitationEmail, sendEmailVerificationOtp };

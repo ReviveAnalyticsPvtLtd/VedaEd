@@ -2413,6 +2413,7 @@ exports.deleteStep9WeightageRow = async (req, res) => {
 /** GET /api/setup-wizard/step-12/review — get full review summary for launch page */
 exports.getSetupReview = async (req, res) => {
   try {
+    const { buildSetupReview } = require("./setupReviewBuilder");
     const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
 
     if (!doc) {
@@ -2422,84 +2423,13 @@ exports.getSetupReview = async (req, res) => {
       });
     }
 
-    const completedCount = doc.completedSteps?.length || 0;
-    const totalSections = 12;
-    const readinessScore = Math.round((completedCount / totalSections) * 100);
-
-    const sections = [
-      {
-        key: "schoolProfile",
-        label: "School Profile",
-        desc: "Name, branding, localization, contacts configured.",
-        done: Boolean(doc.schoolName && doc.schoolCode && doc.address),
-      },
-      {
-        key: "academicStructure",
-        label: "Academic Structure",
-        desc: "Academic year, grades, sections, streams, subjects mode configured.",
-        done: Boolean(doc.gradeFrom && doc.gradeTo),
-      },
-      {
-        key: "rolesHR",
-        label: "Roles & HR",
-        desc: "Core roles, optional roles, staff categories, permissions configured.",
-        done: doc.completedSteps?.includes(7) || false,
-      },
-      {
-        key: "attendance",
-        label: "Attendance",
-        desc: "Hybrid mode, late rules, leave approvals, parent alerts configured.",
-        done: doc.completedSteps?.includes(8) || false,
-      },
-      {
-        key: "exams",
-        label: "Exams & Gradebook",
-        desc: "Term exams, marks + grade, report card, grade scale configured.",
-        done: doc.completedSteps?.includes(9) || false,
-      },
-      {
-        key: "fees",
-        label: "Fees",
-        desc: "Quarterly fees, categories, late fee, discounts, reminders configured.",
-        done: Boolean(doc.feeCollectionFrequency),
-      },
-      {
-        key: "communication",
-        label: "Communication",
-        desc: "Channels, triggers, message templates, documents configured.",
-        done: Boolean(
-          doc.communicationChannels?.email !== undefined
-        ),
-      },
-      {
-        key: "optionalModules",
-        label: "Optional Modules",
-        desc: "Transport / Library / Health mini setup can run after launch.",
-        done: false,
-        later: true,
-      },
-    ];
-
-    const warnings = [];
-    if (!doc.gradeFrom || !doc.gradeTo) {
-      warnings.push("Subject details may need review. Review subject lists before timetable creation.");
-    }
-    warnings.push(
-      "Optional modules not fully configured. Transport, Library, Health, and other optional modules can be configured using mini setup wizards after launch."
-    );
+    const review = buildSetupReview(doc);
 
     return res.status(200).json({
       success: true,
       data: {
         doc: formatSetupDoc(doc),
-        readinessScore: Math.min(94, readinessScore),
-        sectionsComplete: sections.filter((s) => s.done).length,
-        totalSections,
-        warnings,
-        blockingIssues: 0,
-        sections,
-        isLaunched: doc.setupStatus === "completed",
-        launchedAt: doc.launchedAt,
+        ...review,
       },
       message: "Setup review loaded successfully",
     });

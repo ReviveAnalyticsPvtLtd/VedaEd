@@ -1,24 +1,46 @@
+import axios from "axios";
 import config from "../config";
+import { getAuthToken } from "../utils/authSession";
+
+const API_URL = `${config.API_BASE_URL}/auth`;
 
 const authHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+export const checkUserExists = async (email) => {
+  const { data } = await axios.post(`${API_URL}/check-user`, { email });
+  return data;
+};
+
+export const registerWithEmail = async ({ email, password }) => {
+  const { data } = await axios.post(`${API_URL}/register`, {
+    email,
+    password,
+    confirmPassword: password,
+  });
+  return data;
+};
+
+export const loginWithEmail = async ({ email, password }) => {
+  const { data } = await axios.post(`${API_URL}/login`, { email, password });
+  return data;
 };
 
 export const authAPI = {
-  changePassword: async ({ currentPassword, newPassword }) => {
-    const response = await fetch(`${config.API_BASE_URL}/auth/change-password`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.message || "Failed to update password");
+  async changePassword({ currentPassword, newPassword }) {
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/change-password`,
+        { currentPassword, newPassword },
+        { headers: authHeaders() }
+      );
+      return data;
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || "Failed to update password";
+      throw new Error(message);
     }
-    return payload;
   },
 };

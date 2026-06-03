@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import OnboardingLayout from "./components/OnboardingLayout";
+import { saveSurveyData } from "../services/onboardingSurveyAPI";
 
 const Question5 = () => {
 
@@ -10,21 +11,31 @@ const Question5 = () => {
 
   const [selectedERP, setSelectedERP] =
     useState("Excel / Sheets");
+  const [loading, setLoading] = useState(false);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    setLoading(true);
+    try {
+      // FINAL DATA
+      const onboardingData = {
+        institutionType: localStorage.getItem("institutionType"),
+        studentStrength: localStorage.getItem("studentStrength"),
+        branches: localStorage.getItem("branches"),
+        board: localStorage.getItem("board"),
+        currentSystem: selectedERP,
+      };
 
-    localStorage.setItem(
-      "currentSystem",
-      selectedERP
-    );
+      console.log("ONBOARDING DATA:", onboardingData);
 
-    // FINAL DATA
-    const onboardingData = {
-      institutionType:
-        localStorage.getItem("institutionType"),
+      // Save to backend
+      await saveSurveyData(onboardingData);
 
-      studentStrength:
-        localStorage.getItem("studentStrength"),
+      // Clear localStorage after successful submission
+      localStorage.removeItem("institutionType");
+      localStorage.removeItem("studentStrength");
+      localStorage.removeItem("branches");
+      localStorage.removeItem("board");
+      localStorage.removeItem("currentSystem");
 
       branches:
         localStorage.getItem("branches"),
@@ -39,6 +50,14 @@ const Question5 = () => {
 
     // NAVIGATE TO PAYOUT
     navigate("/payout");
+      // Redirect to dashboard
+      navigate("/admin-front");
+    } catch (error) {
+      console.error("Error saving survey data:", error);
+      alert("Failed to save data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const options = [

@@ -7,6 +7,9 @@ const {
   RESULT_PUBLISHING_MODES,
   REPORT_CARD_SECTIONS,
   DEFAULT_GRADE_TABLE,
+  getDefaultGradeTableForFormat,
+  GPA_SCALE_TYPES,
+  getGpaScaleMax,
   DEFAULT_ASSESSMENT_WEIGHTAGE,
   DEFAULT_REPORT_CARD_SECTIONS,
   DEFAULT_DEPENDENCY_STATUS,
@@ -14,6 +17,7 @@ const {
 
 const DEFAULT_ASSESSMENT_MODEL = "Term Exams";
 const DEFAULT_RESULT_FORMAT = "Marks + Grade";
+const DEFAULT_GPA_SCALE_TYPE = "4.0";
 const DEFAULT_GRADE_SCALE_SCOPE = "Globally";
 const DEFAULT_PASSING_MARKS = 33;
 const DEFAULT_REPORT_CARD_FORMAT = "Board-specific Standard";
@@ -22,6 +26,7 @@ const DEFAULT_PUBLISHING_MODE = "Admin Approval Required";
 const PICKED_SNAPSHOT_FIELDS = [
   "assessmentModel",
   "resultDisplayFormat",
+  "gpaScaleType",
   "gradeScaleScope",
   "defaultPassingMarks",
   "gradeTable",
@@ -82,15 +87,63 @@ const normalizeReportCardSections = (sections) => {
   return normalized.length ? normalized : [...DEFAULT_REPORT_CARD_SECTIONS];
 };
 
-const normalizeGradeTable = (rows) => {
-  const source = Array.isArray(rows) && rows.length ? rows : DEFAULT_GRADE_TABLE;
-  return source.map((row, index) => ({
-    rowId: asTrimmedString(row.rowId, `grade-row-${index + 1}`) || `grade-row-${index + 1}`,
-    grade: asTrimmedString(row.grade),
-    minPercentage: asNumber(row.minPercentage ?? row.min, DEFAULT_GRADE_TABLE[index]?.minPercentage ?? 0),
-    maxPercentage: asNumber(row.maxPercentage ?? row.max, DEFAULT_GRADE_TABLE[index]?.maxPercentage ?? 0),
-    description: asTrimmedString(row.description ?? row.desc),
-  }));
+const normalizeGpaPoints = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const calculateWeightedGpa = (rows = []) => {
+  const entries = rows
+    .map((row) => ({
+      gpaPoints: asNumber(row.gpaPoints, NaN),
+      credits: asNumber(row.credits, NaN),
+    }))
+    .filter(
+      (entry) =>
+        Number.isFinite(entry.gpaPoints) &&
+        Number.isFinite(entry.credits) &&
+        entry.credits > 0
+    );
+
+  if (!entries.length) return null;
+
+  const totalCredits = entries.reduce((sum, entry) => sum + entry.credits, 0);
+  if (totalCredits <= 0) return null;
+
+  const weightedSum = entries.reduce(
+    (sum, entry) => sum + entry.gpaPoints * entry.credits,
+    0
+  );
+
+  return Number((weightedSum / totalCredits).toFixed(2));
+};
+
+const normalizeGradeTable = (
+  rows,
+  resultDisplayFormat = DEFAULT_RESULT_FORMAT,
+  gpaScaleType = DEFAULT_GPA_SCALE_TYPE
+) => {
+  const defaults = getDefaultGradeTableForFormat(resultDisplayFormat, gpaScaleType);
+  const source = Array.isArray(rows) && rows.length ? rows : defaults;
+  return source.map((row, index) => {
+    const fallback = defaults[index] || defaults[0] || {};
+    return {
+      rowId: asTrimmedString(row.rowId, `grade-row-${index + 1}`) || `grade-row-${index + 1}`,
+      grade: asTrimmedString(row.grade),
+      minPercentage: asNumber(
+        row.minPercentage ?? row.min,
+        fallback.minPercentage ?? 0
+      ),
+      maxPercentage: asNumber(
+        row.maxPercentage ?? row.max,
+        fallback.maxPercentage ?? 0
+      ),
+      description: asTrimmedString(row.description ?? row.desc),
+      gpaPoints: normalizeGpaPoints(row.gpaPoints ?? row.gpa ?? fallback.gpaPoints),
+      credits: asNumber(row.credits, fallback.credits ?? 1),
+    };
+  });
 };
 
 const normalizeAssessmentWeightage = (rows) => {
@@ -149,6 +202,17 @@ const getSmartChecks = (config = {}) => {
     );
   }
 
+  if (config.resultDisplayFormat === "GPA") {
+    const previewGpa = calculateWeightedGpa(config.gradeTable);
+    if (previewGpa === null) {
+      checks.push("Each GPA row needs a valid GPA value and credits greater than 0.");
+    } else {
+      checks.push(
+        `Weighted GPA on the ${config.gpaScaleType || DEFAULT_GPA_SCALE_TYPE} scale: ${previewGpa}.`
+      );
+    }
+  }
+
   if (config.assessmentModel === "Custom") {
     checks.push(
       "Custom assessment structures should be versioned carefully so historical report cards remain reproducible."
@@ -163,9 +227,12 @@ const getDefaultStep9State = (wizardDoc = {}) => {
   const base = {
     assessmentModel,
     resultDisplayFormat: DEFAULT_RESULT_FORMAT,
+    gpaScaleType: DEFAULT_GPA_SCALE_TYPE,
     gradeScaleScope: DEFAULT_GRADE_SCALE_SCOPE,
     defaultPassingMarks: DEFAULT_PASSING_MARKS,
-    gradeTable: cloneRows(DEFAULT_GRADE_TABLE),
+    gradeTable: cloneRows(
+      getDefaultGradeTableForFormat(DEFAULT_RESULT_FORMAT, DEFAULT_GPA_SCALE_TYPE)
+    ),
     assessmentWeightage: cloneRows(DEFAULT_ASSESSMENT_WEIGHTAGE),
     reportCardFormat: DEFAULT_REPORT_CARD_FORMAT,
     resultPublishingMode: DEFAULT_PUBLISHING_MODE,
@@ -199,6 +266,9 @@ const normalizeStep9State = (payload = {}, wizardDoc = {}) => {
   const resultDisplayFormat = RESULT_DISPLAY_FORMATS.includes(payload.resultDisplayFormat)
     ? payload.resultDisplayFormat
     : defaults.resultDisplayFormat;
+  const gpaScaleType = GPA_SCALE_TYPES.includes(payload.gpaScaleType)
+    ? payload.gpaScaleType
+    : defaults.gpaScaleType;
   const gradeScaleScope = GRADE_SCALE_SCOPES.includes(payload.gradeScaleScope)
     ? payload.gradeScaleScope
     : defaults.gradeScaleScope;
@@ -214,12 +284,17 @@ const normalizeStep9State = (payload = {}, wizardDoc = {}) => {
   const normalized = {
     assessmentModel,
     resultDisplayFormat,
+    gpaScaleType,
     gradeScaleScope,
     defaultPassingMarks: asNumber(
       payload.defaultPassingMarks ?? payload.passingMarks,
       defaults.defaultPassingMarks
     ),
-    gradeTable: normalizeGradeTable(payload.gradeTable ?? payload.grades),
+    gradeTable: normalizeGradeTable(
+      payload.gradeTable ?? payload.grades,
+      resultDisplayFormat,
+      gpaScaleType
+    ),
     assessmentWeightage: normalizeAssessmentWeightage(
       payload.assessmentWeightage ?? payload.weightages
     ),
@@ -258,54 +333,100 @@ const rangesOverlap = (left, right) =>
   left.minPercentage <= right.maxPercentage &&
   right.minPercentage <= left.maxPercentage;
 
-const validateGradeTable = (gradeTable, errors, prefix) => {
+const usesPercentageRanges = (format) =>
+  format === "Percentage" || format === "Marks + Grade";
+
+const validateGradeTable = (
+  gradeTable,
+  errors,
+  prefix,
+  resultDisplayFormat,
+  gpaScaleType = DEFAULT_GPA_SCALE_TYPE
+) => {
   if (!Array.isArray(gradeTable) || gradeTable.length === 0) {
-    errors.push(`${prefix}At least one grade row is required`);
+    errors.push(`${prefix}At least one scale row is required`);
     return;
   }
 
+  const format = resultDisplayFormat || DEFAULT_RESULT_FORMAT;
+  const requiresGrade =
+    format === "Grade" || format === "Marks + Grade" || format === "GPA";
+  const requiresGpa = format === "GPA";
+  const requiresRanges = usesPercentageRanges(format);
+  const maxGpa = getGpaScaleMax(gpaScaleType);
   const seenGrades = new Map();
+  const seenGpa = new Set();
+
   gradeTable.forEach((row, index) => {
     const label = `${prefix}Row ${index + 1}: `;
-    if (!row.grade) {
+
+    if (requiresGrade && !row.grade) {
       errors.push(`${label}grade is required`);
     }
+
     if (!row.description) {
       errors.push(`${label}description is required`);
     }
-    if (
-      !Number.isFinite(row.minPercentage) ||
-      row.minPercentage < 0 ||
-      row.minPercentage > 100
-    ) {
-      errors.push(`${label}min percentage must be between 0 and 100`);
-    }
-    if (
-      !Number.isFinite(row.maxPercentage) ||
-      row.maxPercentage < 0 ||
-      row.maxPercentage > 100
-    ) {
-      errors.push(`${label}max percentage must be between 0 and 100`);
-    }
-    if (row.minPercentage >= row.maxPercentage) {
-      errors.push(`${label}min percentage must be less than max percentage`);
+
+    if (requiresGpa) {
+      if (row.gpaPoints === null || row.gpaPoints === undefined) {
+        errors.push(`${label}GPA value is required`);
+      } else if (row.gpaPoints < 0 || row.gpaPoints > maxGpa) {
+        errors.push(`${label}GPA value must be between 0 and ${maxGpa}`);
+      } else {
+        const gpaKey = String(row.gpaPoints);
+        if (seenGpa.has(gpaKey)) {
+          errors.push(`${label}duplicate GPA value "${row.gpaPoints}" is not allowed`);
+        }
+        seenGpa.add(gpaKey);
+      }
+      if (!Number.isFinite(row.credits) || row.credits <= 0) {
+        errors.push(`${label}credits must be greater than 0`);
+      }
     }
 
-    const normalizedGrade = row.grade.toLowerCase();
-    if (seenGrades.has(normalizedGrade)) {
-      errors.push(`${label}duplicate grade "${row.grade}" is not allowed`);
-    } else {
-      seenGrades.set(normalizedGrade, row.rowId);
+    if (requiresRanges) {
+      if (
+        !Number.isFinite(row.minPercentage) ||
+        row.minPercentage < 0 ||
+        row.minPercentage > 100
+      ) {
+        errors.push(`${label}min percentage must be between 0 and 100`);
+      }
+      if (
+        !Number.isFinite(row.maxPercentage) ||
+        row.maxPercentage < 0 ||
+        row.maxPercentage > 100
+      ) {
+        errors.push(`${label}max percentage must be between 0 and 100`);
+      }
+      if (row.minPercentage >= row.maxPercentage) {
+        errors.push(`${label}min percentage must be less than max percentage`);
+      }
+    }
+
+    if (requiresGrade && row.grade) {
+      const normalizedGrade = row.grade.toLowerCase();
+      if (seenGrades.has(normalizedGrade)) {
+        errors.push(`${label}duplicate grade "${row.grade}" is not allowed`);
+      } else {
+        seenGrades.set(normalizedGrade, row.rowId);
+      }
     }
   });
+
+  if (!requiresRanges) return;
 
   const sorted = [...gradeTable].sort((a, b) => a.minPercentage - b.minPercentage);
   sorted.forEach((row, index) => {
     const next = sorted[index + 1];
     if (!next) return;
     if (rangesOverlap(row, next)) {
+      const rowLabel = format === "Percentage" ? row.description || "range" : row.grade;
+      const nextLabel =
+        format === "Percentage" ? next.description || "next range" : next.grade;
       errors.push(
-        `${prefix}Grade ranges for "${row.grade}" and "${next.grade}" cannot overlap`
+        `${prefix}Ranges for "${rowLabel}" and "${nextLabel}" cannot overlap`
       );
     }
   });
@@ -348,15 +469,27 @@ const validateAssessmentWeightage = (weightageRows, errors, prefix) => {
   }
 };
 
-const validateStep9Payload = (payload = {}, wizardDoc = {}, { draft = false } = {}) => {
+const validateStep9Payload = (
+  payload = {},
+  wizardDoc = {},
+  { draft = false, advancedSetup } = {}
+) => {
   const sanitized = normalizeStep9State(payload, wizardDoc);
   const errors = [];
+  const isAdvancedSetup =
+    advancedSetup === undefined
+      ? wizardDoc?.selectedSetupType === "advanced"
+      : Boolean(advancedSetup);
 
   if (!draft && !sanitized.assessmentModel) {
     errors.push("assessmentModel is required");
   }
 
-  if (
+  if (sanitized.resultDisplayFormat === "GPA") {
+    if (!GPA_SCALE_TYPES.includes(sanitized.gpaScaleType)) {
+      errors.push("gpaScaleType must be 4.0, 5.0, or 10.0");
+    }
+  } else if (
     !Number.isFinite(sanitized.defaultPassingMarks) ||
     sanitized.defaultPassingMarks < 0 ||
     sanitized.defaultPassingMarks > 100
@@ -364,11 +497,19 @@ const validateStep9Payload = (payload = {}, wizardDoc = {}, { draft = false } = 
     errors.push("defaultPassingMarks must be between 0 and 100");
   }
 
-  validateGradeTable(sanitized.gradeTable, errors, "");
-  validateAssessmentWeightage(sanitized.assessmentWeightage, errors, "");
+  validateGradeTable(
+    sanitized.gradeTable,
+    errors,
+    "",
+    sanitized.resultDisplayFormat,
+    sanitized.gpaScaleType
+  );
 
-  if (!sanitized.reportCardSections.length) {
-    errors.push("Select at least one report card section");
+  if (isAdvancedSetup) {
+    validateAssessmentWeightage(sanitized.assessmentWeightage, errors, "");
+    if (!sanitized.reportCardSections.length) {
+      errors.push("Select at least one report card section");
+    }
   }
 
   return {
@@ -391,6 +532,7 @@ const gradeConfigChanged = (existingConfig = {}, nextConfig = {}) =>
     gradeTable: existingConfig.gradeTable,
     assessmentWeightage: existingConfig.assessmentWeightage,
     resultDisplayFormat: existingConfig.resultDisplayFormat,
+    gpaScaleType: existingConfig.gpaScaleType,
   }) !==
   JSON.stringify({
     gradeScaleScope: nextConfig.gradeScaleScope,
@@ -398,6 +540,7 @@ const gradeConfigChanged = (existingConfig = {}, nextConfig = {}) =>
     gradeTable: nextConfig.gradeTable,
     assessmentWeightage: nextConfig.assessmentWeightage,
     resultDisplayFormat: nextConfig.resultDisplayFormat,
+    gpaScaleType: nextConfig.gpaScaleType,
   });
 
 const createAuditLog = ({
@@ -559,9 +702,11 @@ const mapWizardToStep9Response = (wizardDoc = {}) => {
 };
 
 const removeGradeRow = (config = {}, rowId) => {
-  const nextRows = normalizeGradeTable(config.gradeTable).filter(
-    (row) => row.rowId !== rowId
-  );
+  const nextRows = normalizeGradeTable(
+    config.gradeTable,
+    config.resultDisplayFormat,
+    config.gpaScaleType
+  ).filter((row) => row.rowId !== rowId);
   return { ...config, gradeTable: nextRows };
 };
 
@@ -581,13 +726,34 @@ const calculatePercentage = ({ obtainedMarks, totalMarks }) => {
   return Number(((obtained / total) * 100).toFixed(2));
 };
 
-const convertPercentageToGrade = (percentage, gradeTable = DEFAULT_GRADE_TABLE) => {
-  const normalized = normalizeGradeTable(gradeTable).sort(
-    (left, right) => right.minPercentage - left.minPercentage
-  );
+const convertPercentageToGrade = (
+  percentage,
+  gradeTable = DEFAULT_GRADE_TABLE,
+  resultDisplayFormat = DEFAULT_RESULT_FORMAT,
+  gpaScaleType = DEFAULT_GPA_SCALE_TYPE
+) => {
+  const normalized = normalizeGradeTable(
+    gradeTable,
+    resultDisplayFormat,
+    gpaScaleType
+  ).sort((left, right) => right.minPercentage - left.minPercentage);
   return (
     normalized.find(
       (row) => percentage >= row.minPercentage && percentage <= row.maxPercentage
+    ) || null
+  );
+};
+
+const lookupGpaRowByLetter = (
+  letterGrade,
+  gradeTable = DEFAULT_GRADE_TABLE,
+  gpaScaleType = DEFAULT_GPA_SCALE_TYPE
+) => {
+  const key = asTrimmedString(letterGrade).toLowerCase();
+  if (!key) return null;
+  return (
+    normalizeGradeTable(gradeTable, "GPA", gpaScaleType).find(
+      (row) => row.grade.toLowerCase() === key
     ) || null
   );
 };
@@ -597,14 +763,74 @@ const generateFinalResult = ({
   totalMarks,
   gradeTable = DEFAULT_GRADE_TABLE,
   defaultPassingMarks = DEFAULT_PASSING_MARKS,
+  resultDisplayFormat = DEFAULT_RESULT_FORMAT,
+  gpaScaleType = DEFAULT_GPA_SCALE_TYPE,
+  letterGrade = "",
+  courseResults = [],
 }) => {
   const percentage = calculatePercentage({ obtainedMarks, totalMarks });
-  const matchedGrade = convertPercentageToGrade(percentage, gradeTable);
-  return {
+  const matchedGrade = convertPercentageToGrade(
     percentage,
-    grade: matchedGrade?.grade || "Ungraded",
-    description: matchedGrade?.description || "No matching grade range found",
-    passed: percentage >= Number(defaultPassingMarks || DEFAULT_PASSING_MARKS),
+    gradeTable,
+    resultDisplayFormat,
+    gpaScaleType
+  );
+  const passed = percentage >= Number(defaultPassingMarks || DEFAULT_PASSING_MARKS);
+
+  if (resultDisplayFormat === "GPA") {
+    const courseEntries = Array.isArray(courseResults) ? courseResults : [];
+    let gpa = null;
+
+    if (courseEntries.length) {
+      gpa = calculateWeightedGpa(courseEntries);
+    } else if (letterGrade) {
+      const row = lookupGpaRowByLetter(letterGrade, gradeTable, gpaScaleType);
+      gpa = row?.gpaPoints ?? null;
+    } else if (matchedGrade?.gpaPoints != null) {
+      gpa = matchedGrade.gpaPoints;
+    }
+
+    return {
+      gpa: gpa ?? 0,
+      gpaScaleType,
+      grade: letterGrade || matchedGrade?.grade || "",
+      description:
+        matchedGrade?.description ||
+        lookupGpaRowByLetter(letterGrade, gradeTable, gpaScaleType)?.description ||
+        "No matching GPA row found",
+      passed,
+    };
+  }
+
+  const base = {
+    percentage,
+    grade: matchedGrade?.grade || "",
+    description: matchedGrade?.description || "",
+    gpa: matchedGrade?.gpaPoints ?? null,
+    passed,
+  };
+
+  if (resultDisplayFormat === "Percentage") {
+    return {
+      percentage: base.percentage,
+      description: base.description,
+      passed: base.passed,
+    };
+  }
+
+  if (resultDisplayFormat === "Grade") {
+    return {
+      grade: base.grade || "Ungraded",
+      description: base.description || "No matching grade found",
+      passed: base.passed,
+    };
+  }
+
+  return {
+    percentage: base.percentage,
+    grade: base.grade || "Ungraded",
+    description: base.description || "No matching grade range found",
+    passed: base.passed,
   };
 };
 
@@ -635,5 +861,7 @@ module.exports = {
   resolveAssessmentModelLogic,
   calculatePercentage,
   convertPercentageToGrade,
+  calculateWeightedGpa,
+  lookupGpaRowByLetter,
   generateFinalResult,
 };

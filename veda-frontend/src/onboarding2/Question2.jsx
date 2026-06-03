@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import OnboardingLayout from "./components/OnboardingLayout";
+import { saveSurveyData } from "../services/onboardingSurveyAPI";
 
 const Question2 = () => {
 
@@ -10,15 +11,29 @@ const Question2 = () => {
 
   const [selectedStudents, setSelectedStudents] =
     useState("300-1000");
+  const [loading, setLoading] = useState(false);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+      const existingData = {
+        institutionType: localStorage.getItem("institutionType") || "",
+        studentStrength: selectedStudents,
+        branches: localStorage.getItem("branches") || "",
+        board: localStorage.getItem("board") || "",
+        currentSystem: localStorage.getItem("currentSystem") || "",
+      };
 
-    localStorage.setItem(
-      "studentStrength",
-      selectedStudents
-    );
-
-    navigate("/question3");
+      await saveSurveyData(existingData);
+      localStorage.setItem("studentStrength", selectedStudents);
+      navigate("/question3");
+    } catch (error) {
+      console.error("Error saving survey data:", error);
+      localStorage.setItem("studentStrength", selectedStudents);
+      navigate("/question3");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const options = [

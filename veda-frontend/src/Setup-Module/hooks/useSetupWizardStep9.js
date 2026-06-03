@@ -7,6 +7,7 @@ import {
   updateExaminationGradebookSetup,
 } from "../../services/setupWizardAPI";
 import {
+  SETUP_TYPES,
   STEP_8_NUMBER,
   STEP_10_NUMBER,
   WIZARD_STEP_PATH,
@@ -18,13 +19,21 @@ import {
   STEP_9_TOTAL_STEPS,
 } from "../constants/examinationGradebook";
 import {
+  getDefaultGradeTableForFormat,
+  getScaleTableConfig,
+} from "../constants/examinationGradebook";
+import {
   buildStep9Payload,
+  calculateWeightedGpa,
+  createEmptyGradeRow,
   createLocalRowId,
   getExamSummary,
   getRecommendationText,
   getSmartChecks,
   getWeightageTotal,
+  isNumericGradeField,
   mapWizardDataToStep9Form,
+  normalizeGradeTable,
   resolveDependencyStatus,
   validateStep9Form,
 } from "../utils/examinationGradebook";
@@ -92,9 +101,14 @@ export function useSetupWizardStep9() {
     [dependencyStatus]
   );
 
+  const showAdvancedExamOptions = useMemo(
+    () => wizardMeta.selectedSetupType === SETUP_TYPES.ADVANCED,
+    [wizardMeta.selectedSetupType]
+  );
+
   const displaySmartChecks = useMemo(
-    () => getSmartChecks(form),
-    [form]
+    () => getSmartChecks(form, [], { advancedSetup: showAdvancedExamOptions }),
+    [form, showAdvancedExamOptions]
   );
 
   const weightageTotal = useMemo(
@@ -128,8 +142,50 @@ export function useSetupWizardStep9() {
 
   const selectResultDisplayFormat = useCallback(
     (resultDisplayFormat) => {
-      setForm((prev) => ({ ...prev, resultDisplayFormat }));
+      setForm((prev) => {
+        if (prev.resultDisplayFormat === resultDisplayFormat) {
+          return prev;
+        }
+        const gpaScaleType = prev.gpaScaleType || "4.0";
+        return {
+          ...prev,
+          resultDisplayFormat,
+          gradeTable: normalizeGradeTable(
+            resultDisplayFormat === "GPA"
+              ? getDefaultGradeTableForFormat("GPA", gpaScaleType)
+              : prev.gradeTable,
+            resultDisplayFormat,
+            gpaScaleType
+          ),
+        };
+      });
       clearFieldError("resultDisplayFormat");
+      setErrors((prev) => ({
+        ...prev,
+        gradeTable: "",
+        gradeTableRows: {},
+      }));
+    },
+    [clearFieldError]
+  );
+
+  const selectGpaScaleType = useCallback(
+    (gpaScaleType) => {
+      setForm((prev) => ({
+        ...prev,
+        gpaScaleType,
+        gradeTable: normalizeGradeTable(
+          getDefaultGradeTableForFormat("GPA", gpaScaleType),
+          "GPA",
+          gpaScaleType
+        ),
+      }));
+      clearFieldError("gpaScaleType");
+      setErrors((prev) => ({
+        ...prev,
+        gradeTable: "",
+        gradeTableRows: {},
+      }));
     },
     [clearFieldError]
   );
@@ -151,10 +207,7 @@ export function useSetupWizardStep9() {
         row.rowId === rowId
           ? {
               ...row,
-              [key]:
-                key === "minPercentage" || key === "maxPercentage"
-                  ? value
-                  : value,
+              [key]: isNumericGradeField(key) ? value : value,
             }
           : row
       ),
@@ -173,13 +226,7 @@ export function useSetupWizardStep9() {
       ...prev,
       gradeTable: [
         ...prev.gradeTable,
-        {
-          rowId: createLocalRowId("grade"),
-          grade: "",
-          minPercentage: 0,
-          maxPercentage: 0,
-          description: "",
-        },
+        createEmptyGradeRow(prev.resultDisplayFormat, prev.gpaScaleType),
       ],
     }));
   }, []);
@@ -242,7 +289,9 @@ export function useSetupWizardStep9() {
   const persistStep = useCallback(
     async ({ draft = false, exitAfterSave = false } = {}) => {
       if (!draft) {
-        const validationErrors = validateStep9Form(form);
+        const validationErrors = validateStep9Form(form, {
+          advancedSetup: wizardMeta.selectedSetupType === SETUP_TYPES.ADVANCED,
+        });
         const hasErrors = Object.entries(validationErrors).some(([key, value]) => {
           if (key === "gradeTableRows" || key === "assessmentWeightageRows") {
             return Object.values(value).some(Boolean);
@@ -320,8 +369,24 @@ export function useSetupWizardStep9() {
     }
   }, [persistStep, navigate]);
 
+  const scaleTableConfig = useMemo(
+    () => getScaleTableConfig(form.resultDisplayFormat, form.gpaScaleType),
+    [form.resultDisplayFormat, form.gpaScaleType]
+  );
+
+  const previewGpa = useMemo(
+    () =>
+      form.resultDisplayFormat === "GPA"
+        ? calculateWeightedGpa(form.gradeTable)
+        : null,
+    [form.resultDisplayFormat, form.gradeTable]
+  );
+
   return {
     form,
+    scaleTableConfig,
+    previewGpa,
+    showAdvancedExamOptions,
     errors,
     loading,
     saving,
@@ -336,6 +401,7 @@ export function useSetupWizardStep9() {
     updateField,
     selectAssessmentModel,
     selectResultDisplayFormat,
+    selectGpaScaleType,
     toggleReportCardSection,
     updateGradeRow,
     addGradeRow,
