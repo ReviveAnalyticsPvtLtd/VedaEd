@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import OnboardingLayout from "./components/OnboardingLayout";
+import { saveSurveyData } from "../services/onboardingSurveyAPI";
 
 const Question1 = () => {
 
@@ -10,15 +11,37 @@ const Question1 = () => {
 
   // selected option state
   const [selectedType, setSelectedType] = useState("School");
+  const [loading, setLoading] = useState(false);
 
   // continue handler
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+      // Get existing data from localStorage or initialize empty object
+      const existingData = {
+        institutionType: selectedType,
+        studentStrength: localStorage.getItem("studentStrength") || "",
+        branches: localStorage.getItem("branches") || "",
+        board: localStorage.getItem("board") || "",
+        currentSystem: localStorage.getItem("currentSystem") || "",
+      };
 
-    // save data if needed
-    localStorage.setItem("institutionType", selectedType);
+      // Save to backend
+      await saveSurveyData(existingData);
 
-    // next page
-    navigate("/question2");
+      // Also save to localStorage as backup
+      localStorage.setItem("institutionType", selectedType);
+
+      // next page
+      navigate("/question2");
+    } catch (error) {
+      console.error("Error saving survey data:", error);
+      // Fallback to localStorage if API fails
+      localStorage.setItem("institutionType", selectedType);
+      navigate("/question2");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

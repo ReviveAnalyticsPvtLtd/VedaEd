@@ -39,9 +39,10 @@ export function getOnboardingResumePath(onboarding) {
 
 /**
  * Explicit exit from onboarding (after complete API or process-pending).
+ * Redirects to onboarding2 Question1 for school setup questionnaire.
  */
 export function getOnboardingExitPath() {
-  return ONBOARDING_ROUTES.processPending;
+  return "/question1";
 }
 
 /**

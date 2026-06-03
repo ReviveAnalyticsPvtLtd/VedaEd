@@ -6,6 +6,7 @@ const onboardingAdminController = require("./controllers/onboardingAdminControll
 const onboardingPasswordController = require("./controllers/onboardingPasswordController");
 const onboardingEmailOtpController = require("./controllers/onboardingEmailOtpController");
 const onboardingCompleteController = require("./controllers/onboardingCompleteController");
+const onboardingSurveyController = require("./controllers/onboardingSurveyController");
 
 const router = express.Router();
 
@@ -77,6 +78,18 @@ router.post(
   "/complete",
   authMiddleware,
   onboardingCompleteController.completeOnboarding
+);
+
+// Onboarding2 Survey Routes
+router.post(
+  "/survey",
+  authMiddleware,
+  onboardingSurveyController.saveSurveyData
+);
+router.get(
+  "/survey",
+  authMiddleware,
+  onboardingSurveyController.getSurveyData
 );
 
 module.exports = router;
