@@ -8,16 +8,12 @@ const Question1 = () => {
 
   const navigate = useNavigate();
 
-  // selected option state
   const [selectedType, setSelectedType] = useState("School");
 
-  // continue handler
   const handleContinue = () => {
 
-    // save data if needed
     localStorage.setItem("institutionType", selectedType);
 
-    // next page
     navigate("/question2");
   };
 
@@ -27,18 +23,19 @@ const Question1 = () => {
       title="Tell us about your school"
       onNext={handleContinue}
     >
+
       {/* QUESTION */}
-      <h2 className="text-3xl font-bold mb-8">
+      <h2 className="text-[24px] leading-[34px] font-bold text-[#0f172a] mb-8">
         What type of institution are you setting up?
       </h2>
 
       {/* OPTIONS */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-5">
 
         {/* SCHOOL */}
         <div
           onClick={() => setSelectedType("School")}
-          className={`rounded-3xl p-8 cursor-pointer transition-all duration-300 border-2
+          className={`rounded-[28px] p-7 cursor-pointer transition-all duration-300 border
           
           ${
             selectedType === "School"
@@ -49,7 +46,7 @@ const Question1 = () => {
 
           {/* RADIO */}
           <div
-            className={`w-7 h-7 rounded-full mb-6 flex items-center justify-center text-white text-sm
+            className={`w-6 h-6 rounded-full mb-5 flex items-center justify-center text-white text-xs
               
               ${
                 selectedType === "School"
@@ -60,11 +57,11 @@ const Question1 = () => {
             {selectedType === "School" && "✓"}
           </div>
 
-          <h3 className="text-2xl font-bold mb-2">
+          <h3 className="text-[20px] font-bold text-[#0f172a] mb-2">
             School
           </h3>
 
-          <p className="text-gray-500">
+          <p className="text-[15px] leading-7 text-gray-500">
             K12 or regular school operations.
           </p>
         </div>
@@ -72,7 +69,7 @@ const Question1 = () => {
         {/* PRESCHOOL */}
         <div
           onClick={() => setSelectedType("Preschool")}
-          className={`rounded-3xl p-8 cursor-pointer transition-all duration-300 border-2
+          className={`rounded-[28px] p-7 cursor-pointer transition-all duration-300 border
           
           ${
             selectedType === "Preschool"
@@ -83,7 +80,7 @@ const Question1 = () => {
 
           {/* RADIO */}
           <div
-            className={`w-7 h-7 rounded-full mb-6 flex items-center justify-center text-white text-sm
+            className={`w-6 h-6 rounded-full mb-5 flex items-center justify-center text-white text-xs
               
               ${
                 selectedType === "Preschool"
@@ -94,20 +91,24 @@ const Question1 = () => {
             {selectedType === "Preschool" && "✓"}
           </div>
 
-          <h3 className="text-2xl font-bold mb-2">
+          <h3 className="text-[20px] font-bold text-[#0f172a] mb-2">
             Preschool
           </h3>
 
-          <p className="text-gray-500">
+          <p className="text-[15px] leading-7 text-gray-500">
             Early education and daycare workflows.
           </p>
         </div>
       </div>
 
       {/* SELECTED VALUE */}
-      <p className="mt-6 text-lg text-gray-600">
-        Selected: <span className="font-semibold">{selectedType}</span>
+      <p className="mt-6 text-[15px] text-gray-500">
+        Selected:
+        <span className="font-semibold text-[#0f172a] ml-1">
+          {selectedType}
+        </span>
       </p>
+
     </OnboardingLayout>
   );
 };

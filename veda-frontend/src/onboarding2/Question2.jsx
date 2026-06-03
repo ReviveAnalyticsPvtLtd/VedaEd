@@ -47,11 +47,14 @@ const Question2 = () => {
       onNext={handleContinue}
       onBack={() => navigate("/question1")}
     >
-      <h2 className="text-3xl font-bold mb-8">
+
+      {/* QUESTION */}
+      <h2 className="text-[24px] leading-[34px] font-bold text-[#0f172a] mb-8">
         How many students are currently enrolled?
       </h2>
 
-      <div className="grid grid-cols-2 gap-6">
+      {/* OPTIONS */}
+      <div className="grid grid-cols-2 gap-5">
 
         {options.map((item) => {
 
@@ -64,7 +67,7 @@ const Question2 = () => {
               onClick={() =>
                 setSelectedStudents(item.title)
               }
-              className={`rounded-3xl p-8 cursor-pointer border-2 transition-all duration-300
+              className={`rounded-[28px] p-7 cursor-pointer border transition-all duration-300
 
               ${
                 active
@@ -73,8 +76,9 @@ const Question2 = () => {
               }`}
             >
 
+              {/* RADIO */}
               <div
-                className={`w-7 h-7 rounded-full mb-6 flex items-center justify-center text-white text-sm
+                className={`w-6 h-6 rounded-full mb-5 flex items-center justify-center text-white text-xs
 
                 ${
                   active
@@ -85,17 +89,20 @@ const Question2 = () => {
                 {active && "✓"}
               </div>
 
-              <h3 className="text-2xl font-bold mb-2">
+              {/* TITLE */}
+              <h3 className="text-[20px] font-bold text-[#0f172a] mb-2">
                 {item.title}
               </h3>
 
-              <p className="text-gray-500">
+              {/* DESC */}
+              <p className="text-[15px] leading-7 text-gray-500">
                 {item.desc}
               </p>
             </div>
           );
         })}
       </div>
+
     </OnboardingLayout>
   );
 };

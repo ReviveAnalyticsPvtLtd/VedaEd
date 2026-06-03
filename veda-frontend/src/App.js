@@ -384,6 +384,7 @@ import Question2 from "./onboarding2/Question2";
 import Question3 from "./onboarding2/Question3";
 import Question4 from "./onboarding2/Question4";
 import Question5 from "./onboarding2/Question5";
+import Payout from "./onboarding2/Payout";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -397,6 +398,7 @@ function App() {
         <Route path="/question3" element={<Question3 />} />
         <Route path="/question4" element={<Question4 />} />
         <Route path="/question5" element={<Question5 />} />
+        <Route path="/payout" element={<Payout />} />
         <Route path="/" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
         {/* user info pages */}
