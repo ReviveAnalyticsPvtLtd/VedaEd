@@ -120,18 +120,6 @@ async function authenticateWithGoogle(credential) {
     $or: [{ googleId: googleProfile.googleId }, { email: googleProfile.email }],
   }).populate("roleId");
 
-  if (
-    user &&
-    (user.authProvider === "email" || user.authProvider === "local") &&
-    !user.googleId
-  ) {
-    const error = new Error(
-      "An account with this email already exists. Sign in with your password or contact support."
-    );
-    error.statusCode = 409;
-    throw error;
-  }
-
   if (!user) {
     user = await User.create({
       name: googleProfile.name,

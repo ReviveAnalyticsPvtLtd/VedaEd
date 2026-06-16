@@ -37,8 +37,8 @@ const Question5 = () => {
       localStorage.removeItem("board");
       localStorage.removeItem("currentSystem");
 
-      // Redirect to dashboard
-      navigate("/admin-front");
+      // Redirect to setup module
+      navigate("/setup/start");
     } catch (error) {
       console.error("Error saving survey data:", error);
       alert("Failed to save data. Please try again.");
