@@ -24,17 +24,6 @@ const Question5 = () => {
       institutionType:
         localStorage.getItem("institutionType"),
 
-<<<<<<< HEAD
-      // Redirect to setup module
-      navigate("/setup/start");
-    } catch (error) {
-      console.error("Error saving survey data:", error);
-      alert("Failed to save data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-=======
       studentStrength:
         localStorage.getItem("studentStrength"),
 
@@ -87,7 +76,6 @@ const Question5 = () => {
     setLoading(false);
   }
 };
->>>>>>> b72f0ad4a21cf48abf57ce697de0a5ff36fe4091
 
   const options = [
     {
