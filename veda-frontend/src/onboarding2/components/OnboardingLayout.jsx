@@ -9,73 +9,110 @@ const OnboardingLayout = ({
   onNext,
   onBack,
 }) => {
-  const progress = (step / 5) * 100;
+
+  const progress = (step / 6) * 100;
 
   return (
-    <div className="min-h-screen bg-[#f5f7ff] p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-3xl font-bold">
-          <span className="text-blue-500"></span> VedaSchool
+    <div className="h-screen overflow-hidden bg-[#f5f7ff] px-4 py-3">
+
+      {/* HEADER */}
+      <div className="flex justify-between items-center px-3 mb-3">
+
+        {/* LOGO */}
+        <div className="text-[20px] font-bold text-[#0f172a]">
+          VedaSchool
         </div>
 
-        <div className="bg-white px-5 py-2 rounded-full shadow text-sm font-semibold">
+        {/* DOMAIN */}
+        <div className="bg-white border border-gray-200 rounded-full px-5 py-2 text-sm font-semibold text-gray-600">
           sunrise.vedaschool.ai
         </div>
       </div>
 
-      {/* Main */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Left Panel */}
-        <div className="col-span-4">
-          <div className="bg-[#111a4b] rounded-[30px] h-[700px]" />
+      {/* MAIN */}
+     <div className="h-[calc(100vh-78px)] max-w-[1500px] mx-auto flex gap-5">
+
+        {/* LEFT PANEL */}
+       <div className="w-[360px] h-full shrink-0">
+
+          <div className="bg-[#111a4b] rounded-[34px] h-full relative overflow-hidden">
+
+            {/* GRID */}
+            <div
+              className="absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage: `
+                  linear-gradient(to right, white 1px, transparent 1px),
+                  linear-gradient(to bottom, white 1px, transparent 1px)
+                `,
+                backgroundSize: "40px 40px",
+              }}
+            />
+          </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="col-span-8 bg-white rounded-[30px] p-10">
-          {/* Top */}
-          <div className="flex justify-between items-center mb-10">
-            <div className="bg-[#f0ebff] text-[#6c4cff] px-4 py-2 rounded-full font-semibold">
-              Onboarding
-            </div>
+        {/* RIGHT PANEL */}
+       <div className="flex-1 h-full overflow-y-auto max-w-[1080px]">
 
-            <div className="w-[220px]">
-              <p className="text-right text-sm font-semibold mb-2">
-                Question {step} of 5
-              </p>
+          <div className="bg-white rounded-[34px] min-h-full px-10 py-8">
 
-              <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-cyan-400 to-purple-500 h-full"
-                  style={{ width: `${progress}%` }}
-                />
+            {/* TOP BAR */}
+            <div className="flex justify-between items-start mb-8">
+
+              {/* BADGE */}
+              <div className="bg-[#f2edff] text-[#5b3df5] px-4 py-2 rounded-full text-sm font-semibold">
+                Onboarding
+              </div>
+
+              {/* PROGRESS */}
+              <div className="w-[220px]">
+
+                <p className="text-right text-[13px] text-gray-500 font-medium mb-2">
+                  Question {step} of 6
+                </p>
+
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Title */}
-          <h1 className="text-5xl font-bold mb-10">
-            {title}
-          </h1>
+            {/* PAGE TITLE */}
+            <h1 className="text-[30px] leading-[38px] font-bold text-[#0f172a] mb-8">
+              {title}
+            </h1>
 
-          {/* Dynamic Content */}
-          <div>{children}</div>
+            {/* PAGE CONTENT */}
+            <div className="w-full">
+              {children}
+            </div>
 
-          {/* Buttons */}
-          <div className="flex justify-between mt-16">
-            <button
-              onClick={onBack}
-              className="px-8 py-4 rounded-2xl bg-gray-100 text-gray-500 font-semibold"
-            >
-              Back
-            </button>
+            {/* FOOTER */}
+            {(onBack || onNext) && (
+              <div className="flex justify-between items-center mt-12 pt-6 border-t border-gray-100">
 
-            <button
-              onClick={onNext}
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 to-purple-600 text-white font-semibold shadow-lg"
-            >
-              Continue
-            </button>
+                <button
+                  onClick={onBack}
+                  className="px-7 py-3 rounded-2xl border border-gray-200 bg-white
+                  text-[15px] text-gray-600 font-semibold hover:bg-gray-50 transition"
+                >
+                  Back
+                </button>
+
+                <button
+                  onClick={onNext}
+                  className="px-8 py-3 rounded-2xl
+                  bg-gradient-to-r from-[#6c4cff] to-[#5b3df5]
+                  text-white text-[15px] font-semibold shadow-sm"
+                >
+                  Continue
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

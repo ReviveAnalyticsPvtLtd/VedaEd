@@ -301,7 +301,11 @@ import SuperAdminSISStaff from "./SuperAdmin/SIS/SuperAdminSISStaff";
 import SuperAdminSISStaffProfile from "./SuperAdmin/SIS/SuperAdminSISStaffProfile";
 import SuperAdminSISParents from "./SuperAdmin/SIS/SuperAdminSISParents";
 import SuperAdminSISParentProfile from "./SuperAdmin/SIS/SuperAdminSISParentProfile";
-import SuperAdminSISReports from "./SuperAdmin/SIS/SuperAdminSISReports";import SuperAdminSISAttendanceOverview from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceOverview";
+import SuperAdminSISReports from "./SuperAdmin/SIS/SuperAdminSISReports";
+
+
+import SuperAdminSISAttendance from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendance";
+import SuperAdminSISAttendanceOverview from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceOverview";
 import SuperAdminSISAttendanceByClass from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByClass";
 import SuperAdminSISAttendanceByStudent from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByStudent";
 import SuperAdminSISAttendanceClassDetail from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceClassDetail";
@@ -310,7 +314,14 @@ import SuperAdminSISSubjectGroup from "./SuperAdmin/SIS/ClassesSchedules/SuperAd
 import SuperAdminSISAssignTeacher from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAssignTeacher";
 import SuperAdminSISTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISTimetable";
 import SuperAdminSISAddClass from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddClass";
-import SuperAdminSISAddSubject from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddSubject";import SuperAdminFeesDashboardLayout from "./SuperAdmin/Fees/SuperAdminFeesDashboardLayout";
+import SuperAdminSISAddSubject from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddSubject";
+import SuperAdminSISClassDetailPage from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassDetailPage";
+import SuperAdminSISClassesSchedules from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassesSchedules";
+import SuperAdminSISClassTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassTimetable";
+import SuperAdminSISTeacherTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISTeacherTimetable";
+
+
+import SuperAdminFeesDashboardLayout from "./SuperAdmin/Fees/SuperAdminFeesDashboardLayout";
 import SuperAdminFeesDashboard from "./SuperAdmin/Fees/SuperAdminFeesDashboard";
 import SuperAdminFeesCollectFees from "./SuperAdmin/Fees/SuperAdminFeesCollectFees";
 import SuperAdminFeesFeeMaster from "./SuperAdmin/Fees/SuperAdminFeesFeeMaster";
@@ -395,6 +406,7 @@ import Question2 from "./onboarding2/Question2";
 import Question3 from "./onboarding2/Question3";
 import Question4 from "./onboarding2/Question4";
 import Question5 from "./onboarding2/Question5";
+import Payout from "./onboarding2/Payout";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -408,6 +420,7 @@ function App() {
         <Route path="/question3" element={<Question3 />} />
         <Route path="/question4" element={<Question4 />} />
         <Route path="/question5" element={<Question5 />} />
+        <Route path="/payout" element={<Payout />} />
         <Route path="/" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
@@ -514,18 +527,67 @@ function App() {
         <Route path="parents/:id" element={<SuperAdminSISParentProfile />} />
         <Route path="reports" element={<SuperAdminSISReports />} />
 
-        <Route path="attendance/overview" element={<SuperAdminSISAttendanceOverview />} />
-        <Route path="attendance/by-class" element={<SuperAdminSISAttendanceByClass />} />
-        <Route path="attendance/by-student" element={<SuperAdminSISAttendanceByStudent />} />
-        <Route path="attendance/class/:id" element={<SuperAdminSISAttendanceClassDetail />} />
-        <Route path="attendance/student/:id" element={<SuperAdminSISAttendanceStudentDetail />} />
+      <Route
+  path="attendance"
+  element={<SuperAdminSISAttendance />}
+>
+  <Route index element={<Navigate to="overview" />} />
 
-        <Route path="classes" element={<SuperAdminSISClasses />} />
-        <Route path="subject-group" element={<SuperAdminSISSubjectGroup />} />
-        <Route path="assign-teacher" element={<SuperAdminSISAssignTeacher />} />
-        <Route path="timetable" element={<SuperAdminSISTimetable />} />
-        <Route path="add-class" element={<SuperAdminSISAddClass />} />
-        <Route path="add-subject" element={<SuperAdminSISAddSubject />} />
+  <Route
+    path="overview"
+    element={<SuperAdminSISAttendanceOverview />}
+  />
+
+  <Route
+    path="by-class"
+    element={<SuperAdminSISAttendanceByClass />}
+  />
+
+  <Route
+    path="by-student"
+    element={<SuperAdminSISAttendanceByStudent />}
+  />
+
+  <Route
+    path="by-class/:id"
+    element={<SuperAdminSISAttendanceClassDetail />}
+  />
+
+  <Route
+    path="by-student/:id"
+    element={<SuperAdminSISAttendanceStudentDetail />}
+  />
+</Route>
+
+      <Route
+  path="classes-schedules"
+  element={<SuperAdminSISClassesSchedules />}
+>
+  <Route index element={<Navigate to="classes" />} />
+
+  <Route path="classes" element={<SuperAdminSISClasses />} />
+  <Route path="subject-group" element={<SuperAdminSISSubjectGroup />} />
+  <Route path="assign-teacher" element={<SuperAdminSISAssignTeacher />} />
+  <Route path="timetable" element={<SuperAdminSISTimetable />} />
+
+  <Route path="add-class" element={<SuperAdminSISAddClass />} />
+  <Route path="add-subject" element={<SuperAdminSISAddSubject />} />
+
+  <Route
+    path="class-detail/:classId/:sectionId"
+    element={<SuperAdminSISClassDetailPage />}
+  />
+
+  <Route
+    path="class-timetable/:classId"
+    element={<SuperAdminSISClassTimetable />}
+  />
+
+  <Route
+    path="teacher-timetable/:teacherId"
+    element={<SuperAdminSISTeacherTimetable />}
+  />
+</Route>
       </Route>
 
       {/* ===== FEES ===== */}
