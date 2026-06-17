@@ -1,17 +1,16 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  FiHome,
   FiFileText,
-  FiBell,
-  FiMessageSquare,
-  FiAlertCircle,
-  FiMenu,
+  FiMail,
+  FiSend,
+  FiMessageCircle,
   FiSettings,
+  FiMenu,
   FiUser,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
 
-export default function SuperAdminCommunicationSidebar({
+export default function CommunicationSidebar({
   searchQuery = "",
   isSidebarOpen,
   setIsSidebarOpen,
@@ -28,30 +27,31 @@ export default function SuperAdminCommunicationSidebar({
 
   const menuItems = [
     {
-      name: "Dashboard",
-      path: "/superadmin/communication/dashboard",
-      icon: <FiHome size={18} />,
-      isDashboard: true,
-    },
+    name: "Dashboard",
+    path: "/communication",
+    icon: <FiUser size={18} />,
+    end: true,
+  },
     {
       name: "Logs",
-      path: "/superadmin/communication/logs",
+      path: "/communication/logs",
       icon: <FiFileText size={18} />,
+      end: true,
     },
     {
       name: "Notices",
-      path: "/superadmin/communication/notices",
-      icon: <FiBell size={18} />,
+      path: "/communication/notices",
+      icon: <FiMail size={18} />,
     },
     {
       name: "Messages",
-      path: "/superadmin/communication/messages",
-      icon: <FiMessageSquare size={18} />,
+      path: "/communication/messages",
+      icon: <FiSend size={18} />,
     },
     {
       name: "Complaints",
-      path: "/superadmin/communication/complaints",
-      icon: <FiAlertCircle size={18} />,
+      path: "/communication/complaints",
+      icon: <FiMessageCircle size={18} />,
     },
   ];
 
@@ -63,7 +63,8 @@ export default function SuperAdminCommunicationSidebar({
     <div
       className={`fixed top-16 left-0 h-[calc(100vh-64px)] bg-white border-r shadow-sm
       transition-all duration-300 z-30 overflow-hidden
-      ${isSidebarOpen ? "w-64" : "w-14"}`}
+      ${isSidebarOpen ? "w-64" : "w-14"}
+    `}
     >
       {/* TOGGLE */}
       <button
@@ -76,24 +77,23 @@ export default function SuperAdminCommunicationSidebar({
       {/* MENU */}
       <ul className="mt-14 space-y-1 px-3">
         {filteredItems.map((item) => {
-          const isActive = item.isDashboard
-            ? location.pathname === "/superadmin/communication" ||
-              location.pathname.startsWith(
-                "/superadmin/communication/dashboard"
-              )
+          const isActive = item.end
+            ? location.pathname === item.path
             : location.pathname.startsWith(item.path);
 
           return (
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.end}
               className={`flex items-center h-10 rounded-lg transition-all
                 ${isSidebarOpen ? "px-3 gap-3" : "px-0 justify-center"}
                 ${
                   isActive
                     ? "bg-blue-100 text-blue-700 font-medium"
                     : "hover:bg-gray-100 text-gray-700"
-                }`}
+                }
+              `}
             >
               <span className="flex w-6 justify-center">{item.icon}</span>
               {isSidebarOpen && (
@@ -104,7 +104,7 @@ export default function SuperAdminCommunicationSidebar({
         })}
       </ul>
 
-      {/* SETTINGS + ADMIN (REFERENCE SAME) */}
+      {/* SETTINGS + USER INFO */}
       <div className="absolute bottom-4 w-full px-2">
         <button
           onClick={() => setSettingsOpen(!settingsOpen)}
@@ -119,27 +119,21 @@ export default function SuperAdminCommunicationSidebar({
 
         {settingsOpen && isSidebarOpen && (
           <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
-            <NavLink
-              to="/superadmin/communication/settings/profile"
-              className="hover:text-blue-600 block"
-            >
+            <NavLink className="hover:text-blue-600 block">
               Profile Settings
             </NavLink>
-            <NavLink
-              to="/superadmin/communication/settings/account"
-              className="hover:text-blue-600 block"
-            >
+            <NavLink className="hover:text-blue-600 block">
               Account Settings
             </NavLink>
           </div>
         )}
 
-        {/* ADMIN INFO */}
+        {/* USER INFO */}
         <div className="mt-4">
           {isSidebarOpen ? (
             <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Communication Admin</div>
-              <div className="text-xs text-gray-500">Super Admin</div>
+              <div className="text-sm font-medium">Communication User</div>
+              <div className="text-xs text-gray-500">Admin</div>
             </div>
           ) : (
             <div className="flex justify-center py-2">

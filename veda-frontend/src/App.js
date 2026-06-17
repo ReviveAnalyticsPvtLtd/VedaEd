@@ -367,13 +367,26 @@ import SuperAdminCalendarDashboardLayout from "./SuperAdmin/Calendar/SuperAdminC
 import SuperAdminCalendarAnnualCalendar from "./SuperAdmin/Calendar/SuperAdminCalendarAnnualCalendar";
 import SuperAdminCalendarEventSetup from "./SuperAdmin/Calendar/SuperAdminCalendarEventSetup";
 import SuperAdminCalendarYearSetup from "./SuperAdmin/Calendar/SuperAdminCalendarYearSetup";
-import SuperAdminCommunicationDashboardLayout from "./SuperAdmin/Communication/SuperAdminCommunicationDashboardLayout";
-import SuperAdminCommunicationDashboard from "./SuperAdmin/Communication/SuperAdminCommunicationDashboard";
-import SuperAdminCommunicationLogs from "./SuperAdmin/Communication/SuperAdminCommunicationLogs";
-import SuperAdminCommunicationNotices from "./SuperAdmin/Communication/SuperAdminCommunicationNotices";
-import SuperAdminCommunicationMessages from "./SuperAdmin/Communication/SuperAdminCommunicationMessages";
-import SuperAdminCommunicationComplaints from "./SuperAdmin/Communication/SuperAdminCommunicationComplaints";
 
+import LogsSA from "./SuperAdmin/Communication/CommunicationModule/Logs/Logs";
+import AllLogsSA from "./SuperAdmin/Communication/CommunicationModule/Logs/AllLogs";
+import ScheduleLogsSA from "./SuperAdmin/Communication/CommunicationModule/Logs/ScheduleLogs";
+import OthersLogsSA from "./SuperAdmin/Communication/CommunicationModule/Logs/Others";
+
+import NoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/Notices";
+import PostNoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/PostNotices";
+import NoticeTemplatesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/NoticeTemplates";
+import OthersNoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/OthersNotices";
+
+import MessagesSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Messages";
+import GroupSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Group";
+import IndividualSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Individual";
+import ClassMsgSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Class";
+import TemplatesSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Templates";
+
+import CommunicationSuperAdminLayout from "./SuperAdmin/Communication/CommunicationModule/CommunicationSuperAdminLayout";
+import CommunicationSuperAdminDashboard from "./SuperAdmin/Communication/CommunicationModule/CommunicationSuperAdminDashboard";
+import ComplaintsSA from "./SuperAdmin/Communication/CommunicationModule/Complaints";
 
 import OnboardingStep1 from "./Onboarding-Module/OnboardingStep1";
 import OnboardingStep2 from "./Onboarding-Module/OnboardingStep2";
@@ -647,14 +660,36 @@ function App() {
         <Route path="vacancy-setup" element={<SuperAdminAdmissionVacancySetup />} />
       </Route>
 
-      {/* ===== COMMUNICATION ===== */}
-      <Route path="/superadmin/communication" element={<SuperAdminCommunicationDashboardLayout />}>
-        <Route index element={<SuperAdminCommunicationDashboard />} />
-        <Route path="logs" element={<SuperAdminCommunicationLogs />} />
-        <Route path="notices" element={<SuperAdminCommunicationNotices />} />
-        <Route path="messages" element={<SuperAdminCommunicationMessages />} />
-        <Route path="complaints" element={<SuperAdminCommunicationComplaints />} />
-      </Route>
+   <Route
+  path="/superadmin/communication"
+  element={<CommunicationSuperAdminLayout />}
+>
+  <Route
+    index
+    element={<CommunicationSuperAdminDashboard />}
+  />
+
+  <Route path="logs" element={<LogsSA />}>
+    <Route index element={<AllLogsSA />} />
+    <Route path="schedule" element={<ScheduleLogsSA />} />
+    <Route path="others" element={<OthersLogsSA />} />
+  </Route>
+
+  <Route path="notices" element={<NoticesSA />}>
+    <Route index element={<PostNoticesSA />} />
+    <Route path="templates" element={<NoticeTemplatesSA />} />
+    <Route path="others" element={<OthersNoticesSA />} />
+  </Route>
+
+  <Route path="messages" element={<MessagesSA />}>
+    <Route index element={<GroupSA />} />
+    <Route path="individual" element={<IndividualSA />} />
+    <Route path="class" element={<ClassMsgSA />} />
+    <Route path="templates" element={<TemplatesSA />} />
+  </Route>
+
+  <Route path="complaints" element={<ComplaintsSA />} />
+</Route>
 
       {/* ===== CALENDAR ===== */}
       <Route path="/superadmin/calendar" element={<SuperAdminCalendarDashboardLayout />}>
