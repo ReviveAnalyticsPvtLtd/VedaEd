@@ -1,6 +1,7 @@
 import React from "react";
 import SetupWizardLayout from "./components/SetupWizardLayout";
 import SetupProgressBar from "./components/SetupProgressBar";
+import LaunchSplashScreen from "./components/LaunchSplashScreen";
 import { useSetupWizardStep12 } from "./hooks/useSetupWizardStep12";
 import {
   TOTAL_STEPS,
@@ -49,40 +50,20 @@ const AUTO_GEN_ITEMS = [
   },
 ];
 
-// ── Post-launch success overlay ────────────────────────────────────────────
-const LaunchSuccessOverlay = ({ onOpenChecklist }) => (
-  <div className="flex flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
-    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
-      ✓
-    </div>
-    <h2 className="text-2xl font-bold text-setup-heading">Your school is ready</h2>
-    <p className="mt-3 max-w-md text-sm text-setup-muted">
-      VedaSchool has generated the approved configuration snapshot. Continue to the
-      post-launch checklist to upload students, onboard teachers, and activate operations.
-    </p>
-    <button
-      type="button"
-      onClick={onOpenChecklist}
-      className="mt-8 rounded-lg bg-setup-primary px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700"
-    >
-      Open Post-Launch Checklist
-    </button>
-  </div>
-);
-
 // ── Main component ─────────────────────────────────────────────────────────
 const Step12 = () => {
   const {
     reviewData,
+    schoolName,
     loading,
     launching,
     launched,
+    showSplash,
     confirmed,
     setConfirmed,
     toast,
     handleLaunch,
     handleBack,
-    handleOpenChecklist,
   } = useSetupWizardStep12();
 
   if (loading) {
@@ -142,10 +123,10 @@ const Step12 = () => {
         </div>
       )}
 
-      {/* Show success overlay after launch */}
-      {launched ? (
-        <LaunchSuccessOverlay onOpenChecklist={handleOpenChecklist} />
-      ) : (
+      {/* Splash screen renders as a full-page overlay during transition to Super Admin */}
+      {showSplash && <LaunchSplashScreen schoolName={schoolName} />}
+
+      {launched ? null : (
         <div className="grid grid-cols-1 gap-8 px-6 py-6 sm:px-8 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
           {/* ── LEFT COLUMN ── */}
           <div className="space-y-6">

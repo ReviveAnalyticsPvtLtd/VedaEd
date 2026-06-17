@@ -218,6 +218,8 @@ export const buildSetupReview = (doc) => {
   const launchReady = uniqueBlocking.length === 0 && readinessScore >= 80;
 
   return {
+    schoolName: doc.schoolName || "",
+    workspaceSlug: doc.workspaceSlug || "",
     readinessScore,
     sectionsComplete: wizardStepsComplete,
     totalSections: LAUNCH_STEP_TOTAL,
