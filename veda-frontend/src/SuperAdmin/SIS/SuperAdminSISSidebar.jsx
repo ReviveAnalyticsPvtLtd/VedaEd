@@ -7,6 +7,7 @@ import {
   FiMenu,
   FiSettings,
 } from "react-icons/fi";
+import { FiBook, FiCheckSquare } from "react-icons/fi";
 import { useEffect, useState } from "react";
 
 export default function SuperAdminSISSidebar({
@@ -45,6 +46,16 @@ export default function SuperAdminSISSidebar({
       path: "/superadmin/sis/parents",
       icon: <FiUsers size={18} />,
     },
+    {
+  name: "Classes & Schedule",
+  path: "/superadmin/sis/classes-schedules",
+  icon: <FiBook size={18} />,
+},
+{
+  name: "Attendance",
+  path: "/superadmin/sis/attendance",
+  icon: <FiCheckSquare size={18} />,
+},
     {
       name: "Reports",
       path: "/superadmin/sis/reports",
