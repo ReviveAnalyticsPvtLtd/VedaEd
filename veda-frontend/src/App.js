@@ -420,6 +420,33 @@ import Question3 from "./onboarding2/Question3";
 import Question4 from "./onboarding2/Question4";
 import Question5 from "./onboarding2/Question5";
 import Payout from "./onboarding2/Payout";
+
+
+import SuperAdminProfileSettings from "./wrapper/SuperAdminProfileSettings";
+
+import AdminAccountSettings from "./admin-front/AdminAccountSettings";
+import AdminSubscriptionPlans from "./admin-front/AdminSubscriptionPlans";
+import ParentProfileSettings from "./wrapper/ParentProfileSettings";
+import ParentAccountSettings from "./wrapper/ParentAccountSettings";
+import StudentProfileSettings from "./wrapper/StudentProfileSettings";
+import StudentAccountSettings from "./wrapper/StudentAccountSettings";
+
+
+import SuperAdminSettingsDashboardLayout from "./SuperAdminSettings/SuperAdminSettingsDashboardLayout";
+
+import SuperAdminSettingsAccount from "./SuperAdminSettings/pages/SuperAdminSettingsAccount";
+import SuperAdminSettingsPreferences from "./SuperAdminSettings/pages/SuperAdminSettingsPreferences";
+import SuperAdminSettingsNotifications from "./SuperAdminSettings/pages/SuperAdminSettingsNotifications";
+
+import SuperAdminSettingsSecurity from "./SuperAdminSettings/pages/SuperAdminSettingsSecurity";
+
+import SuperAdminSettingsManagePlan from "./SuperAdminSettings/pages/SuperAdminSettingsManagePlan";
+import SuperAdminSettingsBillingDetails from "./SuperAdminSettings/pages/SuperAdminSettingsBillingDetails";
+import SuperAdminSettingsBillingSettings from "./SuperAdminSettings/pages/SuperAdminSettingsBillingSettings";
+
+import SuperAdminSettingsHelpCenter from "./SuperAdminSettings/pages/SuperAdminSettingsHelpCenter";
+import SuperAdminSettingsContactSupport from "./SuperAdminSettings/pages/SuperAdminSettingsContactSupport";
+import SuperAdminSettingsFeedback from "./SuperAdminSettings/pages/SuperAdminSettingsFeedback";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -1049,8 +1076,63 @@ function App() {
       </Route>
 
 
+         {/* ================= Setting Pages Route ================= */}
+<Route
+  path="/superadmin/settings/profile"
+  element={<SuperAdminProfileSettings />}
+/>
 
 
+
+<Route
+  path="/admin-front/account-settings"
+  element={<AdminAccountSettings />}
+/>
+
+<Route
+  path="/admin-front/subscription-plans"
+  element={<AdminSubscriptionPlans />}
+/>
+<Route
+  path="/parent/profile-settings"
+  element={<ParentProfileSettings />}
+/>
+
+<Route
+  path="/parent/account-settings"
+  element={<ParentAccountSettings />}
+/>
+<Route
+  path="/student/profile-settings"
+  element={<StudentProfileSettings />}
+/>
+
+<Route
+  path="/student/account-settings"
+  element={<StudentAccountSettings />}
+/>
+
+
+
+
+<Route
+  path="/superadmin/settings"
+  element={<SuperAdminSettingsDashboardLayout />}
+>
+  <Route path="account" element={<SuperAdminSettingsAccount />} />
+  <Route path="preferences" element={<SuperAdminSettingsPreferences />} />
+  <Route path="notifications" element={<SuperAdminSettingsNotifications />} />
+
+  <Route path="security" element={<SuperAdminSettingsSecurity />} />
+
+  <Route path="manage-plan" element={<SuperAdminSettingsManagePlan />} />
+  <Route path="billing-details" element={<SuperAdminSettingsBillingDetails />} />
+  <Route path="billing-settings" element={<SuperAdminSettingsBillingSettings />} />
+
+  <Route path="help-center" element={<SuperAdminSettingsHelpCenter />} />
+  <Route path="contact-support" element={<SuperAdminSettingsContactSupport />} />
+  <Route path="feedback" element={<SuperAdminSettingsFeedback />} />
+</Route>
       {/* SUPER ADMIN */}
       <Route
         path="/super-admin/institution-setup"

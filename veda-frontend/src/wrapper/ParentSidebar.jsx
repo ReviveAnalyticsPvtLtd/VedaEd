@@ -6,6 +6,7 @@ import {
   FiCalendar,
   FiChevronDown,
   FiTruck,
+  FiSettings,
 } from "react-icons/fi";
 
 const MODULES = [
@@ -61,8 +62,10 @@ export default function ParentSidebar() {
   const [open, setOpen] = useState(null);
   const navigate = useNavigate();
 
+const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
-    <aside className="w-64 bg-white shadow-md overflow-y-auto pt-16">
+    <aside className="w-64 bg-white shadow-md overflow-y-auto pt-16 relative">
 
       {/* Main Section */}
       <div className="px-4 text-sm text-gray-500 font-semibold">
@@ -112,6 +115,50 @@ export default function ParentSidebar() {
           )}
         </div>
       ))}
+      {/* SETTINGS + PARENT */}
+<div className="absolute bottom-4 w-full px-3">
+  <button
+    onClick={() => setSettingsOpen(!settingsOpen)}
+    className="flex items-center h-10 w-full rounded-lg px-2 gap-3
+    text-gray-700 hover:bg-gray-100 transition-colors"
+  >
+    <span className="flex w-6 justify-center">
+      <FiSettings size={18} />
+    </span>
+
+    <span>Settings</span>
+  </button>
+
+  {settingsOpen && (
+    <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
+      <div
+  onClick={() => navigate("/parent/profile-settings")}
+  className="cursor-pointer hover:text-indigo-600"
+>
+  Profile Settings
+</div>
+
+<div
+  onClick={() => navigate("/parent/account-settings")}
+  className="cursor-pointer hover:text-indigo-600"
+>
+  Account Settings
+</div>
+    </div>
+  )}
+
+  <div className="mt-4">
+    <div className="p-3 bg-gray-50 rounded-lg">
+      <div className="text-sm font-medium">
+        Parent
+      </div>
+
+      <div className="text-xs text-gray-500">
+        VEDAED ERP
+      </div>
+    </div>
+  </div>
+</div>
     </aside>
   );
 }
