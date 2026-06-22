@@ -132,18 +132,13 @@ const [settingsOpen, setSettingsOpen] = useState(false);
   {settingsOpen && (
     <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
       <div
-  onClick={() => navigate("/parent/profile-settings")}
+  onClick={() => navigate("/parent/settings")}
   className="cursor-pointer hover:text-indigo-600"
 >
   Profile Settings
 </div>
 
-<div
-  onClick={() => navigate("/parent/account-settings")}
-  className="cursor-pointer hover:text-indigo-600"
->
-  Account Settings
-</div>
+
     </div>
   )}
 

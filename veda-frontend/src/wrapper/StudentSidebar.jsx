@@ -122,18 +122,13 @@ export default function StudentSidebar() {
   {settingsOpen && (
     <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
       <div
-        onClick={() => navigate("/student/profile-settings")}
+        onClick={() => navigate("/student/settings/profile")}
         className="cursor-pointer hover:text-indigo-600"
       >
         Profile Settings
       </div>
 
-      <div
-        onClick={() => navigate("/student/account-settings")}
-        className="cursor-pointer hover:text-indigo-600"
-      >
-        Account Settings
-      </div>
+      
     </div>
   )}
 

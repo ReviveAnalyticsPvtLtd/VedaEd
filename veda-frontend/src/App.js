@@ -426,10 +426,7 @@ import SuperAdminProfileSettings from "./wrapper/SuperAdminProfileSettings";
 
 import AdminAccountSettings from "./admin-front/AdminAccountSettings";
 import AdminSubscriptionPlans from "./admin-front/AdminSubscriptionPlans";
-import ParentProfileSettings from "./wrapper/ParentProfileSettings";
-import ParentAccountSettings from "./wrapper/ParentAccountSettings";
-import StudentProfileSettings from "./wrapper/StudentProfileSettings";
-import StudentAccountSettings from "./wrapper/StudentAccountSettings";
+
 
 
 import SuperAdminSettingsDashboardLayout from "./SuperAdminSettings/SuperAdminSettingsDashboardLayout";
@@ -447,6 +444,59 @@ import SuperAdminSettingsBillingSettings from "./SuperAdminSettings/pages/SuperA
 import SuperAdminSettingsHelpCenter from "./SuperAdminSettings/pages/SuperAdminSettingsHelpCenter";
 import SuperAdminSettingsContactSupport from "./SuperAdminSettings/pages/SuperAdminSettingsContactSupport";
 import SuperAdminSettingsFeedback from "./SuperAdminSettings/pages/SuperAdminSettingsFeedback";
+
+
+import AdminPreferences from "./admin-front/AdminPreferences";
+import AdminNotifications from "./admin-front/AdminNotifications";
+import AdminSecurity from "./admin-front/AdminSecurity";
+
+import AdminHelpCenter from "./admin-front/AdminHelpCenter";
+import AdminContactSupport from "./admin-front/AdminContactSupport";
+import AdminFeedback from "./admin-front/AdminFeedback";
+
+import AdminSettingsSidebar from "./admin-front/AdminSettingsSidebar";
+import AdminSettingsDashboardLayout from "./admin-front/AdminSettingsDashboardLayout";
+
+
+import ParentProfileSettingsDashboardLayout from "./ParentProfileSettings/ParentProfileSettingsDashboardLayout";
+
+import ParentProfileSettingsProfile from "./ParentProfileSettings/pages/ParentProfileSettingsProfile";
+import ParentProfileSettingsAccount from "./ParentProfileSettings/pages/ParentProfileSettingsAccount";
+
+import ParentProfileSettingsPreferences from "./ParentProfileSettings/pages/ParentProfileSettingsPreferences";
+import ParentProfileSettingsNotifications from "./ParentProfileSettings/pages/ParentProfileSettingsNotifications";
+
+import ParentProfileSettingsSecurity from "./ParentProfileSettings/pages/ParentProfileSettingsSecurity";
+
+import ParentProfileSettingsHelpCenter from "./ParentProfileSettings/pages/ParentProfileSettingsHelpCenter";
+import ParentProfileSettingsContactSupport from "./ParentProfileSettings/pages/ParentProfileSettingsContactSupport";
+import ParentProfileSettingsFeedback from "./ParentProfileSettings/pages/ParentProfileSettingsFeedback";
+
+
+
+import TeacherProfileSettingsDashboardLayout from "./TeacherProfileSettings/TeacherProfileSettingsDashboardLayout";
+
+import TeacherProfileSettingsProfile from "./TeacherProfileSettings/pages/TeacherProfileSettingsProfile";
+import TeacherProfileSettingsAccount from "./TeacherProfileSettings/pages/TeacherProfileSettingsAccount";
+import TeacherProfileSettingsPreferences from "./TeacherProfileSettings/pages/TeacherProfileSettingsPreferences";
+import TeacherProfileSettingsNotifications from "./TeacherProfileSettings/pages/TeacherProfileSettingsNotifications";
+import TeacherProfileSettingsSecurity from "./TeacherProfileSettings/pages/TeacherProfileSettingsSecurity";
+import TeacherProfileSettingsHelpCenter from "./TeacherProfileSettings/pages/TeacherProfileSettingsHelpCenter";
+import TeacherProfileSettingsContactSupport from "./TeacherProfileSettings/pages/TeacherProfileSettingsContactSupport";
+import TeacherProfileSettingsFeedback from "./TeacherProfileSettings/pages/TeacherProfileSettingsFeedback";
+
+
+
+import StudentProfileSettingsDashboardLayout from "./StudentProfileSettings/StudentProfileSettingsDashboardLayout";
+
+import StudentProfileSettingsProfile from "./StudentProfileSettings/pages/StudentProfileSettingsProfile";
+import StudentProfileSettingsAccount from "./StudentProfileSettings/pages/StudentProfileSettingsAccount";
+import StudentProfileSettingsPreferences from "./StudentProfileSettings/pages/StudentProfileSettingsPreferences";
+import StudentProfileSettingsNotifications from "./StudentProfileSettings/pages/StudentProfileSettingsNotifications";
+import StudentProfileSettingsSecurity from "./StudentProfileSettings/pages/StudentProfileSettingsSecurity";
+import StudentProfileSettingsHelpCenter from "./StudentProfileSettings/pages/StudentProfileSettingsHelpCenter";
+import StudentProfileSettingsContactSupport from "./StudentProfileSettings/pages/StudentProfileSettingsContactSupport";
+
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -510,7 +560,22 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin-front" element={<AdminShellLayout />}>
             <Route index element={<AdminMainDashboard />} />
-            <Route path="profile" element={<AdminProfile />} />
+         
+             {/* SETTINGS MODULE */}
+    <Route
+      path="settings"
+      element={<AdminSettingsDashboardLayout />}
+    >
+       <Route path="profile" element={<AdminProfile />} />
+      <Route path="account" element={<AdminAccountSettings />} />
+      <Route path="preferences" element={<AdminPreferences />} />
+      <Route path="notifications" element={<AdminNotifications />} />
+      <Route path="security" element={<AdminSecurity />} />
+
+      <Route path="help-center" element={<AdminHelpCenter />} />
+      <Route path="contact-support" element={<AdminContactSupport />} />
+      <Route path="feedback" element={<AdminFeedback />} />
+    </Route>
           </Route>
         </Route>
 
@@ -1083,37 +1148,137 @@ function App() {
 />
 
 
+<Route
+    path="/parent/settings"
+    element={<ParentProfileSettingsDashboardLayout />}
+  >
+    <Route
+      path="profile"
+      element={<ParentProfileSettingsProfile />}
+    />
+
+    <Route
+      path="account"
+      element={<ParentProfileSettingsAccount />}
+    />
+
+    <Route
+      path="preferences"
+      element={<ParentProfileSettingsPreferences />}
+    />
+
+    <Route
+      path="notifications"
+      element={<ParentProfileSettingsNotifications />}
+    />
+
+    <Route
+      path="security"
+      element={<ParentProfileSettingsSecurity />}
+    />
+
+    <Route
+      path="help-center"
+      element={<ParentProfileSettingsHelpCenter />}
+    />
+
+    <Route
+      path="contact-support"
+      element={<ParentProfileSettingsContactSupport />}
+    />
+
+    <Route
+      path="feedback"
+      element={<ParentProfileSettingsFeedback />}
+    />
+  </Route>
 
 <Route
-  path="/admin-front/account-settings"
-  element={<AdminAccountSettings />}
-/>
+  path="/teacher/settings"
+  element={<TeacherProfileSettingsDashboardLayout />}
+>
+  <Route
+    path="profile"
+    element={<TeacherProfileSettingsProfile />}
+  />
+
+  <Route
+    path="account"
+    element={<TeacherProfileSettingsAccount />}
+  />
+
+  <Route
+    path="preferences"
+    element={<TeacherProfileSettingsPreferences />}
+  />
+
+  <Route
+    path="notifications"
+    element={<TeacherProfileSettingsNotifications />}
+  />
+
+  <Route
+    path="security"
+    element={<TeacherProfileSettingsSecurity />}
+  />
+
+  <Route
+    path="help-center"
+    element={<TeacherProfileSettingsHelpCenter />}
+  />
+
+  <Route
+    path="contact-support"
+    element={<TeacherProfileSettingsContactSupport />}
+  />
+
+  <Route
+    path="feedback"
+    element={<TeacherProfileSettingsFeedback />}
+  />
+</Route>
 
 <Route
-  path="/admin-front/subscription-plans"
-  element={<AdminSubscriptionPlans />}
-/>
-<Route
-  path="/parent/profile-settings"
-  element={<ParentProfileSettings />}
-/>
+  path="/student/settings"
+  element={<StudentProfileSettingsDashboardLayout />}
+>
+  <Route
+    path="profile"
+    element={<StudentProfileSettingsProfile />}
+  />
 
-<Route
-  path="/parent/account-settings"
-  element={<ParentAccountSettings />}
-/>
-<Route
-  path="/student/profile-settings"
-  element={<StudentProfileSettings />}
-/>
+  <Route
+    path="account"
+    element={<StudentProfileSettingsAccount />}
+  />
 
-<Route
-  path="/student/account-settings"
-  element={<StudentAccountSettings />}
-/>
+  <Route
+    path="preferences"
+    element={<StudentProfileSettingsPreferences />}
+  />
 
+  <Route
+    path="notifications"
+    element={<StudentProfileSettingsNotifications />}
+  />
 
+  <Route
+    path="security"
+    element={<StudentProfileSettingsSecurity />}
+  />
 
+  <Route
+    path="help-center"
+    element={<StudentProfileSettingsHelpCenter />}
+  />
+
+  <Route
+    path="contact-support"
+    element={<StudentProfileSettingsContactSupport />}
+  />
+
+ 
+</Route>
 
 <Route
   path="/superadmin/settings"
