@@ -2,6 +2,7 @@ import "./App.css";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./wrapper/ProtectedRoute";
 import ChatWidget from "./components/Chatbot/ChatWidget";
+import PageNotFound from "./components/PageNotFound";
 
 
 // Layouts
@@ -1307,7 +1308,7 @@ function App() {
       {/* DEFAULT */}
       <Route
         path="*"
-        element={<Navigate to="/super-admin/institution-setup" />}
+        element={<PageNotFound />}
       />
 
       {/* ================= TRANSPORT ================= */}
