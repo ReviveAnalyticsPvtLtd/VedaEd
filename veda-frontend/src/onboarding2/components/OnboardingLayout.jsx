@@ -1,6 +1,8 @@
 // src/onboarding2/components/OnboardingLayout.jsx
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { getSchoolInformation } from "../../services/onboardingAPI";
+import { buildWorkspacePreviewUrl } from "../../Onboarding-Module/utils/workspaceSlug";
 
 const OnboardingLayout = ({
   step,
@@ -11,6 +13,28 @@ const OnboardingLayout = ({
 }) => {
 
   const progress = (step / 6) * 100;
+
+  const [domain, setDomain] = useState(() => {
+    return localStorage.getItem("workspaceDomain") || "";
+  });
+
+  useEffect(() => {
+    const cached = localStorage.getItem("workspaceDomain");
+    if (cached) {
+      setDomain(cached);
+      return;
+    }
+    getSchoolInformation()
+      .then((data) => {
+        const slug = data?.workspace?.workspaceSlug;
+        if (slug) {
+          const url = buildWorkspacePreviewUrl(slug);
+          localStorage.setItem("workspaceDomain", url);
+          setDomain(url);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="h-screen overflow-hidden bg-[#f5f7ff] px-4 py-3">
@@ -24,9 +48,11 @@ const OnboardingLayout = ({
         </div>
 
         {/* DOMAIN */}
-        <div className="bg-white border border-gray-200 rounded-full px-5 py-2 text-sm font-semibold text-gray-600">
-          sunrise.vedaschool.ai
-        </div>
+        {domain && (
+          <div className="bg-white border border-gray-200 rounded-full px-5 py-2 text-sm font-semibold text-gray-600">
+            {domain}
+          </div>
+        )}
       </div>
 
       {/* MAIN */}
