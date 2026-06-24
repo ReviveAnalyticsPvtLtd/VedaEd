@@ -436,7 +436,10 @@ import SuperAdminSettingsPreferences from "./SuperAdminSettings/pages/SuperAdmin
 import SuperAdminSettingsNotifications from "./SuperAdminSettings/pages/SuperAdminSettingsNotifications";
 
 import SuperAdminSettingsSecurity from "./SuperAdminSettings/pages/SuperAdminSettingsSecurity";
-
+import SuperAdminSettingsPassword from "./SuperAdminSettings/pages/SuperAdminSettingsPassword";
+import SuperAdminSettingsTwoFactorAuth from "./SuperAdminSettings/pages/SuperAdminSettingsTwoFactorAuth";
+import SuperAdminSettingsSessions from "./SuperAdminSettings/pages/SuperAdminSettingsSessions";
+import SuperAdminSettingsAccountControl from "./SuperAdminSettings/pages/SuperAdminSettingsAccountControl";
 import SuperAdminSettingsManagePlan from "./SuperAdminSettings/pages/SuperAdminSettingsManagePlan";
 import SuperAdminSettingsBillingDetails from "./SuperAdminSettings/pages/SuperAdminSettingsBillingDetails";
 import SuperAdminSettingsBillingSettings from "./SuperAdminSettings/pages/SuperAdminSettingsBillingSettings";
@@ -1289,6 +1292,25 @@ function App() {
   <Route path="notifications" element={<SuperAdminSettingsNotifications />} />
 
   <Route path="security" element={<SuperAdminSettingsSecurity />} />
+  <Route
+  path="security/password"
+  element={<SuperAdminSettingsPassword />}
+/>
+
+<Route
+  path="security/two-factor-auth"
+  element={<SuperAdminSettingsTwoFactorAuth />}
+/>
+
+<Route
+  path="security/sessions"
+  element={<SuperAdminSettingsSessions />}
+/>
+
+<Route
+  path="security/account-control"
+  element={<SuperAdminSettingsAccountControl />}
+/>
 
   <Route path="manage-plan" element={<SuperAdminSettingsManagePlan />} />
   <Route path="billing-details" element={<SuperAdminSettingsBillingDetails />} />
