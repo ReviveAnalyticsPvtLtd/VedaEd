@@ -157,6 +157,8 @@ export function useOnboardingStep2() {
         workspaceSlug,
       });
 
+      localStorage.setItem("workspaceDomain", buildWorkspacePreviewUrl(workspaceSlug));
+
       const onboarding = data?.onboarding;
       if (onboarding?.isCompleted) {
         navigate(getPostOnboardingDestination(onboarding));
