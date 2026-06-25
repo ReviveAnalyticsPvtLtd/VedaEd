@@ -27,11 +27,8 @@ export default function AdminSettingsDashboardLayout() {
 
       {/* MAIN CONTENT */}
       <div
-        className="flex-1 pt-16 overflow-y-auto transition-all"
-        style={{
-          marginLeft: isSidebarOpen ? "256px" : "56px",
-          transition: "margin-left 0.3s",
-        }}
+        className="flex-1  overflow-y-auto transition-all"
+       
       >
         <div className="p-4">
           <Outlet />

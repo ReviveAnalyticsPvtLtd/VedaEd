@@ -426,7 +426,7 @@ import Payout from "./onboarding2/Payout";
 import SuperAdminProfileSettings from "./wrapper/SuperAdminProfileSettings";
 
 import AdminAccountSettings from "./admin-front/AdminAccountSettings";
-import AdminSubscriptionPlans from "./admin-front/AdminSubscriptionPlans";
+
 
 
 
@@ -453,7 +453,10 @@ import SuperAdminSettingsFeedback from "./SuperAdminSettings/pages/SuperAdminSet
 import AdminPreferences from "./admin-front/AdminPreferences";
 import AdminNotifications from "./admin-front/AdminNotifications";
 import AdminSecurity from "./admin-front/AdminSecurity";
-
+import AdminSettingsPassword from "./admin-front/AdminSettingsPassword";
+import AdminSettingsTwoFactorAuth from "./admin-front/AdminSettingsTwoFactorAuth";
+import AdminSettingsSessions from "./admin-front/AdminSettingsSessions";
+import AdminSettingsAccountControl from "./admin-front/AdminSettingsAccountControl";
 import AdminHelpCenter from "./admin-front/AdminHelpCenter";
 import AdminContactSupport from "./admin-front/AdminContactSupport";
 import AdminFeedback from "./admin-front/AdminFeedback";
@@ -574,7 +577,28 @@ function App() {
       <Route path="account" element={<AdminAccountSettings />} />
       <Route path="preferences" element={<AdminPreferences />} />
       <Route path="notifications" element={<AdminNotifications />} />
-      <Route path="security" element={<AdminSecurity />} />
+       {/* Security */}
+  <Route path="security" element={<AdminSecurity />} />
+
+  <Route
+    path="security/password"
+    element={<AdminSettingsPassword />}
+  />
+
+  <Route
+    path="security/two-factor-auth"
+    element={<AdminSettingsTwoFactorAuth />}
+  />
+
+  <Route
+    path="security/sessions"
+    element={<AdminSettingsSessions />}
+  />
+
+  <Route
+    path="security/account-control"
+    element={<AdminSettingsAccountControl />}
+  />
 
       <Route path="help-center" element={<AdminHelpCenter />} />
       <Route path="contact-support" element={<AdminContactSupport />} />
