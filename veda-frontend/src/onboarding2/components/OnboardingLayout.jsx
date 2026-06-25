@@ -10,6 +10,7 @@ const OnboardingLayout = ({
   children,
   onNext,
   onBack,
+  disableNext = false,
 }) => {
 
   const progress = (step / 6) * 100;
@@ -131,9 +132,11 @@ const OnboardingLayout = ({
 
                 <button
                   onClick={onNext}
+                  disabled={disableNext}
                   className="px-8 py-3 rounded-2xl
                   bg-gradient-to-r from-[#6c4cff] to-[#5b3df5]
-                  text-white text-[15px] font-semibold shadow-sm"
+                  text-white text-[15px] font-semibold shadow-sm
+                  disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Continue
                 </button>

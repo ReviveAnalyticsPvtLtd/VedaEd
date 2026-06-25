@@ -156,7 +156,6 @@ export function useSetupWizardStep3() {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
           const mapped = mapSavedToForm(res.data);
-          setForm(mapped);
           const countryMatch = mapped.country
             ? loadAllCountries().find(
                 (c) =>
@@ -171,12 +170,18 @@ export function useSetupWizardStep3() {
           setPhoneDial(parsed.dialCode || defaultDial);
           setPhoneNational(parsed.national);
           const completedSteps = res.data.completedSteps || [];
-          // Only prefill if step 3 was previously completed (resume flow)
-          // Fresh start: completedSteps is empty or doesn't include step 3
+          
+          // Always pre-fill school name from onboarding data
+          // Other fields only pre-fill if step 3 was previously completed (resume flow)
           if (completedSteps.includes(STEP_3_NUMBER)) {
-            setForm(mapSavedToForm(res.data));
+            setForm(mapped);
+          } else {
+            // Fresh start: only pre-fill school name from onboarding
+            setForm((prev) => ({
+              ...prev,
+              schoolName: mapped.schoolName || "",
+            }));
           }
-          // else: leave form as blank DEFAULT_SCHOOL_PROFILE_FORM
         }
       } catch (err) {
         if (!cancelled) {

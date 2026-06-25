@@ -15,6 +15,8 @@ import {
   FiKey,
   FiGlobe,
   FiUserPlus,
+  FiEye,
+  FiEyeOff,
 } from "react-icons/fi";
 
 import config from "../config";
@@ -55,6 +57,7 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const dropdownRef = useRef(null);
 
   const roleOptions = loginType === "admin" ? ADMIN_ROLES : USER_ROLES;
@@ -212,16 +215,25 @@ export default function Login() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-lg border px-3 py-2
-                           placeholder-gray-300
-                           focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full rounded-lg border px-3 py-2 pr-10
+                             placeholder-gray-300
+                             focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                >
+                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
             </div>
 
             {/* ---- ROLE SEARCHABLE DROPDOWN ---- */}
