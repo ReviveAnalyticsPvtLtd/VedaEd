@@ -479,6 +479,10 @@ import ParentProfileSettingsHelpCenter from "./ParentProfileSettings/pages/Paren
 import ParentProfileSettingsContactSupport from "./ParentProfileSettings/pages/ParentProfileSettingsContactSupport";
 import ParentProfileSettingsFeedback from "./ParentProfileSettings/pages/ParentProfileSettingsFeedback";
 
+import ParentProfileSettingsPassword from "./ParentProfileSettings/pages/ParentProfileSettingsPassword";
+import ParentProfileSettingsTwoFactorAuth from "./ParentProfileSettings/pages/ParentProfileSettingsTwoFactorAuth";
+import ParentProfileSettingsSessions from "./ParentProfileSettings/pages/ParentProfileSettingsSessions";
+import ParentProfileSettingsAccountControl from "./ParentProfileSettings/pages/ParentProfileSettingsAccountControl";
 
 
 import TeacherProfileSettingsDashboardLayout from "./TeacherProfileSettings/TeacherProfileSettingsDashboardLayout";
@@ -492,6 +496,10 @@ import TeacherProfileSettingsHelpCenter from "./TeacherProfileSettings/pages/Tea
 import TeacherProfileSettingsContactSupport from "./TeacherProfileSettings/pages/TeacherProfileSettingsContactSupport";
 import TeacherProfileSettingsFeedback from "./TeacherProfileSettings/pages/TeacherProfileSettingsFeedback";
 
+import TeacherProfileSettingsPassword from "./TeacherProfileSettings/pages/TeacherProfileSettingsPassword";
+import TeacherProfileSettingsTwoFactorAuth from "./TeacherProfileSettings/pages/TeacherProfileSettingsTwoFactorAuth";
+import TeacherProfileSettingsSessions from "./TeacherProfileSettings/pages/TeacherProfileSettingsSessions";
+import TeacherProfileSettingsAccountControl from "./TeacherProfileSettings/pages/TeacherProfileSettingsAccountControl";
 
 
 import StudentProfileSettingsDashboardLayout from "./StudentProfileSettings/StudentProfileSettingsDashboardLayout";
@@ -1200,10 +1208,31 @@ function App() {
       element={<ParentProfileSettingsNotifications />}
     />
 
-    <Route
-      path="security"
-      element={<ParentProfileSettingsSecurity />}
-    />
+    
+  <Route
+    path="security"
+    element={<ParentProfileSettingsSecurity />}
+  />
+
+  <Route
+    path="security/password"
+    element={<ParentProfileSettingsPassword />}
+  />
+
+  <Route
+    path="security/two-factor-auth"
+    element={<ParentProfileSettingsTwoFactorAuth />}
+  />
+
+  <Route
+    path="security/sessions"
+    element={<ParentProfileSettingsSessions />}
+  />
+
+  <Route
+    path="security/account-control"
+    element={<ParentProfileSettingsAccountControl />}
+  />
 
     <Route
       path="help-center"
@@ -1248,6 +1277,26 @@ function App() {
   <Route
     path="security"
     element={<TeacherProfileSettingsSecurity />}
+  />
+
+  <Route
+    path="security/password"
+    element={<TeacherProfileSettingsPassword />}
+  />
+
+  <Route
+    path="security/two-factor-auth"
+    element={<TeacherProfileSettingsTwoFactorAuth />}
+  />
+
+  <Route
+    path="security/sessions"
+    element={<TeacherProfileSettingsSessions />}
+  />
+
+  <Route
+    path="security/account-control"
+    element={<TeacherProfileSettingsAccountControl />}
   />
 
   <Route
