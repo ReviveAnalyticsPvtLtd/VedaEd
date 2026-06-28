@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GoogleLogin, useGoogleOAuth } from "@react-oauth/google";
 import { isGoogleOAuthConfigured } from "../../config/googleOAuth";
 import { CustomGoogleButton } from "./GoogleSignInButtonParts";
+
+const GSI_LOAD_TIMEOUT_MS = 6000;
 
 /**
  * "Continue with Google" using @react-oauth/google (returns ID token credential).
@@ -14,6 +16,16 @@ export default function GoogleSignInButton({
 }) {
   const { scriptLoadedSuccessfully } = useGoogleOAuth();
   const configured = isGoogleOAuthConfigured();
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (scriptLoadedSuccessfully) {
+      setTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setTimedOut(true), GSI_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [scriptLoadedSuccessfully]);
 
   if (!configured) {
     return (
@@ -31,6 +43,26 @@ export default function GoogleSignInButton({
   const handleError = () => {
     if (onError) onError();
   };
+
+  if (!scriptLoadedSuccessfully && timedOut) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+        <p className="font-medium">Couldn't load Google Sign-In</p>
+        <p className="mt-1 text-red-800">
+          The Google script didn't load. This is usually caused by an ad blocker or
+          privacy extension blocking <code className="rounded bg-red-100 px-1">accounts.google.com</code>,
+          or no network access. Disable any blocking extension and retry, or use email below.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-2 font-semibold text-red-900 underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
