@@ -10,7 +10,7 @@ const Question2 = () => {
   const navigate = useNavigate();
 
   const [selectedStudents, setSelectedStudents] =
-    useState("300-1000");
+    useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleContinue = async () => {
@@ -61,6 +61,7 @@ const Question2 = () => {
       title="Tell us about your school"
       onNext={handleContinue}
       onBack={() => navigate("/question1")}
+      disableNext={!selectedStudents || loading}
     >
 
       {/* QUESTION */}

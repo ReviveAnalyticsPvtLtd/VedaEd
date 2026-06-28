@@ -11,8 +11,9 @@ import {
   FiTruck,
   FiMenu,
   FiShield,
+  FiUser
 } from "react-icons/fi";
-
+import { FiSettings } from "react-icons/fi";
 /* ================= MODULE CONFIG ================= */
 
 const IDENTITY_BASE = "/superadmin-front/identity-access";
@@ -23,10 +24,18 @@ const PLATFORM_MODULES = [
     icon: <FiShield />,
     base: IDENTITY_BASE,
     subs: [
-      { label: "Admin Management", path: `${IDENTITY_BASE}/admins` },
-      { label: "Create Admin", path: `${IDENTITY_BASE}/admins/create` },
+      {
+        label: "Admin Management",
+        path: `${IDENTITY_BASE}/admins`,
+      },
+      {
+        label: "Create Admin",
+        path: `${IDENTITY_BASE}/admins/create`,
+      },
     ],
   },
+
+ 
 ];
 
 const MODULES = [
@@ -110,7 +119,7 @@ export default function SuperAdminSidebar({
 }) {
   const location = useLocation();
   const [openModule, setOpenModule] = useState(null);
-
+const [settingsOpen, setSettingsOpen] = useState(false);
   const allModules = [...PLATFORM_MODULES, ...MODULES];
 
   /* AUTO-OPEN MODULE BASED ON URL */
@@ -143,7 +152,7 @@ export default function SuperAdminSidebar({
         <FiMenu />
       </button>
 
-      <div className="mt-14 px-2">
+      <div className="mt-14 px-2 pb-40">
         {allModules.map((mod) => {
           const isOpen = openModule === mod.name;
 
@@ -202,6 +211,53 @@ export default function SuperAdminSidebar({
           );
         })}
       </div>
+      {/* SETTINGS + ADMIN */}
+<div className="absolute bottom-4 w-full px-2">
+  <button
+    onClick={() => setSettingsOpen(!settingsOpen)}
+    className="flex items-center h-10 w-full rounded-lg px-2 gap-3
+    text-gray-700 hover:bg-gray-100 transition-colors"
+  >
+    <span className="flex w-6 justify-center">
+      <FiSettings size={18} />
+    </span>
+
+    {isSidebarOpen && <span>Settings</span>}
+  </button>
+
+  {/* SETTINGS DROPDOWN */}
+  {settingsOpen && isSidebarOpen && (
+    <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
+      <NavLink
+        to="/superadmin/settings"
+        className="hover:text-blue-600 block"
+      >
+        Profile Settings
+      </NavLink>
+
+     
+    </div>
+  )}
+
+  {/* ADMIN BLOCK */}
+  <div className="mt-4">
+    {isSidebarOpen ? (
+      <div className="p-3 bg-gray-50 rounded-lg">
+        <div className="text-sm font-medium">
+          Super Admin
+        </div>
+
+        <div className="text-xs text-gray-500">
+          VEDAED ERP
+        </div>
+      </div>
+    ) : (
+      <div className="flex justify-center py-2">
+        <FiUser size={20} className="text-gray-600" />
+      </div>
+    )}
+  </div>
+</div>
     </aside>
   );
 }
