@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { GoogleLogin, useGoogleOAuth } from "@react-oauth/google";
 import { isGoogleOAuthConfigured } from "../../config/googleOAuth";
 import { CustomGoogleButton } from "./GoogleSignInButtonParts";
@@ -17,6 +17,8 @@ export default function GoogleSignInButton({
   const { scriptLoadedSuccessfully } = useGoogleOAuth();
   const configured = isGoogleOAuthConfigured();
   const [timedOut, setTimedOut] = useState(false);
+  const containerRef = useRef(null);
+  const [buttonWidth, setButtonWidth] = useState(400);
 
   useEffect(() => {
     if (scriptLoadedSuccessfully) {
@@ -26,6 +28,22 @@ export default function GoogleSignInButton({
     const timer = setTimeout(() => setTimedOut(true), GSI_LOAD_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [scriptLoadedSuccessfully]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      const width = el.offsetWidth;
+      if (width > 0) setButtonWidth(Math.round(width));
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   if (!configured) {
     return (
@@ -70,6 +88,7 @@ export default function GoogleSignInButton({
         <CustomGoogleButton disabled loading />
       ) : (
         <div
+          ref={containerRef}
           className={`onboarding-google-login relative w-full ${
             disabled || loading ? "pointer-events-none opacity-60" : ""
           }`}
@@ -84,7 +103,7 @@ export default function GoogleSignInButton({
             text="continue_with"
             shape="rectangular"
             logo_alignment="left"
-            width="400"
+            width={buttonWidth}
             containerProps={{
               className: "flex w-full justify-center",
               style: { width: "100%" },
