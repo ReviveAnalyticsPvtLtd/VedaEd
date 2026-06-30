@@ -512,6 +512,10 @@ import StudentProfileSettingsSecurity from "./StudentProfileSettings/pages/Stude
 import StudentProfileSettingsHelpCenter from "./StudentProfileSettings/pages/StudentProfileSettingsHelpCenter";
 import StudentProfileSettingsContactSupport from "./StudentProfileSettings/pages/StudentProfileSettingsContactSupport";
 
+import StudentProfileSettingsPassword from "./StudentProfileSettings/pages/StudentProfileSettingsPassword";
+import StudentProfileSettingsTwoFactorAuth from "./StudentProfileSettings/pages/StudentProfileSettingsTwoFactorAuth";
+import StudentProfileSettingsSessions from "./StudentProfileSettings/pages/StudentProfileSettingsSessions";
+import StudentProfileSettingsAccountControl from "./StudentProfileSettings/pages/StudentProfileSettingsAccountControl";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -1342,6 +1346,26 @@ function App() {
   <Route
     path="security"
     element={<StudentProfileSettingsSecurity />}
+  />
+
+  <Route
+    path="security/password"
+    element={<StudentProfileSettingsPassword />}
+  />
+
+  <Route
+    path="security/two-factor-auth"
+    element={<StudentProfileSettingsTwoFactorAuth />}
+  />
+
+  <Route
+    path="security/sessions"
+    element={<StudentProfileSettingsSessions />}
+  />
+
+  <Route
+    path="security/account-control"
+    element={<StudentProfileSettingsAccountControl />}
   />
 
   <Route
