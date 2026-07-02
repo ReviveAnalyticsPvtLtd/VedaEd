@@ -47,8 +47,8 @@ exports.login = async (req, res) => {
 
     // Fallback logic if user not found by email or employee ID
     if (!user) {
-      const isParentID = loginId.startsWith("PRN-");
-      const isStudentID = loginId.startsWith("STD-");
+      const isParentID = loginId.toUpperCase().startsWith("PRN-");
+      const isStudentID = loginId.toUpperCase().startsWith("STD-");
 
       const Role = require("../models/Role");
       const Student = require("../modules/student/studentModels");
@@ -58,13 +58,15 @@ exports.login = async (req, res) => {
 
       if (isStudentID || (!isParentID && !isStudentID)) {
         // --- STUDENT FALLBACK ---
+        // Escape special regex characters in loginId and construct a case-insensitive exact match regex
+        const searchRegex = new RegExp(`^${loginId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i');
         let student = await Student.findOne({
-          $or: [{ "personalInfo.stdId": loginId }, { "personalInfo.username": loginId }]
+          $or: [{ "personalInfo.stdId": searchRegex }, { "personalInfo.username": searchRegex }]
         });
 
         if (!student) {
           student = await AdmissionApplication.findOne({
-            $or: [{ "personalInfo.stdId": loginId }, { "personalInfo.username": loginId }]
+            $or: [{ "personalInfo.stdId": searchRegex }, { "personalInfo.username": searchRegex }]
           });
         }
 

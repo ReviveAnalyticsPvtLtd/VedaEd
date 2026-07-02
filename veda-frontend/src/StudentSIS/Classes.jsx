@@ -1,5 +1,5 @@
 // src/Student/MyClasses.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiBookOpen,
   FiUser,
@@ -13,70 +13,118 @@ import {
   FiCheckCircle,
 } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
+import { authFetch } from "../services/apiClient";
 
 export default function MyClasses() {
   const [selectedClass, setSelectedClass] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // DUMMY CLASS DATA - emojis replaced with icons
-  const classes = [
-    {
-      id: 1,
-      name: "Mathematics - Grade 10",
-      teacher: "Mr. Rohan Sharma",
-      time: "Mon–Fri | 09:00–09:45 AM",
-      room: "Room 204",
-      overview:
-        "This Mathematics class covers Algebra, Geometry, Trigonometry and Real Numbers with weekly tests and assignments.",
-      materials: [
-        { title: "Chapter 1 Notes (PDF)", type: "pdf", size: "1.2 MB" },
-        { title: "Algebra Video Lecture", type: "video", size: "15 min" },
-        { title: "Worksheet – Polynomials", type: "doc", size: "400 KB" },
-      ],
-      assignments: [
-        {
-          title: "Algebra Assignment",
-          due: "25 Nov",
-          status: "Pending",
-          marks: "-",
-        },
-        {
-          title: "Geometry Class Test",
-          due: "Completed",
-          status: "Submitted",
-          marks: "18/20",
-        },
-      ],
-      attendance: { present: 42, absent: 3 },
-      announcements: [
-        { msg: "Chapter 4 Test on Monday!", date: "18 Nov" },
-        { msg: "New worksheet uploaded.", date: "14 Nov" },
-      ],
-    },
+  useEffect(() => {
+    const fetchClassData = async () => {
+      try {
+        const [ttRes, assignRes] = await Promise.all([
+          authFetch("/timetables"),
+          authFetch("/assignments")
+        ]);
 
-    {
-      id: 2,
-      name: "Science - Grade 10",
-      teacher: "Ms. Anjali Gupta",
-      time: "Mon–Fri | 10:00–10:45 AM",
-      room: "Lab 1",
-      overview:
-        "Science includes Physics, Chemistry, and Biology modules with regular experiments and activities.",
-      materials: [
-        { title: "Biology Notes (PDF)", type: "pdf", size: "1.5 MB" },
-        { title: "Chemistry Lab Guide", type: "doc", size: "350 KB" },
-      ],
-      assignments: [
-        {
-          title: "Physics Numericals",
-          due: "28 Nov",
-          status: "Pending",
-          marks: "-",
-        },
-      ],
-      attendance: { present: 40, absent: 5 },
-      announcements: [{ msg: "Bring lab coat tomorrow!", date: "15 Nov" }],
-    },
-  ];
+        let timetableList = [];
+        if (ttRes.ok) {
+          const body = await ttRes.json();
+          timetableList = body.data || [];
+        }
+
+        let assignmentsList = [];
+        if (assignRes.ok) {
+          assignmentsList = await assignRes.json();
+        }
+
+        const grouped = {};
+        timetableList.forEach(entry => {
+          const subjectName = entry.subject?.subjectName || "General";
+          const teacherName = entry.teacher?.personalInfo?.name || entry.teacher?.name || "Assigned Teacher";
+          const room = entry.roomNo || "Room N/A";
+          const timeStr = `${entry.day} | ${entry.timeFrom}–${entry.timeTo}`;
+
+          if (!grouped[subjectName]) {
+            grouped[subjectName] = {
+              id: entry._id || subjectName,
+              name: subjectName,
+              teacher: teacherName,
+              room: room,
+              times: [],
+              time: "",
+              overview: `${subjectName} class covers dynamic curriculum topics, homework assignments and scheduled tasks.`,
+              materials: [],
+              assignments: [],
+              attendance: { present: 42, absent: 3 },
+              announcements: [],
+            };
+          }
+          grouped[subjectName].times.push(timeStr);
+        });
+
+        assignmentsList.forEach(a => {
+          const subjectName = a.subject?.subjectName || "General";
+          const mappedAssignment = {
+            title: a.title,
+            due: a.dueDate ? new Date(a.dueDate).toLocaleDateString("en-US", { day: "numeric", month: "short" }) : "N/A",
+            status: a.status || "Pending",
+            marks: a.marks || "-",
+          };
+
+          if (grouped[subjectName]) {
+            grouped[subjectName].assignments.push(mappedAssignment);
+          } else {
+            grouped[subjectName] = {
+              id: a._id || subjectName,
+              name: subjectName,
+              teacher: a.teacher?.personalInfo?.name || a.teacher?.name || "Assigned Teacher",
+              room: "Room N/A",
+              times: ["As scheduled"],
+              time: "As scheduled",
+              overview: `${subjectName} class covers dynamic curriculum topics, homework assignments and scheduled tasks.`,
+              materials: [],
+              assignments: [mappedAssignment],
+              attendance: { present: 40, absent: 2 },
+              announcements: [],
+            };
+          }
+        });
+
+        // Set compiled times
+        Object.values(grouped).forEach(g => {
+          g.time = g.times.join(", ");
+        });
+
+        setClasses(Object.values(grouped));
+      } catch (err) {
+        console.error("Error loading student classes:", err);
+        setError("Failed to load classes. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClassData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 text-gray-600">
+        Loading classes...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 text-red-500 font-medium">
+        {error}
+      </div>
+    );
+  }
 
   // DETAIL VIEW
   const DetailView = ({ cls }) => (

@@ -596,6 +596,16 @@ exports.acceptInvite = async (req, res) => {
     admin.inviteTokenExpiresAt = undefined;
     await admin.save();
 
+    // Generate login session for automatic authentication
+    let authSession = null;
+    try {
+      const populatedUser = await User.findById(user._id).populate("roleId");
+      const { buildFullAuthSession } = require("../../utils/authTokens");
+      authSession = await buildFullAuthSession(populatedUser);
+    } catch (sessionError) {
+      console.error("Error creating auth session:", sessionError);
+    }
+
     res.json({
       success: true,
       message: passwordPreSet
@@ -606,6 +616,7 @@ exports.acceptInvite = async (req, res) => {
         fullName: admin.fullName,
         passwordPreSet,
       },
+      session: authSession,
     });
   } catch (error) {
     console.error("acceptInvite error:", error);

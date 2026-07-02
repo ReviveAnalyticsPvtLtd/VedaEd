@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 import { authFetch } from "../services/apiClient";
 import ProfileAvatar from "../components/ProfileAvatar";
+import CountryCodeSelect from "../Onboarding-Module/components/CountryCodeSelect";
 import {
   getLatestPassportPhotoUrlFromDocs,
   normalizeStudentDocumentForAvatar,
@@ -39,12 +40,27 @@ const ProfileCard = ({ label, children, icon }) => (
   </div>
 );
 
-const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown }) => (
+const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown, isPhone, countryCode, onCountryCodeChange }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
     <p className="font-medium text-gray-500">{label}</p>
     <div className="col-span-2">
       {isEditing ? (
-        isDropdown && options ? (
+        isPhone ? (
+          <div className="flex gap-2">
+            <div className="w-32 shrink-0">
+              <CountryCodeSelect
+                value={countryCode}
+                onChange={onCountryCodeChange}
+              />
+            </div>
+            <input
+              type="text"
+              value={value || ""}
+              onChange={onChange}
+              className="flex-1 border rounded-md px-2 py-1 text-gray-700"
+            />
+          </div>
+        ) : isDropdown && options ? (
           <select
             value={value || ""}
             onChange={onChange}
@@ -66,7 +82,7 @@ const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown }) 
           />
         )
       ) : (
-        <p>{value || "N/A"}</p>
+        <p>{isPhone && countryCode ? `${countryCode} ${value}` : (value || "N/A")}</p>
       )}
     </div>
   </div>
@@ -164,6 +180,7 @@ const mapSisStudentToProfile = (studentData = {}) => {
   admissionContact.phone,
   parentContact.phone
 ),
+    countryCode: firstNonEmpty(contactDetails.countryCode, ""),
     email: firstNonEmpty(
   contactDetails.email,
   studentData.email,
@@ -666,6 +683,7 @@ const StudentProfile = () => {
       mobileNumber: student.contact,
       email: student.email,
       alternatePhone: student.altPhone,
+      countryCode: student.countryCode,
     },
   },
 
@@ -996,6 +1014,9 @@ const StudentProfile = () => {
           value={student.contact}
           isEditing={isEditing}
           onChange={(e) => handleChange("contact", e.target.value)}
+          isPhone={true}
+          countryCode={student.countryCode}
+          onCountryCodeChange={(val) => handleChange("countryCode", val)}
         />
 
         <InfoDetail
@@ -1316,40 +1337,7 @@ const StudentProfile = () => {
                 <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
               ) : null}
             </div>
-            <div className="flex flex-wrap justify-center gap-2 sm:justify-end shrink-0">
-              {!isEditing ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOriginalStudent(student);
-                    setIsEditing(true);
-                  }}
-                  className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
-                >
-                  <FiEdit3 className="w-5 h-5 mr-2" /> Edit Profile
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700"
-                  >
-                    <FiSave className="w-5 h-5 mr-2" /> Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStudent(originalStudent);
-                      setIsEditing(false);
-                    }}
-                    className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
-                  >
-                    <FiX className="w-5 h-5 mr-2" /> Cancel
-                  </button>
-                </>
-              )}
-            </div>
+
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import axios from "axios";
 import ProfileAvatar from "../../components/ProfileAvatar";
+import config from "../../config";
 
 /* ================= COMMON UI COMPONENTS (SAME AS STUDENT PROFILE) ================= */
 
@@ -74,7 +75,7 @@ const TabButton = ({ label, isActive, onClick, icon }) => (
 );
 
 const getBackendBaseUrl = () => {
-  const apiBase = (process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api").trim();
+  const apiBase = (config.API_BASE_URL || "http://localhost:5000/api").trim();
   return apiBase.replace(/\/api\/?$/, "");
 };
 
@@ -217,7 +218,7 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fetchApplication = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/admission/application/${id}`);
+      const res = await axios.get(`${config.API_BASE_URL}/admission/application/${id}`);
       if (res.data.success) {
         const data = ensureParentIdAccountHolderOnApp(res.data.data);
         setApplication(data);
@@ -259,7 +260,7 @@ const handleDocumentUpload = async (file, type) => {
 
   try {
     const res = await axios.post(
-      `http://localhost:5000/api/admission/application/${id}/upload`,
+      `${config.API_BASE_URL}/admission/application/${id}/upload`,
       form,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -287,12 +288,16 @@ const handleDocumentUpload = async (file, type) => {
 const handleDeleteDocument = async (docId) => {
   try {
     await axios.delete(
-      `http://localhost:5000/api/admission/application/${id}/document/${docId}`
+      `${config.API_BASE_URL}/admission/application/${id}/document/${docId}`
     );
 
     setFormData(prev => ({
       ...prev,
       documents: prev.documents.filter(d => d._id !== docId),
+    }));
+    setApplication(prev => ({
+      ...prev,
+      documents: (prev.documents || []).filter(d => d._id !== docId),
     }));
   } catch (err) {
     console.error("Delete failed", err);
@@ -388,7 +393,7 @@ const handleSave = async () => {
 
   try {
     await axios.put(
-      `http://localhost:5000/api/admission/application/${id}`,
+      `${config.API_BASE_URL}/admission/application/${id}`,
       formData
     );
 

@@ -6,6 +6,7 @@ import {
   validatePasswordFields,
 } from "../superadmin-front/identity-access/constants";
 import { toastBannerClassName } from "../utils/toastMessageStyle";
+import { saveAuthSession } from "../utils/authSession";
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
@@ -53,8 +54,11 @@ export default function AcceptInvitation() {
         token,
         ...(passwordPreSet ? {} : { password }),
       });
+      if (res.session) {
+        saveAuthSession(res.session);
+      }
       setToast(res.message || "Invitation accepted successfully");
-      setTimeout(() => navigate("/"), 2500);
+      setTimeout(() => navigate("/setup/start"), 2500);
     } catch (err) {
       setError(err.message);
     } finally {

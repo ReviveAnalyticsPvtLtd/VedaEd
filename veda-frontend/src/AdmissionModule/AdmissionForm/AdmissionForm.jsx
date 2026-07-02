@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { State, City } from "country-state-city";
 import config from "../../config";
+
+const allStates = State.getStatesOfCountry("IN");
 import HelpInfo from "../../components/HelpInfo";
 import {
   FiUser,
@@ -252,16 +255,8 @@ yearOfStudy: "",
   });
 
   
-const filteredStates = Object.keys(INDIA_DATA).filter((state) =>
-  state.toLowerCase().includes(stateQuery.toLowerCase())
-);
-
-const filteredCities =
-  formData.state && INDIA_DATA[formData.state]
-    ? INDIA_DATA[formData.state].filter((city) =>
-        city.toLowerCase().includes(cityQuery.toLowerCase())
-      )
-    : [];
+  const selectedStateObj = formData.state ? allStates.find(s => s.name === formData.state) : null;
+  const citiesOfSelectedState = selectedStateObj ? City.getCitiesOfState("IN", selectedStateObj.isoCode) : [];
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -669,76 +664,50 @@ Username is auto-generated but editable; set a secure password for the studentâ€
   error={errors.alternatePhone}
 />
             <FormField label="Address" name="address" value={formData.address} onChange={handleChange} placeholder="Street address" className="col-span-2" />
-           <div className="relative">
-  <FormField
-    label="City"
-    name="city"
-    value={cityQuery || formData.city}
-    onChange={(e) => {
-      const value = e.target.value;
-      setCityQuery(value);
-      setFormData((prev) => ({ ...prev, city: value }));
-      setShowCityList(true);
-    }}
-    placeholder={
-      formData.state ? "Type city name" : "Select state first"
-    }
-    disabled={!formData.state}
-  />
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                State <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="state"
+                value={formData.state || ""}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, state: e.target.value, city: "" }));
+                }}
+                required
+                className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+              >
+                <option value="">Select State</option>
+                {allStates.map((state) => (
+                  <option key={state.isoCode} value={state.name}>
+                    {state.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-  {showCityList && filteredCities.length > 0 && (
-    <ul className="absolute z-10 bg-white border rounded-md w-full max-h-40 overflow-auto shadow">
-      {filteredCities.map((city) => (
-        <li
-          key={city}
-          className="px-3 py-2 hover:bg-blue-100 cursor-pointer"
-          onClick={() => {
-            setFormData((prev) => ({ ...prev, city }));
-            setCityQuery("");
-            setShowCityList(false);
-          }}
-        >
-          {city}
-        </li>
-      ))}
-    </ul>
-  )}
-</div>
-
-           <div className="relative">
-  <FormField
-    label="State"
-    name="state"
-    value={stateQuery || formData.state}
-    onChange={(e) => {
-      const value = e.target.value;
-      setStateQuery(value);
-      setFormData((prev) => ({ ...prev, state: value, city: "" }));
-      setCityQuery("");
-      setShowStateList(true);
-    }}
-    placeholder="Type state name"
-  />
-
-  {showStateList && filteredStates.length > 0 && (
-    <ul className="absolute z-10 bg-white border rounded-md w-full max-h-40 overflow-auto shadow">
-      {filteredStates.map((state) => (
-        <li
-          key={state}
-          className="px-3 py-2 hover:bg-blue-100 cursor-pointer"
-          onClick={() => {
-            setFormData((prev) => ({ ...prev, state }));
-            setStateQuery("");
-            setShowStateList(false);
-            setCityQuery("");
-          }}
-        >
-          {state}
-        </li>
-      ))}
-    </ul>
-  )}
-</div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                City <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="city"
+                value={formData.city || ""}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, city: e.target.value }));
+                }}
+                required
+                disabled={!formData.state}
+                className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed bg-white text-sm"
+              >
+                <option value="">Select City</option>
+                {citiesOfSelectedState.map((city) => (
+                  <option key={city.name} value={city.name}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
           <FormField
   label="Zip Code"

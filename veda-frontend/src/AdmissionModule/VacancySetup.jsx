@@ -19,6 +19,7 @@ const [errors, setErrors] = useState({
   reservedSeats: "",
 });
   const [vacancies, setVacancies] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     academicYear: "",
@@ -27,6 +28,15 @@ const [errors, setErrors] = useState({
 
   useEffect(() => {
     fetchVacancies();
+    const loadClasses = async () => {
+      try {
+        const res = await axios.get(`${config.API_BASE_URL}/classes`);
+        setClasses(res.data || []);
+      } catch (err) {
+        console.error("Failed to load classes for vacancy:", err);
+      }
+    };
+    loadClasses();
   }, []);
 const [currentPage, setCurrentPage] = useState(1);
 const itemsPerPage = 10;
@@ -188,28 +198,30 @@ useEffect(() => {
             </label>
             <select
               value={form.className}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  className: e.target.value,
-                })
-              }
-              className="border rounded-lg px-3 py-2 text-sm"
+              onChange={(e) => {
+                const selectedVal = e.target.value;
+                const matchedClass = classes.find((c) => c.name === selectedVal);
+                const capacity = matchedClass?.capacity ? Number(matchedClass.capacity) : "";
+                setForm((prev) => ({
+                  ...prev,
+                  className: selectedVal,
+                  totalSeats: capacity,
+                  reservedSeats: "",
+                }));
+                setErrors((prev) => ({
+                  ...prev,
+                  totalSeats: "",
+                  reservedSeats: "",
+                }));
+              }}
+              className="border rounded-lg px-3 py-2 text-sm bg-white"
             >
               <option value="">Select Class</option>
-              <option>Nursery</option>
-              <option>LKG</option>
-              <option>UKG</option>
-              <option>Class 1</option>
-              <option>Class 2</option>
-              <option>Class 3</option>
-              <option>Class 4</option>
-              <option>Class 5</option>
-              <option>Class 6</option>
-              <option>Class 7</option>
-              <option>Class 8</option>
-              <option>Class 9</option>
-              <option>Class 10</option>
+              {classes.map((cls) => (
+                <option key={cls._id} value={cls.name}>
+                  {cls.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -219,31 +231,12 @@ useEffect(() => {
               Total Seats
             </label>
             <input
-  type="number"
-  min="0"
-  value={form.totalSeats}
-  onChange={(e) => {
-  const value = Number(e.target.value);
-
-  if (value < 0) {
-    setErrors((prev) => ({
-      ...prev,
-      totalSeats: "Total seats cannot be negative",
-    }));
-  } else {
-    setErrors((prev) => ({
-      ...prev,
-      totalSeats: "",
-    }));
-  }
-
-  setForm({
-    ...form,
-    totalSeats: Math.max(0, value),
-  });
-}}
-
-              className="border rounded-lg px-3 py-2 text-sm"
+              type="number"
+              min="0"
+              value={form.totalSeats}
+              readOnly
+              className="border rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+              placeholder="Auto-populated from Class"
             />
             {errors.totalSeats && (
   <p className="text-red-500 text-xs mt-1">

@@ -59,6 +59,7 @@ const StudentSchema = new Schema(
           type: String,
           // required: true,
         },
+        countryCode: { type: String, default: "" },
         alternatePhone: { type: String, default: "" },
         email: String,
       },

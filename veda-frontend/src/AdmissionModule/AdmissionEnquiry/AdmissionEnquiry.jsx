@@ -3,10 +3,12 @@ import { FiPlus, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import * as XLSX from "xlsx";
 import HelpInfo from "../../components/HelpInfo";
 import { getEnquiries, createEnquiry, deleteEnquiry, updateEnquiry } from "../../services/admissionEnquiryAPI";
+import classAPI from "../../services/classAPI";
 import { useNavigate } from "react-router-dom";
 export default function AdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
+  const [classes, setClasses] = useState([]);
   const totalEnquiries = enquiries.length;
 const reviewedCount = enquiries.filter(e => e.status === "reviewed").length;
 const pendingCount = enquiries.filter(e => e.status !== "reviewed").length;
@@ -39,6 +41,15 @@ const itemsPerPage = 10;
 
   useEffect(() => {
     fetchEnquiries();
+    const loadClasses = async () => {
+      try {
+        const clsList = await classAPI.getAllClasses();
+        setClasses(clsList || []);
+      } catch (err) {
+        console.error("Failed to load classes in enquiries:", err);
+      }
+    };
+    loadClasses();
   }, []);
 
  const fetchEnquiries = async () => {
@@ -650,15 +661,21 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                 <label className="block mb-1 font-semibold">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Class 5"
-                  className="border rounded-md px-3 py-2 w-full"
+                <select
+                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white"
                   value={formData.enquiryClass}
                   onChange={(e) =>
                     setFormData({ ...formData, enquiryClass: e.target.value })
                   }
-                />
+                  required
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((cls) => (
+                    <option key={cls._id || cls.name} value={cls.name}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -780,14 +797,21 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                 <label className="block mb-1 font-semibold">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  className="border rounded-md px-3 py-2 w-full"
+                <select
+                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white"
                   value={editFormData.enquiryClass}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, enquiryClass: e.target.value })
                   }
-                />
+                  required
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((cls) => (
+                    <option key={cls._id || cls.name} value={cls.name}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
