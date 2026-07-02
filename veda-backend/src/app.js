@@ -107,6 +107,7 @@ app.use("/api/discount-rules", require("./modules/fees/feeRoutes").discountRuleR
 app.use("/api/fees/dashboard", require("./modules/fees/feeRoutes").dashboardRouter);
 app.use("/api/fees/collect", require("./modules/fees/feeRoutes").collectionRouter);
 app.use("/api/fines", require("./modules/fees/feeRoutes").fineRouter);
+app.use("/api/user-settings", require("./modules/userSettings/userSettingsRoutes"));
 
 
 

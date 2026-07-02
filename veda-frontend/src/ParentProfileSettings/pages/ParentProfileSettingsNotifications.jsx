@@ -1,10 +1,11 @@
-
 import { useEffect, useState } from "react";
-import axios from "axios";
-// import config from "../config";
+import { userSettingsAPI } from "../../services/userSettingsAPI";
 
 export default function ParentProfileSettingsNotifications() {
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -25,22 +26,24 @@ export default function ParentProfileSettingsNotifications() {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-
-      /*
-      const res = await axios.get(
-        `${config.API_BASE_URL}/settings/notifications`
-      );
-
-      setNotifications(res.data);
-      */
-
-      const saved = localStorage.getItem("notificationSettings");
-
-      if (saved) {
-        setNotifications(JSON.parse(saved));
+      const settings = await userSettingsAPI.getSettings();
+      
+      if (settings && settings.notifications) {
+        setNotifications((prev) => ({
+          ...prev,
+          email: settings.notifications.email,
+          push: settings.notifications.push,
+          sms: settings.notifications.sms,
+          marketing: settings.notifications.marketing,
+        }));
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      // Fallback to localStorage
+      const saved = localStorage.getItem("notificationSettings");
+      if (saved) {
+        setNotifications(JSON.parse(saved));
+      }
     } finally {
       setLoading(false);
     }
@@ -55,21 +58,28 @@ export default function ParentProfileSettingsNotifications() {
 
   const saveNotifications = async () => {
     try {
-      /*
-      await axios.put(
-        `${config.API_BASE_URL}/settings/notifications`,
-        notifications
-      );
-      */
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      
+      await userSettingsAPI.updateNotifications({
+        email: notifications.email,
+        push: notifications.push,
+        sms: notifications.sms,
+        marketing: notifications.marketing,
+      });
 
       localStorage.setItem(
         "notificationSettings",
         JSON.stringify(notifications)
       );
 
-      alert("Notification Settings Saved");
+      setSuccess("Notification Settings Saved");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
-      console.error("Error saving notifications:", error);
+      setError(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -109,6 +119,18 @@ export default function ParentProfileSettingsNotifications() {
           Manage how you receive updates and alerts.
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-100 text-red-600 rounded-lg px-4 py-2">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-100 text-green-600 rounded-lg px-4 py-2">
+          {success}
+        </div>
+      )}
 
       {/* CARD */}
 
@@ -316,9 +338,10 @@ export default function ParentProfileSettingsNotifications() {
 
           <button
             onClick={saveNotifications}
-            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+            disabled={saving}
+            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Settings
+            {saving ? "Saving..." : "Save Settings"}
           </button>
         </div>
       </div>

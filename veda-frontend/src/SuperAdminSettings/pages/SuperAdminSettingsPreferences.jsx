@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-// import config from "../config";
+import { userSettingsAPI } from "../../services/userSettingsAPI";
 
 export default function SuperAdminSettingsPreferences() {
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [preferences, setPreferences] = useState({
     theme: "light",
@@ -51,28 +53,18 @@ export default function SuperAdminSettingsPreferences() {
   const fetchPreferences = async () => {
     try {
       setLoading(true);
-
-      /*
-      const res = await axios.get(
-        `${config.API_BASE_URL}/settings/preferences`
-      );
-
-      setPreferences(res.data);
-      */
-
-      const savedPrefs = localStorage.getItem("preferences");
-
-      if (savedPrefs) {
-        setPreferences(JSON.parse(savedPrefs));
-      } else {
-        setPreferences({
-          theme: "light",
-          language: "en",
-          timezone: "Asia/Kolkata",
-        });
+      const settings = await userSettingsAPI.getSettings();
+      
+      if (settings && settings.preferences) {
+        setPreferences(settings.preferences);
       }
     } catch (error) {
       console.error(error);
+      // Fallback to localStorage if API fails
+      const savedPrefs = localStorage.getItem("preferences");
+      if (savedPrefs) {
+        setPreferences(JSON.parse(savedPrefs));
+      }
     } finally {
       setLoading(false);
     }
@@ -91,21 +83,23 @@ export default function SuperAdminSettingsPreferences() {
 
   const savePreferences = async () => {
     try {
-      /*
-      await axios.put(
-        `${config.API_BASE_URL}/settings/preferences`,
-        preferences
-      );
-      */
-
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      
+      await userSettingsAPI.updatePreferences(preferences);
+      
       localStorage.setItem(
         "preferences",
         JSON.stringify(preferences)
       );
 
-      alert("Preferences Saved Successfully");
+      setSuccess("Preferences Saved Successfully");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
-      console.error(error);
+      setError(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -129,6 +123,18 @@ export default function SuperAdminSettingsPreferences() {
           Customize your experience on the platform.
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-100 text-red-600 rounded-lg px-4 py-2">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-100 text-green-600 rounded-lg px-4 py-2">
+          {success}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 space-y-8">
 
@@ -230,9 +236,10 @@ export default function SuperAdminSettingsPreferences() {
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6 flex justify-end">
           <button
             onClick={savePreferences}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg"
+            disabled={saving}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Preferences
+            {saving ? "Saving..." : "Save Preferences"}
           </button>
         </div>
 
