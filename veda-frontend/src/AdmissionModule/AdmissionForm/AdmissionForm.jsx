@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { State, City } from "country-state-city";
 import config from "../../config";
-
-const allStates = State.getStatesOfCountry("IN");
 import HelpInfo from "../../components/HelpInfo";
 import {
   FiUser,
@@ -19,6 +17,8 @@ import {
   FiCamera,
   FiImage,
 } from "react-icons/fi";
+
+const allStates = State.getStatesOfCountry("IN");
 
 // Reusable Form Field Component
 const FormField = ({
