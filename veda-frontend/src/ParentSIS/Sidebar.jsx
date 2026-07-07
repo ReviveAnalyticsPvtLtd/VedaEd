@@ -105,27 +105,7 @@ export default function ParentSidebar({
         })}
       </div>
 
-      {/* ===== FIXED BOTTOM SECTION ===== */}
-      <div className="px-2 pb-3 border-t">
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className="flex items-center h-10 w-full rounded-lg px-2 gap-3
-          text-gray-700 hover:bg-gray-100 transition-colors mt-2"
-        >
-          <span className="flex w-6 justify-center">
-            <FiSettings size={18} />
-          </span>
-          {isSidebarOpen && <span>Settings</span>}
-        </button>
-
-        {settingsOpen && isSidebarOpen && (
-          <div className="ml-10 mt-2 space-y-2 text-sm text-gray-700">
-            <NavLink to="/parent/profile" className="hover:text-blue-600 block">Profile Settings</NavLink>
-            <NavLink className="hover:text-blue-600 block">Account Settings</NavLink>
-            <NavLink className="hover:text-blue-600 block">Notifications</NavLink>
-          </div>
-        )}
-
+      
         <div className="mt-3">
           {isSidebarOpen ? (
             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
@@ -142,6 +122,6 @@ export default function ParentSidebar({
           )}
         </div>
       </div>
-    </div>
+   
   );
 }

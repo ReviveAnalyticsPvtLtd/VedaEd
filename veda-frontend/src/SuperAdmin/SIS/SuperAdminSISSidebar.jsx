@@ -113,40 +113,9 @@ export default function SuperAdminSISSidebar({
 
       {/* SETTINGS + ADMIN (EXACT SAME AS REFERENCE) */}
       <div className="absolute bottom-4 w-full px-2">
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className="flex items-center h-10 w-full rounded-lg px-2 gap-3
-          text-gray-700 hover:bg-gray-100 transition-colors mt-4"
-        >
-          <span className="flex w-6 justify-center">
-            <FiSettings size={18} />
-          </span>
-          {isSidebarOpen && <span>Settings</span>}
-        </button>
+        
 
-        {/* SETTINGS DROPDOWN */}
-        {settingsOpen && isSidebarOpen && (
-          <div className="ml-10 mt-3 space-y-2 text-sm text-gray-700">
-            <NavLink
-              to="/superadmin/sis/settings/profile"
-              className="hover:text-blue-600 block"
-            >
-              Profile Settings
-            </NavLink>
-            <NavLink
-              to="/superadmin/sis/settings/account"
-              className="hover:text-blue-600 block"
-            >
-              Account Settings
-            </NavLink>
-            <NavLink
-              to="/superadmin/sis/settings/subscription"
-              className="hover:text-blue-600 block"
-            >
-              Subscription Plans
-            </NavLink>
-          </div>
-        )}
+       
 
         {/* ADMIN BLOCK */}
         <div className="mt-4">
