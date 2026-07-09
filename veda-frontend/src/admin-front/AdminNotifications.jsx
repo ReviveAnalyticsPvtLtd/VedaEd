@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { userSettingsAPI } from "../services/userSettingsAPI";
-
+import {
+  Mail,
+  Smartphone,
+  Bell,
+} from "lucide-react";
 export default function AdminNotifications() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,7 +119,7 @@ export default function AdminNotifications() {
           Notifications
         </h2>
 
-        <p className="text-slate-500">
+        <p className="text-slate-500 mt-1">
           Manage how you receive updates and alerts.
         </p>
       </div>
@@ -142,9 +146,9 @@ export default function AdminNotifications() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">📧</span>
-              </div>
+             <div className="p-3 bg-slate-100 rounded-xl">
+  <Mail className="w-5 h-5 text-slate-700" />
+</div>
 
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
@@ -168,8 +172,8 @@ export default function AdminNotifications() {
           <div className="flex items-center justify-between border-t border-slate-100 pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">📱</span>
-              </div>
+  <Smartphone className="w-5 h-5 text-slate-700" />
+</div>
 
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
@@ -193,8 +197,8 @@ export default function AdminNotifications() {
           <div className="flex items-center justify-between border-t border-slate-100 pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">💬</span>
-              </div>
+  <Bell className="w-5 h-5 text-slate-700" />
+</div>
 
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">

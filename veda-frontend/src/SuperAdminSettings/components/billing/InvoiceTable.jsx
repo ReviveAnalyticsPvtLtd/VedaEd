@@ -149,7 +149,7 @@ export default function InvoiceTable() {
       <section className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h2 className="text-2xl font-bold">
+            <h2 className="text-xl font-bold">
               Billing & Invoices
             </h2>
 

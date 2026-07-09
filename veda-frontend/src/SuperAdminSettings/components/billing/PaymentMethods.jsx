@@ -121,7 +121,7 @@ export default function PaymentMethods() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-xl font-bold text-slate-900">
               Payment Methods
             </h2>
 

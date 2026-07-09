@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { userSettingsAPI } from "../../services/userSettingsAPI";
-
+import {
+  Mail,
+  Smartphone,
+  Bell,
+} from "lucide-react";
 export default function SuperAdminSettingsNotifications() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,14 +141,14 @@ export default function SuperAdminSettingsNotifications() {
       <div className="bg-white rounded-2xl border border-slate-200 p-8 space-y-8">
         {/* CHANNELS */}
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* EMAIL */}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">📧</span>
-              </div>
+             <div className="p-3 bg-slate-100 rounded-xl">
+  <Mail className="w-5 h-5 text-slate-700" />
+</div>
 
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
@@ -167,10 +171,9 @@ export default function SuperAdminSettingsNotifications() {
 
           <div className="flex items-center justify-between border-t border-slate-100 pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">📱</span>
-              </div>
-
+             <div className="p-3 bg-slate-100 rounded-xl">
+  <Smartphone className="w-5 h-5 text-slate-700" />
+</div>
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
                   Push Notifications
@@ -193,8 +196,8 @@ export default function SuperAdminSettingsNotifications() {
           <div className="flex items-center justify-between border-t border-slate-100 pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-slate-100 rounded-xl">
-                <span className="text-xl">💬</span>
-              </div>
+  <Bell className="w-5 h-5 text-slate-700" />
+</div>
 
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">

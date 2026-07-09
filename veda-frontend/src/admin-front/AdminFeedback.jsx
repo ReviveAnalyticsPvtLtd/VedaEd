@@ -16,11 +16,11 @@ export default function AdminFeedback() {
    };
  
    return (
-     <div className="p-0 m-0 min-h-screen">
+     <div className="space-y-6">
        {/* Header */}
  
        <div>
-         <h1 className="text-3xl font-bold text-slate-900">
+         <h1 className="text-2xl font-bold text-slate-900">
            Feedback
          </h1>
  

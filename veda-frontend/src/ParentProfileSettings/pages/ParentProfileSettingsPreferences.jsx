@@ -119,7 +119,7 @@ export default function ParentProfileSettingsPreferences() {
           Preferences
         </h2>
 
-        <p className="text-slate-500 dark:text-slate-400">
+        <p className="text-slate-500  mt-1 dark:text-slate-400">
           Customize your experience on the platform.
         </p>
       </div>

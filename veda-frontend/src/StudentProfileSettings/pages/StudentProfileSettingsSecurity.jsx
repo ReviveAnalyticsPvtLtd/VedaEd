@@ -172,11 +172,11 @@ const handleAccountControl = () => {
       {/* HEADER */}
 
       <div>
-        <h2 className="text-3xl font-bold">
+        <h2 className="text-2xl font-bold">
           Security
         </h2>
 
-        <p className="text-slate-500 mt-2">
+        <p className="text-slate-500 mt-1">
           Manage your account security,
           sessions and data privacy.
         </p>

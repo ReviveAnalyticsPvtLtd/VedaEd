@@ -37,7 +37,7 @@ export default function TeacherProfileSettingsContactSupport() {
       {/* HEADER */}
 
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-2xl font-bold text-slate-900">
           Contact Support
         </h1>
 

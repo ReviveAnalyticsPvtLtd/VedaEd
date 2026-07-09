@@ -41,11 +41,11 @@
        {/* HEADER */}
  
        <div>
-         <h1 className="text-3xl font-bold text-slate-900">
+         <h1 className="text-2xl font-bold text-slate-900">
            Help Center
          </h1>
  
-         <p className="text-slate-500 mt-2">
+         <p className="text-slate-500 mt-1">
            Find guides, tutorials and support resources.
          </p>
        </div>

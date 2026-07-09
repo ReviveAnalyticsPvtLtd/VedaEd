@@ -5,7 +5,13 @@ import InvoiceTable from "../components/billing/InvoiceTable";
 
 export default function SuperAdminSettingsBillingDetails() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">Billing Details</h2>
+        <p className="text-slate-500 mt-1 text-sm">
+          Manage your Billing details
+        </p>
+      </div>
       
       {/* Subscription Overview */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">

@@ -4,7 +4,7 @@ export default function BillingOverview() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">
+        <h2 className="text-xl font-bold text-slate-900">
           Subscription Summary
         </h2>
 
