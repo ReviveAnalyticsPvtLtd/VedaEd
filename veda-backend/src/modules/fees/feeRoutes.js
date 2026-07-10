@@ -31,7 +31,9 @@ const {
   toggleFineStatus,
   getFeesDashboard,
   getStudentFeeProfile,
-  recordFeePayment
+  recordFeePayment,
+  searchFeeTransactions,
+  getDueFees
 } = require("./feeControllers");
 
 const academicYearRouter = express.Router();
@@ -83,6 +85,8 @@ const dashboardRouter = express.Router();
 dashboardRouter.get("/", getFeesDashboard);
 
 const collectionRouter = express.Router();
+collectionRouter.get("/payments", searchFeeTransactions);
+collectionRouter.get("/dues", getDueFees);
 collectionRouter.get("/student/:id", getStudentFeeProfile);
 collectionRouter.post("/payment", recordFeePayment);
 

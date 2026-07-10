@@ -145,7 +145,7 @@ const CollectFeesProfile = () => {
                 <input
                   type="checkbox"
                   onChange={handleSelectAll}
-                  checked={selected.length === feesData.length}
+                  checked={feesData.length > 0 && selected.length === feesData.length}
                 />
               </th>
               <th className="p-2">Fees</th>

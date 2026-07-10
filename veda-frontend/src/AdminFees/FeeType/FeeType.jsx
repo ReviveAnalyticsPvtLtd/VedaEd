@@ -1,40 +1,84 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiEdit, FiTrash2, FiDownload } from "react-icons/fi";
+import axios from "axios";
+import config from "../../config";
 
 export default function FeeType() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
   const [editIndex, setEditIndex] = useState(null);
-
-  const [feeTypes, setFeeTypes] = useState([
-    { name: "Admission Fees", code: "admission-fees", desc: "" },
-    { name: "1st Installment Fees", code: "1-installment-fees", desc: "" },
-    { name: "2nd Installment Fees", code: "2-installment-fees", desc: "" },
-    { name: "3rd Installment Fees", code: "3-installment-fees", desc: "" },
-    { name: "Bus Fees", code: "bus-fees", desc: "" },
-  ]);
-
+  const [feeTypes, setFeeTypes] = useState([]);
+  const [selectedYear, setSelectedYear] = useState("");
   const [search, setSearch] = useState("");
 
+  const fetchData = async (year) => {
+    try {
+      const res = await axios.get(`${config.API_BASE_URL}/fee-categories?year=${year}`);
+      if (Array.isArray(res.data)) {
+        setFeeTypes(res.data);
+      }
+    } catch (err) {
+      console.error("Error fetching fee types:", err);
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const res = await axios.get(`${config.API_BASE_URL}/academic-years`);
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const active = res.data.find(y => y.isActive) || res.data[0];
+          setSelectedYear(active.label);
+          fetchData(active.label);
+        } else {
+          setSelectedYear("2025-26");
+          fetchData("2025-26");
+        }
+      } catch (err) {
+        setSelectedYear("2025-26");
+        fetchData("2025-26");
+      }
+    };
+    init();
+  }, []);
+
   /* ===== SAVE / UPDATE ===== */
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || !code.trim()) {
       return alert("Name & Fees Code are required");
     }
 
-    if (editIndex !== null) {
-      const updated = [...feeTypes];
-      updated[editIndex] = { name, code, desc: description };
-      setFeeTypes(updated);
-      setEditIndex(null);
-    } else {
-      setFeeTypes([...feeTypes, { name, code, desc: description }]);
+    try {
+      if (editIndex !== null) {
+        const item = feeTypes[editIndex];
+        await axios.put(`${config.API_BASE_URL}/fee-categories/${item._id}`, {
+          name,
+          code,
+          desc: description,
+          year: selectedYear,
+          frequency: item.frequency || "Annual",
+          applicability: item.applicability || "All Grades"
+        });
+        setEditIndex(null);
+      } else {
+        await axios.post(`${config.API_BASE_URL}/fee-categories`, {
+          name,
+          code,
+          desc: description,
+          year: selectedYear,
+          frequency: "Annual",
+          applicability: "All Grades"
+        });
+      }
+      setName("");
+      setCode("");
+      setDescription("");
+      fetchData(selectedYear);
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("Failed to save fee type");
     }
-
-    setName("");
-    setCode("");
-    setDescription("");
   };
 
   /* ===== EDIT ===== */
@@ -42,14 +86,27 @@ export default function FeeType() {
     const item = feeTypes[index];
     setName(item.name);
     setCode(item.code);
-    setDescription(item.desc);
+    setDescription(item.desc || "");
     setEditIndex(index);
   };
 
   /* ===== DELETE ===== */
-  const handleDelete = (index) => {
+  const handleDelete = async (index) => {
     if (!window.confirm("Delete this fee type?")) return;
-    setFeeTypes(feeTypes.filter((_, i) => i !== index));
+    try {
+      const item = feeTypes[index];
+      await axios.delete(`${config.API_BASE_URL}/fee-categories/${item._id}`);
+      fetchData(selectedYear);
+      if (editIndex === index) {
+        setName("");
+        setCode("");
+        setDescription("");
+        setEditIndex(null);
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete fee type");
+    }
   };
 
   /* ===== SEARCH ===== */
@@ -63,7 +120,7 @@ export default function FeeType() {
   const handleExport = () => {
     const csv = [
       ["Name", "Fees Code", "Description"],
-      ...feeTypes.map((f) => [f.name, f.code, f.desc]),
+      ...feeTypes.map((f) => [f.name, f.code, f.desc || ""]),
     ]
       .map((row) => row.join(","))
       .join("\n");
@@ -76,6 +133,7 @@ export default function FeeType() {
     a.download = "fee-types.csv";
     a.click();
   };
+
 
   return (
     <div className="p-0 min-h-screen">

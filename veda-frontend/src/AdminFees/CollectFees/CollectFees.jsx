@@ -113,7 +113,7 @@ const CollectFees = () => {
             {availableSections.map(s => <option key={s._id} value={s.name}>{s.name}</option>)}
           </select>
 
-        ** <input
+          <input
             type="text"
             placeholder="Search By Student Name, Roll Number..."
             className="border p-2 rounded"

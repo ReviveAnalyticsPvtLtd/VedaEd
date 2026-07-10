@@ -1,0 +1,22 @@
+Summary of Changes Made to VedaEd Backend
+==========================================
+
+We built a new "Academic Content" system in the backend so that teachers can upload study materials and syllabuses, and students can view or download them.
+
+Here is what we did in simple words:
+
+1. Storing the Data (Database Models)
+   - Created "Syllabus": A template to save information about class syllabus files (e.g. math syllabus PDF, status of draft or published).
+   - Created "Study Material": A template to save books, notes, and study guides uploaded by teachers.
+
+2. Controlling the Actions (Controllers)
+   - Created actions for Teachers: Upload files, see what they uploaded, update files (like making a draft visible to students), and delete them.
+   - Created actions for Students: Automatically checks the logged-in student's class and displays only the materials and syllabuses that have been published for them.
+   - Smart File Deletion: When a teacher deletes study notes or a syllabus from the system, it automatically deletes the physical file from the server's hard drive so it doesn't waste storage space.
+
+3. Activating the Network Paths (Routes)
+   - Created the URLs (endpoints) that the front-end application will call to fetch these files or perform these actions.
+   - Connected these endpoints to our server configuration so they are alive and ready to use.
+
+4. Testing
+   - Created a verification script to run all actions (Upload -> Publish -> Student view -> Toggle Visibility -> Delete) automatically. Everything worked perfectly and cleaned up after itself.

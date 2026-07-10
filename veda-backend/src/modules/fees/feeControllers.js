@@ -602,3 +602,92 @@ exports.recordFeePayment = async (req, res) => {
     res.status(500).json({ message: "Payment recording failed", error });
   }
 };
+
+exports.searchFeeTransactions = async (req, res) => {
+  try {
+    const { search, paymentMethod } = req.query;
+    let query = {};
+    if (paymentMethod && paymentMethod !== "All") {
+      query.paymentMethod = paymentMethod;
+    }
+    if (search) {
+      const students = await Student.find({
+        $or: [
+          { "personalInfo.name": { $regex: search, $options: "i" } },
+          { "personalInfo.stdId": { $regex: search, $options: "i" } }
+        ]
+      });
+      const studentIds = students.map(s => s._id);
+      query.studentId = { $in: studentIds };
+    }
+    const transactions = await FeeTransaction.find(query)
+      .sort({ date: -1 })
+      .populate({
+        path: "studentId",
+        populate: { path: "personalInfo.class personalInfo.section" }
+      });
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: "Error searching transactions", error });
+  }
+};
+
+exports.getDueFees = async (req, res) => {
+  try {
+    const { class: className, section: sectionName } = req.query;
+    let studentQuery = {};
+
+    const studentsList = await Student.find(studentQuery)
+      .populate("personalInfo.class personalInfo.section");
+
+    const active = await AcademicYear.findOne({ isActive: true });
+    const year = active?.label;
+    if (!year) return res.json([]);
+
+    const gradeFees = await GradeFee.find({ year });
+
+    const dueList = [];
+    for (const student of studentsList) {
+      if (className && className !== "All" && student.personalInfo.class?.name !== className) continue;
+      if (sectionName && sectionName !== "All" && student.personalInfo.section?.name !== sectionName) continue;
+
+      const gName = student.personalInfo.class?.name;
+      if (!gName) continue;
+
+      const gf = gradeFees.find(f => f.grade === gName);
+      if (!gf) continue;
+
+      const transactions = await FeeTransaction.find({ studentId: student._id, year });
+
+      let totalExpected = 0;
+      if (gf.fees) {
+        for (let [cat, amt] of gf.fees) {
+          totalExpected += Number(amt) || 0;
+        }
+      }
+
+      const totalPaid = transactions.reduce((acc, t) => acc + t.totalAmount, 0);
+      const balance = totalExpected - totalPaid;
+
+      if (balance > 0) {
+        dueList.push({
+          student: {
+            id: student._id,
+            name: student.personalInfo.name,
+            class: student.personalInfo.class?.name,
+            section: student.personalInfo.section?.name,
+            admission: student.personalInfo.stdId,
+            mobile: student.personalInfo.contactDetails?.mobileNumber || "N/A"
+          },
+          totalExpected,
+          totalPaid,
+          balance
+        });
+      }
+    }
+    res.json(dueList);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching due fees", error });
+  }
+};
+
