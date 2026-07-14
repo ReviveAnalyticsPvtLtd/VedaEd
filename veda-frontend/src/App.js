@@ -261,6 +261,10 @@ import ParentFeesLayout from "./ParentFees/ParentFeesLayout";
 import FeesOverview from "./ParentFees/FeesOverview";
 import PayFees from "./ParentFees/PayFees";
 import PaymentHistory from "./ParentFees/PaymentHistory";
+import ParentFeesFeeDetails from "./ParentFees/ParentFeesFeeDetails";
+import ParentFeesPendingDues from "./ParentFees/ParentFeesPendingDues";
+import ParentFeesReceipts from "./ParentFees/ParentFeesReceipts";
+import ParentFeesPaymentDetails from "./ParentFees/ParentFeesPaymentDetails";
 
 /* ===== FLEET LAYOUT ===== */
 import FleetDashboardLayout from "./FleetManager/FleetDashboardLayout";
@@ -871,6 +875,10 @@ function App() {
           <Route index element={<FeesOverview />} />
           <Route path="pay" element={<PayFees />} />
           <Route path="history" element={<PaymentHistory />} />
+            <Route path="details" element={<ParentFeesFeeDetails />} />
+  <Route path="pending" element={<ParentFeesPendingDues />} />
+  <Route path="receipts" element={<ParentFeesReceipts />} />
+  <Route path="payment/:id" element={<ParentFeesPaymentDetails />} />
         </Route>
 
       {/* ================= ADMIN SIS ================= */}

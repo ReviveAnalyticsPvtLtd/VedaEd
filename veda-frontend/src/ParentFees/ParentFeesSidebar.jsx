@@ -24,24 +24,39 @@ export default function ParentFeesSidebar({
     );
   }, [isSidebarOpen]);
 
-  const menuItems = [
-    {
-      name: "Fees Overview",
-      path: "/parent/fees",
-      icon: <FiHome />,
-      end: true,
-    },
-    {
-      name: "Pay Fees",
-      path: "/parent/fees/pay",
-      icon: <FiCreditCard size={18} />,
-    },
-    {
-      name: "Payment History",
-      path: "/parent/fees/history",
-      icon: <FiClock size={18} />,
-    },
-  ];
+ const menuItems = [
+  {
+    name: "Fees Overview",
+    path: "/parent/fees",
+    icon: <FiHome />,
+    end: true,
+  },
+  {
+    name: "Pay Fees",
+    path: "/parent/fees/pay",
+    icon: <FiCreditCard size={18} />,
+  },
+  {
+    name: "Fee Details",
+    path: "/parent/fees/details",
+    icon: <FiCreditCard size={18} />,
+  },
+  {
+    name: "Pending Dues",
+    path: "/parent/fees/pending",
+    icon: <FiClock size={18} />,
+  },
+  {
+    name: "Payment History",
+    path: "/parent/fees/history",
+    icon: <FiClock size={18} />,
+  },
+  {
+    name: "Receipts",
+    path: "/parent/fees/receipts",
+    icon: <FiCreditCard size={18} />,
+  },
+];
 
   const filteredItems = menuItems.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())

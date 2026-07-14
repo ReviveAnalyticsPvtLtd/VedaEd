@@ -43,12 +43,36 @@ const feePlans = [
   },
 ];
 
+const students = [
+  {
+    id: 1,
+    name: "Aarav Sharma",
+    class: "Class 5 - A",
+    parent: "Rajesh Sharma",
+    phone: "9876543210",
+  },
+  {
+    id: 2,
+    name: "Ananya Sharma",
+    class: "Class 2 - B",
+    parent: "Rajesh Sharma",
+    phone: "9876543210",
+  },
+  {
+    id: 3,
+    name: "Vivaan Verma",
+    class: "Class 7 - C",
+    parent: "Rohit Verma",
+    phone: "9123456789",
+  },
+];
 export default function PayFees() {
   const [step, setStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [paymentMode, setPaymentMode] = useState("UPI");
 const [paymentHistory, setPaymentHistory] = useState([]);
+const [selectedStudent, setSelectedStudent] = useState(null);
   const student = {
     name: "Aarav Sharma",
     class: "Class 5 - A",
@@ -113,7 +137,7 @@ const handleDone = () => {
 
       {/* STEP INDICATOR */}
       <div className="flex gap-8 text-sm mb-4">
-        {["Select Fees", "Payment", "Receipt"].map((label, i) => (
+        {["Select Student", "Select Fees", "Payment", "Receipt"].map((label, i) => (
           <div
             key={label}
             className={`flex items-center gap-2 ${
@@ -130,8 +154,80 @@ const handleDone = () => {
         ))}
       </div>
 
+{/* STEP 1 */}
+{step === 1 && (
+  <div className="bg-white rounded-lg shadow p-4">
+
+    <h3 className="font-medium mb-5">
+      Select Student
+    </h3>
+
+    <div className="grid md:grid-cols-2 gap-5">
+
+      {students.map((student) => (
+
+        <div
+          key={student.id}
+          className={`border rounded-xl p-5 cursor-pointer transition ${
+            selectedStudent?.id === student.id
+              ? "border-blue-600 bg-blue-50"
+              : "hover:shadow-md"
+          }`}
+          onClick={() => setSelectedStudent(student)}
+        >
+
+          <div className="flex justify-between">
+
+            <div>
+
+              <h3 className="text-lg font-semibold">
+                {student.name}
+              </h3>
+
+              <p className="text-gray-500">
+                {student.class}
+              </p>
+
+              <p className="text-sm mt-2">
+                Parent : {student.parent}
+              </p>
+
+              <p className="text-sm">
+                Mobile : {student.phone}
+              </p>
+
+            </div>
+
+            {selectedStudent?.id === student.id && (
+              <div className="text-green-600 text-xl">
+                ✓
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+      ))}
+
+    </div>
+
+    <div className="flex justify-end mt-6">
+
+      <button
+        disabled={!selectedStudent}
+        onClick={() => setStep(2)}
+        className="bg-blue-600 text-white px-6 py-2 rounded disabled:opacity-50"
+      >
+        Continue
+      </button>
+
+    </div>
+
+  </div>
+)}
       {/* STEP 1 */}
-      {step === 1 && (
+      {step === 2 && (
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="font-medium mb-4">Select fees plan</h3>
 
@@ -202,7 +298,7 @@ const handleDone = () => {
       )}
 
       {/* STEP 2 */}
-      {step === 2 && (
+      {step === 3 && (
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="font-medium mb-4">Payment method</h3>
 
@@ -253,7 +349,7 @@ const handleDone = () => {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
   <div className="bg-white rounded-lg shadow p-6 max-w-md text-center">
     
     {/* DONE ICON */}
