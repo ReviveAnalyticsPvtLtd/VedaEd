@@ -8,8 +8,8 @@ async function checkUser() {
     const dbUri = process.env.db_Connect_String;
     await mongoose.connect(dbUri);
 
-    console.log("Checking User admin@veda.com...");
-    const user = await User.findOne({ email: 'admin@veda.com' });
+    console.log("Checking User muskanndas@gmail.com...");
+    const user = await User.findOne({ email: 'muskanndas@gmail.com' });
     console.log(user);
 
   } catch (err) {

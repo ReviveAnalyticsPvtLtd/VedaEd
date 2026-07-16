@@ -15,15 +15,15 @@ async function resetPasswords() {
     await mongoose.connect(dbUri);
     console.log("Database connected successfully!");
 
-    const newHash = await bcrypt.hash("password123", 10);
-    const emailsToReset = ["jemas68617@5nek.com", "teacher@veda.com"];
+    const newHash = await bcrypt.hash("Password123", 10);
+    const emailsToReset = ["muskanndas@gmail.com", "jemas68617@5nek.com", "teacher@veda.com"];
 
     for (const email of emailsToReset) {
       const user = await User.findOne({ email });
       if (user) {
         user.password = newHash;
         await user.save();
-        console.log(`SUCCESS: Password for ${email} reset to 'password123'`);
+        console.log(`SUCCESS: Password for ${email} reset to 'Password123'`);
       } else {
         console.log(`WARNING: User ${email} not found.`);
       }
