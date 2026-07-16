@@ -5,7 +5,9 @@ const noticeController = require('./noticeController');
 const noticeTemplateController = require('./noticeTemplateController');
 const complaintController = require('./complaintController');
 const communicationLogController = require('./communicationLogController');
+const notificationController = require('./notificationController');
 const { upload } = require('../../middleware/upload');
+
 
 // Message Routes
 router.post('/messages', messageController.createMessage);
@@ -25,6 +27,15 @@ router.put('/notices/:noticeId', noticeController.updateNotice);
 router.put('/notices/:noticeId/publish', noticeController.publishNotice);
 router.delete('/notices/:noticeId', noticeController.deleteNotice);
 router.get('/notices/stats/summary', noticeController.getNoticeStats);
+
+// Notification Routes
+router.post('/notifications', notificationController.createNotification);
+router.get('/notifications', notificationController.getNotifications);
+router.get('/notifications/stats/summary', notificationController.getNotificationStats);
+router.get('/notifications/received/:userId/:userModel', notificationController.getReceivedNotifications);
+router.get('/notifications/:notificationId', notificationController.getNotification);
+router.put('/notifications/:notificationId', notificationController.updateNotification);
+router.delete('/notifications/:notificationId', notificationController.deleteNotification);
 
 // Notice Template Routes
 router.post('/notice-templates', noticeTemplateController.createNoticeTemplate);

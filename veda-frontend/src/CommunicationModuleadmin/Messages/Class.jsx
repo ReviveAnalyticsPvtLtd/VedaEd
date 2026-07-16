@@ -1,209 +1,402 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FiSend } from "react-icons/fi";
+import classAPI from "../../services/classAPI";
+import CommunicationAPI from "../communicationAPI";
 
 export default function Class() {
-  const [selectedType, setSelectedType] = useState("SMS");
-  const [selectedClass, setSelectedClass] = useState("");
+  const navigate = useNavigate();
+  const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [type, setType] = useState("Information");
   const [sendOption, setSendOption] = useState("now");
   const [scheduleDate, setScheduleDate] = useState("");
+  
+  // Channels
+  const [channels, setChannels] = useState({
+    sms: false,
+    email: false,
+    app: true, // default app
+    whatsapp: false
+  });
 
-  const classOptions = ["Class 1", "Class 2", "Class 3"];
-  const sections = ["A", "B", "C", "D"];
+  // Class & Section Picker
+  const [classList, setClassList] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [availableSections, setAvailableSections] = useState([]);
+  const [selectedSections, setSelectedSections] = useState([]);
+
+  // Send targets (Students/Guardians)
+  const [targets, setTargets] = useState({
+    students: true,
+    parents: false
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Load user profile & classes
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setCurrentUser(user);
+
+    const loadClasses = async () => {
+      try {
+        const response = await classAPI.getAllClasses();
+        if (response?.success) {
+          setClassList(response.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load classes:", err);
+      }
+    };
+    loadClasses();
+  }, []);
+
+  // Update sections when class changes
+  useEffect(() => {
+    if (selectedClass) {
+      const clsObj = classList.find(c => c._id === selectedClass);
+      if (clsObj) {
+        setAvailableSections(clsObj.sections || []);
+        setSelectedSections([]);
+      }
+    } else {
+      setAvailableSections([]);
+      setSelectedSections([]);
+    }
+  }, [selectedClass, classList]);
+
+  const toggleChannel = (ch) => {
+    setChannels(prev => ({ ...prev, [ch]: !prev[ch] }));
+  };
+
+  const toggleTarget = (t) => {
+    setTargets(prev => ({ ...prev, [t]: !prev[t] }));
+  };
+
+  const toggleSection = (secId) => {
+    setSelectedSections(prev => 
+      prev.includes(secId) ? prev.filter(id => id !== secId) : [...prev, secId]
+    );
+  };
+
+  const canSubmit = () => {
+    if (!title.trim() || !message.trim() || !selectedClass) return false;
+    if (!targets.students && !targets.parents) return false;
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!canSubmit() || isLoading) return;
+
+    const selectedChannels = Object.keys(channels).filter(ch => channels[ch]);
+    if (selectedChannels.length === 0) {
+      alert("Please select at least one delivery channel.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const authorId = (currentUser?.role?.toLowerCase() === "admin" || currentUser?.role?.toLowerCase() === "superadmin")
+        ? currentUser?._id
+        : currentUser?.refId || currentUser?._id || "68c1b2977fa6e0a4c8af3242";
+      const authorModel = currentUser?.role?.toLowerCase() === "teacher" 
+        ? "Teacher" 
+        : (currentUser?.role?.toLowerCase() === "admin" || currentUser?.role?.toLowerCase() === "superadmin")
+        ? "Admin"
+        : "Staff";
+
+      const publishDateVal = sendOption === "schedule" && scheduleDate
+        ? new Date(scheduleDate).toISOString()
+        : new Date().toISOString();
+
+      // Determine audience type:
+      let audience = "all";
+      if (targets.students && !targets.parents) audience = "students";
+      else if (!targets.students && targets.parents) audience = "parents";
+
+      // Class/Section targets
+      let specificTargets = [];
+      let specificTargetModel = "Class";
+
+      if (selectedSections.length > 0) {
+        specificTargets = selectedSections;
+        specificTargetModel = "Section";
+      } else {
+        specificTargets = [selectedClass];
+        specificTargetModel = "Class";
+      }
+
+      const notificationData = {
+        title: title.trim(),
+        description: message.trim(),
+        type,
+        audience,
+        specificTargets,
+        specificTargetModel,
+        createdBy: authorId,
+        createdByModel: authorModel,
+        channels: selectedChannels,
+        publishDate: publishDateVal,
+        status: sendOption === "schedule" ? "scheduled" : "sent"
+      };
+
+      await CommunicationAPI.createNotification(notificationData);
+      
+      alert(sendOption === "schedule" 
+        ? "Class notification scheduled successfully!" 
+        : "Class notification sent successfully!"
+      );
+      
+      navigate("/communication/logs");
+    } catch (error) {
+      console.error("Error sending class notification:", error);
+      alert(`Failed to send notification: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="p-0 m-0 min-h-screen">
-     
-        {/* White Inner Box */}
-        <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Send {selectedType}</h3>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1  focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="SMS">SMS</option>
-              <option value="Email">Email</option>
-            </select>
+    <div className="p-0 m-0 space-y-6">
+      <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FiSend className="text-blue-600" /> Compose Class-Targeted Notification
+        </h3>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Notification Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Enter title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Notification Type */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Notification Type
+              </label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="Information">Information Broadcast</option>
+                <option value="Reminder">Reminder Alert</option>
+                <option value="Urgent">Urgent Notification</option>
+                <option value="Academic">Academic Notice</option>
+                <option value="Examination">Examination Alert</option>
+                <option value="Fee Related">Fee Reminder</option>
+                <option value="Transport Related">Transport Update</option>
+              </select>
+            </div>
           </div>
 
-          {/* Form Section */}
-          <form className="space-y-4">
-            {/* Template Dropdown */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Target Class Selector */}
             <div>
-              <label className="block  font-medium text-gray-600 mb-1">
-                {selectedType} Template
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Target Class <span className="text-red-500">*</span>
               </label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                <option value="">Select</option>
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required
+              >
+                <option value="">Choose class...</option>
+                {classList.map(c => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
               </select>
             </div>
 
-            {/* Title Input */}
+            {/* Delivery Channels */}
             <div>
-              <label className="block font-medium text-gray-600 mb-1">
-                Title
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Delivery Channels <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Enter title"
-              />
-            </div>
-
-            {/* Send Through Options */}
-            <div>
-              <label className="block font-medium text-gray-600 mb-1">
-                Send Through <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2  text-gray-700">
-                  <input type="checkbox" className="w-4 h-4" /> SMS
+              <div className="flex items-center gap-4 py-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={channels.app}
+                    onChange={() => toggleChannel('app')}
+                    className="w-4 h-4 rounded text-blue-600" 
+                  /> 
+                  In-App Notification
                 </label>
-                <label className="flex items-center gap-2 text-gray-700">
-                  <input type="checkbox" className="w-4 h-4" /> Mobile App
+                <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={channels.email}
+                    onChange={() => toggleChannel('email')}
+                    className="w-4 h-4 rounded text-blue-600" 
+                  /> 
+                  Email
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={channels.sms}
+                    onChange={() => toggleChannel('sms')}
+                    className="w-4 h-4 rounded text-blue-600" 
+                  /> 
+                  SMS
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={channels.whatsapp}
+                    onChange={() => toggleChannel('whatsapp')}
+                    className="w-4 h-4 rounded text-blue-600" 
+                  /> 
+                  WhatsApp
                 </label>
               </div>
-              <p className=" text-gray-500 mt-1">
-                Template ID (TID/Entity ID is required only for Indian SMS Gateway)
-              </p>
-              <input
-                type="text"
-                className="w-full mt-2 border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Enter Template ID (if required)"
-              />
             </div>
-
-            {/* Message Box */}
-            <div>
-              <label className="block  font-medium text-gray-600 mb-1">
-                Message <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                rows={5}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-                placeholder="Type your message here..."
-              ></textarea>
-              <div className=" text-gray-500 text-right mt-1">
-                Character Count: {message.length}
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
-              >
-                Send {selectedType}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Message To Section */}
-        <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto mt-6">
-          <label className="text-lg block  font-medium text-gray-600 mb-1">
-            Message To <span className="text-red-500">*</span>
-          </label>
-
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4"
-          >
-            <option value="">Select</option>
-            {classOptions.map((cls, idx) => (
-              <option key={idx} value={cls}>
-                {cls}
-              </option>
-            ))}
-          </select>
-
-          {/* Conditional Box */}
-          <div className="border border-gray-300 rounded-md p-4 bg-gray-50">
-            {selectedClass === "" ? (
-              <div className="text-gray-500 ">Select a class to view sections</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 text-gray-700">
-                {/* Section */}
-                <div>
-                  <p className="font-medium mb-2">Section</p>
-                  {sections.map((sec) => (
-                    <label key={sec} className="flex items-center gap-2 mb-1">
-                      <input type="checkbox" className="w-4 h-4" /> {sec}
-                    </label>
-                  ))}
-                </div>
-
-                {/* Send To */}
-                <div>
-                  <p className="font-medium mb-2">Send To</p>
-                  <label className="flex items-center gap-2 mb-1">
-                    <input type="checkbox" className="w-4 h-4" /> Students
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" className="w-4 h-4" /> Guardians
-                  </label>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Send Now / Schedule */}
-          <div className="flex flex-wrap items-center gap-4 pt-4">
-            <label className="flex items-center gap-2 text-gray-700">
+          {/* Conditional Sections & Segment Targets */}
+          {selectedClass && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 border border-gray-150 rounded-lg">
+              {/* Sections Selector */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Target Sections (Broad class if empty)</p>
+                {availableSections.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">No sections defined for this class</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {availableSections.map(sec => (
+                      <label key={sec._id} className="flex items-center gap-1.5 text-sm text-gray-700 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedSections.includes(sec._id)}
+                          onChange={() => toggleSection(sec._id)}
+                          className="w-4 h-4 rounded text-blue-600"
+                        />
+                        Section {sec.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Audience Targets inside class */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Send Notification To</p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 text-sm text-gray-700 font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={targets.students}
+                      onChange={() => toggleTarget('students')}
+                      className="w-4 h-4 rounded text-blue-600"
+                    />
+                    Students
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm text-gray-700 font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={targets.parents}
+                      onChange={() => toggleTarget('parents')}
+                      className="w-4 h-4 rounded text-blue-600"
+                    />
+                    Parents / Guardians
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Message Content */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Message Content <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+              placeholder="Type your message details here..."
+              required
+            ></textarea>
+            <div className="text-xs text-gray-400 text-right mt-1">
+              Character Count: {message.length} characters
+            </div>
+          </div>
+
+          {/* Send / Schedule Option */}
+          <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
               <input
                 type="radio"
                 name="sendOption"
                 value="now"
                 checked={sendOption === "now"}
                 onChange={() => setSendOption("now")}
-                className="w-4 h-4"
+                className="w-4 h-4 text-blue-600"
               />
-              Send Now
+              Send Immediately
             </label>
 
-            <label className="flex items-center gap-2 text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
               <input
                 type="radio"
                 name="sendOption"
                 value="schedule"
                 checked={sendOption === "schedule"}
                 onChange={() => setSendOption("schedule")}
-                className="w-4 h-4"
+                className="w-4 h-4 text-blue-600"
               />
-              Schedule
+              Schedule for Later
             </label>
 
-            {/* Conditional Schedule Date-Time Input */}
             {sendOption === "schedule" && (
-              <>
-                <span className=" text-gray-700 font-medium">
-                  Schedule Date Time <span className="text-red-500">*</span>
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-600">Date & Time:</span>
                 <input
                   type="datetime-local"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2  focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  required
                 />
-              </>
+              </div>
             )}
 
             <button
-              type="button"
-              className="bg-blue-700 text-white flex items-center gap-2 px-5 py-2 rounded-md hover:bg-blue-800 transition ml-auto"
+              type="submit"
+              disabled={!canSubmit() || isLoading}
+              className={`px-6 py-2 rounded-lg font-semibold text-white text-sm ml-auto transition ${
+                !canSubmit() || isLoading
+                  ? "bg-blue-300 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-             
-              Submit
+              {isLoading 
+                ? "Sending..." 
+                : sendOption === "schedule" 
+                ? "Schedule Notification" 
+                : "Send Notification"
+              }
             </button>
           </div>
-        </div>
+        </form>
       </div>
-   
+    </div>
   );
 }

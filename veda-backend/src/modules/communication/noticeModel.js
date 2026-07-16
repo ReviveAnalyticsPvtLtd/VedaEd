@@ -19,7 +19,7 @@ const NoticeSchema = new Schema(
     },
     authorModel: {
       type: String,
-      enum: ['Teacher', 'Staff'],
+      enum: ['Teacher', 'Staff', 'Admin'],
       required: true
     },
     category: {

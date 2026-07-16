@@ -1,181 +1,227 @@
 import React, { useState, useEffect } from "react";
-import { FiMoreVertical, FiCheck, FiTrash2 } from "react-icons/fi";
-
-// API Endpoints for future backend integration
-const API_ENDPOINTS = {
-  GET_SCHEDULED_NOTICES: "/api/notices/scheduled",
-  DELETE_NOTICE: "/api/notices/:id",
-  GET_ALL_NOTICES: "/api/notices",
-};
+import { FiClock, FiTrash2, FiEdit2, FiCheck, FiX, FiCalendar } from "react-icons/fi";
+import CommunicationAPI from "../communicationAPI";
 
 export default function ScheduleLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Future API integration function
-  const fetchScheduledNotices = async () => {
+  // Edit states
+  const [editingItem, setEditingItem] = useState(null);
+  const [newPublishDate, setNewPublishDate] = useState("");
+
+  useEffect(() => {
+    fetchScheduledItems();
+  }, []);
+
+  const fetchScheduledItems = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(API_ENDPOINTS.GET_SCHEDULED_NOTICES);
-      // const data = await response.json();
-      // setLogs(data);
+      // 1. Fetch notices (scheduled notices are draft status but publishDate > now, or simply any notice where publishDate > now)
+      const noticesRes = await CommunicationAPI.getNotices({ limit: 50 });
+      let scheduledNotices = [];
+      if (noticesRes?.success) {
+        scheduledNotices = noticesRes.data
+          .filter(n => new Date(n.publishDate) > new Date())
+          .map(n => ({
+            ...n,
+            logType: "announcement",
+            displayType: n.category || "General",
+            date: n.publishDate,
+            authorName: n.author?.personalInfo?.name || n.author?.name || "System Admin"
+          }));
+      }
 
-      // Clear localStorage for fresh start
-      localStorage.removeItem("sent_notices_logs");
+      // 2. Fetch notifications (scheduled notifications have status = 'scheduled' or publishDate > now)
+      const notificationsRes = await CommunicationAPI.getNotifications({ limit: 50 });
+      let scheduledNotifications = [];
+      if (notificationsRes?.success) {
+        scheduledNotifications = notificationsRes.data
+          .filter(n => new Date(n.publishDate) > new Date())
+          .map(n => ({
+            ...n,
+            logType: "notification",
+            displayType: n.type || "Information",
+            content: n.description,
+            date: n.publishDate,
+            authorName: n.createdBy?.personalInfo?.name || n.createdBy?.name || "System Admin"
+          }));
+      }
 
-      // For now, return empty array (will be replaced with API call)
-      setLogs([]);
+      // Merge and sort
+      const combined = [...scheduledNotices, ...scheduledNotifications].sort((a, b) => {
+        return new Date(a.date) - new Date(b.date); // ascending for upcoming items
+      });
+
+      setLogs(combined);
     } catch (err) {
-      setError("Failed to fetch scheduled notices");
-      console.error("Error fetching notices:", err);
+      console.error("Error loading scheduled logs:", err);
+      setError("Failed to fetch scheduled logs. Make sure the backend is active.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchScheduledNotices();
-  }, []);
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Cancel and delete this scheduled ${item.logType}?`)) return;
 
-  const deleteLog = async (noticeId) => {
     try {
-      // TODO: Replace with actual API call
-      // await fetch(`${API_ENDPOINTS.DELETE_NOTICE.replace(':id', noticeId)}`, {
-      //   method: 'DELETE'
-      // });
-
-      // For now, remove from local state (will be replaced with API call)
-      setLogs((prevLogs) => prevLogs.filter((log) => log.id !== noticeId));
+      if (item.logType === "announcement") {
+        await CommunicationAPI.deleteNotice(item._id);
+      } else {
+        await CommunicationAPI.deleteNotification(item._id);
+      }
+      alert("Scheduled item cancelled successfully!");
+      fetchScheduledItems();
     } catch (error) {
-      console.error("Error deleting notice:", error);
-      setError("Failed to delete notice");
+      console.error("Error deleting scheduled item:", error);
+      alert(`Cancellation failed: ${error.message}`);
+    }
+  };
+
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    // Format date for datetime-local
+    const dateObj = new Date(item.date);
+    const tzoffset = dateObj.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localISOTime = (new Date(dateObj.getTime() - tzoffset)).toISOString().slice(0, 16);
+    setNewPublishDate(localISOTime);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingItem || !newPublishDate) return;
+
+    try {
+      const payload = { publishDate: new Date(newPublishDate).toISOString() };
+
+      if (editingItem.logType === "announcement") {
+        await CommunicationAPI.updateNotice(editingItem._id, payload);
+      } else {
+        await CommunicationAPI.updateNotification(editingItem._id, payload);
+      }
+      
+      alert("Schedule modified successfully!");
+      setEditingItem(null);
+      fetchScheduledItems();
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      alert(`Rescheduling failed: ${error.message}`);
     }
   };
 
   return (
-    <div className="p-0  min-h-screen">
-      {/* Outer Gray Wrapper */}
-      <div className="p-0">
-        {/* Inner White Box */}
-        <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto">
-          <h3 className="text-lg font-semibold mb-4">Schedule Logs</h3>
-          {loading ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500 mb-4">Loading scheduled notices...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-10">
-              <p className="text-red-500 mb-4">{error}</p>
-              <button
-                onClick={fetchScheduledNotices}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Retry
-              </button>
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500 mb-4">No scheduled notices yet.</p>
-              <p className=" text-gray-400">
-                Scheduled notices will appear here when you set a "Publish On"
-                date.
-              </p>
-            </div>
-          ) : (
-            <table className="w-full border ">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border text-left">Title</th>
-                  <th className="p-2 border text-left">Message</th>
-                  <th className="p-2 border text-left">Date</th>
-                  <th className="p-2 border text-left">Schedule Date</th>
-                  <th className="p-2 border text-center">Email</th>
-                  <th className="p-2 border text-center">SMS</th>
-                  <th className="p-2 border text-center">Group</th>
-                  <th className="p-2 border text-center">Individual</th>
-                  <th className="p-2 border text-left">Roles</th>
-                  <th className="p-2 border text-center">Action</th>
+    <div className="space-y-6">
+      <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FiClock className="text-purple-600" /> Upcoming Scheduled Dispatches
+        </h3>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div>
+            <p className="text-xs text-gray-500">Scanning schedule queues...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-10">
+            <p className="text-sm text-red-500 mb-3">{error}</p>
+            <button onClick={fetchScheduledItems} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold">
+              Retry Connection
+            </button>
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-sm border border-dashed rounded-lg border-gray-200">
+            No upcoming messages or notices are scheduled at this time.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-left divide-y divide-gray-100">
+              <thead className="bg-gray-50/75">
+                <tr className="text-gray-500 font-semibold text-xs border-b">
+                  <th className="px-4 py-3">Title</th>
+                  <th className="px-4 py-3">Log Type</th>
+                  <th className="px-4 py-3">Sub-Type</th>
+                  <th className="px-4 py-3">Target Audience</th>
+                  <th className="px-4 py-3">Scheduled Date</th>
+                  <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {logs.map((log, idx) => (
-                  <tr key={idx} className="text-center hover:bg-gray-50">
-                    <td className="p-2 border text-left font-semibold">
-                      {log.title || "Untitled"}
-                    </td>
-                    <td className="p-2 border text-left text-gray-700">
-                      {log.message || "-"}
-                    </td>
-                    <td className="p-2 border">
-                      {log.sentAt ? new Date(log.sentAt).toLocaleString() : "-"}
-                    </td>
-                    <td className="p-2 border">
-                      {log.publishOn
-                        ? new Date(log.publishOn).toLocaleString()
-                        : "-"}
-                    </td>
+              <tbody className="divide-y divide-gray-50">
+                {logs.map((log) => {
+                  const isCurrentEditing = editingItem && editingItem._id === log._id;
 
-                    <td className="p-2 border">
-                      {log.channels && log.channels.includes("Email") ? (
-                        <FiCheck className="text-blue-600 inline" />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-2 border">
-                      {log.channels && log.channels.includes("SMS") ? (
-                        <FiCheck className="text-green-600 inline" />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-2 border">
-                      {log.roles && log.roles.length > 1 ? (
-                        <FiCheck className="text-blue-600 inline" />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-2 border">
-                      {log.roles && log.roles.length === 1 ? (
-                        <FiCheck className="text-green-600 inline" />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-2 border">
-                      {log.roles ? log.roles.join(", ") : "-"}
-                    </td>
-                    <td className="p-2 border">
-                      <div className="flex gap-1 justify-center">
-                        <button className="p-1 rounded hover:bg-gray-100">
-                          <FiMoreVertical />
-                        </button>
-                        <button
-                          className="p-1 rounded hover:bg-red-100 text-red-600"
-                          onClick={() => deleteLog(log.id || idx)}
-                          title="Delete notice"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                  return (
+                    <tr key={log._id} className="hover:bg-gray-50/50 transition">
+                      <td className="px-4 py-3.5 font-medium text-gray-800 max-w-[200px] truncate">{log.title}</td>
+                      <td className="px-4 py-3.5 capitalize">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                          log.logType === 'announcement' 
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        }`}>
+                          {log.logType}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 capitalize text-xs text-gray-500">{log.displayType}</td>
+                      <td className="px-4 py-3.5 capitalize text-xs text-gray-600">{log.targetAudience || log.audience || "Everyone"}</td>
+                      <td className="px-4 py-3.5 text-xs">
+                        {isCurrentEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="datetime-local"
+                              value={newPublishDate}
+                              onChange={(e) => setNewPublishDate(e.target.value)}
+                              className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                            />
+                            <button 
+                              onClick={handleSaveEdit}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              title="Save Schedule"
+                            >
+                              <FiCheck size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setEditingItem(null)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="Cancel Edit"
+                            >
+                              <FiX size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-purple-600 font-semibold flex items-center gap-1">
+                            <FiCalendar size={13} /> {log.date ? new Date(log.date).toLocaleString() : "-"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex gap-2 justify-center">
+                          {!isCurrentEditing && (
+                            <button
+                              onClick={() => handleEditClick(log)}
+                              className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-purple-600 transition"
+                              title="Reschedule Notice"
+                            >
+                              <FiEdit2 size={15} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(log)}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-red-600 transition"
+                            title="Cancel Dispatch Schedule"
+                          >
+                            <FiTrash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          )}
-
-          {logs.length > 0 && (
-            <p className=" text-gray-500 mt-3">
-              Records: {logs.length} of {logs.length}
-            </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

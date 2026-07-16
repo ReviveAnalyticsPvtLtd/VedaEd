@@ -32,15 +32,25 @@ exports.createNotice = async (req, res) => {
     }
 
     // Check if author exists
-    const authorExists = await Teacher.findById(author).populate('personalInfo');
+    const mongoose = require("mongoose");
+    let authorExists = false;
+    if (authorModel === 'Teacher') {
+      const teacher = await Teacher.findById(author).populate('personalInfo');
+      if (teacher) authorExists = true;
+    } else if (authorModel === 'Admin') {
+      const Admin = mongoose.model('Admin');
+      const adminObj = await Admin.findById(author);
+      if (adminObj) authorExists = true;
+    } else {
+      const staff = await Staff.findById(author);
+      if (staff) authorExists = true;
+    }
+
     if (!authorExists) {
-      const staffExists = await Staff.findById(author);
-      if (!staffExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'Author not found'
-        });
-      }
+      return res.status(400).json({
+        success: false,
+        message: 'Author not found'
+      });
     }
 
     const noticeData = {
@@ -52,7 +62,7 @@ exports.createNotice = async (req, res) => {
       priority: priority || 'medium',
       targetAudience: targetAudience || 'all',
       specificTargets: specificTargets || [],
-      specificTargetModel: specificTargetModel || null,
+      specificTargetModel: specificTargetModel || undefined,
       attachments: attachments || [],
       publishDate: publishDate ? new Date(publishDate) : new Date(),
       expiryDate: expiryDate ? new Date(expiryDate) : null,
@@ -103,7 +113,6 @@ exports.getNotices = async (req, res) => {
     const notices = await Notice.find(query)
       .populate({
         path: 'author',
-        model: 'Staff',
         select: 'personalInfo.name personalInfo.email'
       })
       .sort({ isPinned: -1, publishDate: -1 })
@@ -136,7 +145,7 @@ exports.getPublishedNotices = async (req, res) => {
     const { userId, userModel } = req.params;
     const { page = 1, limit = 10, category } = req.query;
 
-    const query = { status: 'published' };
+    const query = { status: 'published', publishDate: { $lte: new Date() } };
     
     if (category) query.category = category;
 
@@ -152,7 +161,6 @@ exports.getPublishedNotices = async (req, res) => {
     const notices = await Notice.find({ ...query, ...audienceQuery })
       .populate({
         path: 'author',
-        model: 'Staff',
         select: 'personalInfo.name personalInfo.email'
       })
       .sort({ isPinned: -1, publishDate: -1 })
@@ -188,7 +196,6 @@ exports.getNotice = async (req, res) => {
     const notice = await Notice.findById(noticeId)
       .populate({
         path: 'author',
-        model: 'Staff',
         select: 'personalInfo.name personalInfo.email'
       });
 

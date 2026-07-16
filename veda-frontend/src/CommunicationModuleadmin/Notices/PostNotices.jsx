@@ -1,304 +1,542 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CommunicationAPI from "../communicationAPI";
+import classAPI from "../../services/classAPI";
+import { FiEye, FiCheckCircle, FiFileText } from "react-icons/fi";
 
 export default function PostNotices() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [noticeDate, setNoticeDate] = useState("");
   const [publishOn, setPublishOn] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [category, setCategory] = useState("general");
   const [attachmentName, setAttachmentName] = useState("");
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [roles, setRoles] = useState({
+  
+  // Audience selection state
+  const [audienceType, setAudienceType] = useState("all"); // 'all', 'roles', 'classes'
+  const [selectedRoles, setSelectedRoles] = useState({
     Student: false,
     Parent: false,
-    Admin: false,
     Teacher: false,
-    Accountant: false,
-    Librarian: false,
-    Receptionist: false,
-    "Super Admin": false,
+    Staff: false
   });
-  const [channels, setChannels] = useState({ Email: false, SMS: false });
+  
+  const [classList, setClassList] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSections, setSelectedSections] = useState([]); // List of section IDs
+  const [availableSections, setAvailableSections] = useState([]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-    try {
-      const selectedRoles = Object.keys(roles).filter((r) => roles[r]);
+  // Load user profile & classes
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setCurrentUser(user);
 
-      // Determine target audience based on selected roles
-      let targetAudience = "all";
-      if (selectedRoles.length === 1) {
-        if (selectedRoles.includes("Student")) targetAudience = "students";
-        else if (selectedRoles.includes("Teacher")) targetAudience = "teachers";
-        else if (selectedRoles.includes("Parent")) targetAudience = "parents";
-        else if (
-          selectedRoles.includes("Admin") ||
-          selectedRoles.includes("Super Admin")
-        )
-          targetAudience = "staff";
-      }
-
-      // Prepare notice data for backend
-      const noticeData = {
-        title: title.trim(),
-        content: message.trim(),
-        author: "68c1b2977fa6e0a4c8af3242", // Using real admin ID from database
-        authorModel: "Staff",
-        category: "general",
-        priority: "medium",
-        targetAudience: targetAudience,
-        attachments: [],
-        publishDate: publishOn
-          ? new Date(publishOn).toISOString()
-          : new Date().toISOString(),
-        expiryDate: noticeDate ? new Date(noticeDate).toISOString() : null,
-        isPinned: false,
-        tags: selectedRoles,
-        status: "draft",
-      };
-
-      // Upload attachment if provided
-      if (attachmentFile) {
-        try {
-          const uploadResponse = await CommunicationAPI.uploadAttachment(
-            attachmentFile
-          );
-          noticeData.attachments = [
-            {
-              filename: uploadResponse.data.filename,
-              originalName: uploadResponse.data.originalName,
-              path: uploadResponse.data.path,
-              size: uploadResponse.data.size,
-            },
-          ];
-        } catch (uploadError) {
-          console.error("Error uploading attachment:", uploadError);
-          // Continue without attachment
+    const loadClasses = async () => {
+      try {
+        const response = await classAPI.getAllClasses();
+        if (response?.success) {
+          setClassList(response.data || []);
         }
+      } catch (err) {
+        console.error("Failed to load classes:", err);
       }
+    };
+    loadClasses();
+  }, []);
 
-      // Create notice
-      const response = await CommunicationAPI.createNotice(noticeData);
-
-      // Publish notice if "Send Now" is selected
-      const sendOption = document.querySelector(
-        'input[name="sendOption"]:checked'
-      )?.value;
-      if (sendOption === "now") {
-        await CommunicationAPI.publishNotice(
-          response.data._id,
-          "68c1b2977fa6e0a4c8af3242",
-          "Staff"
-        );
+  // Update sections when class changes
+  useEffect(() => {
+    if (selectedClass) {
+      const selectedClsObj = classList.find(c => c._id === selectedClass);
+      if (selectedClsObj) {
+        setAvailableSections(selectedClsObj.sections || []);
+        setSelectedSections([]);
       }
-
-      alert("Notice created successfully!");
-      navigate("/communication/logs");
-    } catch (error) {
-      console.error("Error creating notice:", error);
-      alert(`Failed to create notice: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setAvailableSections([]);
+      setSelectedSections([]);
     }
+  }, [selectedClass, classList]);
+
+  const toggleRole = (role) => {
+    setSelectedRoles(prev => ({ ...prev, [role]: !prev[role] }));
   };
 
-  const canSubmit =
-    title.trim().length > 0 &&
-    message.trim().length > 0 &&
-    (roles.Student ||
-      roles.Parent ||
-      roles.Admin ||
-      roles.Teacher ||
-      roles.Accountant ||
-      roles.Librarian ||
-      roles.Receptionist ||
-      roles["Super Admin"]);
+  const toggleSection = (sectionId) => {
+    setSelectedSections(prev => 
+      prev.includes(sectionId) ? prev.filter(id => id !== sectionId) : [...prev, sectionId]
+    );
+  };
 
-  const toggleRole = (role) =>
-    setRoles((prev) => ({ ...prev, [role]: !prev[role] }));
-  const toggleChannel = (ch) =>
-    setChannels((prev) => ({ ...prev, [ch]: !prev[ch] }));
-
-  const onFileChange = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
     setAttachmentName(file ? file.name : "");
     setAttachmentFile(file);
   };
 
+  // Compile notice data object
+  const getNoticeData = () => {
+    // Map audience type to model fields
+    let targetAudience = "all";
+    let specificTargets = [];
+    let specificTargetModel = null;
+    let tags = [];
+
+    if (audienceType === "roles") {
+      const activeRoles = Object.keys(selectedRoles).filter(r => selectedRoles[r]);
+      tags = activeRoles;
+      if (activeRoles.length === 1) {
+        targetAudience = activeRoles[0].toLowerCase() + "s";
+      } else {
+        targetAudience = "all";
+      }
+    } else if (audienceType === "classes") {
+      if (selectedSections.length > 0) {
+        targetAudience = "specific_class";
+        specificTargets = selectedSections;
+        specificTargetModel = "Section";
+      } else if (selectedClass) {
+        targetAudience = "specific_class";
+        specificTargets = [selectedClass];
+        specificTargetModel = "Class";
+      }
+    }
+
+    // Dynamic Author mapping
+    const authorId = (currentUser?.role?.toLowerCase() === "admin" || currentUser?.role?.toLowerCase() === "superadmin")
+      ? currentUser?._id
+      : currentUser?.refId || currentUser?._id || "68c1b2977fa6e0a4c8af3242";
+    const authorModel = currentUser?.role?.toLowerCase() === "teacher" 
+      ? "Teacher" 
+      : (currentUser?.role?.toLowerCase() === "admin" || currentUser?.role?.toLowerCase() === "superadmin")
+      ? "Admin"
+      : "Staff";
+
+    return {
+      title: title.trim(),
+      content: message.trim(),
+      author: authorId,
+      authorModel: authorModel,
+      category,
+      priority,
+      targetAudience,
+      specificTargets,
+      specificTargetModel,
+      attachments: [],
+      publishDate: publishOn ? new Date(publishOn).toISOString() : new Date().toISOString(),
+      expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
+      isPinned: false,
+      tags,
+      status: "draft"
+    };
+  };
+
+  const canSubmit = () => {
+    if (!title.trim() || !message.trim()) return false;
+    if (audienceType === "roles") {
+      return Object.values(selectedRoles).some(val => val);
+    }
+    if (audienceType === "classes") {
+      return !!selectedClass;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e, shouldPublishDirectly = false) => {
+    if (e) e.preventDefault();
+    if (!canSubmit() || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const noticeData = getNoticeData();
+
+      // Upload attachment if present
+      if (attachmentFile) {
+        try {
+          const uploadResponse = await CommunicationAPI.uploadAttachment(attachmentFile);
+          if (uploadResponse?.success) {
+            noticeData.attachments = [
+              {
+                filename: uploadResponse.data.filename,
+                originalName: uploadResponse.data.originalName,
+                path: uploadResponse.data.path,
+                size: uploadResponse.data.size,
+              }
+            ];
+          }
+        } catch (uploadError) {
+          console.error("Error uploading attachment:", uploadError);
+        }
+      }
+
+      // 1. Create notice as draft
+      const createResponse = await CommunicationAPI.createNotice(noticeData);
+
+      // 2. Publish direct if requested
+      if (shouldPublishDirectly && createResponse?.success) {
+        const authorId = currentUser?.refId || currentUser?._id || "68c1b2977fa6e0a4c8af3242";
+        const authorModel = currentUser?.role?.toLowerCase() === "teacher" ? "Teacher" : "Staff";
+        
+        await CommunicationAPI.publishNotice(
+          createResponse.data._id,
+          authorId,
+          authorModel
+        );
+        alert("Notice published successfully!");
+      } else {
+        alert("Notice saved as draft successfully!");
+      }
+
+      navigate("/communication/logs");
+    } catch (error) {
+      console.error("Error submitting notice:", error);
+      alert(`Failed to save notice: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+      setPreviewOpen(false);
+    }
+  };
+
   return (
-    <div className="p-0 m-0 min-h-screen">
-      {/* Outer Gray Container */}
-     
-        {/* White Inner Box */}
-        <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto">
-          <h3 className="text-lg font-semibold mb-4">Post Notices</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="p-0 m-0 space-y-6">
+      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FiFileText className="text-blue-600" /> Compose Announcement Notice
+        </h3>
+        
+        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Notice Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter notice title"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Category */}
             <div>
-              <label className="block  font-medium text-gray-700 mb-1">
-                Title
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Notice Category
+              </label>
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="general">General Notices</option>
+                <option value="academic">Academic Notices</option>
+                <option value="exam">Examination Notices</option>
+                <option value="event">Event Updates</option>
+                <option value="emergency">Emergency Alerts</option>
+                <option value="maintenance">Maintenance/Ops Notices</option>
+              </select>
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Priority Level
+              </label>
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+                <option value="urgent">Urgent Priority</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Publish Date */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Publish Date (Immediate if blank)
               </label>
               <input
-                type="text"
-                className="w-full border rounded px-3 py-2"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter notice title"
-                required
+                type="datetime-local"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={publishOn}
+                onChange={(e) => setPublishOn(e.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">
-                  Notice Date
-                </label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  value={noticeDate}
-                  onChange={(e) => setNoticeDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block  font-medium text-gray-700 mb-1">
-                  Publish On
-                </label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  value={publishOn}
-                  onChange={(e) => setPublishOn(e.target.value)}
-                />
-              </div>
-            </div>
-
+            {/* Expiry Date */}
             <div>
-              <label className="block  font-medium text-gray-700 mb-1">
-                Message
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Expiry Date (Optional)
               </label>
-              <textarea
-                className="w-full border rounded px-3 py-2"
-                rows="4"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Write your notice message"
-                required
+              <input
+                type="date"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block  font-medium text-gray-700 mb-1">
-                Attachment
+          {/* Description Message */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Notice Details Message <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              rows="5"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type the announcement details here..."
+              required
+            />
+          </div>
+
+          {/* File attachment */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              File Attachment (PDF or Image)
+            </label>
+            <input 
+              type="file" 
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {attachmentName && (
+              <p className="text-xs text-blue-600 font-medium mt-1">
+                Selected: {attachmentName}
+              </p>
+            )}
+          </div>
+
+          {/* Target Audience Logic */}
+          <div className="border-t border-gray-100 pt-5 mt-5">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Target Audience</h4>
+            
+            <div className="flex gap-6 mb-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                <input
+                  type="radio"
+                  name="audienceType"
+                  value="all"
+                  checked={audienceType === "all"}
+                  onChange={() => setAudienceType("all")}
+                  className="w-4 h-4 text-blue-600"
+                />
+                Everyone
               </label>
-              <input type="file" onChange={onFileChange} />
+
+              <label className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                <input
+                  type="radio"
+                  name="audienceType"
+                  value="roles"
+                  checked={audienceType === "roles"}
+                  onChange={() => setAudienceType("roles")}
+                  className="w-4 h-4 text-blue-600"
+                />
+                Specific User Roles
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                <input
+                  type="radio"
+                  name="audienceType"
+                  value="classes"
+                  checked={audienceType === "classes"}
+                  onChange={() => setAudienceType("classes")}
+                  className="w-4 h-4 text-blue-600"
+                />
+                Specific Classes / Sections
+              </label>
+            </div>
+
+            {/* Conditional Roles boxes */}
+            {audienceType === "roles" && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-150">
+                {Object.keys(selectedRoles).map(role => (
+                  <label key={role} className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles[role]}
+                      onChange={() => toggleRole(role)}
+                      className="w-4 h-4 rounded text-blue-600"
+                    />
+                    {role}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Conditional Classes boxes */}
+            {audienceType === "classes" && (
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-150">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Select Target Class</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedClass}
+                    onChange={(e) => setSelectedClass(e.target.value)}
+                  >
+                    <option value="">Choose Class...</option>
+                    {classList.map(c => (
+                      <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedClass && availableSections.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1.5">Select Target Sections (Optional - Broad Class if empty)</label>
+                    <div className="flex gap-4">
+                      {availableSections.map(sec => (
+                        <label key={sec._id} className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                          <input
+                            type="checkbox"
+                            checked={selectedSections.includes(sec._id)}
+                            onChange={() => toggleSection(sec._id)}
+                            className="w-4 h-4 rounded text-blue-600"
+                          />
+                          Section {sec.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Form Action Controls */}
+          <div className="flex gap-3 justify-end border-t border-gray-100 pt-5 mt-5">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              disabled={!canSubmit() || isLoading}
+              className={`px-4 py-2 border rounded-lg font-medium text-sm flex items-center gap-2 transition ${
+                canSubmit() && !isLoading
+                  ? "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  : "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
+              }`}
+            >
+              <FiEye /> Notice Preview
+            </button>
+
+            <button
+              type="submit"
+              className={`px-5 py-2 rounded-lg font-semibold text-white text-sm transition ${
+                canSubmit() && !isLoading
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-blue-300 cursor-not-allowed"
+              }`}
+              disabled={!canSubmit() || isLoading}
+            >
+              {isLoading ? "Saving..." : "Save Draft"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSubmit(null, true)}
+              className={`px-5 py-2 rounded-lg font-semibold text-white text-sm transition ${
+                canSubmit() && !isLoading
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-green-300 cursor-not-allowed"
+              }`}
+              disabled={!canSubmit() || isLoading}
+            >
+              {isLoading ? "Publishing..." : "Publish & Send Now"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Notice Preview Modal */}
+      {previewOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <FiEye className="text-blue-600" /> Announcement Preview
+              </h3>
+              <button 
+                onClick={() => setPreviewOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4 flex-1 max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center gap-2.5">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
+                  priority === 'urgent' || priority === 'high'
+                    ? 'bg-red-50 text-red-600 border border-red-100'
+                    : priority === 'medium'
+                    ? 'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                    : 'bg-green-50 text-green-600 border border-green-100'
+                }`}>
+                  {priority} Priority
+                </span>
+                
+                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-xs font-semibold uppercase border border-blue-100">
+                  {category} Notice
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-gray-900 leading-snug">{title || "Untitled Announcement"}</h2>
+              
+              <div className="text-xs text-gray-400 space-y-1">
+                <p>Audience Segment: <span className="font-semibold text-gray-600 capitalize">{audienceType === 'all' ? 'Everyone' : audienceType}</span></p>
+                <p>Publish Timing: <span className="font-semibold text-gray-600">{publishOn ? new Date(publishOn).toLocaleString() : 'Immediate Dispatched'}</span></p>
+              </div>
+
+              <div className="text-sm text-gray-700 border-t border-b border-gray-100 py-4 whitespace-pre-line leading-relaxed">
+                {message || "No announcement content entered yet."}
+              </div>
+
               {attachmentName && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Selected: {attachmentName}
-                </p>
+                <div className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg">
+                  <FiFileText /> Attached Document: {attachmentName}
+                </div>
               )}
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className={`px-4 py-2 rounded text-white ${
-                  canSubmit && !isLoading
-                    ? "bg-blue-600"
-                    : "bg-blue-300 cursor-not-allowed"
-                }`}
-                disabled={!canSubmit || isLoading}
-              >
-                {isLoading ? "Creating..." : "Send Notice"}
-              </button>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
               <button
                 type="button"
-                className="px-4 py-2 rounded border"
-                onClick={() => navigate("/communication/logs")}
+                onClick={() => setPreviewOpen(false)}
+                className="px-4 py-2 border rounded-lg font-medium text-sm hover:bg-gray-100 transition"
               >
-                View Logs
+                Go Back to Editing
               </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Message To Container */}
-        <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto mt-6">
-          <h3 className="text-lg font-semibold mb-4">Message To</h3>
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              {Object.keys(roles).map((role) => (
-                <label
-                  key={role}
-                  className="flex items-center gap-2 text-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={roles[role]}
-                    onChange={() => toggleRole(role)}
-                    className="w-4 h-4"
-                  />
-                  {role}
-                </label>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-6 pt-4">
-              <div>
-                <div className=" font-medium text-gray-700 mb-2">
-                  Send By
-                </div>
-                <div className="flex gap-6">
-                  {Object.keys(channels).map((ch) => (
-                    <label key={ch} className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={channels[ch]}
-                        onChange={() => toggleChannel(ch)}
-                        className="w-4 h-4"
-                      />
-                      <span className="">{ch}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="ml-auto flex items-center gap-6">
-                <label className="flex items-center gap-2  text-gray-700">
-                  <input
-                    type="radio"
-                    name="sendOption"
-                    value="now"
-                    defaultChecked
-                    className="w-4 h-4"
-                  />
-                  Send Now
-                </label>
-                <label className="flex items-center gap-2  text-gray-700">
-                  <input
-                    type="radio"
-                    name="sendOption"
-                    value="schedule"
-                    className="w-4 h-4"
-                  />
-                  Schedule
-                </label>
-                <button
-                  type="button"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
-                >
-                  Submit
-                </button>
-              </div>
+              
+              <button
+                type="button"
+                onClick={() => handleSubmit(null, true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition flex items-center gap-1.5"
+              >
+                <FiCheckCircle /> Send Notice Immediately
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    
+      )}
+    </div>
   );
 }

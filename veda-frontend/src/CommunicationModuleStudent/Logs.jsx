@@ -8,18 +8,17 @@ export default function Logs() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
 
-  const fetchLogs = async () => {
+  const [studentId, setStudentId] = useState("68c27fb96a063075c9a73ee2");
+  const [studentModel, setStudentModel] = useState("Student");
+
+  const fetchLogs = async (uId = studentId, uModel = studentModel) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch published notices for students
-      const studentId = "68c27fb96a063075c9a73ee2"; // Real student ID
-      const studentModel = "Student";
-
       const response = await CommunicationAPI.getPublishedNotices(
-        studentId,
-        studentModel
+        uId,
+        uModel
       );
 
       if (response.success) {
@@ -45,7 +44,15 @@ export default function Logs() {
   };
 
   useEffect(() => {
-    fetchLogs();
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const uId = user.refId || user._id || "68c27fb96a063075c9a73ee2";
+    let uModel = "Student";
+    if (user.role) {
+      uModel = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase();
+    }
+    setStudentId(uId);
+    setStudentModel(uModel);
+    fetchLogs(uId, uModel);
   }, []);
 
   const hasLogs = useMemo(() => logs && logs.length > 0, [logs]);

@@ -9,20 +9,27 @@ export default function NoticesOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 const [selectedNotice, setSelectedNotice] = useState(null);
-  // Real student ID from database
-  const studentId = "68c27fb96a063075c9a73ee2";
-  const studentModel = "Student";
+  const [studentId, setStudentId] = useState("68c27fb96a063075c9a73ee2");
+  const [studentModel, setStudentModel] = useState("Student");
 
   useEffect(() => {
-    fetchNotices();
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const uId = user.refId || user._id || "68c27fb96a063075c9a73ee2";
+    let uModel = "Student";
+    if (user.role) {
+      uModel = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase();
+    }
+    setStudentId(uId);
+    setStudentModel(uModel);
+    fetchNotices(uId, uModel);
   }, []);
 
-  const fetchNotices = async () => {
+  const fetchNotices = async (uId = studentId, uModel = studentModel) => {
     try {
       setLoading(true);
       const response = await CommunicationAPI.getPublishedNotices(
-        studentId,
-        studentModel
+        uId,
+        uModel
       );
       setNotices(response.data || []);
     } catch (error) {

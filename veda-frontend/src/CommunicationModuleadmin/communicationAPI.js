@@ -384,6 +384,116 @@ class CommunicationAPI {
     }
   }
 
+  // Notification API methods
+  static async createNotification(notificationData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }
+
+  static async getNotifications(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/notifications?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notifications');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  }
+
+  static async getNotificationStats() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/stats/summary`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notification stats');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching notification stats:', error);
+      throw error;
+    }
+  }
+
+  static async getReceivedNotifications(userId, userModel, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/notifications/received/${userId}/${userModel}?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch received notifications');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching received notifications:', error);
+      throw error;
+    }
+  }
+
+  static async updateNotification(notificationId, updateData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating notification:', error);
+      throw error;
+    }
+  }
+
+  static async deleteNotification(notificationId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      throw error;
+    }
+  }
+
   static async getCommunicationStats(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);

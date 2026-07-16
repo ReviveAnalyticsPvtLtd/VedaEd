@@ -20,28 +20,28 @@ export default function CommunicationStudentDashboard() {
       value: 24,
       icon: <FiMessageSquare size={22} />,
       color: "border-blue-500",
-      link: "/student-communication/messages",
+      link: "/student/communication/messages",
     },
     {
       title: "Notices",
       value: 12,
       icon: <FiBell size={22} />,
       color: "border-green-500",
-      link: "/student-communication/notices",
+      link: "/student/communication/notices",
     },
     {
       title: "Complaints",
       value: 3,
       icon: <FiAlertCircle size={22} />,
       color: "border-red-500",
-      link: "/student-communication/complaints",
+      link: "/student/communication/complaints",
     },
     {
       title: "Pending Replies",
       value: 5,
       icon: <FiClock size={22} />,
       color: "border-yellow-500",
-      link: "/student-communication/logs",
+      link: "/student/communication/logs",
     },
   ];
 
@@ -138,21 +138,21 @@ export default function CommunicationStudentDashboard() {
 
         <div className="flex gap-4">
           <Link
-            to="/student-communication/messages"
+            to="/student/communication/messages"
             className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
           >
             View Messages
           </Link>
 
           <Link
-            to="/student-communication/notices"
+            to="/student/communication/notices"
             className="px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600"
           >
             View Notices
           </Link>
 
           <Link
-            to="/student-communication/complaints"
+            to="/student/communication/complaints"
             className="px-4 py-2 bg-red-500 text-white rounded-md text-sm hover:bg-red-600"
           >
             Raise Complaint
