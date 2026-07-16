@@ -430,8 +430,8 @@ import Payout from "./onboarding2/Payout";
 import SuperAdminProfileSettings from "./wrapper/SuperAdminProfileSettings";
 
 import AdminAccountSettings from "./admin-front/AdminAccountSettings";
-
-
+import AdminCollection from "./AdminFees/AdminCollection/AdminCollection";
+import FeeAccount from "./AdminFees/AdminCollection/FeeAccount";
 
 
 import SuperAdminSettingsDashboardLayout from "./SuperAdminSettings/SuperAdminSettingsDashboardLayout";
@@ -746,7 +746,7 @@ function App() {
         <Route path="fee-master" element={<SuperAdminFeesFeeMaster />} />
         <Route path="fee-group" element={<SuperAdminFeesFeeGroup />} />
         <Route path="fee-type" element={<SuperAdminFeesFeeType />} />
-        <Route path="fee-discount" element={<SuperAdminFeesFeeDiscount />} />
+       <Route path="fee-discount" element={<SuperAdminFeesFeeDiscount />} />
         <Route path="carry-forward" element={<SuperAdminFeesCarryForward />} />
         <Route path="reminder" element={<SuperAdminFeesFeeReminder />} />
       </Route>
@@ -863,7 +863,8 @@ function App() {
           <Route path="fee-group" element={<FeeGroup />} />
           <Route path="fee-type" element={<FeeType />} />
           <Route path="fee-discount" element={<FeeDiscount />} />
-
+ <Route path="admin-collection" element={<AdminCollection />} />
+ <Route path="fee-account/:id" element={<FeeAccount />} />
           {/* Utilities */}
           <Route path="carry-forward" element={<FeeCarryForward />} />
           <Route path="reminder" element={<FeeReminder />} />

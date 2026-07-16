@@ -39,6 +39,11 @@ export default function AdminFeesSidebar({
       path: "/admin/fees/collect-fees",
       icon: <FiDollarSign />,
     },
+     {
+      name: "Collection Fees",
+      path: "/admin/fees/admin-collection",
+      icon: <FiDollarSign />,
+    },
     {
       name: "Search Payment",
       path: "/admin/fees/search-payment",
