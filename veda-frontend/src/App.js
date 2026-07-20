@@ -520,6 +520,30 @@ import StudentProfileSettingsPassword from "./StudentProfileSettings/pages/Stude
 import StudentProfileSettingsTwoFactorAuth from "./StudentProfileSettings/pages/StudentProfileSettingsTwoFactorAuth";
 import StudentProfileSettingsSessions from "./StudentProfileSettings/pages/StudentProfileSettingsSessions";
 import StudentProfileSettingsAccountControl from "./StudentProfileSettings/pages/StudentProfileSettingsAccountControl";
+
+
+// Cashier Fees
+import CashierFeesLayout from "./CashierFees/CashierFeesLayout";
+import CashierFeesDashboard from "./CashierFees/CashierFeesDashboard";
+
+import CashierCollectFees from "./CashierFees/CashierCollectFees/CashierCollectFees";
+
+import CashierCollection from "./CashierFees/CashierCollection/CashierCollection";
+
+import CashierSearchFeesPayment from "./CashierFees/CashierSearchFeesPayment/CashierSearchFeesPayment";
+import CashierSearchFeesDue from "./CashierFees/CashierSearchFeesDue/CashierSearchFeesDue";
+
+import CashierFeeMaster from "./CashierFees/CashierFeeMaster/CashierFeeMaster";
+
+import CashierFeeGroup from "./CashierFees/CashierFeeGroup/CashierFeeGroup";
+
+import CashierFeeType from "./CashierFees/CashierFeeType/CashierFeeType";
+
+import CashierFeeDiscount from "./CashierFees/CashierFeeDiscount/CashierFeeDiscount";
+
+import CashierFeeCarryForward from "./CashierFees/CashierFeeCarryForward/CashierFeeCarryForward";
+
+import CashierFeeReminder from "./CashierFees/CashierFeeReminder/CashierFeeReminder";
 const TeacherAssignment = () => <AssignmentDashboardUI />;
 
 
@@ -738,6 +762,20 @@ function App() {
   />
 </Route>
       </Route>
+
+<Route path="/cashier/fees" element={<CashierFeesLayout />}>
+  <Route index element={<CashierFeesDashboard />} />
+  <Route path="collect-fees" element={<CashierCollectFees />} />
+  <Route path="cashier-collection" element={<CashierCollection />} />
+  <Route path="search-payment" element={<CashierSearchFeesPayment />} />
+  <Route path="search-due" element={<CashierSearchFeesDue />} />
+  <Route path="fee-master" element={<CashierFeeMaster />} />
+  <Route path="fee-group" element={<CashierFeeGroup />} />
+  <Route path="fee-type" element={<CashierFeeType />} />
+  <Route path="fee-discount" element={<CashierFeeDiscount />} />
+  <Route path="carry-forward" element={<CashierFeeCarryForward />} />
+  <Route path="reminder" element={<CashierFeeReminder />} />
+</Route>
 
       {/* ===== FEES ===== */}
       <Route path="/superadmin/fees" element={<SuperAdminFeesDashboardLayout />}>
