@@ -136,6 +136,8 @@ const [chargeName, setChargeName] = useState("");
 const [chargeReason, setChargeReason] = useState("");
 const [paymentMode, setPaymentMode] = useState("single");
 const navigate = useNavigate();
+
+const [customChargeName, setCustomChargeName] = useState("");
 const [paymentRows, setPaymentRows] = useState([
   {
     id: 1,
@@ -1215,15 +1217,28 @@ Charge Name
 
 </label>
 
-<input
-
-value={chargeName}
-
-onChange={(e)=>setChargeName(e.target.value)}
-
-className="w-full border rounded-lg p-3"
-
-/>
+<select
+  value={chargeName}
+  onChange={(e) => setChargeName(e.target.value)}
+  className="w-full border rounded-lg p-3"
+>
+  <option value="">Select Charge</option>
+  <option value="Fine">Fine</option>
+  <option value="Library Charge">Library Charge</option>
+  <option value="Miscellaneous">Miscellaneous</option>
+  <option value="Bus Damage">Bus Damage</option>
+  <option value="ID Card">ID Card</option>
+  <option value="Other">Other</option>
+</select>
+{chargeName === "Other" && (
+  <input
+    type="text"
+    placeholder="Enter Charge Name"
+    value={customChargeName}
+    onChange={(e) => setCustomChargeName(e.target.value)}
+    className="w-full border rounded-lg p-3 mt-3"
+  />
+)}
 
 </div>
 
@@ -1283,9 +1298,18 @@ Cancel
 
 onClick={()=>{
 
-setExtraCharge(chargeAmount);
+const finalChargeName =
+  chargeName === "Other" ? customChargeName : chargeName;
 
+console.log(finalChargeName); // Future API ke liye
+
+setExtraCharge(chargeAmount);
 setShowChargeModal(false);
+
+setChargeName("");
+setCustomChargeName("");
+setChargeAmount(0);
+setChargeReason("");
 
 }}
 
