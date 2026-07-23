@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 export default function Exceptions() {
 
 
@@ -108,6 +110,59 @@ const [dateFilter, setDateFilter] = useState("");
 
   };
 
+  const exportExcel = () => {
+
+  const data = filtered.map((item) => ({
+    Type: item.type,
+    Student: item.student,
+    Reference: item.reference,
+    Amount: item.amount,
+    Created: item.created,
+    Status: item.status,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Exceptions");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  saveAs(
+    new Blob([excelBuffer], {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    "Exceptions.xlsx"
+  );
+
+};
+const downloadException = () => {
+
+  if (!selectedException) return;
+
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text("Exception Report",20,20);
+
+  doc.setFontSize(12);
+
+  doc.text(`Student : ${selectedException.student}`,20,40);
+  doc.text(`Type : ${selectedException.type}`,20,50);
+  doc.text(`Reference : ${selectedException.reference}`,20,60);
+  doc.text(`Amount : ₹${selectedException.amount}`,20,70);
+  doc.text(`Created : ${selectedException.created}`,20,80);
+  doc.text(`Status : ${selectedException.status}`,20,90);
+
+  doc.save(`${selectedException.reference}.pdf`);
+
+};
+
   return (
 
  <div className="p-0 m-0 min-h-screen">
@@ -168,14 +223,11 @@ className="border rounded-lg px-4 py-3"
 />
 
 <button
-
-onClick={()=>alert("Export Started")}
-
-className="border rounded-lg px-5 py-3"
-
+onClick={exportExcel}
+className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-5 py-3 transition-all"
 >
 
-Export
+Export Excel
 
 </button>
 
@@ -354,7 +406,7 @@ className={`px-3 py-1 rounded-full text-sm ${badgeColor(item.status)}`}
 
 onClick={()=>setSelectedException(item)}
 
-className="border rounded-lg px-5 py-2 hover:bg-blue-50"
+className="border border-blue-600 text-blue-600 px-5 py-2 rounded-lg transition-all hover:bg-blue-600 hover:text-white"
 
 >
 
@@ -608,7 +660,14 @@ className="border px-6 py-3 rounded-xl"
 Cancel
 
 </button>
+<button
+onClick={downloadException}
+className="border border-red-600 text-red-600 px-6 py-3 rounded-xl transition-all hover:bg-red-600 hover:text-white"
+>
 
+Download PDF
+
+</button>
 <button
 
 onClick={() => {
@@ -643,7 +702,7 @@ setSelectedException(null);
 
 }}
 
-className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl"
+className="bg-blue-600 hover:bg-blue-700 transition-all text-white px-6 py-3 rounded-xl"
 
 >
 

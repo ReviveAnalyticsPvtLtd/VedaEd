@@ -315,7 +315,11 @@ totalReceived-payable
               {filteredStudents.map((student)=>(
                 <div
                   key={student.id}
-                  className="flex justify-between items-center border rounded-lg p-4 hover:bg-gray-50"
+                  className={`flex justify-between items-center border rounded-lg p-4 cursor-pointer transition-all ${
+  selectedStudent?.id === student.id
+    ? "border-blue-600 bg-blue-50"
+    : "hover:bg-gray-50"
+}`}
                 >
 
                   <div>

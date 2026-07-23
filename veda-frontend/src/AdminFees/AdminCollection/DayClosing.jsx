@@ -125,7 +125,7 @@ Net Collection
 
 <div className="bg-white rounded-2xl border">
 
-<div className="flex justify-between items-center p-6">
+<div className="flex justify-between gap-2 items-center p-6 mb-2">
 
 <h2 className="text-xl font-bold">
 
@@ -281,7 +281,7 @@ Close Day
 </button>
 
 </div>
-<div className="grid grid-cols-3 gap-3 mt-4">
+<div className="grid grid-cols-3 gap-3 mt-4 px-6 pb-6 ">
 
 <button
 
@@ -350,8 +350,10 @@ className="bg-orange-500 text-white py-3 rounded-xl"
 Reset Day
 
 </button>
+</div>
+</div>
 
-</div><div className="border rounded-xl p-5 mt-5 bg-gray-50">
+<div className="border rounded-xl p-5 mt-5 bg-gray-50">
 
 <h3 className="text-xl font-bold mb-4">
 
@@ -450,16 +452,16 @@ className={dayClosed?"text-green-600":"text-orange-600"}
 "Pending"}
 
 </strong>
-
+</div>
 </div>
 
 </div>
 
 </div>
 
-</div>
 
-</div>
+
+
 
 {/* Confirm Modal */}
 

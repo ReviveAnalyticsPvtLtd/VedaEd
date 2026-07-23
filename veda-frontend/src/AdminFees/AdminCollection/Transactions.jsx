@@ -4,7 +4,10 @@ import {
   FiEye,
   FiDownload,
 } from "react-icons/fi";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
+import jsPDF from "jspdf";
 export default function Transactions() {
 
   const [search, setSearch] = useState("");
@@ -113,6 +116,64 @@ export default function Transactions() {
     }
   };
 
+  const exportExcel = () => {
+
+  const data = filteredTransactions.map((txn) => ({
+    TransactionID: txn.id,
+    Receipt: txn.receipt,
+    Student: txn.student,
+    Class: txn.class,
+    Date: txn.date,
+    Time: txn.time,
+    Amount: txn.amount,
+    Method: txn.method,
+    Cashier: txn.cashier,
+    Status: txn.status,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  const file = new Blob([excelBuffer], {
+    type:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  saveAs(file, "Transactions.xlsx");
+};
+
+
+const downloadReceipt = () => {
+
+  if (!selectedTransaction) return;
+
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text("Transaction Receipt", 20, 20);
+
+  doc.setFontSize(12);
+
+  doc.text(`Transaction : ${selectedTransaction.id}`,20,40);
+  doc.text(`Receipt : ${selectedTransaction.receipt}`,20,50);
+  doc.text(`Student : ${selectedTransaction.student}`,20,60);
+  doc.text(`Class : ${selectedTransaction.class}`,20,70);
+  doc.text(`Amount : ₹${selectedTransaction.amount}`,20,80);
+  doc.text(`Method : ${selectedTransaction.method}`,20,90);
+  doc.text(`Cashier : ${selectedTransaction.cashier}`,20,100);
+  doc.text(`Status : ${selectedTransaction.status}`,20,110);
+
+  doc.save(`${selectedTransaction.receipt}.pdf`);
+
+};
   return (
 
 <div>
@@ -165,11 +226,14 @@ className="border rounded-lg px-4 py-3"
 
 </select>
 
-<button className="border rounded-lg px-5 flex items-center gap-2">
+<button
+onClick={exportExcel}
+className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-5 py-3 flex items-center gap-2 transition-all"
+>
 
 <FiDownload/>
 
-Export
+Export Excel
 
 </button>
 
@@ -290,7 +354,7 @@ className={`px-3 py-1 rounded-full text-sm font-medium ${badgeColor(txn.status)}
 
 <button
 onClick={()=>setSelectedTransaction(txn)}
-className="border rounded-lg px-4 py-2 flex items-center gap-2 hover:bg-blue-50"
+className="border border-blue-600 text-blue-600 rounded-lg px-4 py-2 flex items-center gap-2 transition-all duration-200 hover:bg-blue-600 hover:text-white"
 >
 
 <FiEye/>
@@ -637,10 +701,11 @@ Print Receipt
 </button>
 
 <button
-
-className="border px-5 py-3 rounded-xl"
-
+onClick={downloadReceipt}
+className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl flex items-center gap-2 transition-all"
 >
+
+<FiDownload/>
 
 Download PDF
 

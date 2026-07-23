@@ -5,7 +5,7 @@ import {
   FiPrinter,
   FiSend,
 } from "react-icons/fi";
-
+import jsPDF from "jspdf";
 export default function Receipts() {
 
   const [search, setSearch] = useState("");
@@ -87,6 +87,66 @@ const [showSendModal, setShowSendModal] = useState(false);
     }
 
   };
+
+  const printReceipt = () => {
+
+  if (!selectedReceipt) return;
+
+  window.print();
+
+};
+
+const downloadReceipt = () => {
+
+  if (!selectedReceipt) return;
+
+  const doc = new jsPDF();
+
+  doc.setFontSize(20);
+  doc.text("VEDA SCHOOL", 20, 20);
+
+  doc.setFontSize(11);
+  doc.text("Fee Receipt", 20, 30);
+
+  doc.line(20, 35, 190, 35);
+
+  doc.text(`Receipt No : ${selectedReceipt.receiptNo}`, 20, 50);
+  doc.text(`Student : ${selectedReceipt.student}`, 20, 60);
+  doc.text(`Admission : ${selectedReceipt.admission}`, 20, 70);
+  doc.text(`Class : ${selectedReceipt.class}`, 20, 80);
+  doc.text(`Payment Date : ${selectedReceipt.date}`, 20, 90);
+  doc.text(`Payment Method : ${selectedReceipt.method}`, 20, 100);
+  doc.text(`Status : ${selectedReceipt.status}`, 20, 110);
+
+  doc.line(20, 118, 190, 118);
+
+  doc.setFontSize(13);
+  doc.text("Fee Details", 20, 130);
+
+  doc.setFontSize(11);
+
+  doc.text("Tuition Fee", 20, 145);
+  doc.text("₹8,000", 170, 145);
+
+  doc.text("Transport Fee", 20, 155);
+  doc.text("₹2,000", 170, 155);
+
+  doc.text("Exam Fee", 20, 165);
+  doc.text("₹2,000", 170, 165);
+
+  doc.line(20, 173, 190, 173);
+
+  doc.setFontSize(14);
+
+  doc.text(
+    `Total Paid : ₹${selectedReceipt.amount.toLocaleString()}`,
+    20,
+    185
+  );
+
+  doc.save(`${selectedReceipt.receiptNo}.pdf`);
+
+};
 
   return (
 
@@ -255,7 +315,7 @@ className={`px-3 py-1 rounded-full text-sm ${badgeColor(receipt.status)}`}
 
 onClick={()=>setSelectedReceipt(receipt)}
 
-className="border rounded-lg px-4 py-2 flex items-center gap-2 hover:bg-blue-50"
+className="border border-blue-600 text-blue-600 rounded-lg px-4 py-2 flex items-center gap-2 transition-all duration-200 hover:bg-blue-600 hover:text-white"
 
 >
 
@@ -266,29 +326,20 @@ View
 </button>
 
 <button
-onClick={()=>window.print()}
-className="border rounded-lg px-4 py-2 flex items-center gap-2 hover:bg-gray-50"
+onClick={()=>{
+  setSelectedReceipt(receipt);
+  setTimeout(() => window.print(), 300);
+}}
+className="border border-green-600 text-green-600 px-5 py-3 rounded-lg flex items-center gap-2 transition-all hover:bg-green-600 hover:text-white"
 >
 
-<FiPrinter/>
+<FiPrinter />
 
 Print
 
 </button>
 
-<button
 
-onClick={()=>setShowSendModal(true)}
-
-className="border rounded-lg px-4 py-2 flex items-center gap-2 hover:bg-gray-50"
-
->
-
-<FiSend/>
-
-Send
-
-</button>
 
 </div>
 
@@ -638,24 +689,22 @@ School Admin
 <div className="flex justify-end gap-3">
 
 <button
-
-className="border px-5 py-3 rounded-xl hover:bg-gray-100"
-
+onClick={printReceipt}
+className="border border-green-600 text-green-600 px-5 py-3 rounded-xl flex items-center gap-2 transition-all hover:bg-green-600 hover:text-white"
 >
+
+<FiPrinter />
 
 Print Receipt
 
 </button>
 
 <button
-
-onClick={()=>alert("PDF Download Started")}
-
-className="border px-5 py-3 rounded-xl hover:bg-gray-100"
-
+onClick={downloadReceipt}
+className="border border-red-600 text-red-600 px-5 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 hover:bg-red-600 hover:text-white"
 >
 
-Download PDF
+📄 Download PDF
 
 </button>
 
