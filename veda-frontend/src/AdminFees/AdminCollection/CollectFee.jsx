@@ -24,25 +24,6 @@ export default function CollectFee() {
   const [waiverAmount, setWaiverAmount] = useState(0);
   const [waiverReason, setWaiverReason] = useState("");
 
-<<<<<<< HEAD
-const [chargeAmount, setChargeAmount] = useState(0);
-const [chargeName, setChargeName] = useState("");
-const [chargeReason, setChargeReason] = useState("");
-const [paymentMode, setPaymentMode] = useState("single");
-const navigate = useNavigate();
-
-const [customChargeName, setCustomChargeName] = useState("");
-const [paymentRows, setPaymentRows] = useState([
-  {
-    id: 1,
-    method: "Cash",
-    amount: 0,
-  },
-]);
-  const filteredStudents = students.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
-=======
   const [chargeAmount, setChargeAmount] = useState(0);
   const [chargeName, setChargeName] = useState("");
   const [chargeReason, setChargeReason] = useState("");
@@ -103,8 +84,7 @@ const [paymentRows, setPaymentRows] = useState([
       try {
         const res = await axios.get(`${config.API_BASE_URL}/students?keyword=${search}`);
         if (res.data.success) {
-          const enrolled = res.data.students.filter(s => s.source === "SIS");
-          setStudents(enrolled.map(s => ({
+          setStudents(res.data.students.map(s => ({
             id: s._id,
             name: s.personalInfo.name,
             class: s.personalInfo.class,
@@ -171,7 +151,6 @@ const [paymentRows, setPaymentRows] = useState([
   };
 
   const filteredStudents = students;
->>>>>>> f1bfd88 (done)
 
 
   const toggleFee = (fee) => {
@@ -339,11 +318,7 @@ const [paymentRows, setPaymentRows] = useState([
               {filteredStudents.map((student) => (
                 <div
                   key={student.id}
-                  className={`flex justify-between items-center border rounded-lg p-4 cursor-pointer transition-all ${
-  selectedStudent?.id === student.id
-    ? "border-blue-600 bg-blue-50"
-    : "hover:bg-gray-50"
-}`}
+                  className="flex justify-between items-center border rounded-lg p-4 hover:bg-gray-50"
                 >
 
                   <div>
@@ -806,8 +781,8 @@ const [paymentRows, setPaymentRows] = useState([
               <button
                 onClick={() => setPaymentMode("single")}
                 className={`rounded-lg py-2 ${paymentMode === "single"
-                    ? "bg-blue-600 text-white"
-                    : "border"
+                  ? "bg-blue-600 text-white"
+                  : "border"
                   }`}
               >
 
@@ -818,8 +793,8 @@ const [paymentRows, setPaymentRows] = useState([
               <button
                 onClick={() => setPaymentMode("split")}
                 className={`rounded-lg py-2 ${paymentMode === "split"
-                    ? "bg-blue-600 text-white"
-                    : "border"
+                  ? "bg-blue-600 text-white"
+                  : "border"
                   }`}
               >
 
@@ -1216,30 +1191,6 @@ const [paymentRows, setPaymentRows] = useState([
 
                   </label>
 
-<<<<<<< HEAD
-<select
-  value={chargeName}
-  onChange={(e) => setChargeName(e.target.value)}
-  className="w-full border rounded-lg p-3"
->
-  <option value="">Select Charge</option>
-  <option value="Fine">Fine</option>
-  <option value="Library Charge">Library Charge</option>
-  <option value="Miscellaneous">Miscellaneous</option>
-  <option value="Bus Damage">Bus Damage</option>
-  <option value="ID Card">ID Card</option>
-  <option value="Other">Other</option>
-</select>
-{chargeName === "Other" && (
-  <input
-    type="text"
-    placeholder="Enter Charge Name"
-    value={customChargeName}
-    onChange={(e) => setCustomChargeName(e.target.value)}
-    className="w-full border rounded-lg p-3 mt-3"
-  />
-)}
-=======
                   <input
 
                     value={chargeName}
@@ -1249,7 +1200,6 @@ const [paymentRows, setPaymentRows] = useState([
                     className="w-full border rounded-lg p-3"
 
                   />
->>>>>>> f1bfd88 (done)
 
                 </div>
 
@@ -1309,28 +1259,11 @@ const [paymentRows, setPaymentRows] = useState([
 
                   onClick={() => {
 
-<<<<<<< HEAD
-const finalChargeName =
-  chargeName === "Other" ? customChargeName : chargeName;
-
-console.log(finalChargeName); // Future API ke liye
-
-setExtraCharge(chargeAmount);
-setShowChargeModal(false);
-
-setChargeName("");
-setCustomChargeName("");
-setChargeAmount(0);
-setChargeReason("");
-
-}}
-=======
                     setExtraCharge(chargeAmount);
 
                     setShowChargeModal(false);
 
                   }}
->>>>>>> f1bfd88 (done)
 
                   className="bg-blue-600 text-white px-5 py-2 rounded-lg"
 
