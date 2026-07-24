@@ -19,7 +19,7 @@ export default function AdminCollection() {
         return <CollectFee />;
       case "transactions":
         return <Transactions />;
-      case "receipts":
+      case "receipts-ss":
         return <Receipts />;
       case "exceptions":
         return <Exceptions />;
@@ -74,11 +74,10 @@ Use the tabs below to access each collection module.`}
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`pb-2 whitespace-nowrap ${
-              activeTab === key
+            className={`pb-2 whitespace-nowrap ${activeTab === key
                 ? "text-blue-600 font-semibold border-b-2 border-blue-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             {label}
           </button>
