@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch } from "react-icons/fi";
-import axios from "axios";
+import axios from "../../services/apiClient";
 import config from "../../config";
 
 const CollectFees = () => {

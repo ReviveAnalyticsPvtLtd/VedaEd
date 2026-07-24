@@ -33,7 +33,17 @@ const {
   getStudentFeeProfile,
   recordFeePayment,
   searchFeeTransactions,
-  getDueFees
+  getDueFees,
+  getPaymentReceipt,
+  getStudentFeeLedger,
+  updatePaymentStatus,
+  getDailyCollectionReport,
+  getMonthlyCollectionReport,
+  getFeeDueReport,
+  getClassWiseCollectionReport,
+  getPaymentModeReport,
+  getFineCollectionReport,
+  getDiscountReport
 } = require("./feeControllers");
 
 const academicYearRouter = express.Router();
@@ -89,6 +99,18 @@ collectionRouter.get("/payments", searchFeeTransactions);
 collectionRouter.get("/dues", getDueFees);
 collectionRouter.get("/student/:id", getStudentFeeProfile);
 collectionRouter.post("/payment", recordFeePayment);
+collectionRouter.get("/receipt/:id", getPaymentReceipt);
+collectionRouter.get("/ledger/:id", getStudentFeeLedger);
+collectionRouter.patch("/payment/:id/status", updatePaymentStatus);
+
+const reportRouter = express.Router();
+reportRouter.get("/daily", getDailyCollectionReport);
+reportRouter.get("/monthly", getMonthlyCollectionReport);
+reportRouter.get("/due", getFeeDueReport);
+reportRouter.get("/class-wise", getClassWiseCollectionReport);
+reportRouter.get("/payment-mode", getPaymentModeReport);
+reportRouter.get("/fine", getFineCollectionReport);
+reportRouter.get("/discount", getDiscountReport);
 
 module.exports = {
   academicYearRouter,
@@ -99,5 +121,6 @@ module.exports = {
   discountRuleRouter,
   fineRouter,
   dashboardRouter,
-  collectionRouter
+  collectionRouter,
+  reportRouter
 };

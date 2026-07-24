@@ -54,7 +54,7 @@ exports.createNotification = async (req, res) => {
 
     // Parse publish date
     const parsedPublishDate = publishDate ? new Date(publishDate) : new Date();
-    
+
     // Determine status
     let finalStatus = status || 'sent';
     if (parsedPublishDate > new Date()) {

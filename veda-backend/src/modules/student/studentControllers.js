@@ -364,7 +364,27 @@ exports.getAllStudents = async (req, res) => {
       if (existSection) query["personalInfo.section"] = existSection._id;
     }
     if (keyword) {
-      query["personalInfo.name"] = { $regex: keyword, $options: 'i' };
+      const matchingClasses = await Class.find({ name: { $regex: keyword, $options: 'i' } }).select("_id");
+      const classIds = matchingClasses.map(c => c._id);
+
+      const keywordFilter = {
+        $or: [
+          { "personalInfo.name": { $regex: keyword, $options: 'i' } },
+          { "personalInfo.stdId": { $regex: keyword, $options: 'i' } },
+          { "personalInfo.contactDetails.mobileNumber": { $regex: keyword, $options: 'i' } },
+          ...(classIds.length > 0 ? [{ "personalInfo.class": { $in: classIds } }] : [])
+        ]
+      };
+      if (query.$or) {
+        const teacherFilters = query.$or;
+        delete query.$or;
+        query.$and = [
+          { $or: teacherFilters },
+          keywordFilter
+        ];
+      } else {
+        query.$or = keywordFilter.$or;
+      }
     }
 
     // modified//
@@ -372,7 +392,12 @@ exports.getAllStudents = async (req, res) => {
     const admissionQuery = {
       "personalInfo.fees": { $in: ["Paid", "paid"] },
       // Add basic search/filter support for admission docs as well
-      ...(keyword ? { "personalInfo.name": { $regex: keyword, $options: 'i' } } : {}),
+      ...(keyword ? {
+        $or: [
+          { "personalInfo.name": { $regex: keyword, $options: 'i' } },
+          { "personalInfo.contactDetails.mobileNumber": { $regex: keyword, $options: 'i' } }
+        ]
+      } : {}),
       ...(cls && cls !== "All" ? { "personalInfo.classApplied": cls } : {})
     };
 
