@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import axios from "../../services/apiClient";
 import config from "../../config";
 
 const CollectFeesProfile = () => {

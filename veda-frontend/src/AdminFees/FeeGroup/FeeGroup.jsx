@@ -70,19 +70,19 @@ export default function FeeGroup() {
 
   return (
     <div className="p-0 min-h-screen">
-        <div className="text-gray-500 text-sm mb-2">
-Fees &gt; Fees Group
-</div>
+      <div className="text-gray-500 text-sm mb-2">
+        Fees &gt; Fees Group
+      </div>
 
-<div className="flex justify-between items-center mb-4">
-<h2 className="text-2xl font-bold">Fees Group</h2>
-</div>
-{/* Tabs */}
-          <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
-            <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
-              Overview
-            </button>
-          </div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Fees Group</h2>
+      </div>
+      {/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       <div className="grid grid-cols-12 gap-3">
 
         {/* ===== LEFT FORM ===== */}

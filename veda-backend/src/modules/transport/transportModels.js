@@ -110,6 +110,18 @@ const driverSchema = new mongoose.Schema({
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
 }, { timestamps: true });
 
+const transportStudentSchema = new mongoose.Schema({
+    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+    routeId: { type: mongoose.Schema.Types.ObjectId, ref: 'TransportRoute', required: true },
+    pickupPointId: { type: mongoose.Schema.Types.ObjectId, ref: 'PickupPoint', required: true },
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+    fees: [{
+        month: String,
+        amount: Number,
+        status: { type: String, enum: ['Paid', 'Unpaid'], default: 'Unpaid' }
+    }]
+}, { timestamps: true });
+
 module.exports = {
     Vehicle: mongoose.model('Vehicle', vehicleSchema),
     Route: mongoose.model('TransportRoute', routeSchema),
@@ -121,5 +133,6 @@ module.exports = {
     Fueling: mongoose.model('Fueling', fuelingSchema),
     Expense: mongoose.model('TransportExpense', expenseSchema),
     Allocation: mongoose.model('TransportAllocation', transportAllocationSchema),
-    Driver: mongoose.model('Driver', driverSchema)
+    Driver: mongoose.model('Driver', driverSchema),
+    TransportStudent: mongoose.model('TransportStudent', transportStudentSchema)
 };

@@ -106,6 +106,7 @@ app.use("/api/late-fee-policies", require("./modules/fees/feeRoutes").lateFeePol
 app.use("/api/discount-rules", require("./modules/fees/feeRoutes").discountRuleRouter);
 app.use("/api/fees/dashboard", require("./modules/fees/feeRoutes").dashboardRouter);
 app.use("/api/fees/collect", require("./modules/fees/feeRoutes").collectionRouter);
+app.use("/api/fees/reports", require("./modules/fees/feeRoutes").reportRouter);
 app.use("/api/fines", require("./modules/fees/feeRoutes").fineRouter);
 app.use("/api/user-settings", require("./modules/userSettings/userSettingsRoutes"));
 app.use("/api/curriculum", require("./modules/curriculum/curriculumRoutes"));

@@ -110,6 +110,29 @@ const feeTransactionSchema = new mongoose.Schema({
 
 const FeeTransaction = mongoose.model("FeeTransaction", feeTransactionSchema);
 
+const feeLedgerSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  year: { type: String, required: true },
+  date: { type: Date, default: Date.now },
+  type: { type: String, enum: ['Debit', 'Credit'], required: true },
+  category: { type: String, required: true },
+  amount: { type: Number, required: true },
+  transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeeTransaction' },
+  description: String
+}, { timestamps: true });
+
+const FeeLedger = mongoose.model("FeeLedger", feeLedgerSchema);
+
+const feeAuditLogSchema = new mongoose.Schema({
+  action: { type: String, required: true },
+  performedBy: { type: String, required: true },
+  details: { type: String, required: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  date: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const FeeAuditLog = mongoose.model("FeeAuditLog", feeAuditLogSchema);
+
 module.exports = {
   AcademicYear,
   FeeCategory,
@@ -118,5 +141,7 @@ module.exports = {
   LateFeePolicy,
   DiscountRule,
   Fine,
-  FeeTransaction
+  FeeTransaction,
+  FeeLedger,
+  FeeAuditLog
 };

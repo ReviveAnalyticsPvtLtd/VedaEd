@@ -1,4 +1,4 @@
-import React,{useState,useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiSearch,
@@ -6,131 +6,25 @@ import {
   FiDollarSign,
   FiCheckCircle,
 } from "react-icons/fi";
+import axios from "../../services/apiClient";
+import config from "../../config";
 
 export default function CollectFee() {
-
-  const students = [
-    {
-      id: 1,
-      name: "Aarav Sharma",
-      class: "8-A",
-      admission: "VS-1024",
-      pending: 22000,
-      annual: 62000,
-      paid: 40000,
-      current: 20000,
-      previous: 2000,
-      advance: 0,
-      feeHeads: [
-  {
-    id: 1,
-    head: "Tuition Fee",
-    dueDate: "10 Jul 2026",
-    amount: 12000,
-    lateFee: 500,
-  },
-  {
-    id: 2,
-    head: "Transport Fee",
-    dueDate: "10 Jul 2026",
-    amount: 5000,
-    lateFee: 0,
-  },
-  {
-    id: 3,
-    head: "Exam Fee",
-    dueDate: "10 Jul 2026",
-    amount: 3000,
-    lateFee: 0,
-  },
-],
-    }
-    ,
-    {
-      id: 2,
-      name: "Ananya Patel",
-      class: "7-B",
-      admission: "VS-0987",
-      pending: 0,
-      annual: 55000,
-      paid: 55000,
-      current: 0,
-      previous: 0,
-      advance: 0,
-      feeHeads: [
-  {
-    id: 1,
-    head: "Tuition Fee",
-    dueDate: "10 Jul 2026",
-    amount: 12000,
-    lateFee: 500,
-  },
-  {
-    id: 2,
-    head: "Transport Fee",
-    dueDate: "10 Jul 2026",
-    amount: 5000,
-    lateFee: 0,
-  },
-  {
-    id: 3,
-    head: "Exam Fee",
-    dueDate: "10 Jul 2026",
-    amount: 3000,
-    lateFee: 0,
-  },
-],
-    },
-    {
-      id: 3,
-      name: "Meera Singh",
-      class: "10-B",
-      admission: "VS-1102",
-      pending: 12500,
-      annual: 70000,
-      paid: 57500,
-      current: 12500,
-      previous: 0,
-      advance: 0,
-      feeHeads: [
-  {
-    id: 1,
-    head: "Tuition Fee",
-    dueDate: "10 Jul 2026",
-    amount: 12000,
-    lateFee: 500,
-  },
-  {
-    id: 2,
-    head: "Transport Fee",
-    dueDate: "10 Jul 2026",
-    amount: 5000,
-    lateFee: 0,
-  },
-  {
-    id: 3,
-    head: "Exam Fee",
-    dueDate: "10 Jul 2026",
-    amount: 3000,
-    lateFee: 0,
-  },
-],
-    },
-  ];
-
+  const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
-const [selectedFees, setSelectedFees] = useState([]);
-const [discount, setDiscount] = useState(0);
-const [lateFee, setLateFee] = useState(0);
-const [extraCharge, setExtraCharge] = useState(0);
-const [amountReceived, setAmountReceived] = useState(0);
-const [showWaiverModal, setShowWaiverModal] = useState(false);
-const [showChargeModal, setShowChargeModal] = useState(false);
+  const [selectedFees, setSelectedFees] = useState([]);
+  const [discount, setDiscount] = useState(0);
+  const [lateFee, setLateFee] = useState(0);
+  const [extraCharge, setExtraCharge] = useState(0);
+  const [amountReceived, setAmountReceived] = useState(0);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [showChargeModal, setShowChargeModal] = useState(false);
 
-const [waiverAmount, setWaiverAmount] = useState(0);
-const [waiverReason, setWaiverReason] = useState("");
+  const [waiverAmount, setWaiverAmount] = useState(0);
+  const [waiverReason, setWaiverReason] = useState("");
 
+<<<<<<< HEAD
 const [chargeAmount, setChargeAmount] = useState(0);
 const [chargeName, setChargeName] = useState("");
 const [chargeReason, setChargeReason] = useState("");
@@ -148,130 +42,260 @@ const [paymentRows, setPaymentRows] = useState([
   const filteredStudents = students.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase())
   );
+=======
+  const [chargeAmount, setChargeAmount] = useState(0);
+  const [chargeName, setChargeName] = useState("");
+  const [chargeReason, setChargeReason] = useState("");
+  const [paymentMode, setPaymentMode] = useState("single");
+  const [singleMethod, setSingleMethod] = useState("Cash");
+  const [refNo, setRefNo] = useState("");
+  const [remarkText, setRemarkText] = useState("");
+  const navigate = useNavigate();
+  const [paymentRows, setPaymentRows] = useState([
+    {
+      id: 1,
+      method: "Cash",
+      amount: 0,
+    },
+  ]);
+
+  const handleRecordPayment = async () => {
+    if (!selectedStudent) return alert("Select student first");
+    if (selectedFees.length === 0) return alert("Select fees first");
+    if (totalReceived <= 0) return alert("Enter valid received amount");
+
+    try {
+      const feesPayload = selectedFees.map(f => ({
+        category: f.head,
+        amount: f.amount // The outstanding balance for that category
+      }));
+
+      // Submit payment transaction to backend
+      const res = await axios.post(`${config.API_BASE_URL}/fees/collect/payment`, {
+        studentId: selectedStudent.id,
+        year: "2025-26",
+        fees: feesPayload,
+        totalAmount: totalReceived,
+        paymentMethod: paymentMode === "single" ? singleMethod : "Split",
+        remark: remarkText || `Paid via ${paymentMode === "single" ? singleMethod : "Split"}`
+      });
+
+      alert("Payment Recorded successfully!");
+      // Re-fetch profile
+      handleSelectStudent(selectedStudent);
+      setSelectedFees([]);
+      setAmountReceived(0);
+      setRefNo("");
+      setRemarkText("");
+    } catch (err) {
+      console.error("Payment failed", err);
+      alert(err.response?.data?.message || "Payment recording failed.");
+    }
+  };
+
+  // Debounced search from backend
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      if (!search.trim()) {
+        setStudents([]);
+        return;
+      }
+      try {
+        const res = await axios.get(`${config.API_BASE_URL}/students?keyword=${search}`);
+        if (res.data.success) {
+          const enrolled = res.data.students.filter(s => s.source === "SIS");
+          setStudents(enrolled.map(s => ({
+            id: s._id,
+            name: s.personalInfo.name,
+            class: s.personalInfo.class,
+            section: s.personalInfo.section || "N/A",
+            admission: s.personalInfo.stdId,
+            pending: 0,
+            annual: 0,
+            paid: 0,
+            current: 0,
+            previous: 0,
+            advance: 0,
+            feeHeads: []
+          })));
+        }
+      } catch (err) {
+        console.error("Search failed", err);
+      }
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [search]);
+
+  const handleSelectStudent = async (student) => {
+    try {
+      const res = await axios.get(`${config.API_BASE_URL}/fees/collect/student/${student.id}`);
+      const profile = res.data;
+      const feesData = profile.feesData || [];
+
+      const totalExpected = feesData.reduce((s, f) => s + f.amount, 0);
+      const totalPaid = feesData.reduce((s, f) => s + f.paid, 0);
+      const totalPending = feesData.reduce((s, f) => s + f.balance, 0);
+      const totalFines = feesData.reduce((s, f) => s + f.fine, 0);
+      const totalDiscounts = feesData.reduce((s, f) => s + f.discount, 0);
+
+      setSelectedStudent({
+        ...student,
+        annual: totalExpected,
+        paid: totalPaid,
+        pending: totalPending,
+        current: totalPending,
+        previous: 0,
+        advance: 0,
+        feeHeads: feesData.map((f, index) => ({
+          id: index + 1,
+          head: f.category,
+          dueDate: "10th Monthly",
+          amount: f.balance, // balance to pay
+          originalAmount: f.amount,
+          paid: f.paid,
+          discount: f.discount,
+          lateFee: f.fine
+        }))
+      });
+      setSelectedFees([]);
+      setDiscount(totalDiscounts);
+      setLateFee(totalFines);
+      setExtraCharge(0);
+      setWaiverAmount(0);
+      setWaiverReason("");
+      setAmountReceived(0);
+    } catch (err) {
+      console.error("Failed to load fee profile", err);
+      alert("Failed to load student billing profile.");
+    }
+  };
+
+  const filteredStudents = students;
+>>>>>>> f1bfd88 (done)
 
 
   const toggleFee = (fee) => {
 
     const exists = selectedFees.find(
-        item => item.id === fee.id
+      item => item.id === fee.id
     );
 
     if (exists) {
 
-        setSelectedFees(
-            selectedFees.filter(
-                item => item.id !== fee.id
-            )
-        );
+      setSelectedFees(
+        selectedFees.filter(
+          item => item.id !== fee.id
+        )
+      );
 
     } else {
 
-        setSelectedFees([
-            ...selectedFees,
-            fee,
-        ]);
+      setSelectedFees([
+        ...selectedFees,
+        fee,
+      ]);
 
     }
 
-}
-const selectedAmount =
-selectedFees.reduce(
+  }
+  const selectedAmount =
+    selectedFees.reduce(
 
-(sum,item)=>
+      (sum, item) =>
 
-sum+item.amount,
+        sum + item.amount,
 
-0
+      0
 
-);
-const totalLateFee =
-selectedFees.reduce(
+    );
+  const totalLateFee =
+    selectedFees.reduce(
 
-(sum,item)=>
+      (sum, item) =>
 
-sum+item.lateFee,
+        sum + item.lateFee,
 
-0
+      0
 
-);
-const effectiveLateFee =
-Math.max(0,totalLateFee-waiverAmount);
-const payable =
-selectedAmount +
-effectiveLateFee +
-extraCharge -
-discount;
+    );
+  const effectiveLateFee =
+    Math.max(0, totalLateFee - waiverAmount);
+  const payable =
+    selectedAmount +
+    effectiveLateFee +
+    extraCharge -
+    discount;
 
-const addPaymentRow=()=>{
+  const addPaymentRow = () => {
 
-setPaymentRows([
+    setPaymentRows([
 
-...paymentRows,
+      ...paymentRows,
 
-{
+      {
 
-id:Date.now(),
+        id: Date.now(),
 
-method:"Cash",
+        method: "Cash",
 
-amount:0,
+        amount: 0,
 
-}
+      }
 
-]);
+    ]);
 
-}
-const removePayment=(id)=>{
+  }
+  const removePayment = (id) => {
 
-if(paymentRows.length===1)return;
+    if (paymentRows.length === 1) return;
 
-setPaymentRows(
+    setPaymentRows(
 
-paymentRows.filter(
+      paymentRows.filter(
 
-row=>row.id!==id
+        row => row.id !== id
 
-)
+      )
 
-);
+    );
 
-}
+  }
 
-const totalReceived =
-paymentMode === "single"
+  const totalReceived =
+    paymentMode === "single"
 
-? amountReceived
+      ? amountReceived
 
-: paymentRows.reduce(
+      : paymentRows.reduce(
 
-(sum,row)=>
+        (sum, row) =>
 
-sum + Number(row.amount),
+          sum + Number(row.amount),
 
-0
+        0
 
-);
-const remaining =
-totalReceived >= payable
+      );
+  const remaining =
+    totalReceived >= payable
 
-?
+      ?
 
-0
+      0
 
-:
+      :
 
-payable-totalReceived;
+      payable - totalReceived;
 
-const advance =
-totalReceived > payable
+  const advance =
+    totalReceived > payable
 
-?
+      ?
 
-totalReceived-payable
+      totalReceived - payable
 
-:
+      :
 
-0;
+      0;
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
@@ -299,11 +323,11 @@ totalReceived-payable
 
             <div className="relative">
 
-              <FiSearch className="absolute left-3 top-3 text-gray-400"/>
+              <FiSearch className="absolute left-3 top-3 text-gray-400" />
 
               <input
                 value={search}
-                onChange={(e)=>setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Student..."
                 className="w-full border rounded-lg pl-10 py-3"
               />
@@ -312,7 +336,7 @@ totalReceived-payable
 
             <div className="mt-5 space-y-3">
 
-              {filteredStudents.map((student)=>(
+              {filteredStudents.map((student) => (
                 <div
                   key={student.id}
                   className={`flex justify-between items-center border rounded-lg p-4 cursor-pointer transition-all ${
@@ -339,19 +363,7 @@ totalReceived-payable
                   </div>
 
                   <button
-             onClick={() => {
-
-    setSelectedStudent(student);
-
-    setSelectedFees([]);
-
-    setDiscount(0);
-
-    setLateFee(0);
-
-    setExtraCharge(0);
-
-}}
+                    onClick={() => handleSelectStudent(student)}
                     className="bg-blue-600 text-white px-5 py-2 rounded-lg"
                   >
                     Select
@@ -428,16 +440,16 @@ totalReceived-payable
 
                 </div>
 
-               <button
-onClick={() =>
-navigate(`/admin/fees/fee-account/${selectedStudent.id}`)
-}
-className="border px-4 py-2 rounded-lg hover:bg-blue-50"
->
+                <button
+                  onClick={() =>
+                    navigate(`/admin/fees/fee-account/${selectedStudent.id}`)
+                  }
+                  className="border px-4 py-2 rounded-lg hover:bg-blue-50"
+                >
 
-View Fee Account
+                  View Fee Account
 
-</button>
+                </button>
 
               </div>
 
@@ -498,183 +510,183 @@ View Fee Account
 
             <div className="bg-white rounded-xl shadow border">
 
-             <div className="flex justify-between items-center p-5 border-b">
+              <div className="flex justify-between items-center p-5 border-b">
 
-  <div>
-    <h2 className="font-bold text-lg">
-      Outstanding Fees
-    </h2>
+                <div>
+                  <h2 className="font-bold text-lg">
+                    Outstanding Fees
+                  </h2>
 
-    <p className="text-sm text-gray-500">
-      Select dues to collect.
-    </p>
-  </div>
+                  <p className="text-sm text-gray-500">
+                    Select dues to collect.
+                  </p>
+                </div>
 
-  <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
 
-    {/* Academic Year */}
+                  {/* Academic Year */}
 
-    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
 
-      <span className="text-xs font-semibold text-blue-700 uppercase">
-        Session
-      </span>
+                    <span className="text-xs font-semibold text-blue-700 uppercase">
+                      Session
+                    </span>
 
-      <select
-        className="bg-transparent outline-none font-semibold text-blue-700"
-      >
-        <option>2026-27</option>
-        <option>2025-26</option>
-        <option>2024-25</option>
-      </select>
+                    <select
+                      className="bg-transparent outline-none font-semibold text-blue-700"
+                    >
+                      <option>2026-27</option>
+                      <option>2025-26</option>
+                      <option>2024-25</option>
+                    </select>
 
-    </div>
+                  </div>
 
-    {/* Sort */}
+                  {/* Sort */}
 
-    <select className="border rounded-lg px-3 py-2">
-      <option>Manual Selection</option>
-      <option>Oldest First</option>
-      <option>Current First</option>
-    </select>
+                  <select className="border rounded-lg px-3 py-2">
+                    <option>Manual Selection</option>
+                    <option>Oldest First</option>
+                    <option>Current First</option>
+                  </select>
 
-  </div>
+                </div>
 
-</div>
+              </div>
 
               <table className="w-full">
 
-               <thead className="bg-gray-100">
+                <thead className="bg-gray-100">
 
-<tr>
+                  <tr>
 
-<th className="p-3 text-left w-12"></th>
+                    <th className="p-3 text-left w-12"></th>
 
-<th className="p-3 text-left">
-Due Type
-</th>
+                    <th className="p-3 text-left">
+                      Due Type
+                    </th>
 
 
 
-<th className="p-3 text-left">
-Due Date
-</th>
+                    <th className="p-3 text-left">
+                      Due Date
+                    </th>
 
-<th className="p-3 text-left">
-Due Amount
-</th>
+                    <th className="p-3 text-left">
+                      Due Amount
+                    </th>
 
-</tr>
+                  </tr>
 
-</thead>
-<tbody>
+                </thead>
+                <tbody>
 
-{selectedStudent?.feeHeads.map((fee) => (
+                  {selectedStudent?.feeHeads.map((fee) => (
 
-<tr
-key={fee.id}
-className="border-t hover:bg-gray-50"
->
+                    <tr
+                      key={fee.id}
+                      className="border-t hover:bg-gray-50"
+                    >
 
-<td className="p-4">
+                      <td className="p-4">
 
-<input
+                        <input
 
-type="checkbox"
+                          type="checkbox"
 
-checked={
-selectedFees.some(
-(item)=>item.id===fee.id
-)
-}
+                          checked={
+                            selectedFees.some(
+                              (item) => item.id === fee.id
+                            )
+                          }
 
-onChange={()=>toggleFee(fee)}
+                          onChange={() => toggleFee(fee)}
 
-/>
+                        />
 
-</td>
+                      </td>
 
-<td>
+                      <td>
 
-{fee.head}
+                        {fee.head}
 
-</td>
+                      </td>
 
-<td>
+                      <td>
 
-{fee.dueDate}
+                        {fee.dueDate}
 
-</td>
+                      </td>
 
-<td>
+                      <td>
 
-₹{fee.amount.toLocaleString()}
+                        ₹{fee.amount.toLocaleString()}
 
-</td>
+                      </td>
 
-</tr>
+                    </tr>
 
-))}
+                  ))}
 
-</tbody>
-              
+                </tbody>
+
 
               </table>
 
               <div className="flex gap-3 p-5 border-t">
 
-               
-<button
-onClick={()=>setShowWaiverModal(true)}
-className="border rounded-lg px-4 py-2"
->
 
-Waive Late Fee
+                <button
+                  onClick={() => setShowWaiverModal(true)}
+                  className="border rounded-lg px-4 py-2"
+                >
 
-</button>
+                  Waive Late Fee
 
-             <button
-onClick={()=>setShowChargeModal(true)}
-className="border rounded-lg px-4 py-2"
->
+                </button>
 
-Add Charge
+                <button
+                  onClick={() => setShowChargeModal(true)}
+                  className="border rounded-lg px-4 py-2"
+                >
 
-</button>
+                  Add Charge
 
-               <button
-onClick={()=>{
-if(selectedStudent){
-setSelectedFees(selectedStudent.feeHeads);
-}
-}}
-className="border rounded-lg px-4 py-2"
->
+                </button>
 
-Select All
+                <button
+                  onClick={() => {
+                    if (selectedStudent) {
+                      setSelectedFees(selectedStudent.feeHeads);
+                    }
+                  }}
+                  className="border rounded-lg px-4 py-2"
+                >
 
-</button>
-<button
+                  Select All
 
-onClick={()=>{
+                </button>
+                <button
 
-setSelectedFees([]);
+                  onClick={() => {
 
-setWaiverAmount(0);
+                    setSelectedFees([]);
 
-setExtraCharge(0);
+                    setWaiverAmount(0);
 
-setAmountReceived(0);
+                    setExtraCharge(0);
 
-}}
+                    setAmountReceived(0);
 
-className="border rounded-lg px-4 py-2"
+                  }}
 
->
+                  className="border rounded-lg px-4 py-2"
 
-Clear
+                >
 
-</button>
+                  Clear
+
+                </button>
 
               </div>
 
@@ -690,537 +702,521 @@ Clear
 
       {/* RIGHT PAYMENT PANEL */}
 
-<div className="bg-white rounded-xl shadow border sticky top-5 h-fit">
+      <div className="bg-white rounded-xl shadow border sticky top-5 h-fit">
 
-    <div className="p-5 border-b">
+        <div className="p-5 border-b">
 
-        <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold">
             Payment Summary
-        </h2>
+          </h2>
 
-        <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Review selected dues and collect payment.
-        </p>
+          </p>
 
-    </div>
+        </div>
 
-    <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5">
 
-        {/* Summary */}
+          {/* Summary */}
 
-        <div className="space-y-3">
+          <div className="space-y-3">
 
             <div className="flex justify-between">
 
-                <span>Selected Dues</span>
+              <span>Selected Dues</span>
 
-               <strong>
+              <strong>
 
-₹{selectedAmount}
+                ₹{selectedAmount}
 
-</strong>
+              </strong>
 
             </div>
 
             <div className="flex justify-between">
 
-                <span>Late Fee</span>
+              <span>Late Fee</span>
 
-               <strong>
+              <strong>
 
-₹{effectiveLateFee}
+                ₹{effectiveLateFee}
 
-</strong>
+              </strong>
 
             </div>
 
             <div className="flex justify-between">
 
-                <span>Discount</span>
+              <span>Discount</span>
 
-               <strong>
+              <strong>
 
--₹{discount}
+                -₹{discount}
 
-</strong>
+              </strong>
 
             </div>
 
-<div className="flex justify-between">
+            <div className="flex justify-between">
 
-<span>
+              <span>
 
-Additional Charge
+                Additional Charge
 
-</span>
+              </span>
 
-<strong>
+              <strong>
 
-₹{extraCharge}
+                ₹{extraCharge}
 
-</strong>
+              </strong>
 
-</div>
+            </div>
             <hr />
 
             <div className="flex justify-between text-lg">
 
-                <span className="font-bold">
-                    Amount Payable
-                </span>
+              <span className="font-bold">
+                Amount Payable
+              </span>
 
-               <strong>
+              <strong>
 
-₹{payable}
+                ₹{payable}
 
-</strong>
+              </strong>
 
             </div>
 
-        </div>
+          </div>
 
-        {/* Payment Mode */}
+          {/* Payment Mode */}
 
-        <div>
+          <div>
 
             <label className="font-medium block mb-2">
 
-                Payment Mode
+              Payment Mode
 
             </label>
 
             <div className="grid grid-cols-2 gap-3">
 
-                <button
-onClick={() => setPaymentMode("single")}
-className={`rounded-lg py-2 ${
-paymentMode==="single"
-?"bg-blue-600 text-white"
-:"border"
-}`}
->
+              <button
+                onClick={() => setPaymentMode("single")}
+                className={`rounded-lg py-2 ${paymentMode === "single"
+                    ? "bg-blue-600 text-white"
+                    : "border"
+                  }`}
+              >
 
-Single Payment
+                Single Payment
 
-</button>
+              </button>
 
-<button
-onClick={() => setPaymentMode("split")}
-className={`rounded-lg py-2 ${
-paymentMode==="split"
-?"bg-blue-600 text-white"
-:"border"
-}`}
->
+              <button
+                onClick={() => setPaymentMode("split")}
+                className={`rounded-lg py-2 ${paymentMode === "split"
+                    ? "bg-blue-600 text-white"
+                    : "border"
+                  }`}
+              >
 
-Split Payment
+                Split Payment
 
-</button>
+              </button>
 
             </div>
 
-        </div>
+          </div>
 
-        {/* Payment Method */}
-       {
-paymentMode==="single"
+          {/* Payment Method */}
+          {
+            paymentMode === "single"
 
-?
+              ?
 
-(
-<>
+              (
+                <>
 
-        <div>
-            
+                  <div>
 
-            <label className="block mb-2 font-medium">
 
-                Payment Method
+                    <label className="block mb-2 font-medium">
 
-            </label>
+                      Payment Method
 
-            <select className="w-full border rounded-lg p-3">
+                    </label>
 
-                <option>Cash</option>
+                    <select
+                      value={singleMethod}
+                      onChange={(e) => setSingleMethod(e.target.value)}
+                      className="w-full border rounded-lg p-3"
+                    >
+                      <option>Cash</option>
+                      <option>UPI</option>
+                      <option>Cheque</option>
+                      <option>Bank Transfer</option>
+                      <option>Online Gateway</option>
+                    </select>
+                  </div>
 
-                <option>UPI</option>
+                  {/* Reference */}
+                  <div>
+                    <label className="block mb-2 font-medium">
+                      Transaction Reference
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter UPI / Cheque / Txn ID"
+                      value={refNo}
+                      onChange={(e) => setRefNo(e.target.value)}
+                      className="w-full border rounded-lg p-3"
+                    />
+                  </div>
 
-                <option>Cheque</option>
+                  {/* Amount */}
 
-                <option>Bank Transfer</option>
+                  <div>
 
-                <option>Online Gateway</option>
+                    <label className="block mb-2 font-medium">
 
-            </select>
+                      Amount Received
 
-        </div>
+                    </label>
 
-        {/* Reference */}
+                    <input
+                      type="number"
+                      value={amountReceived}
+                      onChange={(e) => setAmountReceived(Number(e.target.value))}
+                      className="w-full border rounded-lg p-3"
+                    />
 
-        <div>
+                  </div>
+                </>
+              )
 
-            <label className="block mb-2 font-medium">
+              :
 
-                Transaction Reference
+              (
+                <>
 
-            </label>
 
-            <input
+                  {
+                    paymentRows.map((row) => (
 
-                type="text"
+                      <div
+                        key={row.id}
+                        className="flex gap-3 mb-3"
+                      >
 
-                placeholder="Enter UPI / Cheque / Txn ID"
+                        <select
 
-                className="w-full border rounded-lg p-3"
+                          value={row.method}
 
-            />
+                          onChange={(e) => {
 
-        </div>
+                            setPaymentRows(
 
-        {/* Amount */}
+                              paymentRows.map((item) =>
 
-        <div>
+                                item.id === row.id
 
-            <label className="block mb-2 font-medium">
+                                  ?
 
-                Amount Received
+                                  { ...item, method: e.target.value }
 
-            </label>
+                                  :
 
-           <input
-type="number"
-value={amountReceived}
-onChange={(e)=>setAmountReceived(Number(e.target.value))}
-className="w-full border rounded-lg p-3"
-/>
+                                  item
 
-        </div>
-        </>
-)
+                              )
 
-:
+                            )
 
-(
-<>
+                          }}
 
+                          className="w-40 border rounded-lg p-3"
+                        >
 
-{
-paymentRows.map((row)=>(
+                          <option>Cash</option>
+                          <option>UPI</option>
+                          <option>Cheque</option>
+                          <option>Card</option>
 
-<div
-key={row.id}
-className="flex gap-3 mb-3"
->
+                        </select>
 
-<select
+                        <input
 
-value={row.method}
+                          type="number"
 
-onChange={(e)=>{
+                          value={row.amount}
 
-setPaymentRows(
+                          onChange={(e) => {
 
-paymentRows.map((item)=>
+                            setPaymentRows(
 
-item.id===row.id
+                              paymentRows.map((item) =>
 
-?
+                                item.id === row.id
 
-{...item,method:e.target.value}
+                                  ?
 
-:
+                                  { ...item, amount: Number(e.target.value) }
 
-item
+                                  :
 
-)
+                                  item
 
-)
+                              )
 
-}}
+                            )
 
-className="w-40 border rounded-lg p-3"
->
+                          }}
 
-<option>Cash</option>
-<option>UPI</option>
-<option>Cheque</option>
-<option>Card</option>
+                          className="flex-1 border rounded-lg p-3"
 
-</select>
+                        />
 
-<input
+                        <button
 
-type="number"
+                          onClick={() => removePayment(row.id)}
 
-value={row.amount}
+                          className="border px-3 rounded-lg"
 
-onChange={(e)=>{
+                        >
 
-setPaymentRows(
+                          ×
 
-paymentRows.map((item)=>
+                        </button>
 
-item.id===row.id
+                      </div>
 
-?
+                    ))
+                  }
 
-{...item,amount:Number(e.target.value)}
+                  <button
 
-:
+                    onClick={addPaymentRow}
 
-item
+                    className="w-full border rounded-lg py-3"
 
-)
+                  >
 
-)
+                    Add Payment Method
 
-}}
+                  </button>
 
-className="flex-1 border rounded-lg p-3"
+                </>
+              )
+          }
 
-/>
+          {/* Remaining */}
 
-<button
-
-onClick={()=>removePayment(row.id)}
-
-className="border px-3 rounded-lg"
-
->
-
-×
-
-</button>
-
-</div>
-
-))
-}
-
-<button
-
-onClick={addPaymentRow}
-
-className="w-full border rounded-lg py-3"
-
->
-
-Add Payment Method
-
-</button>
-
-</>
-)
-}
-
-        {/* Remaining */}
-
-        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
 
             <div className="flex justify-between">
 
-                <span>Total Received</span>
+              <span>Total Received</span>
 
-               <strong>
+              <strong>
 
-₹{totalReceived}
+                ₹{totalReceived}
 
-</strong>
+              </strong>
 
             </div>
 
             <div className="flex justify-between">
 
-                <span>Remaining</span>
+              <span>Remaining</span>
 
-                <strong
-className={
-remaining>0
-?
-"text-red-600"
-:
-"text-green-600"
-}
->
+              <strong
+                className={
+                  remaining > 0
+                    ?
+                    "text-red-600"
+                    :
+                    "text-green-600"
+                }
+              >
 
-₹{remaining}
+                ₹{remaining}
 
-</strong>
+              </strong>
 
             </div>
 
             <div className="flex justify-between">
 
-                <span>Advance</span>
+              <span>Advance</span>
 
-                <strong className="text-green-600">
+              <strong className="text-green-600">
 
-₹{Math.max(0,totalReceived-payable)}
+                ₹{Math.max(0, totalReceived - payable)}
 
-</strong>
+              </strong>
 
             </div>
 
-        </div>
+          </div>
 
-        {/* Remarks */}
+          {/* Remarks */}
 
-        <div>
+          <div>
 
             <label className="block mb-2 font-medium">
 
-                Remarks
+              Remarks
 
             </label>
 
             <textarea
-
-                rows="4"
-
-                placeholder="Optional remarks..."
-
-                className="w-full border rounded-lg p-3"
-
+              rows="4"
+              placeholder="Optional remarks..."
+              value={remarkText}
+              onChange={(e) => setRemarkText(e.target.value)}
+              className="w-full border rounded-lg p-3"
             />
+          </div>
 
-        </div>
-
-        {/* Buttons */}
-
-        <div className="space-y-3">
-
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold">
-
-                Review Payment
-
+          {/* Buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={handleRecordPayment}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold"
+            >
+              Review Payment
             </button>
 
             <button className="w-full border py-3 rounded-lg">
 
-                Save as Draft
+              Save as Draft
 
             </button>
 
+          </div>
+
         </div>
 
-    </div>
+      </div>
 
-</div>
 
-    
-{
-showWaiverModal && (
+      {
+        showWaiverModal && (
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 
-<div className="bg-white rounded-xl w-[600px] p-6">
+            <div className="bg-white rounded-xl w-[600px] p-6">
 
-<h2 className="text-2xl font-bold mb-5">
+              <h2 className="text-2xl font-bold mb-5">
 
-Waive Late Fee
+                Waive Late Fee
 
-</h2>
+              </h2>
 
-<label>
+              <label>
 
-Waiver Amount
+                Waiver Amount
 
-</label>
+              </label>
 
-<input
+              <input
 
-type="number"
+                type="number"
 
-value={waiverAmount}
+                value={waiverAmount}
 
-onChange={(e)=>setWaiverAmount(Number(e.target.value))}
+                onChange={(e) => setWaiverAmount(Number(e.target.value))}
 
-className="w-full border rounded-lg p-3 mt-2"
+                className="w-full border rounded-lg p-3 mt-2"
 
-/>
+              />
 
-<label className="block mt-5">
+              <label className="block mt-5">
 
-Reason
+                Reason
 
-</label>
+              </label>
 
-<textarea
+              <textarea
 
-value={waiverReason}
+                value={waiverReason}
 
-onChange={(e)=>setWaiverReason(e.target.value)}
+                onChange={(e) => setWaiverReason(e.target.value)}
 
-className="w-full border rounded-lg p-3 mt-2"
+                className="w-full border rounded-lg p-3 mt-2"
 
-/>
+              />
 
-<div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end gap-3 mt-6">
 
-<button
+                <button
 
-onClick={()=>setShowWaiverModal(false)}
+                  onClick={() => setShowWaiverModal(false)}
 
->
+                >
 
-Cancel
+                  Cancel
 
-</button>
+                </button>
 
-<button
+                <button
 
-onClick={() => {
+                  onClick={() => {
 
-    if (waiverAmount > totalLateFee) {
+                    if (waiverAmount > totalLateFee) {
 
-        alert("Waiver cannot be greater than Late Fee");
+                      alert("Waiver cannot be greater than Late Fee");
 
-        return;
-    }
+                      return;
+                    }
 
-    setShowWaiverModal(false);
+                    setShowWaiverModal(false);
 
-}}
-className="bg-blue-600 text-white px-5 py-2 rounded-lg"
+                  }}
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg"
 
->
+                >
 
-Apply
+                  Apply
 
-</button>
+                </button>
 
-</div>
+              </div>
 
-</div>
+            </div>
 
-</div>
+          </div>
 
-)
-}
+        )
+      }
 
-{
-showChargeModal && (
+      {
+        showChargeModal && (
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 
-<div className="bg-white rounded-xl w-[650px] p-6">
+            <div className="bg-white rounded-xl w-[650px] p-6">
 
-<h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold">
 
-Add Charge
+                Add Charge
 
-</h2>
+              </h2>
 
-<div className="grid grid-cols-2 gap-5 mt-5">
+              <div className="grid grid-cols-2 gap-5 mt-5">
 
-<div>
+                <div>
 
-<label>
+                  <label>
 
-Charge Name
+                    Charge Name
 
-</label>
+                  </label>
 
+<<<<<<< HEAD
 <select
   value={chargeName}
   onChange={(e) => setChargeName(e.target.value)}
@@ -1243,65 +1239,77 @@ Charge Name
     className="w-full border rounded-lg p-3 mt-3"
   />
 )}
+=======
+                  <input
 
-</div>
+                    value={chargeName}
 
-<div>
+                    onChange={(e) => setChargeName(e.target.value)}
 
-<label>
+                    className="w-full border rounded-lg p-3"
 
-Amount
+                  />
+>>>>>>> f1bfd88 (done)
 
-</label>
+                </div>
 
-<input
+                <div>
 
-type="number"
+                  <label>
 
-value={chargeAmount}
+                    Amount
 
-onChange={(e)=>setChargeAmount(Number(e.target.value))}
+                  </label>
 
-className="w-full border rounded-lg p-3"
+                  <input
 
-/>
+                    type="number"
 
-</div>
+                    value={chargeAmount}
 
-</div>
+                    onChange={(e) => setChargeAmount(Number(e.target.value))}
 
-<label className="block mt-5">
+                    className="w-full border rounded-lg p-3"
 
-Reason
+                  />
 
-</label>
+                </div>
 
-<textarea
+              </div>
 
-value={chargeReason}
+              <label className="block mt-5">
 
-onChange={(e)=>setChargeReason(e.target.value)}
+                Reason
 
-className="w-full border rounded-lg p-3 mt-2"
+              </label>
 
-/>
+              <textarea
 
-<div className="flex justify-end gap-3 mt-6">
+                value={chargeReason}
 
-<button
+                onChange={(e) => setChargeReason(e.target.value)}
 
-onClick={()=>setShowChargeModal(false)}
+                className="w-full border rounded-lg p-3 mt-2"
 
->
+              />
 
-Cancel
+              <div className="flex justify-end gap-3 mt-6">
 
-</button>
+                <button
 
-<button
+                  onClick={() => setShowChargeModal(false)}
 
-onClick={()=>{
+                >
 
+                  Cancel
+
+                </button>
+
+                <button
+
+                  onClick={() => {
+
+<<<<<<< HEAD
 const finalChargeName =
   chargeName === "Other" ? customChargeName : chargeName;
 
@@ -1316,23 +1324,30 @@ setChargeAmount(0);
 setChargeReason("");
 
 }}
+=======
+                    setExtraCharge(chargeAmount);
 
-className="bg-blue-600 text-white px-5 py-2 rounded-lg"
+                    setShowChargeModal(false);
 
->
+                  }}
+>>>>>>> f1bfd88 (done)
 
-Apply
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg"
 
-</button>
+                >
 
-</div>
+                  Apply
 
-</div>
+                </button>
 
-</div>
+              </div>
 
-)
-}
+            </div>
+
+          </div>
+
+        )
+      }
     </div>
   );
 }
