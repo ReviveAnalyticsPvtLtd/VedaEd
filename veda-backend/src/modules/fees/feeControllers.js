@@ -183,28 +183,6 @@ exports.toggleFeeCategory = async (req, res) => {
     res.status(500).json({ message: "Error toggling fee category", error });
   }
 };
-// Helper to resolve grade fee document by exact name or mapped counterpart (e.g. Class 6 <-> Grade 6)
-async function findGradeFee(year, gradeName) {
-  if (!gradeName) return null;
-  let gf = await GradeFee.findOne({ year, grade: gradeName });
-  if (gf) return gf;
-
-  // Try mapping "Class X" to "Grade X"
-  if (gradeName.startsWith("Class ")) {
-    const alternativeName = gradeName.replace("Class ", "Grade ");
-    gf = await GradeFee.findOne({ year, grade: alternativeName });
-    if (gf) return gf;
-  }
-  // Try mapping "Grade X" to "Class X"
-  if (gradeName.startsWith("Grade ")) {
-    const alternativeName = gradeName.replace("Grade ", "Class ");
-    gf = await GradeFee.findOne({ year, grade: alternativeName });
-    if (gf) return gf;
-  }
-
-  return null;
-}
-
 // --- Grade Fee Controllers ---
 
 exports.getGradeFees = async (req, res) => {
@@ -469,7 +447,7 @@ exports.toggleFineStatus = async (req, res) => {
 
 async function calculateStudentFees(student, year) {
   const gName = student.personalInfo.class?.name || (student.personalInfo.class && student.personalInfo.class.name);
-  const gf = await findGradeFee(year, gName);
+  const gf = await GradeFee.findOne({ year, grade: gName });
   const transactions = await FeeTransaction.find({ studentId: student._id, year, status: 'Paid' });
   const discountRules = await DiscountRule.find({ year, active: true });
   const lateFeePolicies = await LateFeePolicy.find({ year });
@@ -787,7 +765,7 @@ async function initializeLedgerDebits(studentId, year) {
   if (!student) return;
 
   const gName = student.personalInfo.class?.name;
-  const gf = await findGradeFee(year, gName);
+  const gf = await GradeFee.findOne({ year, grade: gName });
   const allCategories = await FeeCategory.find({ year, active: true });
 
   let transportFee = 0;
@@ -897,7 +875,7 @@ exports.getStudentFeeProfile = async (req, res) => {
 
     // Calculate Fees structure
     const gName = student.personalInfo.class?.name;
-    const gf = await findGradeFee(year, gName);
+    const gf = await GradeFee.findOne({ year, grade: gName });
     const transactions = await FeeTransaction.find({ studentId: id, year });
     const discountRules = await DiscountRule.find({ year, active: true });
     const lateFeePolicies = await LateFeePolicy.find({ year });
@@ -990,7 +968,7 @@ exports.getStudentFeeProfile = async (req, res) => {
         const applicableDiscounts = discountRules.filter(d => {
           const matchesCat = d.categories.length === 0 || d.categories.includes(category);
           const matchesGrade = d.grades.length === 0 || d.grades.includes(gName);
-          
+
           let matchesBasis = true;
           if (d.basis === "EWS / RTE" && !isRTE) matchesBasis = false;
           if (d.name?.toLowerCase().includes("sibling") && !hasSibling) matchesBasis = false;
@@ -1045,7 +1023,7 @@ exports.getStudentFeeProfile = async (req, res) => {
           const sliceBalance = Math.max(0, sliceNetPayable - slicePaid);
           const sliceDueDate = new Date(academicYearStart);
           sliceDueDate.setDate(sliceDueDate.getDate() + Number(slice.days || 0));
-          
+
           let sliceStatus = "Unpaid";
           if (sliceBalance <= 0) sliceStatus = "Paid";
           else if (slicePaid > 0) sliceStatus = "Partially Paid";
@@ -1244,9 +1222,9 @@ exports.recordFeePayment = async (req, res) => {
     const student = await Student.findById(studentId);
     if (student) {
       const clsName = student.personalInfo.class ? (await mongoose.model('Class').findById(student.personalInfo.class))?.name : "";
-      const gf = await findGradeFee(year, clsName);
+      const gf = await GradeFee.findOne({ year, grade: clsName });
       const transactions = await FeeTransaction.find({ studentId, year, status: 'Paid' });
-      
+
       let totalExpected = 0;
       if (gf && gf.fees) {
         for (let [cat, amt] of gf.fees) {
@@ -1323,7 +1301,7 @@ exports.updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     if (!['Paid', 'Cancelled', 'Pending'].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -1494,7 +1472,7 @@ exports.getMonthlyCollectionReport = async (req, res) => {
     });
 
     const totalCollected = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
-    
+
     // Group by day of month
     const dailyMap = {};
     transactions.forEach(t => {
