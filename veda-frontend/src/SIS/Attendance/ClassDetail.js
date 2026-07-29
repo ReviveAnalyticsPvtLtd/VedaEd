@@ -9,75 +9,130 @@ export default function ClassDetail() {
   const query = new URLSearchParams(location.search);
   const selectedClassName = query.get("class") || "";
   const selectedSectionName = query.get("section") || "";
+  const initialDate = query.get("date") || new Date().toISOString().substring(0, 10);
+
+  const [sectionId, setSectionId] = useState(query.get("sectionId") || "");
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [students, setStudents] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [loading, setLoading] = useState(false);
 
-  // Fetch students from backend by classId
+  // Resolve sectionId if missing from query parameters
   useEffect(() => {
-    const fetchStudents = async () => {
+    if (!sectionId && selectedSectionName) {
+      const resolveSectionId = async () => {
+        try {
+          const res = await authFetch(`/classes`);
+          if (res.ok) {
+            const payload = await res.json();
+            const list = Array.isArray(payload?.data) ? payload.data : [];
+            const clsData = list.find((c) => c._id === id);
+            if (clsData && Array.isArray(clsData.sections)) {
+              const sec = clsData.sections.find(
+                (s) => String(s.name || s).toLowerCase() === selectedSectionName.toLowerCase()
+              );
+              if (sec) {
+                setSectionId(sec._id);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error resolving sectionId:", err);
+        }
+      };
+      resolveSectionId();
+    }
+  }, [sectionId, selectedSectionName, id]);
+
+  // Fetch students and merge with attendance records for the selected date
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        // Backend doesn't have /api/classes/:id/students route in snapshot.
-        // Fallback: fetch all students then filter by class name/id if available.
-        const response = await authFetch(`/students`);
-        if (!response.ok) return;
-        const payload = await response.json();
-        const list = Array.isArray(payload?.students) ? payload.students : [];
-        const mapped = list
-          .filter((s) => {
-            const className = String(s?.personalInfo?.class || "").toLowerCase();
-            const sectionName = String(s?.personalInfo?.section || "").toLowerCase();
-            const classMatch = selectedClassName
-              ? className === String(selectedClassName).toLowerCase()
-              : className.includes(String(id).toLowerCase());
-            const sectionMatch = selectedSectionName
-              ? sectionName === String(selectedSectionName).toLowerCase()
-              : true;
-            return classMatch && sectionMatch;
-          })
-          .map((s) => ({
+        // 1. Fetch students for this class/section
+        const studentsResponse = await authFetch(`/students`);
+        if (!studentsResponse.ok) return;
+        const studentsPayload = await studentsResponse.json();
+        const studentList = Array.isArray(studentsPayload?.students) ? studentsPayload.students : [];
+        const filteredStudents = studentList.filter((s) => {
+          const className = String(s?.personalInfo?.class || "").toLowerCase();
+          const sectionName = String(s?.personalInfo?.section || "").toLowerCase();
+          const classMatch = selectedClassName
+            ? className === String(selectedClassName).toLowerCase()
+            : className.includes(String(id).toLowerCase());
+          const sectionMatch = selectedSectionName
+            ? sectionName === String(selectedSectionName).toLowerCase()
+            : true;
+          return classMatch && sectionMatch;
+        });
+
+        // 2. Fetch existing daily attendance records if sectionId is resolved
+        let attendanceRecords = [];
+        if (sectionId && selectedDate) {
+          try {
+            const attResponse = await authFetch(`/attendance/class/${id}/${sectionId}/${selectedDate}`);
+            if (attResponse.ok) {
+              const attPayload = await attResponse.json();
+              attendanceRecords = Array.isArray(attPayload?.data) ? attPayload.data : [];
+            }
+          } catch (err) {
+            console.error("Error fetching class attendance:", err);
+          }
+        }
+
+        // 3. Map students and default status/time if no attendance was saved
+        const mapped = filteredStudents.map((s) => {
+          const record = attendanceRecords.find(
+            (r) => String(r.student?._id || r.student) === String(s._id)
+          );
+          return {
             id: s._id,
             name: s?.personalInfo?.name || "",
             roll: s?.personalInfo?.rollNo || s?.personalInfo?.rollno || "",
-            status: "Absent",
-            time: "--",
-          }));
+            status: record ? record.status : "Absent",
+            time: record ? (record.time || "--") : "--",
+          };
+        });
+
         setStudents(mapped);
       } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error("Error loading daily attendance roster:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchStudents();
-  }, [id]);
+    fetchData();
+  }, [id, sectionId, selectedDate, selectedClassName, selectedSectionName]);
 
   const handleAttendanceChange = async (studentId, newStatus) => {
     const updatedStudents = students.map((s) =>
       s.id === studentId
         ? {
-          ...s,
-          status: newStatus,
-          time:
-            newStatus === "Present" || newStatus === "Late"
-              ? new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-              : "--",
-        }
+            ...s,
+            status: newStatus,
+            time:
+              newStatus === "Present" || newStatus === "Late"
+                ? new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--",
+          }
         : s
     );
     setStudents(updatedStudents);
 
-    // Send update to backend
+    // Immediate update for student's attendance on selected date
     try {
-      const date = new Date().toISOString();
+      const formattedDate = new Date(selectedDate).toISOString();
       await authFetch(`/attendance/student/${studentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, date }),
+        body: JSON.stringify({ status: newStatus, date: formattedDate }),
       });
     } catch (error) {
-      console.error("Error updating attendance:", error);
+      console.error("Error updating student attendance:", error);
     }
   };
 
@@ -111,6 +166,41 @@ export default function ClassDetail() {
     link.click();
   };
 
+  const handleSaveAttendance = async () => {
+    if (!sectionId) {
+      alert("Cannot save attendance: section ID is missing.");
+      return;
+    }
+    try {
+      const records = students.map((s) => ({
+        studentId: s.id,
+        status: s.status,
+        time: s.time,
+      }));
+
+      const res = await authFetch(`/attendance/class`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: id,
+          sectionId,
+          date: selectedDate,
+          records,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Attendance saved successfully!");
+      } else {
+        const errorData = await res.json();
+        alert(`Failed to save attendance: ${errorData.message || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Error saving class attendance:", err);
+      alert("Error saving attendance to backend.");
+    }
+  };
+
   return (
     <div className="p-0">
       <nav className="text-sm text-gray-500 mb-4">
@@ -125,9 +215,20 @@ export default function ClassDetail() {
   {selectedClassName} {selectedSectionName}
 </span>
       </nav>
-      <h1 className="text-2xl font-bold text-gray-700 mb-4">
- {selectedClassName} {selectedSectionName} - Attendance
-</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+        <h1 className="text-2xl font-bold text-gray-700">
+          {selectedClassName} {selectedSectionName} - Attendance
+        </h1>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-600">Select Date:</span>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          />
+        </div>
+      </div>
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -193,7 +294,7 @@ export default function ClassDetail() {
                   <select
                     value={s.status}
                     onChange={(e) => handleAttendanceChange(s.id, e.target.value)}
-                    className="border rounded px-2 py-1"
+                    className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                   >
                     <option>Present</option>
                     <option>Absent</option>
@@ -209,14 +310,14 @@ export default function ClassDetail() {
       {/* Buttons */}
       <div className="mt-6 flex gap-4">
         <button
-          onClick={() => alert("Attendance saved!")}
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+          onClick={handleSaveAttendance}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg shadow-sm hover:shadow transition duration-150 ease-in-out"
         >
           Save Attendance
         </button>
         <button
           onClick={handleExport}
-          className="bg-gray-200 px-4 py-2 rounded shadow hover:bg-gray-300"
+          className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold text-sm rounded-lg shadow-sm transition duration-150 ease-in-out"
         >
           Export Report
         </button>

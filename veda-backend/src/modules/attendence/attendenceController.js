@@ -342,3 +342,32 @@ exports.getRecentAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Get attendance by date for all students
+exports.getAttendanceByDate = async (req, res) => {
+  try {
+    const { date } = req.params;
+    if (!date) {
+      return res.status(400).json({ success: false, message: "Date is required" });
+    }
+
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const records = await Attendance.find({
+      date: { $gte: startOfDay, $lte: endOfDay }
+    }).populate("student", "personalInfo.name personalInfo.rollNo")
+      .populate("class", "name")
+      .populate("section", "name");
+
+    res.status(200).json({
+      success: true,
+      data: records
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
