@@ -9,6 +9,7 @@ export default function ByClass() {
   const [rawClassesData, setRawClassesData] = useState([]);
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().substring(0, 10));
 
   // Fetch classes from backend
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function ByClass() {
           }
           return sections.map((sec) => ({
             id: c._id,
+            sectionId: sec?._id || "",
             name: `${className} - ${sec?.name || ""}`.trim(),
             homeroom: c?.homeroom || "",
             className,
@@ -132,7 +134,8 @@ export default function ByClass() {
           <div className="flex flex-col">
             <input
               type="date"
-              placeholder="Search Date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full border px-3 py-2 rounded-md "
             />
           </div>
@@ -151,6 +154,8 @@ export default function ByClass() {
                   const params = new URLSearchParams({
                     section: cls.sectionName || "",
                     class: cls.className || "",
+                    sectionId: cls.sectionId || "",
+                    date: selectedDate,
                   });
                   navigate(`${cls.id}?${params.toString()}`);
                 }}

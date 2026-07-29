@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../services/apiClient";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import config from "../../config";
 
@@ -28,18 +28,36 @@ function StudentDetail() {
   const [filterDate, setFilterDate] = useState("");
 
   useEffect(() => {
-    // API call to fetch student detail
-    axios
-      .get(`${config.API_BASE_URL}/students/${id}/attendance`)
-      .then((res) => {
-        if (res.data) {
-          setStudent(res.data); // Replace fallback with backend data
+    const fetchStudentData = async () => {
+      try {
+        const studentRes = await api.get(`/students/${id}`);
+        const studentInfo = studentRes.data.student;
+        
+        let records = [];
+        try {
+          const attendanceRes = await api.get(`/attendance/student/${id}`);
+          if (attendanceRes.data && attendanceRes.data.success) {
+            records = attendanceRes.data.data.map(r => ({
+              date: r.date ? new Date(r.date).toISOString().substring(0, 10) : "",
+              status: r.status
+            }));
+          }
+        } catch (err) {
+          console.log("No attendance records found or error fetching them:", err.message);
         }
-      })
-      .catch((err) => {
-        console.error("Error fetching student attendance:", err);
-        // Keep fallback data if API fails
-      });
+
+        setStudent({
+          id: studentInfo._id,
+          name: studentInfo.personalInfo?.name || "Unnamed",
+          grade: `${studentInfo.personalInfo?.class || ""} - ${studentInfo.personalInfo?.section || ""}`.trim(),
+          attendanceRecords: records
+        });
+      } catch (err) {
+        console.error("Error fetching student details:", err);
+      }
+    };
+
+    fetchStudentData();
   }, [id]);
 
   const filteredRecords = filterDate
@@ -55,7 +73,7 @@ function StudentDetail() {
     <div className="p-0 space-y-6">
       <div className="text-sm text-gray-500 mb-2">
         <span
-          onClick={() => navigate("/sis/attendance")}
+          onClick={() => navigate("/admin/attendance")}
           className="cursor-pointer hover:underline"
         >
           Attendance
@@ -68,7 +86,7 @@ function StudentDetail() {
         </h2>
         <button
           onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold text-sm rounded-lg shadow-sm transition duration-150 ease-in-out"
         >
           ← Back
         </button>

@@ -12,6 +12,7 @@ router.get("/weekly", authMiddleware, attendanceControllers.getWeeklyStats);
 router.post("/class", authMiddleware, attendanceControllers.markClassAttendance); 
 router.get("/class/:classId/:sectionId/:date", authMiddleware, attendanceControllers.getAttendanceByClass); 
 // By Student
+router.get("/date/:date", authMiddleware, attendanceControllers.getAttendanceByDate);
 router.put("/student/:studentId", authMiddleware, attendanceControllers.updateAttendanceByStudent); 
 router.get("/student/:studentId", authMiddleware, attendanceControllers.getAttendanceByStudent); 
 

@@ -1,40 +1,53 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/apiClient";
 
 export default function ByStudent() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const statusFilter = queryParams.get("status") || "";
+
   const [students, setStudents] = useState([]);
-
   const [search, setSearch] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().substring(0, 10));
   const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 10;
+  const itemsPerPage = 10;
 
-
-  // Fetch all students from backend
+  // Fetch all students and daily attendance from backend
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchStudentsAndAttendance = async () => {
       try {
-        const res = await api.get("/students");
-        const list = Array.isArray(res.data?.students) ? res.data.students : [];
-        const mapped = list.map((s) => ({
-          id: s._id,
-          name: s?.personalInfo?.name || "",
-          grade: `${s?.personalInfo?.class || ""} - ${
-            s?.personalInfo?.section || ""
-          }`.trim(),
-          status: "Absent",
-          time: "--",
-        }));
+        const [studentsRes, attendanceRes] = await Promise.all([
+          api.get("/students"),
+          api.get(`/attendance/date/${date}`),
+        ]);
+
+        const studentList = Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : [];
+        const attendanceRecords = Array.isArray(attendanceRes.data?.data) ? attendanceRes.data.data : [];
+
+        const mapped = studentList.map((s) => {
+          const att = attendanceRecords.find((r) => String(r.student?._id || r.student) === String(s._id));
+          return {
+            id: s._id,
+            name: s?.personalInfo?.name || "",
+            grade: `${s?.personalInfo?.class || ""} - ${
+              s?.personalInfo?.section || ""
+            }`.trim(),
+            status: att ? att.status : "Absent",
+            time: att ? (att.time || "--") : "--",
+          };
+        });
         setStudents(mapped);
       } catch (err) {
-        console.error("Error fetching students:", err);
+        console.error("Error fetching students/attendance:", err);
       }
     };
 
-    fetchStudents();
-  }, []);
+    if (date) {
+      fetchStudentsAndAttendance();
+    }
+  }, [date]);
 
   const markAttendance = async (id, newStatus) => {
     const updated = students.map((s) =>
@@ -79,11 +92,12 @@ const itemsPerPage = 10;
     a.download = `student-attendance-${date || "report"}.csv`;
     a.click();
   };
-const filtered = students.filter(
-  (s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.grade.toLowerCase().includes(search.toLowerCase())
-);
+const filtered = students.filter((s) => {
+  const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
+                        s.grade.toLowerCase().includes(search.toLowerCase());
+  const matchesStatus = statusFilter ? s.status.toLowerCase() === statusFilter.toLowerCase() : true;
+  return matchesSearch && matchesStatus;
+});
 const indexOfLast = currentPage * itemsPerPage;
 const indexOfFirst = indexOfLast - itemsPerPage;
 const currentStudents = filtered.slice(indexOfFirst, indexOfLast);
@@ -95,7 +109,7 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
       <div className="bg-white p-3 rounded-lg shadow-sm border mb-4">
         <h2 className="text-lg font-semibold mb-4">Attendance by Student</h2>
 
-        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
+        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4 gap-2">
           <input
             type="text"
             placeholder="Search by name or grade..."
@@ -109,9 +123,20 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
             onChange={(e) => setDate(e.target.value)}
             className="border px-3 py-2 rounded-md  w-full md:w-1/4"
           />
+          {statusFilter && (
+            <div className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm">
+              <span>Status: {statusFilter}</span>
+              <button
+                onClick={() => navigate("/admin/attendance/by-student")}
+                className="hover:text-blue-900 font-bold ml-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <button
             onClick={exportReport}
-            className="ml-auto mt-3 md:mt-0 bg-blue-600 text-white px-4 py-2 rounded-md  shadow hover:bg-blue-700 transition"
+            className="ml-auto mt-3 md:mt-0 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition duration-150 ease-in-out"
           >
             Export Report
           </button>
@@ -151,19 +176,19 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
                   <td className="p-2 border text-left space-x-2">
                     <button
                       onClick={() => markAttendance(student.id, "Present")}
-                      className="bg-green-500 text-white px-2 py-1 rounded-md  hover:bg-green-600"
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition duration-150 ease-in-out"
                     >
                       Present
                     </button>
                     <button
                       onClick={() => markAttendance(student.id, "Absent")}
-                      className="bg-red-500 text-white px-2 py-1 rounded-md  hover:bg-red-600"
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition duration-150 ease-in-out"
                     >
                       Absent
                     </button>
                     <button
                       onClick={() => markAttendance(student.id, "Late")}
-                      className="bg-orange-500 text-white px-2 py-1 rounded-md  hover:bg-orange-600"
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition duration-150 ease-in-out"
                     >
                       Late
                     </button>
@@ -171,7 +196,7 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
                       onClick={() =>
                         navigate(`/admin/attendance/by-student/${student.id}`)
                       }
-                      className="text-blue-600 hover:text-blue-800 "
+                      className="text-blue-600 hover:text-blue-800 font-medium text-xs hover:underline ml-2"
                     >
                       View Details
                     </button>
