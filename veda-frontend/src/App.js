@@ -668,8 +668,12 @@ function App() {
       {/* ================= SUPER ADMIN (protected) ================= */}
       <Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
         <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
-          <Route index element={<SuperAdminFrontPage />} />
-          <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+    <Route
+        index
+        element={<Navigate to="dashboard" replace />}
+    />
+    <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+</Route>
           <Route
             path="identity-access"
             element={<Navigate to="/superadmin-front/identity-access/admins" replace />}
@@ -681,11 +685,7 @@ function App() {
           <Route path="identity-access/admins/:id" element={<IdentityAccessViewAdmin />} />
         </Route>
 
-        <Route path="/superadmin" element={<SuperAdminDashboardLayout />}>
-  <Route index element={<Navigate to="dashboard" />} />
-  <Route path="dashboard" element={<SuperAdminDashboard />} />
-  <Route path="settings/profile" element={<SuperAdminProfile />} />
-</Route>
+       
   {/* ===== SIS ===== */}
       <Route path="/superadmin/sis" element={<SuperAdminSISDashboardLayout />}>
         <Route index element={<SuperAdminSISDashboard />} />
@@ -872,7 +872,7 @@ function App() {
         <Route path="event-setup" element={<SuperAdminCalendarEventSetup />} />
         <Route path="year-setup" element={<SuperAdminCalendarYearSetup />} />
       </Route>
-      </Route>
+      
 
 <Route
   path="/parent-calendar"

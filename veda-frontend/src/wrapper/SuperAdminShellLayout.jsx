@@ -28,9 +28,11 @@ export default function SuperAdminShellLayout() {
       {/* MAIN CONTENT */}
       <div
         className="flex-1 pt-16 overflow-y-auto transition-all"
-        style={{ marginLeft: "var(--sidebar-width, 256px)" }}
+       
       >
+         <div className="p-3">
         <Outlet />
+        </div>
       </div>
 
     </div>

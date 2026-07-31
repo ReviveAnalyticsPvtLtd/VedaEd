@@ -1,93 +1,34 @@
-import { useNavigate } from "react-router-dom";
-import {
-  FiUsers,
-  FiMessageCircle,
-  FiCalendar,
-  FiBriefcase,
-  FiTruck,
-  FiDollarSign,
-  FiClipboard,
-  FiArrowLeft,
-} from "react-icons/fi";
-
-const MODULES = [
-  {
-    name: "SIS",
-    path: "/superadmin/sis/dashboard",
-    icon: <FiUsers />,
-  },
-  {
-    name: "HR",
-    path: "/superadmin/hr/dashboard",
-    icon: <FiBriefcase />,
-  },
-  {
-    name: "Fees",
-    path: "/superadmin/fees/dashboard",
-    icon: <FiDollarSign />,
-  },
-  {
-    name: "Transport",
-    path: "/superadmin/transport/dashboard",
-    icon: <FiTruck />,
-  },
-  {
-    name: "Fleet",
-    path: "/superadmin/fleet/dashboard",
-    icon: <FiTruck />,
-  },
-  {
-    name: "Admission",
-    path: "/superadmin/admission/dashboard",
-    icon: <FiClipboard />,
-  },
-  {
-    name: "Communication",
-    path: "/superadmin/communication/dashboard",
-    icon: <FiMessageCircle />,
-  },
-  {
-    name: "Calendar",
-    path: "/superadmin/calendar/annual",
-    icon: <FiCalendar />,
-  },
-];
+import { Outlet } from "react-router-dom";
+import Navbar from "../SIS/Navbar";
+import SuperAdminSidebar from "./SuperAdminSidebar";
+import { useState } from "react";
 
 export default function SuperAdminFrontPage() {
-  const navigate = useNavigate();
-
-  const logout = () => {
-    localStorage.removeItem("veda_role");
-    navigate("/");
-  };
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8 relative">
-      {/* LOGOUT */}
-      <button
-        onClick={logout}
-        className="absolute top-6 left-6 bg-white px-4 py-2 rounded shadow flex gap-2 items-center"
-      >
-        <FiArrowLeft /> Logout
-      </button>
+    <div className="flex w-full h-screen bg-gray-100 overflow-hidden">
+      {/* FIXED NAVBAR */}
+      <div className="fixed top-0 left-0 w-full h-16 bg-white border-b z-30">
+        <Navbar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+      </div>
 
-      <h1 className="text-3xl font-bold text-center mb-10 text-indigo-700">
-        Super Admin Dashboard
-      </h1>
+      {/* SUPER ADMIN SIDEBAR */}
+      <SuperAdminSidebar
+        searchQuery={searchQuery}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
 
-      {/* MODULE CARDS */}
-      <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {MODULES.map((m) => (
-          <div
-            key={m.name}
-            onClick={() => navigate(m.path)}
-            className="cursor-pointer bg-white p-6 rounded-xl shadow
-              hover:shadow-xl hover:-translate-y-1 transition-all"
-          >
-            <div className="text-3xl text-indigo-600 mb-3">{m.icon}</div>
-            <h3 className="font-semibold text-gray-800">{m.name}</h3>
-          </div>
-        ))}
+      {/* MAIN CONTENT */}
+      <div className="flex-1 pt-16 overflow-y-auto transition-all">
+        <div className="p-3">
+          <Outlet />
+        </div>
       </div>
     </div>
   );

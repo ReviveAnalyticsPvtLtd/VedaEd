@@ -1,6 +1,7 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation , useNavigate  } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
+  FiHome,
   FiUsers,
   FiMessageCircle,
   FiCalendar,
@@ -121,6 +122,7 @@ export default function SuperAdminSidebar({
   const [openModule, setOpenModule] = useState(null);
 const [settingsOpen, setSettingsOpen] = useState(false);
   const allModules = [...PLATFORM_MODULES, ...MODULES];
+  const navigate = useNavigate();
 
   /* AUTO-OPEN MODULE BASED ON URL */
   useEffect(() => {
@@ -140,19 +142,77 @@ const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <aside
-      className={`fixed top-16 left-0 h-[calc(100vh-64px)] bg-white border-r
-      transition-all duration-300 z-30 overflow-y-auto
-      ${isSidebarOpen ? "w-64" : "w-14"}`}
-    >
+  className={`
+    ${isSidebarOpen ? "w-64" : "w-14"}
+    shrink-0
+    bg-white
+    shadow-md
+    relative
+    h-screen
+    flex
+    flex-col
+    pt-16
+    overflow-hidden
+    transition-all
+    duration-300
+  `}
+>
       {/* TOGGLE */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="absolute top-3 left-3 p-2 rounded hover:bg-gray-200"
-      >
-        <FiMenu />
-      </button>
+     <div className="h-14 shrink-0 flex items-center px-3 bg-white">
+  <button
+    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+    className="p-2 rounded-md hover:bg-gray-200 transition"
+  >
+    <FiMenu size={20} />
+  </button>
+</div>
 
-      <div className="mt-14 px-2 pb-40">
+     <div
+  className="
+    flex-1
+    min-h-0
+    overflow-y-auto
+    scrollbar-none
+    px-3
+  "
+>
+        {/* =========================
+    MAIN
+========================= */}
+<div className="px-2 text-sm text-gray-500 font-semibold">
+  Main
+</div>
+
+{/* =========================
+    DASHBOARD
+========================= */}
+<div
+  onClick={() => navigate("/superadmin-front")}
+  className={`
+    flex items-center gap-3 px-3 py-2 mt-2 rounded-lg
+    font-medium cursor-pointer transition
+    ${
+      location.pathname === "/superadmin-front"
+        ? "bg-indigo-50 text-indigo-600"
+        : "text-gray-800 hover:bg-gray-100"
+    }
+  `}
+>
+  <span className="flex w-6 justify-center">
+    <FiHome size={18} />
+  </span>
+
+  {isSidebarOpen && <span>Dashboard</span>}
+</div>
+
+{/* =========================
+    MODULE HEADING
+========================= */}
+{isSidebarOpen && (
+  <div className="px-2 mt-4 mb-2 text-sm text-gray-500 font-semibold">
+    Module
+  </div>
+)}
         {allModules.map((mod) => {
           const isOpen = openModule === mod.name;
 
@@ -163,8 +223,15 @@ const [settingsOpen, setSettingsOpen] = useState(false);
                 onClick={() =>
                   setOpenModule(isOpen ? null : mod.name)
                 }
-                className={`flex items-center justify-between px-3 py-2
-                rounded cursor-pointer hover:bg-gray-100`}
+               className={`
+flex items-center justify-between
+px-3 py-3 rounded-lg cursor-pointer transition
+${
+  isOpen
+    ? "bg-indigo-50 text-indigo-600"
+    : "hover:bg-indigo-50 text-gray-800"
+}
+`}
               >
                 <div className="flex items-center gap-3">
                   <span className="w-5 flex justify-center">
@@ -212,7 +279,7 @@ const [settingsOpen, setSettingsOpen] = useState(false);
         })}
       </div>
       {/* SETTINGS + ADMIN */}
-<div className="absolute bottom-4 w-full px-2">
+<div className="shrink-0 bg-white border-t px-3 pb-4">
   <button
     onClick={() => setSettingsOpen(!settingsOpen)}
     className="flex items-center h-10 w-full rounded-lg px-2 gap-3

@@ -1,4 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+
+
 import {
   FiMenu,
   FiArrowLeft,
@@ -20,7 +23,7 @@ export default function SuperAdminSettingsSidebar({
   setIsSidebarOpen,
 }) {
   const location = useLocation();
-
+const navigate = useNavigate();
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--sidebar-width",
@@ -118,20 +121,18 @@ export default function SuperAdminSettingsSidebar({
 
       <div className="mt-14 px-3">
         {/* HOME */}
-        <NavLink
-          to="/superadmin-front/dashboard"
-          className={`flex items-center h-10 rounded-lg transition-all
-          ${isSidebarOpen ? "px-3 gap-3" : "justify-center"}
-          hover:bg-gray-100 text-gray-800`}
-        >
-          <span className="flex w-6 justify-center">
-            <FiArrowLeft size={18} />
-          </span>
+       <div
+  onClick={() => navigate("/superadmin-front/dashboard")}
+  className={`flex items-center h-10 rounded-lg cursor-pointer
+  ${isSidebarOpen ? "px-3 gap-3" : "justify-center"}
+  hover:bg-gray-100 text-gray-800`}
+>
+  <span className="flex w-6 justify-center">
+    <FiArrowLeft size={18} />
+  </span>
 
-          {isSidebarOpen && (
-            <span className="font-medium">Home</span>
-          )}
-        </NavLink>
+  {isSidebarOpen && <span className="font-medium">Home</span>}
+</div>
 
         <div className="border-b my-4" />
 

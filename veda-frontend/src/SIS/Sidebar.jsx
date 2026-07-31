@@ -58,11 +58,12 @@ export default function Sidebar({
 
   return (
     <div
-      className={`fixed top-16 left-0 h-[calc(100vh-64px)] bg-white border-r shadow-sm 
-      transition-all duration-300 z-30 overflow-hidden
-      ${isSidebarOpen ? "w-64" : "w-14"}
-    `}
-    >
+  className={`fixed top-16 left-0 h-[calc(100vh-64px)]
+  bg-white border-r shadow-sm
+  transition-all duration-300 z-30
+  flex flex-col
+  ${isSidebarOpen ? "w-64" : "w-14"}`}
+>
       {/* TOGGLE BUTTON */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -72,7 +73,8 @@ export default function Sidebar({
       </button>
 
       {/* MENU */}
-      <ul className="mt-14 space-y-1 px-3">
+      <div className="flex-1 overflow-y-auto mt-14 px-3">
+  <ul className="space-y-1">
         {filteredItems.map((item) => {
           const isActive =
   item.path === ""
@@ -99,12 +101,13 @@ export default function Sidebar({
           );
         })}
       </ul>
+      </div>
 
       {/* SETTINGS + ADMIN */}
       
 
         {/* ADMIN BLOCK ALWAYS VISIBLE */}
-        <div className="mt-4">
+       <div className="shrink-0 border-t bg-white p-3">
           {isSidebarOpen ? (
             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
               <ProfileAvatar name={userName} imageSrc={userImage} sizeClassName="w-8 h-8" textClassName="text-xs" className="ring-0" />
