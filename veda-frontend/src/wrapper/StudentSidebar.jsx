@@ -39,14 +39,7 @@ const MODULES = [
       { label: "Academic Calendar", path: "/student/calendar" },
     ],
   },
-  {
-    /* ✅ NEW: STUDENT TRANSPORT */
-    name: "Transport",
-    icon: <FiTruck />,
-    subs: [
-      { label: "Transport Route", path: "/student/transport" },
-    ],
-  },
+ 
 ];
 
 export default function StudentSidebar() {
