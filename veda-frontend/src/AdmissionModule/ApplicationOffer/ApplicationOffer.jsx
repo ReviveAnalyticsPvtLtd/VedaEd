@@ -526,7 +526,7 @@ Use this page to efficiently track and manage application offers and ensure time
                 onClick={() => handlePreviewOffer(student)}
                 className="px-3 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 flex items-center gap-1"
               >
-                <FiEye size={14} /> Preview
+                <FiEye size={14} /> 
               </button>
 
               <button
@@ -536,7 +536,7 @@ Use this page to efficiently track and manage application offers and ensure time
                 }}
                 className="px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 flex items-center gap-1"
               >
-                <FiSend size={14} /> Send
+                <FiSend size={14} /> 
               </button>
             </div>
           </td>

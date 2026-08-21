@@ -249,7 +249,7 @@ You can search by name or parent, filter by class, add students manually, import
           </button>
         </div>
 
-      <div className="bg-white border rounded-lg p-4 mb-8">
+      <div className="bg-white border rounded-lg p-4 mb-8 ">
          <h3 className="font-medium mb-3">Selected Student List</h3>
         {/* FILTER BAR */}
         <div className="flex items-center gap-3 mb-4">
@@ -318,10 +318,12 @@ You can search by name or parent, filter by class, add students manually, import
         </div>
 
         {/* TABLE */}
-        <table className="w-full border text-sm">
+        {/* TABLE */}
+<div className="w-full overflow-x-auto rounded-lg border border-gray-200">
+  <table className="w-full min-w-[1100px] text-sm border-collapse">
           <thead className="bg-gray-50">
             <tr>
-              <th className="p-3 border">
+              <th className="p-3 border rounded-lg">
                 <input
                   type="checkbox"
                   onChange={toggleAll}
@@ -387,6 +389,7 @@ You can search by name or parent, filter by class, add students manually, import
             ))}
           </tbody>
         </table>
+        </div>
          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
   <p>Page {currentPage} of {totalPages}</p>
 

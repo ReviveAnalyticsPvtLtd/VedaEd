@@ -549,7 +549,7 @@ useEffect(() => {
                       {s.status}
                     </span>
                 </td>
-                <td className="p-2 border text-center flex justify-center gap-3">
+                <td className="p-2 border text-center ">
                  
                   <FiTrash2 className="cursor-pointer text-red-600" />
                 </td>

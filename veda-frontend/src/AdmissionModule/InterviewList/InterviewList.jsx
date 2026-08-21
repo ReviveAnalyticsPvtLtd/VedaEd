@@ -491,7 +491,7 @@ useEffect(() => {
                       {s.status}
                     </span>
                   </td>
-                  <td className="p-2 border text-center flex justify-center gap-3">
+                  <td className="p-2 border  justify-center">
                    
                     <FiTrash2 className="cursor-pointer text-red-600" />
                   </td>
@@ -536,7 +536,7 @@ useEffect(() => {
   </button>
 
   <button
-    onClick={() => navigate("/admission/document-verification")}
+    onClick={() => navigate("/admission/Document-Verification")}
     className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold w-full sm:w-auto"
   >
     Next →

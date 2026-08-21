@@ -1253,7 +1253,7 @@ Username is auto-generated but editable; set a secure password for the studentâ€
   </button>
 
   <button
-    onClick={() => navigate("/admission/application-offer")}
+    onClick={() => navigate("/admission/application-list")}
     className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
   >
     Next â†’
