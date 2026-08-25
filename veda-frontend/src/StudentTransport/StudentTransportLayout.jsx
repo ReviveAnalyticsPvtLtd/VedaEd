@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import StudentTransportSidebar from "./StudentTransportSidebar";
+ import { Breadcrumbs } from "../components/common/Breadcrumbs";
 import { useState } from "react";
 
 export default function StudentTransportLayout() {
@@ -31,6 +32,7 @@ export default function StudentTransportLayout() {
         }}
       >
         <div className="p-3">
+          <Breadcrumbs /> 
           <Outlet />
         </div>
       </div>

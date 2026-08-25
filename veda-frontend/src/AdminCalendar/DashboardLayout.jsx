@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
 import Navbar from "../SIS/Navbar";
+import { Breadcrumbs } from "../components/common/Breadcrumbs";
 import AdminCalendarSidebar from "./Sidebar";
 
 export default function AdminCalendarLayout() {
@@ -33,6 +34,7 @@ export default function AdminCalendarLayout() {
         }}
       >
         <div className="p-3">
+          <Breadcrumbs />
           <Outlet />
         </div>
       </div>

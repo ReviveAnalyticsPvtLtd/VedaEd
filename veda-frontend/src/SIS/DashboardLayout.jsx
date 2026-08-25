@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+import { Breadcrumbs } from "../components/common/Breadcrumbs";
 import { useState } from "react";
 
 export default function DashboardLayout() {
@@ -31,6 +32,7 @@ export default function DashboardLayout() {
         }}
       >
         <div className="p-3 w-full max-w-full min-w-0 min-h-full flex flex-col">
+          <Breadcrumbs />
           <Outlet />
         </div>
       </div>

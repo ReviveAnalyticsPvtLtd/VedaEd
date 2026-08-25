@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "../../../SIS/Navbar";
 import CommunicationSidebar from "./CommunicationSidebar";
+ import { Breadcrumbs } from "../../../components/common/Breadcrumbs";
 import { useState } from "react";
 
 export default function CommunicationAdminLayout() {
@@ -31,6 +32,7 @@ export default function CommunicationAdminLayout() {
         }}
       >
         <div className="p-3">
+          <Breadcrumbs />
           <Outlet />
         </div>
       </div>

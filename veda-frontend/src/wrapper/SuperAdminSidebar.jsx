@@ -45,7 +45,7 @@ const MODULES = [
     icon: <FiUsers />,
     base: "/superadmin/sis",
     subs: [
-      { label: "Dashboard", path: "/superadmin/sis/dashboard" },
+      
       { label: "Students", path: "/superadmin/sis/students" },
       { label: "Staff", path: "/superadmin/sis/staff" },
       { label: "Parents", path: "/superadmin/sis/parents" },
@@ -58,7 +58,7 @@ const MODULES = [
     icon: <FiMessageCircle />,
     base: "/superadmin/communication",
     subs: [
-      { label: "Dashboard", path: "/superadmin/communication/dashboard" },
+
       { label: "Logs", path: "/superadmin/communication/logs" },
       { label: "Notices", path: "/superadmin/communication/notices" },
       { label: "Messages", path: "/superadmin/communication/messages" },
@@ -80,7 +80,7 @@ const MODULES = [
     icon: <FiBriefcase />,
     base: "/superadmin/hr",
     subs: [
-      { label: "Dashboard", path: "/superadmin/hr/dashboard" },
+
       { label: "Staff Directory", path: "/superadmin/hr/staff-directory" },
       { label: "Attendance", path: "/superadmin/hr/attendance" },
       { label: "Payroll", path: "/superadmin/hr/payroll" },
@@ -92,7 +92,7 @@ const MODULES = [
     icon: <FiBookOpen />,
     base: "/superadmin/admission",
     subs: [
-      { label: "Dashboard", path: "/superadmin/admission/dashboard" },
+   
       { label: "Enquiry", path: "/superadmin/admission/enquiry" },
       { label: "Applications", path: "/superadmin/admission/applications" },
       { label: "Final Students", path: "/superadmin/admission/final-students" },
@@ -103,7 +103,7 @@ const MODULES = [
     icon: <FiTruck />,
     base: "/superadmin/transport",
     subs: [
-      { label: "Dashboard", path: "/superadmin/transport/dashboard" },
+   
       { label: "Drivers", path: "/superadmin/transport/driver-admission" },
       { label: "Vehicles", path: "/superadmin/transport/vehicles" },
       { label: "Routes", path: "/superadmin/transport/routes" },

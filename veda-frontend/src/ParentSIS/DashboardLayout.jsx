@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import ParentSidebar from "./Sidebar";
 import { useState, useEffect } from "react";
+import { Breadcrumbs } from "../components/common/Breadcrumbs";
 import { parentAPI } from "../services/parentAPI";
 
 export default function ParentDashboardLayout() {
@@ -59,6 +60,7 @@ export default function ParentDashboardLayout() {
         }}
       >
         <div className="p-3">
+          <Breadcrumbs />
           <Outlet />
         </div>
         

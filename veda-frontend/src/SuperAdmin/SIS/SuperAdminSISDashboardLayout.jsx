@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "../../SIS/Navbar";
 import SuperAdminSISSidebar from "./SuperAdminSISSidebar";
+  import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { useState } from "react";
 
 export default function SuperAdminSISDashboardLayout() {
@@ -25,6 +26,7 @@ export default function SuperAdminSISDashboardLayout() {
         style={{ marginLeft: isSidebarOpen ? "256px" : "56px" }}
       >
         <div className="p-3">
+          <Breadcrumbs />
           <Outlet />
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import TeacherCommunicationSidebar from "./TeacherCommunicationSidebar";
+  import { Breadcrumbs } from "../components/common/Breadcrumbs";
 import { useState } from "react";
 
 export default function TeacherCommunicationLayout() {
@@ -31,6 +32,7 @@ export default function TeacherCommunicationLayout() {
         }}
       >
         <div className="p-3">
+          <Breadcrumbs /> 
           <Outlet />
         </div>
       </div>

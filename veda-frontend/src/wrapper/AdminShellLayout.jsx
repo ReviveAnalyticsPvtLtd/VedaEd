@@ -10,7 +10,7 @@ export default function AdminShellLayout() {
   return (
     <div className="flex w-full h-screen bg-gray-100 overflow-hidden">
 
-      {/* FIXED NAVBAR (SAME AS TEACHER) */}
+      {/* FIXED NAVBAR  */}
       <div className="fixed top-0 left-0 w-full h-16 bg-white border-b z-30">
         <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       </div>
