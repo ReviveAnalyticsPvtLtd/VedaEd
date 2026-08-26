@@ -214,15 +214,8 @@ export default function StudentAnnualCalendar() {
     <div className="w-full h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* NAVBAR */}
       <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-
       <div className="flex flex-1 overflow-hidden pt-16">
         <div className="flex-1 flex flex-col p-6 overflow-auto">
-          {/* BREADCRUMB STYLE HEADER */}
-          <div className="mb-6">
-             <div className="text-gray-400 text-sm mb-1">Student &gt; Academic Calendar</div>
-             <h1 className="text-2xl font-bold text-gray-800">Academic Calendar</h1>
-          </div>
-
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <Header />
 
