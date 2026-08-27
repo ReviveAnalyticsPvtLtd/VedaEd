@@ -188,7 +188,7 @@ Sections:
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6  mb-3 text-gray-600 border-b">
+      <div className="flex gap-6  mb-3 text-sm text-gray-600 border-b">
         <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
           Overview
         </button>

@@ -164,6 +164,12 @@ const EventSetup = () => {
 
   return (
     <div className="p-0 min-h-screen">
+       {/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       <div className="bg-white p-6 rounded-lg">
 
         {/* HEADER */}
