@@ -423,22 +423,6 @@ const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage);
           {successMsg}
         </div>
       )}
-    {/* Breadcrumbs */}
-<div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-  <button
-    onClick={() => setActiveTab("all")}
-    className="hover:underline"
-  >
-     Staff
-  </button>
-  <span>&gt;</span>
-  <span>
-    {activeTab === "all" && "All Staff"}
-    {activeTab === "login" && "Manage Login"}
-    {activeTab === "others" && "Others"}
-  </span>
-</div>
-
 <div className="flex justify-between items-center mb-4">
   <h2 className="text-2xl font-bold">Staff</h2>
 

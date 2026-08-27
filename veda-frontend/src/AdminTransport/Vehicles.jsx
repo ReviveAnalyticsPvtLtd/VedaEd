@@ -130,11 +130,6 @@ const [errors, setErrors] = useState({});
 
   return (
      <div className="p-0 m-0 min-h-screen">
-          {/* Breadcrumb */}
-          <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-            <span>Transport &gt;</span>
-            <span>Vehicles List</span>
-          </div>
     <div className="flex items-center justify-between mb-2">
            <h2 className="text-2xl font-bold">Vehicles List </h2>
          </div>

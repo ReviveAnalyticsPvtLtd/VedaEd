@@ -60,14 +60,6 @@ export default function FeeMaster() {
 
   return (
     <div className="p-0 m-0">
-
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Fees</span>
-        <span>&gt;</span>
-        <span>Fee Master</span>
-      </div>
-
       {/* Heading + Help */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">

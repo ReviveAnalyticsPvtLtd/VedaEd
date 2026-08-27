@@ -17,25 +17,6 @@ export default function Attendance() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => {
-            setActiveTab("overview");
-            navigate("/attendance/overview"); // ✅ navigate to overview route
-          }}
-          className="hover:underline"
-        >
-          Attendance
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "overview" && "Overview"}
-          {activeTab === "by-class" && "By Class"}
-          {activeTab === "by-student" && "By Student"}
-        </span>
-      </div>
-
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">
           {activeTab === "overview"

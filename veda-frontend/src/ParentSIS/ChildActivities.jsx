@@ -102,13 +102,6 @@ export default function ChildActivities() {
 
   return (
     <div className="p-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Parent</span>
-        <span>&gt;</span>
-        <span>My Child Activities</span>
-      </div>
-
       {/* Header */}
       <h2 className="text-2xl font-bold mb-4">My Child Activities</h2>
 

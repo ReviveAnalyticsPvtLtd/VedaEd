@@ -91,12 +91,6 @@ export default function SetupFrontOffice() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Receptionist</span>
-        <span>&gt;</span>
-        <span>Setup Front Office</span>
-      </div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Front Office Setup</h2>
         <HelpInfo

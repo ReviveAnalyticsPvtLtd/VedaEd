@@ -97,12 +97,6 @@ export default function AssignVehicle() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Transport &gt;</span>
-        <span>Assign Vehicle</span>
-      </div>
-
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Assign Vehicle</h2>
       </div>

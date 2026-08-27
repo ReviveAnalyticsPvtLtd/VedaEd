@@ -383,25 +383,6 @@ const handleBulkDelete = async () => {
           {successMsg}
         </div>
       )}
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => {
-            setActiveTab("all");
-            setLoginPage(1);
-          }}
-          className="hover:underline"
-        >
-          Parents
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "all" && "All Parents"}
-          {activeTab === "login" && "Manage Login"}
-          {activeTab === "others" && "Reports & Permissions"}
-        </span>
-      </div>
-
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
         <h2 className="text-2xl font-bold shrink-0">Parents</h2>

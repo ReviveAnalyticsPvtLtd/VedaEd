@@ -344,17 +344,6 @@ const paginatedStudents = filteredStudents.slice(
 
   return (
     <div className="p-0 m-0 min-h-screen mb-16">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => navigate("/students")}
-          className="hover:underline"
-        >
-          Students
-        </button>
-        <span>&gt;</span>
-        <span>Document Verification</span>
-      </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
         <h2 className="text-2xl font-bold">Document Verification</h2>
         <HelpInfo

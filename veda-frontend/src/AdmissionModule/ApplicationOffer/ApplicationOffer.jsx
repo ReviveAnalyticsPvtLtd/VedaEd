@@ -291,13 +291,6 @@ const paginatedStudents = filteredStudents.slice(
 
   return (
     <div className="p-0 m-0 min-h-screen mb-14">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Admission</span>
-        <span>&gt;</span>
-        <span>Application Offer</span>
-      </div>
-
       {/* Page title */}
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-2xl font-bold">Application Offer</h2>

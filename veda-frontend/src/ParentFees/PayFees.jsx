@@ -117,12 +117,7 @@ const handleDone = () => {
 };
   return (
     <div className="min-h-screen">
-
-      {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-2">
-        Parent &gt; Fees &gt; Pay Fees
-      </div>
-{/* Title */}
+    {/* Title */}
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Pay Fees</h2>
       </div>

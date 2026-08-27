@@ -19,20 +19,6 @@ export default function Gradebook() {
 
   return (
     <div className="p-0 m-0">
-
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Teacher</span>
-        <span>&gt;</span>
-        <span>Gradebook</span>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "class-teacher"
-            ? "Class Teacher View"
-            : "Subject Teacher View"}
-        </span>
-      </div>
-
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Gradebook</h2>

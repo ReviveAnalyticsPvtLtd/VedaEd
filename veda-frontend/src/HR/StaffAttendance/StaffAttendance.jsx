@@ -150,11 +150,6 @@ const filteredStaffList = useMemo(() => {
 
   return (
     <div className="p-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex gap-1">
-        <span>HR</span> &gt; <span>Staff Attendance</span>
-      </div>
-
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Staff Attendance</h2>

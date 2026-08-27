@@ -96,15 +96,6 @@ export default function CandidateForm() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>HR</span>
-        <span>&gt;</span>
-        <span>Talent Acquisition</span>
-        <span>&gt;</span>
-        <span>Candidate Application</span>
-      </div>
-
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Candidate Application Form</h2>
       </div>
