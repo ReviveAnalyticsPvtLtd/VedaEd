@@ -335,7 +335,10 @@ const handleBulkDelete = async () => {
     setTimeout(() => setSuccessMsg(""), 3000);
   }
 };
-
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
   // Update Parent Password function
   const handleUpdatePassword = async (id, newPassword) => {
     try {

@@ -464,6 +464,10 @@ const handleBulkExport = () => {
   setShowBulkActions(false);
 };
 
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
 const handleBulkDelete = async () => {
   if (selectedStudents.length === 0) {
     setSuccessMsg("Please select students first");

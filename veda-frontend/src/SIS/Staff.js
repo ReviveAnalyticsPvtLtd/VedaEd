@@ -471,7 +471,10 @@ const handleChange = (e) => {
       .toLowerCase()
       .includes(searchLogin.toLowerCase())
   );
-
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
 
   // Pagination indexes
   const indexOfLastLogin = loginPage * loginPerPage;
