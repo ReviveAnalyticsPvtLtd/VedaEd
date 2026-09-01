@@ -230,9 +230,6 @@ export default function SuperAdminSISStudents() {
         </div>
       )}
 
-<<<<<<< HEAD
-         
-=======
       <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
         <button
           onClick={() => {
@@ -250,7 +247,6 @@ export default function SuperAdminSISStudents() {
           {activeTab === "others" && "Others"}
         </span>
       </div>
->>>>>>> 5bd50d5 (fix ui)
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Students</h2>

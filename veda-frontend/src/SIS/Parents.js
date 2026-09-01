@@ -63,6 +63,12 @@ export default function Parents() {
     };
     fetchParents();
   }, [search, filterRole]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setLoginPage(1);
+  }, [search]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -310,15 +316,6 @@ export default function Parents() {
         )
       );
 
-<<<<<<< HEAD
-    setTimeout(() => setSuccessMsg(""), 3000);
-  }
-};
-useEffect(() => {
-  setCurrentPage(1);
-  setLoginPage(1);
-}, [search]);
-=======
       setParents((prev) =>
         prev.filter(
           (p) => !selectedParents.includes(p._id)
@@ -344,8 +341,6 @@ useEffect(() => {
       setTimeout(() => setSuccessMsg(""), 3000);
     }
   };
-
->>>>>>> 5bd50d5 (fix ui)
   // Update Parent Password function
   const handleUpdatePassword = async (id, newPassword) => {
     try {

@@ -263,67 +263,6 @@ You can search by name or parent, filter by class, add students manually, import
           />
         </div>
 
-<<<<<<< HEAD
-      <div className="bg-white border rounded-lg p-4 mb-8 ">
-         <h3 className="font-medium mb-3">Selected Student List</h3>
-        {/* FILTER BAR */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative w-64">
-            <FiSearch className="absolute left-3 top-2.5 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search student / parent..."
-              className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
-            />
-          </div>
-
-          <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm"
-          >
-            <option value="">All Classes</option>
-            <option value="9">Class 9</option>
-            <option value="10">Class 10</option>
-          </select>
-
-          {/* BULK */}
-          <div className="relative" ref={bulkRef}>
-            <button
-              onClick={() => setShowBulk(!showBulk)}
-              className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
-            >
-              Bulk Action <FiChevronDown />
-            </button>
-
-            {showBulk && (
-              <div className="absolute mt-2 w-44 bg-white border rounded shadow z-10">
-                <label className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
-                  <FiUpload /> Import
-                  <input
-                    type="file"
-                    accept=".xlsx, .xls"
-                    onChange={importExcel}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  onClick={exportExcel}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <FiDownload /> Export
-                </button>
-                <button
-                  onClick={deleteMultiple}
-                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-=======
         <select
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
@@ -333,7 +272,6 @@ You can search by name or parent, filter by class, add students manually, import
           <option value="9">Class 9</option>
           <option value="10">Class 10</option>
         </select>
->>>>>>> 5bd50d5 (fix ui)
 
         {/* BULK */}
         <div className="relative" ref={bulkRef}>
@@ -344,27 +282,57 @@ You can search by name or parent, filter by class, add students manually, import
             Bulk Action <FiChevronDown />
           </button>
 
-<<<<<<< HEAD
-        {/* TABLE */}
-        {/* TABLE */}
-<div className="w-full overflow-x-auto rounded-lg border border-gray-200">
-  <table className="w-full min-w-[1100px] text-sm border-collapse">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3 border rounded-lg">
-=======
           {showBulk && (
             <div className="absolute mt-2 w-44 bg-white border rounded shadow z-10">
               <label className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
                 <FiUpload /> Import
->>>>>>> 5bd50d5 (fix ui)
                 <input
                   type="file"
                   accept=".xlsx, .xls"
                   onChange={importExcel}
                   className="hidden"
                 />
-<<<<<<< HEAD
+              </label>
+              <button
+                onClick={exportExcel}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+              >
+                <FiDownload /> Export
+              </button>
+              <button
+                onClick={deleteMultiple}
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setShowAdd(true)}
+          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          <FiUserPlus /> Add Student
+        </button>
+      </div>
+
+      {/* TABLE */}
+      <div className="w-full overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full min-w-[1100px] text-sm border-collapse">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3 border">
+                <input
+                  type="checkbox"
+                  onChange={toggleAll}
+                  checked={
+                    Boolean(
+                      filteredStudents.length &&
+                      selectedIds.length === filteredStudents.length
+                    )
+                  }
+                />
               </th>
               <th className="p-3 border text-center">S.No</th>
               <th className="p-3 border">Application ID</th>
@@ -380,7 +348,7 @@ You can search by name or parent, filter by class, add students manually, import
           </thead>
 
           <tbody>
-           {currentStudents.map((s, index) => (
+            {currentStudents.map((s, index) => (
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="p-3 border text-center">
                   <input
@@ -390,8 +358,8 @@ You can search by name or parent, filter by class, add students manually, import
                   />
                 </td>
                 <td className="p-3 border text-center font-medium">
-  {(currentPage - 1) * studentsPerPage + index + 1}
-</td>
+                  {(currentPage - 1) * studentsPerPage + index + 1}
+                </td>
                 <td className="p-3 border text-center">{s.applicationId}</td>
                 <td className="p-3 border font-medium">{s.name}</td>
                 <td className="p-3 border text-center">{s.class}</td>
@@ -413,7 +381,7 @@ You can search by name or parent, filter by class, add students manually, import
                 <td className="p-3 border text-center">
                   <button
                     onClick={() => deleteOne(s.id)}
-                    className="text-red-600"
+                    className="text-red-600 hover:text-red-800"
                   >
                     <FiTrash2 />
                   </button>
@@ -422,175 +390,8 @@ You can search by name or parent, filter by class, add students manually, import
             ))}
           </tbody>
         </table>
-        </div>
-         <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-  <p>Page {currentPage} of {totalPages}</p>
-
-  <div className="space-x-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={currentPage === totalPages}
-      onClick={() => setCurrentPage((p) => p + 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Next
-    </button>
-  </div>
-</div>
       </div>
 
-      {/* ADD MODAL */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[420px]">
-            <h3 className="font-semibold mb-4">Add Selected Student</h3>
-
-         {[
-  { k: "name", p: "Student Name" },
-  { k: "applicationId", p: "Application ID" },
-  { k: "class", p: "Class" },
-  { k: "parentName", p: "Parent Name" },
-  { k: "contact", p: "Contact Number" },
-  { k: "email", p: "Email" },
-].map((f) => (
-  <React.Fragment key={f.k}>
-    <input
-      placeholder={f.p}
-      value={form[f.k]}
-      onKeyDown={(e) => validateKey(e, f.k)}
-      onChange={(e) => {
-        setErrors((p) => ({ ...p, [f.k]: "" }));
-        setForm({ ...form, [f.k]: e.target.value });
-      }}
-      className={`w-full mb-1 px-3 py-2 border rounded text-sm ${
-        errors[f.k] ? "border-red-500" : ""
-      }`}
-    />
-
-    {errors[f.k] && (
-      <p className="text-xs text-red-500 mb-2">
-        {errors[f.k]}
-      </p>
-    )}
-  </React.Fragment>
-))}
-
-            <label className="flex items-center gap-2 text-sm mb-4">
-              <input
-                type="checkbox"
-                checked={form.docsVerified}
-                onChange={(e) =>
-                  setForm({ ...form, docsVerified: e.target.checked })
-                }
-              />
-              Docs Verified
-            </label>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowAdd(false)}>Cancel</button>
-=======
-              </label>
->>>>>>> 5bd50d5 (fix ui)
-              <button
-                onClick={exportExcel}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-              >
-                <FiDownload /> Export
-              </button>
-              <button
-                onClick={deleteMultiple}
-                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={() => setShowAdd(true)}
-          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-md"
-        >
-          <FiUserPlus /> Add Student
-        </button>
-      </div>
-
-      {/* TABLE */}
-      <table className="w-full border text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="p-3 border">
-              <input
-                type="checkbox"
-                onChange={toggleAll}
-                checked={
-                  filteredStudents.length &&
-                  selectedIds.length === filteredStudents.length
-                }
-              />
-            </th>
-            <th className="p-3 border text-center">S.No</th>
-            <th className="p-3 border">Application ID</th>
-            <th className="p-3 border text-left">Student Name</th>
-            <th className="p-3 border">Class</th>
-            <th className="p-3 border">Section</th>
-            <th className="p-3 border">Parent Name</th>
-            <th className="p-3 border">Contact</th>
-            <th className="p-3 border">Email</th>
-            <th className="p-3 border">Docs</th>
-            <th className="p-3 border">Action</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {currentStudents.map((s, index) => (
-            <tr key={s.id} className="hover:bg-gray-50">
-              <td className="p-3 border text-center">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(s.id)}
-                  onChange={() => toggleOne(s.id)}
-                />
-              </td>
-              <td className="p-3 border text-center font-medium">
-                {(currentPage - 1) * studentsPerPage + index + 1}
-              </td>
-              <td className="p-3 border text-center">{s.applicationId}</td>
-              <td className="p-3 border font-medium">{s.name}</td>
-              <td className="p-3 border text-center">{s.class}</td>
-              <td className="p-3 border text-center">{s.section}</td>
-              <td className="p-3 border text-center">{s.parentName}</td>
-              <td className="p-3 border text-center">{s.contact}</td>
-              <td className="p-3 border text-center">{s.email}</td>
-              <td className="p-3 border text-center">
-                <span
-                  className={`px-2 py-1 text-xs rounded ${s.docsVerified
-                      ? "bg-green-100 text-green-700"
-                      : "bg-yellow-100 text-yellow-700"
-                    }`}
-                >
-                  {s.docsVerified ? "Verified" : "Pending"}
-                </span>
-              </td>
-              <td className="p-3 border text-center">
-                <button
-                  onClick={() => deleteOne(s.id)}
-                  className="text-red-600"
-                >
-                  <FiTrash2 />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
       <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
         <p>Page {currentPage} of {totalPages}</p>
 
@@ -637,8 +438,9 @@ You can search by name or parent, filter by class, add students manually, import
                   setErrors((p) => ({ ...p, [f.k]: "" }));
                   setForm({ ...form, [f.k]: e.target.value });
                 }}
-                className={`w-full mb-1 px-3 py-2 border rounded text-sm ${errors[f.k] ? "border-red-500" : ""
-                  }`}
+                className={`w-full mb-1 px-3 py-2 border rounded text-sm ${
+                  errors[f.k] ? "border-red-500" : ""
+                }`}
               />
 
               {errors[f.k] && (
@@ -661,10 +463,15 @@ You can search by name or parent, filter by class, add students manually, import
           </label>
 
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowAdd(false)}>Cancel</button>
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
             <button
               onClick={addStudent}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
+              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             >
               Add
             </button>
