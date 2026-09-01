@@ -35,17 +35,17 @@ export default function SuperAdminSISParents() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingPassword, setEditingPassword] = useState(null);
   const [nextParentId, setNextParentId] = useState("");
-const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
   const dropdownRef = useRef(null);
   const bulkActionRef = useRef(null);
   const roleDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
   const parentsPerPage = 10;
   const navigate = useNavigate();
-const [formData, setFormData] = useState({
-  name: "",
-  phone: "",
-});
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+  });
   // Fetch parents from backend for shivam
   useEffect(() => {
     const fetchParents = async () => {
@@ -124,12 +124,12 @@ const [formData, setFormData] = useState({
           // Re-fetch parents to show new data
           const updatedRes = await api.get(`/parents`);
           setParents(updatedRes.data.parents);
-          
+
           const { imported = [], skipped = [], errors = [] } = res.data;
           let msg = `Import complete ✅: ${imported.length} added`;
           if (skipped.length > 0) msg += `, ${skipped.length} skipped (exists)`;
           if (errors.length > 0) msg += `, ${errors.length} errors`;
-          
+
           setSuccessMsg(msg);
           setTimeout(() => setSuccessMsg(""), 5000);
         } else {
@@ -146,34 +146,34 @@ const [formData, setFormData] = useState({
     reader.readAsBinaryString(file);
     e.target.value = ""; // reset file input
   };
-const handleChange = (e) => {
-  const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-  const letterOnly = ["name"];
-  const numberOnly = ["phone"];
+    const letterOnly = ["name"];
+    const numberOnly = ["phone"];
 
-  // LETTER ONLY
-  if (letterOnly.includes(name)) {
-    if (!/^[a-zA-Z\s]*$/.test(value)) {
-      setErrors((p) => ({ ...p, [name]: "Only letters allowed" }));
-      return; // ❌ yahi rok raha hai update
+    // LETTER ONLY
+    if (letterOnly.includes(name)) {
+      if (!/^[a-zA-Z\s]*$/.test(value)) {
+        setErrors((p) => ({ ...p, [name]: "Only letters allowed" }));
+        return; // ❌ yahi rok raha hai update
+      }
     }
-  }
 
-  // NUMBER ONLY
-  if (numberOnly.includes(name)) {
-    if (!/^\d*$/.test(value)) {
-      setErrors((p) => ({ ...p, [name]: "Only numbers allowed" }));
-      return;
+    // NUMBER ONLY
+    if (numberOnly.includes(name)) {
+      if (!/^\d*$/.test(value)) {
+        setErrors((p) => ({ ...p, [name]: "Only numbers allowed" }));
+        return;
+      }
     }
-  }
 
-  // CLEAR ERROR
-  setErrors((p) => ({ ...p, [name]: "" }));
+    // CLEAR ERROR
+    setErrors((p) => ({ ...p, [name]: "" }));
 
-  // ✅ VALUE UPDATE only if valid
-  setFormData((prev) => ({ ...prev, [name]: value }));
-};
+    // ✅ VALUE UPDATE only if valid
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
   // Add Parent Manually send to backend shivam bro ke liye
   const handleAddManually = async (e) => {
     e.preventDefault();
@@ -188,10 +188,10 @@ const handleChange = (e) => {
       status: "Active",
       password: form.password.value || "default123",
     };
-if (errors.name || errors.phone) {
-  setSuccessMsg("Fix errors first ❌");
-  return;
-}
+    if (errors.name || errors.phone) {
+      setSuccessMsg("Fix errors first ❌");
+      return;
+    }
     try {
       console.log("Sending parent data to backend:", JSON.stringify(newParent, null, 2));
       const res = await api.post(`/parents`, newParent);
@@ -221,121 +221,121 @@ if (errors.name || errors.phone) {
     }
   };
   const handleSelectParent = (parentId) => {
-  setSelectedParents((prev) =>
-    prev.includes(parentId)
-      ? prev.filter((id) => id !== parentId)
-      : [...prev, parentId]
-  );
-};
-
-const handleSelectAllParents = () => {
-  const currentParentIds = currentParents.map((p) => p._id);
-
-  const isAllSelected = currentParentIds.every((id) =>
-    selectedParents.includes(id)
-  );
-
-  if (isAllSelected) {
     setSelectedParents((prev) =>
-      prev.filter((id) => !currentParentIds.includes(id))
+      prev.includes(parentId)
+        ? prev.filter((id) => id !== parentId)
+        : [...prev, parentId]
     );
-  } else {
-    setSelectedParents((prev) => [
-      ...new Set([...prev, ...currentParentIds]),
-    ]);
-  }
-};
+  };
 
-const handleBulkExport = () => {
-  if (selectedParents.length === 0) {
-    setSuccessMsg("Please select parents first");
-    setTimeout(() => setSuccessMsg(""), 3000);
-    return;
-  }
+  const handleSelectAllParents = () => {
+    const currentParentIds = currentParents.map((p) => p._id);
 
-  const selectedData = parents.filter((p) =>
-    selectedParents.includes(p._id)
-  );
+    const isAllSelected = currentParentIds.every((id) =>
+      selectedParents.includes(id)
+    );
 
-  const exportData = selectedData.map((p) => ({
-    "Parent ID": p.parentId,
-    Name: p.name,
-    Email: p.email,
-    Phone: p.phone,
-    "Linked Student ID":
-      p.children?.length > 0
-        ? p.children
+    if (isAllSelected) {
+      setSelectedParents((prev) =>
+        prev.filter((id) => !currentParentIds.includes(id))
+      );
+    } else {
+      setSelectedParents((prev) => [
+        ...new Set([...prev, ...currentParentIds]),
+      ]);
+    }
+  };
+
+  const handleBulkExport = () => {
+    if (selectedParents.length === 0) {
+      setSuccessMsg("Please select parents first");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
+    const selectedData = parents.filter((p) =>
+      selectedParents.includes(p._id)
+    );
+
+    const exportData = selectedData.map((p) => ({
+      "Parent ID": p.parentId,
+      Name: p.name,
+      Email: p.email,
+      Phone: p.phone,
+      "Linked Student ID":
+        p.children?.length > 0
+          ? p.children
             .map((c) => c.stdId || c.personalInfo?.stdId)
             .filter(Boolean)
             .join(", ")
-        : "N/A",
-    Role: p.role,
-    Status: p.status,
-  }));
+          : "N/A",
+      Role: p.role,
+      Status: p.status,
+    }));
 
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-  const workbook = XLSX.utils.book_new();
+    const workbook = XLSX.utils.book_new();
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Parents"
-  );
-
-  XLSX.writeFile(
-    workbook,
-    "Selected_Parents.xlsx"
-  );
-
-  setShowBulkActions(false);
-};
-
-const handleBulkDelete = async () => {
-  if (selectedParents.length === 0) {
-    setSuccessMsg("Please select parents first");
-    setTimeout(() => setSuccessMsg(""), 3000);
-    return;
-  }
-
-  const confirmDelete = window.confirm(
-    `Delete ${selectedParents.length} selected parents?`
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-    await Promise.all(
-      selectedParents.map((id) =>
-        api.delete(`/parents/${id}`)
-      )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Parents"
     );
 
-    setParents((prev) =>
-      prev.filter(
-        (p) => !selectedParents.includes(p._id)
-      )
+    XLSX.writeFile(
+      workbook,
+      "Selected_Parents.xlsx"
     );
-
-    setSelectedParents([]);
 
     setShowBulkActions(false);
+  };
 
-    setSuccessMsg(
-      "Selected parents deleted successfully"
+  const handleBulkDelete = async () => {
+    if (selectedParents.length === 0) {
+      setSuccessMsg("Please select parents first");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Delete ${selectedParents.length} selected parents?`
     );
 
-    setTimeout(() => setSuccessMsg(""), 3000);
-  } catch (err) {
-    console.error(err);
+    if (!confirmDelete) return;
 
-    setSuccessMsg(
-      "Failed to delete selected parents"
-    );
+    try {
+      await Promise.all(
+        selectedParents.map((id) =>
+          api.delete(`/parents/${id}`)
+        )
+      );
 
-    setTimeout(() => setSuccessMsg(""), 3000);
-  }
-};
+      setParents((prev) =>
+        prev.filter(
+          (p) => !selectedParents.includes(p._id)
+        )
+      );
+
+      setSelectedParents([]);
+
+      setShowBulkActions(false);
+
+      setSuccessMsg(
+        "Selected parents deleted successfully"
+      );
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+
+      setSuccessMsg(
+        "Failed to delete selected parents"
+      );
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
 
   // Update Parent Password function
   const handleUpdatePassword = async (id, newPassword) => {
@@ -447,8 +447,8 @@ Sections:
             setLoginPage(1);
           }}
           className={`pb-2 ${activeTab === "all"
-              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-              : "text-gray-500"
+            ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+            : "text-gray-500"
             }`}
         >
           All Parents
@@ -460,8 +460,8 @@ Sections:
             setLoginPage(1);
           }}
           className={`pb-2 ${activeTab === "login"
-              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-              : "text-gray-500"
+            ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+            : "text-gray-500"
             }`}
         >
           Manage Login
@@ -473,8 +473,8 @@ Sections:
             setLoginPage(1);
           }}
           className={`pb-2 ${activeTab === "others"
-              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-              : "text-gray-500"
+            ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+            : "text-gray-500"
             }`}
         >
           Reports & Permissions
@@ -496,204 +496,204 @@ Sections:
               />
             </div>
 
-            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
-            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
-            <div className="relative w-[120px] shrink-0" ref={roleDropdownRef}>
-              <button
-                onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-              >
-                <span>{filterRole || "Role"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+              <div className="flex flex-1 flex-row flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 min-w-0">
+                <div className="relative w-[120px] shrink-0" ref={roleDropdownRef}>
+                  <button
+                    onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
+                  >
+                    <span>{filterRole || "Role"}</span>
+                    <FiChevronDown className="text-xs" />
+                  </button>
 
-              {showRoleDropdown && (
-                <div
-                  className="absolute left-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto"
+                  {showRoleDropdown && (
+                    <div
+                      className="absolute left-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto"
+                    >
+                      <button
+                        onClick={() => {
+                          setFilterRole("");
+                          setShowRoleDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        All Roles
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFilterRole("Primary Guardian");
+                          setShowRoleDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        Primary Guardian
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFilterRole("Secondary Guardian");
+                          setShowRoleDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        Secondary Guardian
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
+                  <button
+                    onClick={() => setShowBulkActions(!showBulkActions)}
+                    className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
+                  >
+                    <span>Bulk Action</span>
+                    <FiChevronDown className="text-xs" />
+                  </button>
+
+                  {showBulkActions && (
+                    <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+
+                      <button
+                        onClick={handleBulkExport}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <FiDownload className="text-sm" />
+                        Export Excel
+                      </button>
+
+                      <button
+                        onClick={handleBulkDelete}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                      >
+                        <FiTrash2 className="text-sm" />
+                        Delete
+                      </button>
+
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative shrink-0 pl-1" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowOptions(!showOptions)}
+                  className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
                 >
-                  <button
-                    onClick={() => {
-                      setFilterRole("");
-                      setShowRoleDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    All Roles
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterRole("Primary Guardian");
-                      setShowRoleDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    Primary Guardian
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterRole("Secondary Guardian");
-                      setShowRoleDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    Secondary Guardian
-                  </button>
-                </div>
-              )}
-            </div>
+                  <FiPlus />
+                  Add Parent
+                </button>
 
-            <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
-              <button
-                onClick={() => setShowBulkActions(!showBulkActions)}
-                className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-              >
-                <span>Bulk Action</span>
-                <FiChevronDown className="text-xs" />
-              </button>
+                {showOptions && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
+                    <button
+                      onClick={() => {
+                        setShowForm(true);
+                        setShowOptions(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      <FiPlus className="inline-block mr-2" /> Add Manually
+                    </button>
 
-             {showBulkActions && (
-  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
-
-    <button
-      onClick={handleBulkExport}
-      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-    >
-      <FiDownload className="text-sm" />
-      Export Excel
-    </button>
-
-    <button
-      onClick={handleBulkDelete}
-      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-    >
-      <FiTrash2 className="text-sm" />
-      Delete
-    </button>
-
-  </div>
-)}
-            </div>
-            </div>
-
-            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
-              <button
-                onClick={() => setShowOptions(!showOptions)}
-                className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
-              >
-                <FiPlus />
-                Add Parent
-              </button>
-
-              {showOptions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
-                  <button
-                    onClick={() => {
-                      setShowForm(true);
-                      setShowOptions(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    <FiPlus className="inline-block mr-2" /> Add Manually
-                  </button>
-
-                  <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
-                    <FiUpload className="inline-block mr-2" /> Import Excel
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleImport}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
+                    <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                      <FiUpload className="inline-block mr-2" /> Import Excel
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleImport}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
-          <table className="min-w-[880px] w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">
-  <input
-    type="checkbox"
-    checked={
-      currentParents.length > 0 &&
-      currentParents.every((p) =>
-        selectedParents.includes(p._id)
-      )
-    }
-    onChange={handleSelectAllParents}
-   
-  />
-</th>
+            <table className="min-w-[880px] w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 border">
+                    <input
+                      type="checkbox"
+                      checked={
+                        currentParents.length > 0 &&
+                        currentParents.every((p) =>
+                          selectedParents.includes(p._id)
+                        )
+                      }
+                      onChange={handleSelectAllParents}
 
-                <th className="p-2 border">S. no.</th>
-                <th className="p-2 border">Parent ID</th>
-                <th className="p-2 border">Parent Name</th>
-                <th className="p-2 border">Email</th>
-                <th className="p-2 border">Phone</th>
-                <th className="p-2 border">Linked Student ID</th>
-                <th className="p-2 border">Role</th>
-                <th className="p-2 border">Status</th>
-                <th className="p-2 border">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentParents.map((p, idx) => (
-                <tr
-                  key={p._id || idx} // ✅ use Mongo _id as key
-                  className="text-center hover:bg-gray-50"
-                >
-                  <td className="p-2 border">
-  <input
-    type="checkbox"
-    checked={selectedParents.includes(p._id)}
-    onChange={() => handleSelectParent(p._id)}
-   
-  />
-</td>
-                  <td className="p-2 border">{indexOfFirst + idx + 1}</td>
-                  <td className="p-2 border">{p.parentId}</td>
-                  <td className="p-2 border text-left">
-                    <div className="flex items-center gap-2 ">
-                      <ProfileAvatar
-                        name={p.name}
-                        imageSrc={p.photo}
-                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
-                        textClassName="text-xs"
-                      />
-                      <span>{p.name}</span></div>
-                  </td>
-                  <td className="p-2 border">{p.email}</td>
-                  <td className="p-2 border">{p.phone}</td>
-                  <td className="p-2 border">
-                    {p.children?.length > 0 ? p.children.map((c) => c.stdId || c.personalInfo?.stdId).filter(Boolean).join(", ") : "N/A"}
-                  </td>
-                  <td className="p-2 border">{p.role || "Parent"}</td>
-                  <td className="p-2 border">{p.status}</td>
-                  <td className="p-2 border">
-                    <button
-                      className="text-blue-500"
-                      onClick={() => setSelectedParent(p)}
-                      title="View"
-                    >
-                      <FiSearch />
-                    </button>
-                    <button
-                      className="text-red-500 ml-2"
-                      onClick={() => handleDelete(p._id)}
-                      title="Delete"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
+                    />
+                  </th>
+
+                  <th className="p-2 border">S. no.</th>
+                  <th className="p-2 border">Parent ID</th>
+                  <th className="p-2 border">Parent Name</th>
+                  <th className="p-2 border">Email</th>
+                  <th className="p-2 border">Phone</th>
+                  <th className="p-2 border">Linked Student ID</th>
+                  <th className="p-2 border">Role</th>
+                  <th className="p-2 border">Status</th>
+                  <th className="p-2 border">Action</th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {currentParents.map((p, idx) => (
+                  <tr
+                    key={p._id || idx} // ✅ use Mongo _id as key
+                    className="text-center hover:bg-gray-50"
+                  >
+                    <td className="p-2 border">
+                      <input
+                        type="checkbox"
+                        checked={selectedParents.includes(p._id)}
+                        onChange={() => handleSelectParent(p._id)}
 
-          </table>
+                      />
+                    </td>
+                    <td className="p-2 border">{indexOfFirst + idx + 1}</td>
+                    <td className="p-2 border">{p.parentId}</td>
+                    <td className="p-2 border text-left">
+                      <div className="flex items-center gap-2 ">
+                        <ProfileAvatar
+                          name={p.name}
+                          imageSrc={p.photo}
+                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                          textClassName="text-xs"
+                        />
+                        <span>{p.name}</span></div>
+                    </td>
+                    <td className="p-2 border">{p.email}</td>
+                    <td className="p-2 border">{p.phone}</td>
+                    <td className="p-2 border">
+                      {p.children?.length > 0 ? p.children.map((c) => c.stdId || c.personalInfo?.stdId).filter(Boolean).join(", ") : "N/A"}
+                    </td>
+                    <td className="p-2 border">{p.role || "Parent"}</td>
+                    <td className="p-2 border">{p.status}</td>
+                    <td className="p-2 border">
+                      <button
+                        className="text-blue-500"
+                        onClick={() => setSelectedParent(p)}
+                        title="View"
+                      >
+                        <FiSearch />
+                      </button>
+                      <button
+                        className="text-red-500 ml-2"
+                        onClick={() => handleDelete(p._id)}
+                        title="Delete"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+
+            </table>
           </div>
           <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
@@ -796,100 +796,100 @@ Sections:
               </div>
             </div>
             <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
-            <table className="min-w-[720px] w-full border text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">S. no.</th>
-                  <th className="p-2 border">Parent ID</th>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Email</th>
-                  <th className="p-2 border">Username</th>
-                  <th className="p-2 border">Password</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentLoginParents.map((p, idx) => (
-                  <tr
-                    key={p._id || idx}
-                    className="text-center hover:bg-gray-50"
-                  >
-                    <td className="p-2 border">{loginIndexOfFirst + idx + 1}</td>
-                    <td className="p-2 border">
-                      {p.parentId || "N/A"}
-                    </td>
-                    <td className="p-2 border text-left">
-                      <div className="flex items-center gap-2">
-                        <ProfileAvatar
-                          name={p.name}
-                          imageSrc={p.photo}
-                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
-                          textClassName="text-xs"
-                        />
-                        <span>{p.name || "N/A"}</span>
-                      </div>
-                    </td>
-                    <td className="p-2 border">
-                      {p.email || "N/A"}
-                    </td>
-                    <td className="p-2 border">
-                      {p.parentId || "N/A"}
-                    </td>
-                    <td className="p-2 border">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-gray-500">••••••••</span>
+              <table className="min-w-[720px] w-full border text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">S. no.</th>
+                    <th className="p-2 border">Parent ID</th>
+                    <th className="p-2 border">Name</th>
+                    <th className="p-2 border">Email</th>
+                    <th className="p-2 border">Username</th>
+                    <th className="p-2 border">Password</th>
+                    <th className="p-2 border">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentLoginParents.map((p, idx) => (
+                    <tr
+                      key={p._id || idx}
+                      className="text-center hover:bg-gray-50"
+                    >
+                      <td className="p-2 border">{loginIndexOfFirst + idx + 1}</td>
+                      <td className="p-2 border">
+                        {p.parentId || "N/A"}
+                      </td>
+                      <td className="p-2 border text-left">
+                        <div className="flex items-center gap-2">
+                          <ProfileAvatar
+                            name={p.name}
+                            imageSrc={p.photo}
+                            sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                            textClassName="text-xs"
+                          />
+                          <span>{p.name || "N/A"}</span>
+                        </div>
+                      </td>
+                      <td className="p-2 border">
+                        {p.email || "N/A"}
+                      </td>
+                      <td className="p-2 border">
+                        {p.parentId || "N/A"}
+                      </td>
+                      <td className="p-2 border">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-gray-500">••••••••</span>
+                          <button
+                            className="text-blue-500 hover:text-blue-700 text-xs"
+                            onClick={() => {
+                              setEditingPassword(p);
+                              setShowPasswordModal(true);
+                            }}
+                          >
+                            Show
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-2 border">
                         <button
-                          className="text-blue-500 hover:text-blue-700 text-xs"
+                          className="text-blue-500"
                           onClick={() => {
                             setEditingPassword(p);
                             setShowPasswordModal(true);
                           }}
+                          title="Edit"
                         >
-                          Show
+                          <FiEdit />
                         </button>
-                      </div>
-                    </td>
-                    <td className="p-2 border">
-                      <button
-                        className="text-blue-500"
-                        onClick={() => {
-                          setEditingPassword(p);
-                          setShowPasswordModal(true);
-                        }}
-                        title="Edit"
+                        <button
+                          className="text-red-500 ml-2"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Are you sure you want to delete this login?"
+                              )
+                            ) {
+                              handleDelete(p._id);
+                            }
+                          }}
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {currentLoginParents.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="p-4 text-center text-gray-500 text-sm"
                       >
-                        <FiEdit />
-                      </button>
-                      <button
-                        className="text-red-500 ml-2"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              "Are you sure you want to delete this login?"
-                            )
-                          ) {
-                            handleDelete(p._id);
-                          }
-                        }}
-                        title="Delete"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {currentLoginParents.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="p-4 text-center text-gray-500 text-sm"
-                    >
-                      No login data available.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        No login data available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
             <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
@@ -928,36 +928,34 @@ Sections:
                 defaultValue={nextParentId}
                 className="border px-3 py-2 w-full rounded bg-gray-50"
               />
-        <input
-  name="name"
-  value={formData.name}
-  onChange={handleChange}
-  className={`border px-3 py-2 w-full rounded ${
-    errors.name ? "border-red-500" : ""
-  }`}
-  placeholder="Name"
-/>
-{errors.name && (
-  <p className="text-xs text-red-500">{errors.name}</p>
-)}
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`border px-3 py-2 w-full rounded ${errors.name ? "border-red-500" : ""
+                  }`}
+                placeholder="Name"
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name}</p>
+              )}
               <input
                 name="email"
                 placeholder="Email"
                 className="border px-3 py-2 w-full rounded"
               />
-           <input
-  name="phone"
-  value={formData.phone}
-  onChange={handleChange}
-  maxLength={10}
-  className={`border px-3 py-2 w-full rounded ${
-    errors.phone ? "border-red-500" : ""
-  }`}
-  placeholder="Phone"
-/>
-{errors.phone && (
-  <p className="text-xs text-red-500">{errors.phone}</p>
-)}
+              <input
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                maxLength={10}
+                className={`border px-3 py-2 w-full rounded ${errors.phone ? "border-red-500" : ""
+                  }`}
+                placeholder="Phone"
+              />
+              {errors.phone && (
+                <p className="text-xs text-red-500">{errors.phone}</p>
+              )}
               <input
                 name="studentId"
                 placeholder="Linked Student ID"
@@ -995,7 +993,7 @@ Sections:
       )}
       {selectedParent && (
         <div className="fixed inset-y-0 right-0 z-50 h-full w-full max-w-[380px] overflow-y-auto border-l bg-white shadow-xl">
-            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-1 gap-3">
               <ProfileAvatar
                 name={selectedParent.name}
@@ -1004,23 +1002,23 @@ Sections:
                 textClassName="text-lg"
               />
               <div className="flex-3 min-w-0">
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
-                <button
-                  onClick={() =>
-                    navigate(`/superadmin/sis/parent-profile/${selectedParent._id}`, {
-                      state: selectedParent,
-                    })
-                  }
-                  className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
-                >
-                  View Full Profile
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
+                  <button
+                    onClick={() =>
+                      navigate(`/superadmin/sis/parent-profile/${selectedParent._id}`, {
+                        state: selectedParent,
+                      })
+                    }
+                    className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
+                  >
+                    View Full Profile
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Parent ID : {selectedParent.parentId}
+                </p>
               </div>
-              <p className="text-sm text-gray-500">
-                Parent ID : {selectedParent.parentId}
-              </p>
-            </div>
             </div>
             <button
               className="p-1 rounded hover:bg-gray-100 text-gray-500 shrink-0"
