@@ -418,18 +418,6 @@ export default function ApproveLeave() {
 
   return (
     <div className="p-0 m-0 min-h-screen w-full max-w-full min-w-0">
-      {/* Breadcrumbs — match Staff Directory pattern */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1 flex-wrap">
-        <button type="button" onClick={() => setLeaveTab("approve")} className="hover:underline text-left">
-          Leave Management
-        </button>
-        <span>&gt;</span>
-        <span>
-          {leaveTab === "approve" && "Approve Leave"}
-          {leaveTab === "policy" && "Leave Policy Setup"}
-        </span>
-      </div>
-
       <div className="flex justify-between items-center mb-4 gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
         <HelpInfo title="Leave Management" description={helpDescription} />

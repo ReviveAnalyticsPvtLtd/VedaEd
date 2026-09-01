@@ -155,13 +155,6 @@ export default function ManageSalary() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>HR</span>
-        <span>&gt;</span>
-        <span>Payroll Management</span>
-      </div>
-
       <div className="flex justify-between items-center mb-4">
            <h2 className="text-2xl font-bold">Staff Payroll</h2>
           <HelpInfo

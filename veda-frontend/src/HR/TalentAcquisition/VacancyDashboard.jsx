@@ -116,15 +116,6 @@ export default function VacancyDashboard() {
 
   return (
     <div className="p-0 min-h-screen mb-20">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>HR</span>
-        <span>&gt;</span>
-        <span>Talent Acquisition</span>
-        <span>&gt;</span>
-        <span>Vacancy Setup</span>
-      </div>
-
       {/* Header */}
       <div className="mb-5">
         <h2 className="text-2xl font-bold text-gray-800">Vacancy Setup</h2>

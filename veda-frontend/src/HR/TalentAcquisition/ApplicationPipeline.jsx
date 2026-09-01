@@ -125,15 +125,6 @@ export default function ApplicationPipeline() {
 
   return (
     <div className="p-0 m-0 min-h-screen mb-20 relative">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>HR</span>
-        <span>&gt;</span>
-        <span>Talent Acquisition</span>
-        <span>&gt;</span>
-        <span>Application Pipeline</span>
-      </div>
-
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-800">Application Pipeline</h2>

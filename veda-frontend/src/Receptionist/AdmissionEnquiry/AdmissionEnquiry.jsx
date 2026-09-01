@@ -157,13 +157,6 @@ const validateKey = (e, field) => {
 };
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Receptionist</span>
-        <span>&gt;</span>
-        <span>Admission Enquiry</span>
-      </div>
-
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-2xl font-bold">Admission Enquiry</h2>
         <HelpInfo

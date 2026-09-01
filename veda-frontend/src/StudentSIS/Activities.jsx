@@ -83,14 +83,6 @@ export default function Activities() {
 
   return (
     <div className="p-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Student</span>
-        <span>&gt;</span>
-        <span>Activities</span>
-      </div>
-
-      {/* Header */}
       <h2 className="text-2xl font-bold mb-4">School Activities</h2>
       <p className="text-sm text-gray-500 mb-4">
         Activities for your class and section (from school admin and your teachers).

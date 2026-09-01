@@ -333,12 +333,6 @@ useEffect(() => {
           {toastMessage}
         </div>
       )}
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Admission &gt;</span>
-        <span>Entrance List</span>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
         <h2 className="text-2xl font-bold">Entrance Exam</h2>

@@ -87,13 +87,6 @@ export default function ZoomLiveClasses() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Receptionist</span>
-        <span>&gt;</span>
-        <span>Zoom Live Classes</span>
-      </div>
-
       {/* Page Title */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Zoom Live Classes</h2>

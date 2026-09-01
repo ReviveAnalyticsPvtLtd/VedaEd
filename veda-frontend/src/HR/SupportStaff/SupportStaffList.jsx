@@ -79,10 +79,6 @@ const SupportStaffList = () => {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <div className="text-sm text-gray-500 mb-2">
-        Support Staff &gt; <span className="text-gray-700">Overview</span>
-      </div>
-
       <h1 className="text-2xl font-bold mb-4">Support Staff</h1>
 
      <div className="flex gap-6 text-sm mb-4 border-b">

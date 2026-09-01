@@ -81,7 +81,6 @@ export default function StudentTimetable() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <p className="text-gray-500 text-sm mb-2 flex items-center gap-1">Timetable &gt;</p>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Timetable</h2>
 

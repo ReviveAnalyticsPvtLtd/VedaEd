@@ -82,12 +82,6 @@ export default function StudentDashboard() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Student</span>
-        <span>&gt;</span>
-        <span>Dashboard</span>
-      </div>
-      
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Student Dashboard</h2>
       </div>

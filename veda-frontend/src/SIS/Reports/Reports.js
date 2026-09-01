@@ -46,28 +46,6 @@ export default function Reports() {
 
   return (
     <div className="p-0 m-0">
-
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => setActiveTab("academic")}
-          className="hover:underline"
-        >
-          Reports
-        </button>
-
-        <span>&gt;</span>
-
-        <span>
-          {activeTab === "academic" && "Academic"}
-          {activeTab === "attendance" && "Attendance"}
-          {activeTab === "discipline" && "Discipline"}
-          {activeTab === "health" && "Health"}
-          {activeTab === "activities" && "Activities"}
-          {activeTab === "ai-automation" && "AI Automation"}
-        </span>
-      </div>
-
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Reports</h2>
       

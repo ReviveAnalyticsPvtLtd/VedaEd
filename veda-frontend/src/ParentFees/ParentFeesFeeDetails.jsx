@@ -43,12 +43,7 @@ export default function ParentFeesFeeDetails() {
 const navigate = useNavigate();
   return (
      <div className="p-0 min-h-screen">
-{/* Breadcrumb */}
-          <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-            <span>Parent Fees &gt;</span>
-            <span>Payment Detail</span>
-          </div>
-    <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2">
            <h2 className="text-2xl font-bold">Payment Detail </h2>
          </div>
  {/* Tabs */}

@@ -112,11 +112,6 @@ const [campErrors, setCampErrors] = useState({});
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2">
-        Parent Dashboard &gt; Child Health Record
-      </div>
-
       {/* Header */}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-2xl font-bold">Child Health Record</h2>

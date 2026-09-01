@@ -81,9 +81,6 @@ export default function AdminProfile() {
 
   return (
     <div className="p-0 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-gray-500 text-sm mb-2">Admin &gt; Profile</div>
-
       {/* Header */}
       <div className="flex justify-between mb-4">
         <h2 className="text-2xl font-bold">Admin Profile</h2>

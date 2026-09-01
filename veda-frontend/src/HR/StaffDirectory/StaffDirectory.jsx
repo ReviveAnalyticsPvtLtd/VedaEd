@@ -423,6 +423,12 @@ export default function Staff() {
           {successMsg}
         </div>
       )}
+<div className="flex justify-between items-center mb-4">
+  <h2 className="text-2xl font-bold">Staff</h2>
+
+  <HelpInfo
+    title="Staff Module Help"
+    description={`Page Description: Manage all staff members including teachers, administrators, and support staff. View staff directory, roles, departments, and contact information. Add new staff and manage assignments.
       {/* Breadcrumbs */}
       <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
         <button

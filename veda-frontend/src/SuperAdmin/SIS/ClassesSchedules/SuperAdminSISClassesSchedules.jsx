@@ -15,27 +15,7 @@ const SuperAdminSISClassesSchedules = () => {
   }, [location.pathname]);
 
   return (
-    <div className="p-0 m-0 min-h-screen ">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => {
-            setActiveTab("classes");
-           navigate("/superadmin/sis/classes-schedules/classes"); // navigate to default tab
-          }}
-          className="hover:underline"
-        >
-          Classes & Schedules
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "classes" && "Classes"}
-          {activeTab === "subject-group" && "Subject Group"}
-          {activeTab === "assign-teacher" && "Assign Teacher"}
-          {activeTab === "timetable" && "Timetable"}
-        </span>
-      </div>
-
+    <div className="p-0 m-0 min-h-screen ">      
      <div className="flex items-center justify-between mb-4">
   <h2 className="text-2xl font-bold">Classes and Schedule</h2>
 
