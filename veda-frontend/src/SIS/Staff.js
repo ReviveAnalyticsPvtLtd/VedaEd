@@ -567,176 +567,169 @@ Sections:
         </button>
       </div>
       {activeTab === "all" && (
-        <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+        <div className="bg-white p-3 rounded-lg shadow-sm border">
 
-          <h3 className="mb-4 text-lg font-semibold">Staff List</h3>
+          <h3 className="text-lg font-semibold mb-4">Staff List</h3>
 
-          <div className="mb-4 w-full space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              {/* Search */}
+              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
+                <FiSearch className="text-gray-500 mr-2 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Search staff name or ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full outline-none text-sm"
+                />
+              </div>
 
-            {/* Search */}
-            <div className="flex min-w-0 max-w-full items-center rounded-md border bg-white px-3 py-2">
-              <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search staff name or ID"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full min-w-0 outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-              <div className="flex flex-1 flex-row flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 min-w-0">
-
-                {/* Department Dropdown */}
-                <div className="relative w-[120px] shrink-0" ref={deptDropdownRef}>
-                  <button
-                    onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
+              {/* Department Dropdown */}
+              <div className="relative group" ref={deptDropdownRef}>
+                <button
+                  onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                >
+                  <span>{filterDept || "Department"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+                {showDeptDropdown && (
+                  <div
+                    className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
                   >
-                    <span>{filterDept || "Department"}</span>
-                    <FiChevronDown className="text-xs" />
-                  </button>
-                  {showDeptDropdown && (
-                    <div
-                      className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                    <button
+                      onClick={() => {
+                        setFilterDept("");
+                        setShowDeptDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
+                      All Departments
+                    </button>
+                    {["Science", "IT", "Kindergarten"].map((dept) => (
                       <button
+                        key={dept}
                         onClick={() => {
-                          setFilterDept("");
+                          setFilterDept(dept);
                           setShowDeptDropdown(false);
                         }}
                         className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                       >
-                        All Departments
+                        {dept}
                       </button>
-                      {["Science", "IT", "Kindergarten"].map((dept) => (
-                        <button
-                          key={dept}
-                          onClick={() => {
-                            setFilterDept(dept);
-                            setShowDeptDropdown(false);
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                        >
-                          {dept}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Status Dropdown */}
-                <div className="relative w-[120px] shrink-0" ref={statusDropdownRef}>
-                  <button
-                    onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-                  >
-                    <span>{filterStatus || "Status"}</span>
-                    <FiChevronDown className="text-xs" />
-                  </button>
-                  {showStatusDropdown && (
-                    <div
-                      className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-                    >
-                      <button
-                        onClick={() => {
-                          setFilterStatus("");
-                          setShowStatusDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        All Status
-                      </button>
-                      {["Active", "On Leave"].map((status) => (
-                        <button
-                          key={status}
-                          onClick={() => {
-                            setFilterStatus(status);
-                            setShowStatusDropdown(false);
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                        >
-                          {status}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
-                  <button
-                    onClick={() => setShowBulkActions(!showBulkActions)}
-                    className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-                  >
-                    <span>Bulk Actions</span>
-                    <FiChevronDown className="text-xs" />
-                  </button>
-
-                  {showBulkActions && (
-                    <div
-                      className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-                    >
-
-                      <button
-                        onClick={() => {
-                          setShowBulkActions(false);
-                          handleBulkExport();
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                      >
-                        <FiDownload className="text-sm" />
-                        Export Excel
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowBulkActions(false);
-                          handleBulkDelete();
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                      >
-                        <FiTrash2 className="text-sm" />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Add Staff */}
-              <div className="relative shrink-0 pl-1" ref={dropdownRef}>
-                <button
-                  onClick={() => setShowOptions(!showOptions)}
-                  className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
-                >
-                  <FiPlus /> Add Staff
-                </button>
-                {showOptions && (
-                  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
-                    <button
-                      onClick={() => {
-                        setShowForm(true);
-                        setShowOptions(false);
-                      }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      <FiPlus className="inline-block mr-2" /> Add Manually
-                    </button>
-                    <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
-                      <FiUpload className="inline-block mr-2" /> Import Excel
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleImport}
-                        className="hidden"
-                      />
-                    </label>
+                    ))}
                   </div>
                 )}
               </div>
 
+              {/* Status Dropdown */}
+              <div className="relative group" ref={statusDropdownRef}>
+                <button
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                >
+                  <span>{filterStatus || "Status"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+                {showStatusDropdown && (
+                  <div
+                    className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                  >
+                    <button
+                      onClick={() => {
+                        setFilterStatus("");
+                        setShowStatusDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      All Status
+                    </button>
+                    {["Active", "On Leave"].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setFilterStatus(status);
+                          setShowStatusDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative group" ref={bulkActionRef}>
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 min-w-[120px] hover:border-blue-500"
+                >
+                  <span>Bulk Actions</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showBulkActions && (
+                  <div
+                    className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                  >
+                    <button
+                      onClick={() => {
+                        setShowBulkActions(false);
+                        handleBulkExport();
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <FiDownload className="text-sm" />
+                      Export Excel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBulkActions(false);
+                        handleBulkDelete();
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                    >
+                      <FiTrash2 className="text-sm" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Add Staff */}
+            <div className="ml-auto relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+              >
+                <FiPlus /> Add Staff
+              </button>
+              {showOptions && (
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
+                  <button
+                    onClick={() => {
+                      setShowForm(true);
+                      setShowOptions(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    <FiPlus className="inline-block mr-2" /> Add Manually
+                  </button>
+                  <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                    <FiUpload className="inline-block mr-2" /> Import Excel
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
 
 
