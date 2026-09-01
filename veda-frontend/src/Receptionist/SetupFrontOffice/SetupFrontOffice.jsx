@@ -224,20 +224,32 @@ Sections:
         </div>
 
         {/* TABLE */}
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-100 border-b">
-            <tr>
-              <th className="p-2 border ">{activeTab}</th>
-              <th className="p-2 border ">Description</th>
-              <th className="p-2 border  text-center">Action</th>
-            </tr>
-          </thead>
+       <table className="w-full text-left border-collapse">
+  <thead className="bg-gray-100 border-b">
+    <tr>
+      <th className="p-2 border text-center">S.No.</th>
+      <th className="p-2 border">{activeTab}</th>
+      <th className="p-2 border">Description</th>
+      <th className="p-2 border text-center">Action</th>
+    </tr>
+  </thead>
 
-          <tbody>
-            {filteredData.map((item) => (
-              <tr key={item._id} className="border-b hover:bg-gray-50">
-                <td className="p-2 border">{item.name}</td>
-                <td className="p-2 border">{item.description || "—"}</td>
+  <tbody>
+    {filteredData.map((item, index) => (
+      <tr key={item._id} className="border-b hover:bg-gray-50">
+
+        {/* S.No. */}
+        <td className="p-2 border text-center">
+          {index + 1}
+        </td>
+
+        <td className="p-2 border">
+          {item.name}
+        </td>
+
+        <td className="p-2 border">
+          {item.description || "—"}
+        </td>
                 <td className="p-2 border text-center">
   <div className="flex items-center justify-center gap-2">
     <FiEdit2

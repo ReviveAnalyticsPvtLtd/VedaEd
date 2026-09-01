@@ -148,11 +148,7 @@ Sections:
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Receptionist</span>
-        <span>&gt;</span>
-        <span>Student Details</span>
-      </div>
+      
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Student Details</h2>
@@ -225,9 +221,10 @@ Sections:
                      </button>
                    </div>
 
-          <table className="w-full text-sm text-left border-collapse">
+          <table className="w-full  text-left border-collapse">
             <thead className="bg-gray-100 border-b">
               <tr>
+                <th className="p-2 border border-gray-200">S.No.</th>
                 <th className="p-2 border ">Student ID</th>
                 <th className="p-2 border ">Student Name</th>
                 <th className="p-2 border ">Class</th>
@@ -242,6 +239,10 @@ Sections:
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((s, index) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
+                    {/* S.No. */}
+          <td className="p-2 border border-gray-200 text-center">
+            {index + 1}
+          </td>
                     <td className="p-2 border">{s.studentId}</td>
                     <td className="p-2 border">{s.name}</td>
                     <td className="p-2 border">{s.class}</td>

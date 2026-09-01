@@ -260,6 +260,7 @@ Sections:
         <table className="w-full  text-left border-collapse">
           <thead className="bg-gray-100 border-b">
             <tr>
+              <th className="p-2 border text-center">S.No.</th>
               <th className="p-2 border ">Purpose</th>
               <th className="p-2 border ">Meeting With</th>
               <th className="p-2 border">Visitor Name</th>
@@ -269,12 +270,20 @@ Sections:
               <th className="p-2 border ">Date</th>
               <th className="p-2 border ">In Time</th>
               <th className="p-2 border ">Out Time</th>
-              <th className="p-2 border font-semibold text-center">Action</th>
+              <th className="p-2 border  text-center">Action</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredData.map((v) => (
-              <tr key={v._id || v.id} className="border-b hover:bg-gray-50">
+         <tbody>
+  {filteredData.map((v, index) => (
+    <tr
+      key={v._id || v.id}
+      className="border-b hover:bg-gray-50"
+    >
+      {/* S.No. */}
+      <td className="p-2 border text-center">
+        {index + 1}
+      </td>
+
                 <td className="p-2 border">{v.purpose}</td>
                 <td className="p-2 border">{v.meetingWith}</td>
                 <td className="p-2 border">{v.visitorName}</td>

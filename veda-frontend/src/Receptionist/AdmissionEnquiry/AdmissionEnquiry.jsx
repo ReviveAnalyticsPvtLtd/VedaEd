@@ -332,7 +332,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
 
           {/* Table */}
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <div className="overflow-x-auto  border border-gray-200">
            <table className="w-full min-w-[1000px]">
       <thead className="bg-gray-100">
               <tr>
@@ -378,7 +378,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
     }
   />
 </td>
-<td className="p-2 border text-center font-medium">
+<td className="p-2 border text-center ">
   {indexOfFirst + index + 1}
 </td>
                   <td className="p-2 border">{e.studentName}</td>
