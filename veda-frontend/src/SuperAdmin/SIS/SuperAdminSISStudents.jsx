@@ -230,23 +230,7 @@ const handleDelete = (id) => {
         </div>
       )}
 
-           <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => {
-            setActiveTab("all");
-            setLoginPage(1);
-          }}
-          className="hover:underline"
-        >
-          Students
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "all" && "All Student"}
-          {activeTab === "login" && "Manage Login"}
-          {activeTab === "others" && "Others"}
-        </span>
-      </div>
+         
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Students</h2>
