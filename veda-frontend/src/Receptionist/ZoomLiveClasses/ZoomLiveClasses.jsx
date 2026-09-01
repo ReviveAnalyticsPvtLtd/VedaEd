@@ -191,16 +191,18 @@ Sections:
                     <FiLink className="inline" /> Join
                   </a>
                 </td>
+<td className="p-2 border text-center">
+  <div className="flex justify-center items-center gap-2">
+    <FiEdit2 className="cursor-pointer text-blue-600" />
 
-                <td className="p-2 border flex justify-center gap-2">
-                  <FiEdit2 className="cursor-pointer text-blue-600" />
-                  <FiTrash2
-                    className="cursor-pointer text-red-600"
-                    onClick={() =>
-                      setClasses((prev) => prev.filter((c) => c.id !== cls.id))
-                    }
-                  />
-                </td>
+    <FiTrash2
+      className="cursor-pointer text-red-600"
+      onClick={() =>
+        setClasses((prev) => prev.filter((c) => c.id !== cls.id))
+      }
+    />
+  </div>
+</td>
               </tr>
             ))}
           </tbody>

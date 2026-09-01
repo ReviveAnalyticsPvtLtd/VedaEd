@@ -265,15 +265,15 @@ Sections:
           <table className="w-full  text-left border-collapse">
             <thead className="bg-gray-100 border-b">
               <tr>
-                <th className="p-2 border font-semibold">Staff ID</th>
-                <th className="p-2 border font-semibold">Name</th>
-                <th className="p-2 border font-semibold">Role</th>
-                <th className="p-2 border font-semibold">Department</th>
-                <th className="p-2 border font-semibold">Email</th>
-                <th className="p-2 border font-semibold">Mobile</th>
-                <th className="p-2 border font-semibold">Gender</th>
-                <th className="p-2 border font-semibold">Status</th>
-                <th className="p-2 border font-semibold">Joining Date</th>
+                <th className="p-2 border ">Staff ID</th>
+                <th className="p-2 border ">Name</th>
+                <th className="p-2 border ">Role</th>
+                <th className="p-2 border ">Department</th>
+                <th className="p-2 border ">Email</th>
+                <th className="p-2 border ">Mobile</th>
+                <th className="p-2 border ">Gender</th>
+                <th className="p-2 border ">Status</th>
+                <th className="p-2 border ">Joining Date</th>
               </tr>
             </thead>
             <tbody>

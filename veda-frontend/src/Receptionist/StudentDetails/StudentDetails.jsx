@@ -137,11 +137,7 @@ Sections:
   if (error) {
     return (
       <div className="p-0 m-0 min-h-screen">
-        <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-          <span>Receptionist</span>
-          <span>&gt;</span>
-          <span>Student Details</span>
-        </div>
+       
         <h2 className="text-2xl font-bold mb-4">Student Details</h2>
         <div className="flex justify-center items-center h-64">
           <div className="text-lg text-red-600">Error: {error}</div>
@@ -232,14 +228,14 @@ Sections:
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-gray-100 border-b">
               <tr>
-                <th className="p-2 border font-semibold">Student ID</th>
-                <th className="p-2 border font-semibold">Student Name</th>
-                <th className="p-2 border font-semibold">Class</th>
-                <th className="p-2 border font-semibold">Section</th>
-                <th className="p-2 border font-semibold">Date of Birth</th>
-                <th className="p-2 border font-semibold">Gender</th>
-                <th className="p-2 border font-semibold">Mobile Number</th>
-                <th className="p-2 border font-semibold text-center">Action</th>
+                <th className="p-2 border ">Student ID</th>
+                <th className="p-2 border ">Student Name</th>
+                <th className="p-2 border ">Class</th>
+                <th className="p-2 border ">Section</th>
+                <th className="p-2 border ">Date of Birth</th>
+                <th className="p-2 border ">Gender</th>
+                <th className="p-2 border ">Mobile Number</th>
+                <th className="p-2 border text-center">Action</th>
               </tr>
             </thead>
             <tbody>

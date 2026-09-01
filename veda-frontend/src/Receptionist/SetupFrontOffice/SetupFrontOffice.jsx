@@ -152,7 +152,7 @@ Sections:
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-3 mb-3 text-gray-600 border-b">
+      <div className="flex gap-3 mb-3 text-sm text-gray-600 border-b">
         {tabs.map((t) => (
           <button
             key={t}
@@ -227,9 +227,9 @@ Sections:
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-100 border-b">
             <tr>
-              <th className="p-2 border font-semibold">{activeTab}</th>
-              <th className="p-2 border font-semibold">Description</th>
-              <th className="p-2 border font-semibold text-center">Action</th>
+              <th className="p-2 border ">{activeTab}</th>
+              <th className="p-2 border ">Description</th>
+              <th className="p-2 border  text-center">Action</th>
             </tr>
           </thead>
 
@@ -238,16 +238,18 @@ Sections:
               <tr key={item._id} className="border-b hover:bg-gray-50">
                 <td className="p-2 border">{item.name}</td>
                 <td className="p-2 border">{item.description || "—"}</td>
-                <td className="p-2 border text-center flex gap-2 justify-center">
-                  <FiEdit2
-                    className="cursor-pointer text-blue-600"
-                    onClick={() => handleEdit(item)}
-                  />
-                  <FiTrash2
-                    className="cursor-pointer text-red-600"
-                    onClick={() => handleDelete(item._id)}
-                  />
-                </td>
+                <td className="p-2 border text-center">
+  <div className="flex items-center justify-center gap-2">
+    <FiEdit2
+      className="cursor-pointer text-blue-600"
+      onClick={() => handleEdit(item)}
+    />
+    <FiTrash2
+      className="cursor-pointer text-red-600"
+      onClick={() => handleDelete(item._id)}
+    />
+  </div>
+</td>
               </tr>
             ))}
           </tbody>
