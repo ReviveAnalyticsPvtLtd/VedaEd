@@ -378,7 +378,12 @@ For each student, you will see:
 Use this page to carefully verify each document and update the status accordingly.`}
         />
       </div>
-
+ {/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       <div className="bg-white p-4 rounded-lg border">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">

@@ -340,7 +340,9 @@ export default function AnnualCalendar() {
 
   /* ================= RENDER ================= */
   return (
+    
     <div className="flex h-full bg-gray-50">
+      
       <div className="flex-1 p-6 overflow-auto">
         <Header />
         <Filters />

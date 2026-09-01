@@ -464,6 +464,10 @@ const handleBulkExport = () => {
   setShowBulkActions(false);
 };
 
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
 const handleBulkDelete = async () => {
   if (selectedStudents.length === 0) {
     setSuccessMsg("Please select students first");
@@ -732,8 +736,8 @@ Sections:
               />
             </div>
 
-            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
-            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+              <div className="flex flex-1 flex-row flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 min-w-0">
             <div className="relative w-[120px] shrink-0" ref={classDropdownRef}>
               <button
                 onClick={() => setShowClassDropdown(!showClassDropdown)}
@@ -856,7 +860,7 @@ Sections:
             </div>
             </div>
 
-            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
+            <div className="relative shrink-0" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center justify-center gap-1 whitespace-nowrap"
@@ -866,7 +870,7 @@ Sections:
               </button>
 
               {showOptions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
                   <button
                     onClick={() => {
                       setShowForm(true);

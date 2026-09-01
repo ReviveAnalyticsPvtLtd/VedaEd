@@ -37,51 +37,51 @@ export default function Staff() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingPassword, setEditingPassword] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
-const [showBulkActions, setShowBulkActions] = useState(false);
-const bulkActionRef = useRef(null);
-const [errors, setErrors] = useState({});
-// Department Dropdown
-const [showDeptDropdown, setShowDeptDropdown] = useState(false);
-const deptDropdownRef = useRef(null);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const bulkActionRef = useRef(null);
+  const [errors, setErrors] = useState({});
+  // Department Dropdown
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
+  const deptDropdownRef = useRef(null);
 
-// Status Dropdown
-const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-const statusDropdownRef = useRef(null);
+  // Status Dropdown
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const statusDropdownRef = useRef(null);
 
-useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-      setShowOptions(false); // Add Staff
-    }
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowOptions(false); // Add Staff
+      }
 
-    if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target)) {
-      setShowDeptDropdown(false); // Department
-    }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target)) {
+        setShowDeptDropdown(false); // Department
+      }
 
-    if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
-      setShowStatusDropdown(false); // Status
-    }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+        setShowStatusDropdown(false); // Status
+      }
 
-    if (bulkActionRef.current && !bulkActionRef.current.contains(e.target)) {
-      setShowBulkActions(false); // Bulk Actions
-    }
-  };
+      if (bulkActionRef.current && !bulkActionRef.current.contains(e.target)) {
+        setShowBulkActions(false); // Bulk Actions
+      }
+    };
 
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
-const [staffForm, setStaffForm] = useState({
-  name: "",
-  role: "",
-  department: "",
-  status: "Active",
-  assignedClasses: "",
-  email: "",
-  password: "",
-});
-const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
+  const [staffForm, setStaffForm] = useState({
+    name: "",
+    role: "",
+    department: "",
+    status: "Active",
+    assignedClasses: "",
+    email: "",
+    password: "",
+  });
+  const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
 
   const navigate = useNavigate();
 
@@ -104,7 +104,7 @@ const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
   // 🔹 Fetch staff from API 
   useEffect(() => {
     axios
-      .get(`${API_BASE_URL}/staff/`, authHeader) 
+      .get(`${API_BASE_URL}/staff/`, authHeader)
       .then((res) => {
         if (res.data.success && Array.isArray(res.data.staff)) {
           setStaff(res.data.staff);
@@ -125,20 +125,20 @@ const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-useEffect(() => {
-  if (!showForm) return;
-  axios
-    .get(`${API_BASE_URL}/staff/next-id`, authHeader)
-    .then((res) => {
-      if (res.data?.success) {
-        setNextStaffIdPreview(res.data.staffId || "");
-      }
-    })
-    .catch((err) => {
-      console.error("Error fetching next staff ID:", err);
-      setNextStaffIdPreview("");
-    });
-}, [showForm]);
+  useEffect(() => {
+    if (!showForm) return;
+    axios
+      .get(`${API_BASE_URL}/staff/next-id`, authHeader)
+      .then((res) => {
+        if (res.data?.success) {
+          setNextStaffIdPreview(res.data.staffId || "");
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching next staff ID:", err);
+        setNextStaffIdPreview("");
+      });
+  }, [showForm]);
 
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -149,7 +149,7 @@ useEffect(() => {
       const workbook = XLSX.read(bstr, { type: "binary" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet);      
+      const data = XLSX.utils.sheet_to_json(worksheet);
 
       const imported = data.map((row, idx) => ({
         id: staff.length + idx + 1,
@@ -175,29 +175,29 @@ useEffect(() => {
 
 
   const validateKey = (e, field) => {
-  const letterOnly = ["name", "fatherName", "motherName", "city"];
-  const numberOnly = ["mobile", "parentContact", "pincode"];
+    const letterOnly = ["name", "fatherName", "motherName", "city"];
+    const numberOnly = ["mobile", "parentContact", "pincode"];
 
-  // LETTER ONLY
-  if (
-    letterOnly.includes(field) &&
-    !/^[a-zA-Z\s]$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault(); // ❌ type hi nahi hone dega
-    setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
-  }
+    // LETTER ONLY
+    if (
+      letterOnly.includes(field) &&
+      !/^[a-zA-Z\s]$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault(); // ❌ type hi nahi hone dega
+      setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
+    }
 
-  // NUMBER ONLY
-  if (
-    numberOnly.includes(field) &&
-    !/^\d$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault(); // ❌ type hi nahi hone dega
-    setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
-  }
-};
+    // NUMBER ONLY
+    if (
+      numberOnly.includes(field) &&
+      !/^\d$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault(); // ❌ type hi nahi hone dega
+      setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
+    }
+  };
   const handleAddManually = async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -246,16 +246,16 @@ useEffect(() => {
   };
 
   const handleBulkSelect = () => {
-  console.log("Bulk select clicked");
-};
+    console.log("Bulk select clicked");
+  };
 
-const handleBulkExport = () => {
-  console.log("Bulk export clicked");
-};
+  const handleBulkExport = () => {
+    console.log("Bulk export clicked");
+  };
 
-const handleBulkDelete = () => {
-  console.log("Bulk delete clicked");
-};
+  const handleBulkDelete = () => {
+    console.log("Bulk delete clicked");
+  };
 
 
 
@@ -326,9 +326,9 @@ const handleBulkDelete = () => {
       case "Date of Joining":
         return formatReadableDate(
           selectedStaff.joiningDate ||
-            selectedStaff.personalInfo?.doj ||
-            selectedStaff.doj ||
-            selectedStaff.dateOfJoining
+          selectedStaff.personalInfo?.doj ||
+          selectedStaff.doj ||
+          selectedStaff.dateOfJoining
         );
       case "Gender": return selectedStaff.personalInfo?.gender || selectedStaff.gender || "N/A";
       case "Assigned Classes":
@@ -363,8 +363,8 @@ const handleBulkDelete = () => {
       ].includes(key)) {
         const value = selectedStaff[key];
         // Only include primitive values or arrays that can be safely rendered
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || 
-            (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string')) {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ||
+          (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string')) {
           extraFields.push({
             label: key.charAt(0).toUpperCase() + key.slice(1),
             value: Array.isArray(value) ? value.join(', ') : value
@@ -383,33 +383,33 @@ const handleBulkDelete = () => {
     return "bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs";
   };
   // ------- LOGIN TAB STATES -------
-const [searchLogin, setSearchLogin] = useState("");
-const loginBulkRef = useRef(null);
-const [showLoginBulk, setShowLoginBulk] = useState(false);
+  const [searchLogin, setSearchLogin] = useState("");
+  const loginBulkRef = useRef(null);
+  const [showLoginBulk, setShowLoginBulk] = useState(false);
 
-// Pagination for Login Tab
-const [loginPage, setLoginPage] = useState(1);
-const loginPerPage = 20;
+  // Pagination for Login Tab
+  const [loginPage, setLoginPage] = useState(1);
+  const loginPerPage = 20;
 
-const filteredLogin = staff.filter((s) =>
-  (s.personalInfo?.name || "")
-    .toLowerCase()
-    .includes(searchLogin.toLowerCase()) ||
-  (s.personalInfo?.staffId || "")
-    .toLowerCase()
-    .includes(searchLogin.toLowerCase())
-);
+  const filteredLogin = staff.filter((s) =>
+    (s.personalInfo?.name || "")
+      .toLowerCase()
+      .includes(searchLogin.toLowerCase()) ||
+    (s.personalInfo?.staffId || "")
+      .toLowerCase()
+      .includes(searchLogin.toLowerCase())
+  );
 
 
-// Pagination indexes
-const indexOfLastLogin = loginPage * loginPerPage;
-const indexOfFirstLogin = indexOfLastLogin - loginPerPage;
-const currentLoginList = filteredLogin.slice(
-  indexOfFirstLogin,
-  indexOfLastLogin
-);
+  // Pagination indexes
+  const indexOfLastLogin = loginPage * loginPerPage;
+  const indexOfFirstLogin = indexOfLastLogin - loginPerPage;
+  const currentLoginList = filteredLogin.slice(
+    indexOfFirstLogin,
+    indexOfLastLogin
+  );
 
-const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage);
+  const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage);
 
 
   return (
@@ -429,6 +429,28 @@ const totalLoginPages = Math.ceil(filteredLogin.length / loginPerPage);
   <HelpInfo
     title="Staff Module Help"
     description={`Page Description: Manage all staff members including teachers, administrators, and support staff. View staff directory, roles, departments, and contact information. Add new staff and manage assignments.
+      {/* Breadcrumbs */}
+      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
+        <button
+          onClick={() => setActiveTab("all")}
+          className="hover:underline"
+        >
+          Staff
+        </button>
+        <span>&gt;</span>
+        <span>
+          {activeTab === "all" && "All Staff"}
+          {activeTab === "login" && "Manage Login"}
+          {activeTab === "others" && "Others"}
+        </span>
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Staff</h2>
+
+        <HelpInfo
+          title="Staff Module Help"
+          description={`Page Description: Manage all staff members including teachers, administrators, and support staff. View staff directory, roles, departments, and contact information. Add new staff and manage assignments.
 
 6.1 All Staff Tab
 Description: View and manage the complete directory of all staff members. Display staff information including name, staff ID, role, department, assigned classes, email, phone, and employment status. Search and filter staff by role, department, name, or status. Add new staff members manually or import from Excel. Assign staff to classes and subjects. View staff schedules and workload. Manage staff contact information and employment details.
@@ -456,496 +478,494 @@ Sections:
 - ID Card Generation: Create and print staff ID cards.
 - Department Management: Organize staff by departments and manage department structures.
 - Export and Import Tools: Advanced data export options and import templates.`}
-  />
-</div>
+        />
+      </div>
 
 
 
       {/* Tabs */}
       <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
-  <button
-    onClick={() => setActiveTab("all")}
-    className={`pb-2 ${
-      activeTab === "all"
-        ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-        : "text-gray-500"
-    }`}
-  >
-    All Staff
-  </button>
-  <button
-    onClick={() => setActiveTab("login")}
-    className={`pb-2 ${
-      activeTab === "login"
-        ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-        : "text-gray-500"
-    }`}
-  >
-    Manage Login
-  </button>
-  <button
-    onClick={() => setActiveTab("others")}
-    className={`pb-2 ${
-      activeTab === "others"
-        ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-        : "text-gray-500"
-    }`}
-  >
-    Others
-  </button>
-</div>
-{activeTab === "all" && (
-  <div className="bg-white p-3 rounded-lg shadow-sm border">
-    
-    <h3 className="text-lg font-semibold mb-4">Staff List</h3>
-
-    <div className="flex items-center gap-3 mb-4 w-full">
-
-      {/* Search */}
-      <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-        <FiSearch className="text-gray-500 mr-2 text-sm" />
-        <input
-          type="text"
-          placeholder="Search staff name or ID"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full outline-none "
-        />
-      </div>
-
-      {/* Department Dropdown */}
-      <div className="relative group" ref={deptDropdownRef}>
         <button
-          onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-          className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+          onClick={() => setActiveTab("all")}
+          className={`pb-2 ${activeTab === "all"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+            }`}
         >
-          <span>{filterDept || "Department"}</span>
-          <FiChevronDown className="text-xs" />
+          All Staff
         </button>
-        {showDeptDropdown && (
-          <div
-            className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-          >
-            <button
-              onClick={() => {
-                setFilterDept("");
-                setShowDeptDropdown(false);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-            >
-              All Departments
-            </button>
-            {["Science", "IT", "Kindergarten"].map((dept) => (
-              <button
-                key={dept}
-                onClick={() => {
-                  setFilterDept(dept);
-                  setShowDeptDropdown(false);
-                }}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                {dept}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Status Dropdown */}
-      <div className="relative group" ref={statusDropdownRef}>
         <button
-          onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-          className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+          onClick={() => setActiveTab("login")}
+          className={`pb-2 ${activeTab === "login"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+            }`}
         >
-          <span>{filterStatus || "Status"}</span>
-          <FiChevronDown className="text-xs" />
+          Manage Login
         </button>
-        {showStatusDropdown && (
-          <div
-            className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-          >
-            <button
-              onClick={() => {
-                setFilterStatus("");
-                setShowStatusDropdown(false);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-            >
-              All Status
-            </button>
-            {["Active", "On Leave"].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setFilterStatus(status);
-                  setShowStatusDropdown(false);
-                }}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-       <div className="relative group" ref={bulkActionRef}>
-                    <button
-                      onClick={() => setShowBulkActions(!showBulkActions)}
-                      className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
-                    >
-                      <span>Bulk Actions</span>
-                      <FiChevronDown className="text-xs" />
-                    </button>
-      
-                    {showBulkActions && (
-                      <div 
-                        className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-                      >
-                        <button
-                          onClick={() => {
-                            setShowBulkActions(false);
-                            // Add select functionality here
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                        >
-                          <FiUser className="text-sm" />
-                          Select
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowBulkActions(false);
-                            // Add export CSV functionality here
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                        >
-                          <FiDownload className="text-sm" />
-                          Export CSV
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowBulkActions(false);
-                            // Add delete functionality here
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                        >
-                          <FiTrash2 className="text-sm" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-      {/* Add Staff */}
-      <div className="ml-auto relative" ref={dropdownRef}>
         <button
-          onClick={() => setShowOptions(!showOptions)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+          onClick={() => setActiveTab("others")}
+          className={`pb-2 ${activeTab === "others"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+            }`}
         >
-          <FiPlus /> Add Staff
+          Others
         </button>
-        {showOptions && (
-          <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
-            <button
-              onClick={() => {
-                setShowForm(true);
-                setShowOptions(false);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-            >
-              <FiPlus className="inline-block mr-2" /> Add Manually
-            </button>
-            <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
-              <FiUpload className="inline-block mr-2" /> Import Excel
+      </div>
+      {activeTab === "all" && (
+        <div className="bg-white p-3 rounded-lg shadow-sm border">
+
+          <h3 className="text-lg font-semibold mb-4">Staff List</h3>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              {/* Search */}
+            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
+              <FiSearch className="text-gray-500 mr-2 text-sm" />
               <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleImport}
-                className="hidden"
+                type="text"
+                placeholder="Search staff name or ID"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full outline-none "
               />
-            </label>
-          </div>
-        )}
-      </div>
+            </div>
 
-    </div>
-  
-
-
-
-    {/* Staff Table */}
-    <table className="w-full border ">
-      <thead className="bg-gray-100">
-        <tr>
-          <th className="p-2 border">S. no.</th>
-          <th className="p-2 border">Staff ID</th>
-          <th className="p-2 border">Name</th>
-          <th className="p-2 border">Role</th>
-          <th className="p-2 border">Department</th>
-          <th className="p-2 border">Email</th>
-          <th className="p-2 border">Status</th>
-          <th className="p-2 border">Action</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {currentStaff.map((s, idx) => (
-          <tr key={s._id || idx} className="text-center hover:bg-gray-50">
-            <td className="p-2 border">{indexOfFirst + idx + 1}</td>
-            <td className="p-2 border">{s.personalInfo?.staffId}</td>
-
-            <td className="p-2 border text-left">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
-                  {s.personalInfo?.name?.[0] || "S"}
-                </span>
-                <span>{s.personalInfo?.name}</span>
-              </div>
-            </td>
-
-            <td className="p-2 border">{s.personalInfo?.role}</td>
-            <td className="p-2 border">{s.personalInfo?.department}</td>
-            <td className="p-2 border">{s.personalInfo?.email}</td>
-
-            <td className="p-2 border">
-              <span className={statusBadge(s.status)}>{s.status}</span>
-            </td>
-
-            <td className="p-2 border">
+            {/* Department Dropdown */}
+            <div className="relative group" ref={deptDropdownRef}>
               <button
-                className="text-blue-500"
-                onClick={() => setSelectedStaff(s)}
+                onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
               >
-                <FiSearch />
+                <span>{filterDept || "Department"}</span>
+                <FiChevronDown className="text-xs" />
               </button>
-              <button
-                className="text-red-500 ml-2"
-                onClick={() => handleDelete(s._id)}
-              >
-                <FiTrash2 />
-              </button>
-            </td>
-          </tr>
-        ))}
-
-        {currentStaff.length === 0 && (
-          <tr>
-            <td className="p-4 text-center text-gray-500" colSpan={9}>
-              No staff found
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-
-    {/* Pagination */}
-    <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-      <p>Page {currentPage} of {totalPages}</p>
-      <div className="space-x-2">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(currentPage - 1)}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(currentPage + 1)}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-   {/* Login / Others Tabs */}
-{activeTab === "login" && (
-  <div className="bg-white p-3 rounded-lg shadow-sm border">
-
-    {/* Heading */}
-    <h3 className="text-lg font-semibold mb-4">Staff Login</h3>
-
-    {/* Search + Filter + Bulk Actions */}
-    <div className="flex items-center gap-3 mb-4 w-full">
-
-      {/* Search */}
-      <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-        <FiSearch className="text-gray-500 mr-2 text-sm" />
-        <input
-          type="text"
-          placeholder="Search staff name or ID"
-          value={searchLogin}
-          onChange={(e) => setSearchLogin(e.target.value)}
-          className="w-full outline-none "
-        />
-      </div>
-  <div className="relative group" ref={bulkActionRef}>
-               <button
-                 onClick={() => setShowBulkActions(!showBulkActions)}
-                 className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
-               >
-                 <span>Bulk Actions</span>
-                 <FiChevronDown className="text-xs" />
-               </button>
- 
-               {showBulkActions && (
-                 <div 
-                   className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
-                 >
-                   <button
-                     onClick={() => {
-                       setShowBulkActions(false);
-                       // Add select functionality here
-                     }}
-                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                   >
-                     <FiUser className="text-sm" />
-                     Select
-                   </button>
-                   <button
-                     onClick={() => {
-                       setShowBulkActions(false);
-                       // Add export CSV functionality here
-                     }}
-                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                   >
-                     <FiDownload className="text-sm" />
-                     Export CSV
-                   </button>
-                   <button
-                     onClick={() => {
-                       setShowBulkActions(false);
-                       // Add delete functionality here
-                     }}
-                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                   >
-                     <FiTrash2 className="text-sm" />
-                     Delete
-                   </button>
-                 </div>
-               )}
-             </div>
-
-
-    </div>
-
-    {/* Login Table */}
-    <table className="w-full border text-sm">
-      <thead className="bg-gray-100">
-        <tr>
-          <th className="p-2 border">S. no.</th>
-          <th className="p-2 border">Staff ID</th>
-          <th className="p-2 border">Name</th>
-          <th className="p-2 border">Username</th>
-          <th className="p-2 border">Password</th>
-          <th className="p-2 border">Action</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {currentLoginList.map((s, idx) => (
-          <tr key={s._id || idx} className="text-center hover:bg-gray-50">
-            <td className="p-2 border">{indexOfFirstLogin + idx + 1}</td>
-            <td className="p-2 border">{s.personalInfo?.staffId || "N/A"}</td>
-
-            <td className="p-2 border text-left">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
-                  {s.personalInfo?.name?.[0] || "S"}
-                </span>
-                <span>{s.personalInfo?.name || "N/A"}</span>
-              </div>
-            </td>
-
-            <td className="p-2 border">{s.personalInfo?.username || "N/A"}</td>
-
-            <td className="p-2 border">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-gray-500">
-                  {visiblePasswords[s._id]
-                    ? (s.personalInfo?.password || "N/A")
-                    : "••••••••"}
-                </span>
-                <button
-                  className="text-blue-500 hover:text-blue-700 text-xs"
-                  onClick={() => {
-                    setVisiblePasswords((prev) => ({
-                      ...prev,
-                      [s._id]: !prev[s._id],
-                    }));
-                  }}
+              {showDeptDropdown && (
+                <div
+                  className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
                 >
-                  {visiblePasswords[s._id] ? "Hide" : "Show"}
-                </button>
-              </div>
-            </td>
+                  <button
+                    onClick={() => {
+                      setFilterDept("");
+                      setShowDeptDropdown(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    All Departments
+                  </button>
+                  {["Science", "IT", "Kindergarten"].map((dept) => (
+                    <button
+                      key={dept}
+                      onClick={() => {
+                        setFilterDept(dept);
+                        setShowDeptDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      {dept}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <td className="p-2 border">
+            {/* Status Dropdown */}
+            <div className="relative group" ref={statusDropdownRef}>
               <button
-                className="text-blue-500"
-                onClick={() => {
-                  setEditingPassword(s);
-                  setShowPasswordModal(true);
-                }}
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
               >
-                <FiEdit />
+                <span>{filterStatus || "Status"}</span>
+                <FiChevronDown className="text-xs" />
+              </button>
+              {showStatusDropdown && (
+                <div
+                  className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                >
+                  <button
+                    onClick={() => {
+                      setFilterStatus("");
+                      setShowStatusDropdown(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    All Status
+                  </button>
+                  {["Active", "On Leave"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        setFilterStatus(status);
+                        setShowStatusDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative group" ref={bulkActionRef}>
+              <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+              >
+                <span>Bulk Actions</span>
+                <FiChevronDown className="text-xs" />
+              </button>
+
+              {showBulkActions && (
+                <div
+                  className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                >
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add select functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FiUser className="text-sm" />
+                    Select
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add export CSV functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FiDownload className="text-sm" />
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add delete functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                  >
+                    <FiTrash2 className="text-sm" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+            </div>
+
+            {/* Add Staff */}
+            <div className="ml-auto relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+              >
+                <FiPlus /> Add Staff
+              </button>
+               {showOptions && (
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
+                  <button
+                    onClick={() => {
+                      setShowForm(true);
+                      setShowOptions(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    <FiPlus className="inline-block mr-2" /> Add Manually
+                  </button>
+                  <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                    <FiUpload className="inline-block mr-2" /> Import Excel
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+
+
+
+          {/* Staff Table */}
+          <table className="w-full border ">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 border">S. no.</th>
+                <th className="p-2 border">Staff ID</th>
+                <th className="p-2 border">Name</th>
+                <th className="p-2 border">Role</th>
+                <th className="p-2 border">Department</th>
+                <th className="p-2 border">Email</th>
+                <th className="p-2 border">Status</th>
+                <th className="p-2 border">Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {currentStaff.map((s, idx) => (
+                <tr key={s._id || idx} className="text-center hover:bg-gray-50">
+                  <td className="p-2 border">{indexOfFirst + idx + 1}</td>
+                  <td className="p-2 border">{s.personalInfo?.staffId}</td>
+
+                  <td className="p-2 border text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
+                        {s.personalInfo?.name?.[0] || "S"}
+                      </span>
+                      <span>{s.personalInfo?.name}</span>
+                    </div>
+                  </td>
+
+                  <td className="p-2 border">{s.personalInfo?.role}</td>
+                  <td className="p-2 border">{s.personalInfo?.department}</td>
+                  <td className="p-2 border">{s.personalInfo?.email}</td>
+
+                  <td className="p-2 border">
+                    <span className={statusBadge(s.status)}>{s.status}</span>
+                  </td>
+
+                  <td className="p-2 border">
+                    <button
+                      className="text-blue-500"
+                      onClick={() => setSelectedStaff(s)}
+                    >
+                      <FiSearch />
+                    </button>
+                    <button
+                      className="text-red-500 ml-2"
+                      onClick={() => handleDelete(s._id)}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {currentStaff.length === 0 && (
+                <tr>
+                  <td className="p-4 text-center text-gray-500" colSpan={9}>
+                    No staff found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+            <p>Page {currentPage} of {totalPages}</p>
+            <div className="space-x-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Previous
               </button>
               <button
-                className="text-red-500 ml-2"
-                onClick={() => handleDelete(s._id)}
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
               >
-                <FiTrash2 />
+                Next
               </button>
-            </td>
-          </tr>
-        ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-        {currentLoginList.length === 0 && (
-          <tr>
-            <td className="p-4 text-center text-gray-500" colSpan={6}>
-              No staff found
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+      {/* Login / Others Tabs */}
+      {activeTab === "login" && (
+        <div className="bg-white p-3 rounded-lg shadow-sm border">
 
-    {/* Pagination */}
-    <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-      <p>Page {loginPage} of {totalLoginPages}</p>
-      <div className="space-x-2">
-        <button
-          disabled={loginPage === 1}
-          onClick={() => setLoginPage(loginPage - 1)}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <button
-          disabled={loginPage === totalLoginPages}
-          onClick={() => setLoginPage(loginPage + 1)}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+          {/* Heading */}
+          <h3 className="text-lg font-semibold mb-4">Staff Login</h3>
 
-  </div>
-)}
+          {/* Search + Filter + Bulk Actions */}
+          <div className="flex items-center gap-3 mb-4 w-full">
+
+            {/* Search */}
+            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
+              <FiSearch className="text-gray-500 mr-2 text-sm" />
+              <input
+                type="text"
+                placeholder="Search staff name or ID"
+                value={searchLogin}
+                onChange={(e) => setSearchLogin(e.target.value)}
+                className="w-full outline-none "
+              />
+            </div>
+            <div className="relative group" ref={bulkActionRef}>
+              <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className="border px-3 py-2 rounded-md  bg-white flex items-center gap-2 min-w-[120px]  hover:border-blue-500"
+              >
+                <span>Bulk Actions</span>
+                <FiChevronDown className="text-xs" />
+              </button>
+
+              {showBulkActions && (
+                <div
+                  className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+                >
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add select functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FiUser className="text-sm" />
+                    Select
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add export CSV functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FiDownload className="text-sm" />
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkActions(false);
+                      // Add delete functionality here
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                  >
+                    <FiTrash2 className="text-sm" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+
+
+          </div>
+
+          {/* Login Table */}
+          <table className="w-full border text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 border">S. no.</th>
+                <th className="p-2 border">Staff ID</th>
+                <th className="p-2 border">Name</th>
+                <th className="p-2 border">Username</th>
+                <th className="p-2 border">Password</th>
+                <th className="p-2 border">Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {currentLoginList.map((s, idx) => (
+                <tr key={s._id || idx} className="text-center hover:bg-gray-50">
+                  <td className="p-2 border">{indexOfFirstLogin + idx + 1}</td>
+                  <td className="p-2 border">{s.personalInfo?.staffId || "N/A"}</td>
+
+                  <td className="p-2 border text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 bg-indigo-500 text-white flex items-center justify-center rounded-full">
+                        {s.personalInfo?.name?.[0] || "S"}
+                      </span>
+                      <span>{s.personalInfo?.name || "N/A"}</span>
+                    </div>
+                  </td>
+
+                  <td className="p-2 border">{s.personalInfo?.username || "N/A"}</td>
+
+                  <td className="p-2 border">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-gray-500">
+                        {visiblePasswords[s._id]
+                          ? (s.personalInfo?.password || "N/A")
+                          : "••••••••"}
+                      </span>
+                      <button
+                        className="text-blue-500 hover:text-blue-700 text-xs"
+                        onClick={() => {
+                          setVisiblePasswords((prev) => ({
+                            ...prev,
+                            [s._id]: !prev[s._id],
+                          }));
+                        }}
+                      >
+                        {visiblePasswords[s._id] ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </td>
+
+                  <td className="p-2 border">
+                    <button
+                      className="text-blue-500"
+                      onClick={() => {
+                        setEditingPassword(s);
+                        setShowPasswordModal(true);
+                      }}
+                    >
+                      <FiEdit />
+                    </button>
+                    <button
+                      className="text-red-500 ml-2"
+                      onClick={() => handleDelete(s._id)}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {currentLoginList.length === 0 && (
+                <tr>
+                  <td className="p-4 text-center text-gray-500" colSpan={6}>
+                    No staff found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+            <p>Page {loginPage} of {totalLoginPages}</p>
+            <div className="space-x-2">
+              <button
+                disabled={loginPage === 1}
+                onClick={() => setLoginPage(loginPage - 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                disabled={loginPage === totalLoginPages}
+                onClick={() => setLoginPage(loginPage + 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
+        </div>
+      )}
 
 
       {activeTab === "others" && (
         <div className="bg-gray-200 p-6 rounded-lg shadow-sm border border-gray-200">
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold mb-2">Others</h3>
-          <p className="text-sm text-gray-600">
-            Yahan aap future me HR documents, leaves, appraisal ya training records jaisi cheezein rakh sakte ho.
-          </p>
-        </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-2">Others</h3>
+            <p className="text-sm text-gray-600">
+              Yahan aap future me HR documents, leaves, appraisal ya training records jaisi cheezein rakh sakte ho.
+            </p>
+          </div>
         </div>
       )}
 
@@ -960,20 +980,20 @@ Sections:
                 className="border px-3 py-2 w-full rounded bg-gray-100 text-gray-500"
                 readOnly
               />
-             <input
-  name="name"
-  placeholder="Full Name"
-  className="border px-3 py-2 w-full rounded"
-  value={staffForm.name}
-  onKeyDown={(e) => validateKey(e, "name")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, name: "" }));
-    setStaffForm({ ...staffForm, name: e.target.value });
-  }}
-/>
-{errors.name && (
-  <p className="text-xs text-red-500">{errors.name}</p>
-)}
+              <input
+                name="name"
+                placeholder="Full Name"
+                className="border px-3 py-2 w-full rounded"
+                value={staffForm.name}
+                onKeyDown={(e) => validateKey(e, "name")}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, name: "" }));
+                  setStaffForm({ ...staffForm, name: e.target.value });
+                }}
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name}</p>
+              )}
               <select name="role" className="border px-3 py-2 w-full rounded" required>
                 <option value="">Select Role</option>
                 <option value="Teacher">Teacher</option>
@@ -983,47 +1003,47 @@ Sections:
                 <option value="HR">HR</option>
                 <option value="Other">Other</option>
               </select>
-             <input
-  name="department"
-  placeholder="Department"
-  className="border px-3 py-2 w-full rounded"
-  value={staffForm.department}
-  onKeyDown={(e) => validateKey(e, "department")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, department: "" }));
-    setStaffForm({ ...staffForm, department: e.target.value });
-  }}
-/>
-{errors.department && (
-  <p className="text-xs text-red-500">{errors.department}</p>
-)}
+              <input
+                name="department"
+                placeholder="Department"
+                className="border px-3 py-2 w-full rounded"
+                value={staffForm.department}
+                onKeyDown={(e) => validateKey(e, "department")}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, department: "" }));
+                  setStaffForm({ ...staffForm, department: e.target.value });
+                }}
+              />
+              {errors.department && (
+                <p className="text-xs text-red-500">{errors.department}</p>
+              )}
               <select name="status" className="border px-3 py-2 w-full rounded">
                 <option value="Active">Active</option>
                 <option value="On Leave">On Leave</option>
               </select>
               <input name="assignedClasses" placeholder="Assigned Classes (comma-separated)" className="border px-3 py-2 w-full rounded" />
-             <input
-  type="email"
-  name="email"
-  placeholder="Contact Email"
-  className="border px-3 py-2 w-full rounded"
-  value={staffForm.email}
-  onBlur={(e) => {
-    if (
-      e.target.value &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value)
-    ) {
-      setErrors((p) => ({ ...p, email: "Invalid email format" }));
-    }
-  }}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, email: "" }));
-    setStaffForm({ ...staffForm, email: e.target.value });
-  }}
-/>
-{errors.email && (
-  <p className="text-xs text-red-500">{errors.email}</p>
-)}
+              <input
+                type="email"
+                name="email"
+                placeholder="Contact Email"
+                className="border px-3 py-2 w-full rounded"
+                value={staffForm.email}
+                onBlur={(e) => {
+                  if (
+                    e.target.value &&
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value)
+                  ) {
+                    setErrors((p) => ({ ...p, email: "Invalid email format" }));
+                  }
+                }}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, email: "" }));
+                  setStaffForm({ ...staffForm, email: e.target.value });
+                }}
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500">{errors.email}</p>
+              )}
               <input type="password" name="password" placeholder="Password" className="border px-3 py-2 w-full rounded" required />
               <div className="flex justify-end space-x-2 pt-1">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded">Cancel</button>
@@ -1032,7 +1052,7 @@ Sections:
             </form>
           </div>
         </div>
-        
+
       )}
 
       {/* Password Update Modal */}
@@ -1051,36 +1071,36 @@ Sections:
             }} className="space-y-3">
               <div>
                 <label className="text-sm font-medium mb-1 block">Current Password:</label>
-                <input 
-                  type="text" 
-                  value={editingPassword.personalInfo?.password || "N/A"} 
-                  className="border px-3 py-2 w-full rounded bg-gray-100" 
-                  readOnly 
+                <input
+                  type="text"
+                  value={editingPassword.personalInfo?.password || "N/A"}
+                  className="border px-3 py-2 w-full rounded bg-gray-100"
+                  readOnly
                 />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">New Password:</label>
-                <input 
+                <input
                   name="password"
-                  type="text" 
+                  type="text"
                   placeholder="Enter new password"
-                  className="border px-3 py-2 w-full rounded" 
-                  required 
+                  className="border px-3 py-2 w-full rounded"
+                  required
                 />
               </div>
               <div className="flex justify-end space-x-2 mt-4">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setShowPasswordModal(false);
                     setEditingPassword(null);
-                  }} 
+                  }}
                   className="px-4 py-2 border rounded"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="px-4 py-2 bg-blue-500 text-white rounded"
                 >
                   Update Password
@@ -1130,7 +1150,7 @@ Sections:
               <h3 className="font-semibold text-gray-700 mb-2">
                 General Information
               </h3>
-             
+
               <p>Name : {selectedStaff.personalInfo?.name || "N/A"}</p>
               <p>Gender : {getFieldValue("Gender")}</p>
               <p>Role : {selectedStaff.personalInfo?.role || "N/A"}</p>
@@ -1141,7 +1161,7 @@ Sections:
               <p>Address : {getFieldValue("Address")}</p>
             </div>
 
-            
+
 
             <div>
               <h3 className="font-semibold text-gray-700 mb-2">

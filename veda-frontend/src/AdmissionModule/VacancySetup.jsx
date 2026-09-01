@@ -31,7 +31,8 @@ const [errors, setErrors] = useState({
     const loadClasses = async () => {
       try {
         const res = await axios.get(`${config.API_BASE_URL}/classes`);
-        setClasses(res.data || []);
+        const classesData = res.data?.success && Array.isArray(res.data.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+        setClasses(classesData);
       } catch (err) {
         console.error("Failed to load classes for vacancy:", err);
       }
