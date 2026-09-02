@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getSetupWizard,
   saveSchoolTypeCurriculum,
@@ -177,6 +178,10 @@ export function useSetupWizardStep4() {
         ]);
 
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
+          if (wizardRes.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const completedSteps = wizardRes.data.completedSteps || [];
           // Only prefill if step 4 was previously completed (resume flow)
           if (completedSteps.includes(STEP_4_NUMBER)) {
@@ -212,7 +217,7 @@ export function useSetupWizardStep4() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (loading) return;
