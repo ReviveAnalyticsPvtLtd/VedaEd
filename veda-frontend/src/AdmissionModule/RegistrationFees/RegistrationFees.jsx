@@ -258,7 +258,7 @@ Use the search feature to quickly find student fee records. Add new payments as 
         {/* Main Table */}
         <div className="bg-white shadow border border-gray-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="min-w-[1100px] w-full border-collapse">
+          <table className="min-w-[1100px] text-sm w-full border-collapse">
             <thead className="bg-gray-100 text-gray-700">
               <tr>  <th className="p-2 border text-center">
     <input

@@ -291,6 +291,8 @@ const paginatedStudents = filteredStudents.slice(
 
   return (
     <div className="p-0 m-0 min-h-screen mb-14">
+      
+
       {/* Page title */}
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-2xl font-bold">Application Offer</h2>
@@ -326,7 +328,12 @@ Each entry includes:
 Use this page to efficiently track and manage application offers and ensure timely communication with candidates.`}
         />
       </div>
-
+ {/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
      
         {/* ================= STATISTICS SECTION ================= */}
 <div className="mb-8">

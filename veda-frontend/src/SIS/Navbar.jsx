@@ -10,6 +10,9 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
     // Read both possible keys so the role badge always shows
     const savedRole =
       localStorage.getItem("role") || localStorage.getItem("veda_role");
+
+
+      
     setRole(savedRole);
   }, []);
 

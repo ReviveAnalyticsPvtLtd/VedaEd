@@ -11,6 +11,13 @@ import {
   FiFileText,
 } from "react-icons/fi";
 import {
+ 
+  FiCreditCard,
+  FiClock,
+  FiImage,
+  FiMapPin,
+} from "react-icons/fi";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -168,15 +175,31 @@ export default function ReceptionDashboard() {
       {/* 🔷 ACTIVITY + NOTIFICATIONS */}
       <div className="grid grid-cols-2 gap-4">
 
-        <div className="bg-white p-5 rounded-xl shadow">
-          <h3 className="font-semibold mb-4">Recent Front Office Activity</h3>
-          <ul className="space-y-2 text-sm text-gray-600">
-            <li>👤 Parent visited for Class 6 enquiry</li>
-            <li>💳 Fee payment received - ₹12,000</li>
-            <li>📅 Appointment scheduled with Principal</li>
-            <li>📸 Visitor photo captured</li>
-          </ul>
-        </div>
+      <div className="bg-white p-5 rounded-xl shadow">
+  <h3 className="font-semibold mb-4">Recent Front Office Activity</h3>
+
+  <ul className="space-y-3 text-sm text-gray-600">
+    <li className="flex items-center gap-3">
+      <FiUsers className="text-blue-600" size={18} />
+      <span>Parent visited for Class 6 enquiry</span>
+    </li>
+
+    <li className="flex items-center gap-3">
+      <FiCreditCard className="text-green-600" size={18} />
+      <span>Fee payment received - ₹12,000</span>
+    </li>
+
+    <li className="flex items-center gap-3">
+      <FiCalendar className="text-indigo-600" size={18} />
+      <span>Appointment scheduled with Principal</span>
+    </li>
+
+    <li className="flex items-center gap-3">
+      <FiCamera className="text-purple-600" size={18} />
+      <span>Visitor photo captured</span>
+    </li>
+  </ul>
+</div>
 
         <div className="bg-white p-5 rounded-xl shadow">
           <div className="flex justify-between mb-4">

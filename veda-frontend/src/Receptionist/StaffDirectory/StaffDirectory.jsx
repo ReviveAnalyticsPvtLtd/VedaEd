@@ -182,7 +182,7 @@ Sections:
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6  mb-3 text-gray-600 border-b">
+      <div className="flex gap-6  mb-3 text-sm text-gray-600 border-b">
         <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
           Overview
         </button>
@@ -262,74 +262,100 @@ Sections:
             </button>
           </div>
 
-          <table className="w-full  text-left border-collapse">
-            <thead className="bg-gray-100 border-b">
-              <tr>
-                <th className="p-2 border font-semibold">Staff ID</th>
-                <th className="p-2 border font-semibold">Name</th>
-                <th className="p-2 border font-semibold">Role</th>
-                <th className="p-2 border font-semibold">Department</th>
-                <th className="p-2 border font-semibold">Email</th>
-                <th className="p-2 border font-semibold">Mobile</th>
-                <th className="p-2 border font-semibold">Gender</th>
-                <th className="p-2 border font-semibold">Status</th>
-                <th className="p-2 border font-semibold">Joining Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStaff.length > 0 ? (
-                filteredStaff.map((s, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2 group cursor-pointer">
-                        <span
-                          className="hover:text-blue-600 transition-colors"
-                          onClick={() => copyToClipboard(s.staffId, s.staffId)}
-                          title="Click to copy Staff ID"
-                        >
-                          {s.staffId}
-                        </span>
-                        <FiCopy
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600"
-                          size={14}
-                          onClick={() => copyToClipboard(s.staffId, s.staffId)}
-                        />
-                        {copiedId === s.staffId && (
-                          <span className="text-green-600 font-medium">
-                            Copied!
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-2 border">{s.name}</td>
-                    <td className="p-2 border">{s.role}</td>
-                    <td className="p-2 border">{s.department}</td>
-                    <td className="p-2 border">{s.email}</td>
-                    <td className="p-2 border">{s.mobile}</td>
-                    <td className="p-2 border">{s.gender}</td>
-                    <td className="p-2 border">
-                      <span
-                        className={`px-2 py-1 rounded-full  ${
-                          s.status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="p-3">{s.joiningDate}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="text-center text-gray-500 py-4">
-                    No records found
-                  </td>
-                </tr>
+          <table className="w-full text-left border-collapse border rounded-lg border-gray-200">
+  <thead className="bg-gray-100 border-b">
+    <tr>
+      <th className="p-2 border border-gray-200">S.No.</th>
+      <th className="p-2 border border-gray-200">Staff ID</th>
+      <th className="p-2 border border-gray-200">Name</th>
+      <th className="p-2 border border-gray-200">Role</th>
+      <th className="p-2 border border-gray-200">Department</th>
+      <th className="p-2 border border-gray-200">Email</th>
+      <th className="p-2 border border-gray-200">Mobile</th>
+      <th className="p-2 border border-gray-200">Gender</th>
+      <th className="p-2 border border-gray-200">Status</th>
+      <th className="p-2 border border-gray-200">Joining Date</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {filteredStaff.length > 0 ? (
+      filteredStaff.map((s, index) => (
+        <tr
+          key={index}
+          className="border-b hover:bg-gray-50"
+        >
+          {/* S.No. */}
+          <td className="p-2 border border-gray-200 text-center">
+            {index + 1}
+          </td>
+
+          {/* Staff ID */}
+          <td className="p-2 border border-gray-200">
+            <div className="flex items-center gap-2 group cursor-pointer">
+              <span
+                className="hover:text-blue-600 transition-colors"
+                onClick={() => copyToClipboard(s.staffId, s.staffId)}
+                title="Click to copy Staff ID"
+              >
+                {s.staffId}
+              </span>
+
+              <FiCopy
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600"
+                size={14}
+                onClick={() => copyToClipboard(s.staffId, s.staffId)}
+              />
+
+              {copiedId === s.staffId && (
+                <span className="text-green-600 font-medium">
+                  Copied!
+                </span>
               )}
-            </tbody>
-          </table>
+            </div>
+          </td>
+
+          <td className="p-2 border border-gray-200">{s.name}</td>
+
+          <td className="p-2 border border-gray-200">{s.role}</td>
+
+          <td className="p-2 border border-gray-200">{s.department}</td>
+
+          <td className="p-2 border border-gray-200">{s.email}</td>
+
+          <td className="p-2 border border-gray-200">{s.mobile}</td>
+
+          <td className="p-2 border border-gray-200">{s.gender}</td>
+
+          <td className="p-2 border border-gray-200">
+            <span
+              className={`px-2 py-1 rounded-full ${
+                s.status === "Active"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-yellow-100 text-yellow-800"
+              }`}
+            >
+              {s.status}
+            </span>
+          </td>
+
+          <td className="p-2 border border-gray-200">
+            {s.joiningDate}
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td
+          colSpan={10}
+          className="text-center text-gray-500 py-4 border border-gray-200"
+        >
+          No records found
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
         </div>
       </div>
     </div>

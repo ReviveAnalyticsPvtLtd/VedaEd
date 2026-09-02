@@ -77,12 +77,7 @@ export function Breadcrumbs()  {
   return (
     <div className="mb-4 flex items-center gap-2 text-sm">
       {/* HOME */}
-      <Link
-        to="/"
-        className="text-gray-500 hover:text-blue-600 transition"
-      >
-        Home
-      </Link>
+     
 
       {pathSegments.map((segment, index) => {
         const path = "/" + pathSegments.slice(0, index + 1).join("/");

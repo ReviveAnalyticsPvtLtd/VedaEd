@@ -21,7 +21,7 @@ export default function Classes() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
   const dropdownRef = useRef(null);
   const studentsPerPage = 10;
   const navigate = useNavigate();
@@ -90,35 +90,35 @@ const [errors, setErrors] = useState({});
   }, []);
 
   const validateKey = (e, field) => {
-  const letterOnly = ["name"];
-  const numberOnly = ["roll", "age", "contact"];
-  const upperOnly = ["studentId", "section"];
+    const letterOnly = ["name"];
+    const numberOnly = ["roll", "age", "contact"];
+    const upperOnly = ["studentId", "section"];
 
-  // LETTER ONLY
-  if (
-    letterOnly.includes(field) &&
-    !/^[a-zA-Z\s]$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault();
-    setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
-  }
+    // LETTER ONLY
+    if (
+      letterOnly.includes(field) &&
+      !/^[a-zA-Z\s]$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault();
+      setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
+    }
 
-  // NUMBER ONLY
-  if (
-    numberOnly.includes(field) &&
-    !/^\d$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault();
-    setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
-  }
+    // NUMBER ONLY
+    if (
+      numberOnly.includes(field) &&
+      !/^\d$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault();
+      setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
+    }
 
-  // UPPERCASE (auto convert)
-  if (upperOnly.includes(field)) {
-    e.target.value = e.target.value.toUpperCase();
-  }
-};
+    // UPPERCASE (auto convert)
+    if (upperOnly.includes(field)) {
+      e.target.value = e.target.value.toUpperCase();
+    }
+  };
   // Import Excel
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -453,77 +453,77 @@ Tools available inside every class:
 
         {/* Add Manually Form */}
         {showForm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[85vh] overflow-y-auto mt-10">
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
+            <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[85vh] overflow-y-auto mt-10">
               <h3 className="text-lg font-bold mb-4">Add Student Manually</h3>
               <form onSubmit={handleAddManually} className="space-y-3">
                 <input name="studentId" placeholder="Student ID" className="border px-3 py-2 w-full rounded" required />
                 <input
-  name="name"
-  placeholder="Name"
-  required
-  className="border px-3 py-2 w-full rounded"
-  onKeyDown={(e) => validateKey(e, "name")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, name: "" }));
-  }}
-/>
-{errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-              <input
-  name="roll"
-  placeholder="Roll Number"
-  required
-  className="border px-3 py-2 w-full rounded"
-  onKeyDown={(e) => validateKey(e, "roll")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, roll: "" }));
-  }}
-/>
-{errors.roll && <p className="text-xs text-red-500">{errors.roll}</p>}
+                  name="name"
+                  placeholder="Name"
+                  required
+                  className="border px-3 py-2 w-full rounded"
+                  onKeyDown={(e) => validateKey(e, "name")}
+                  onChange={(e) => {
+                    setErrors((p) => ({ ...p, name: "" }));
+                  }}
+                />
+                {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+                <input
+                  name="roll"
+                  placeholder="Roll Number"
+                  required
+                  className="border px-3 py-2 w-full rounded"
+                  onKeyDown={(e) => validateKey(e, "roll")}
+                  onChange={(e) => {
+                    setErrors((p) => ({ ...p, roll: "" }));
+                  }}
+                />
+                {errors.roll && <p className="text-xs text-red-500">{errors.roll}</p>}
                 <input name="cls" placeholder="Class" className="border px-3 py-2 w-full rounded" required />
                 <input
-  name="section"
-  placeholder="Section"
-  required
-  className="border px-3 py-2 w-full rounded"
-  onKeyDown={(e) => validateKey(e, "section")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, section: "" }));
-    e.target.value = e.target.value.toUpperCase();
-  }}
-/>
+                  name="section"
+                  placeholder="Section"
+                  required
+                  className="border px-3 py-2 w-full rounded"
+                  onKeyDown={(e) => validateKey(e, "section")}
+                  onChange={(e) => {
+                    setErrors((p) => ({ ...p, section: "" }));
+                    e.target.value = e.target.value.toUpperCase();
+                  }}
+                />
                 <input name="password" placeholder="Password" className="border px-3 py-2 w-full rounded" required />
                 <input name="dob" type="date" placeholder="Date of Birth" className="border px-3 py-2 w-full rounded" />
                 <input name="gender" placeholder="Gender" className="border px-3 py-2 w-full rounded" />
-               <input
-  name="age"
-  placeholder="Age"
-  className="border px-3 py-2 w-full rounded"
-  onKeyDown={(e) => validateKey(e, "age")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, age: "" }));
-  }}
-/>
-{errors.age && (
-  <p className="text-xs text-red-500 mt-1">
-    {errors.age}
-  </p>
-)}
+                <input
+                  name="age"
+                  placeholder="Age"
+                  className="border px-3 py-2 w-full rounded"
+                  onKeyDown={(e) => validateKey(e, "age")}
+                  onChange={(e) => {
+                    setErrors((p) => ({ ...p, age: "" }));
+                  }}
+                />
+                {errors.age && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.age}
+                  </p>
+                )}
                 <input name="bloodGroup" placeholder="Blood Group" className="border px-3 py-2 w-full rounded" />
-               <input
-  name="contact"
-  placeholder="Contact Number"
-  className="border px-3 py-2 w-full rounded"
-  onKeyDown={(e) => validateKey(e, "contact")}
-  onChange={(e) => {
-    setErrors((p) => ({ ...p, contact: "" }));
-  }}
-/>
-{errors.contact && (
-  <p className="text-xs text-red-500 mt-1">
-    {errors.contact}
-  </p>
-)}
+                <input
+                  name="contact"
+                  placeholder="Contact Number"
+                  className="border px-3 py-2 w-full rounded"
+                  onKeyDown={(e) => validateKey(e, "contact")}
+                  onChange={(e) => {
+                    setErrors((p) => ({ ...p, contact: "" }));
+                  }}
+                />
+                {errors.contact && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.contact}
+                  </p>
+                )}
                 <input name="email" placeholder="Email" className="border px-3 py-2 w-full rounded" />
                 <input name="attendance" placeholder="Attendance (e.g. 95%)" className="border px-3 py-2 w-full rounded" />
                 <input name="address" placeholder="Address" className="border px-3 py-2 w-full rounded" />

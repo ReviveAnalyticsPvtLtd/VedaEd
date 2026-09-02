@@ -14,7 +14,7 @@ import { toastBannerClassName } from "../utils/toastMessageStyle";
 
 export default function Staff() {
   const [selectedStudents, setSelectedStudents] = useState([]);
-const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBulkActions, setShowBulkActions] = useState(false);
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("all");
   const [staff, setStaff] = useState([]);
@@ -31,23 +31,23 @@ const [showBulkActions, setShowBulkActions] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingPassword, setEditingPassword] = useState(null);
- 
+
   const bulkActionRef = useRef(null);
   // Department Dropdown
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const deptDropdownRef = useRef(null);
-const [formData, setFormData] = useState({
-  name: "",
-  department: "",
-  assignedClasses: "",
-  email: "",
-  password: "",
-  role: "",
-  status: "Active",
-});
+  const [formData, setFormData] = useState({
+    name: "",
+    department: "",
+    assignedClasses: "",
+    email: "",
+    password: "",
+    role: "",
+    status: "Active",
+  });
 
-const [errors, setErrors] = useState({});
-const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
+  const [errors, setErrors] = useState({});
+  const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
   // Status Dropdown
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const statusDropdownRef = useRef(null);
@@ -142,34 +142,34 @@ const [nextStaffIdPreview, setNextStaffIdPreview] = useState("");
   }, []);
 
 
-const handleChange = (e) => {
-  const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-  const letterOnly = ["name", "department"];
-  const numberOnly = [];
+    const letterOnly = ["name", "department"];
+    const numberOnly = [];
 
-  // LETTER ONLY
-  if (letterOnly.includes(name)) {
-    if (!/^[a-zA-Z\s]*$/.test(value)) {
-      setErrors((p) => ({ ...p, [name]: "Only letters allowed" }));
-      return; // ⛔ update hi nahi hoga
+    // LETTER ONLY
+    if (letterOnly.includes(name)) {
+      if (!/^[a-zA-Z\s]*$/.test(value)) {
+        setErrors((p) => ({ ...p, [name]: "Only letters allowed" }));
+        return; // ⛔ update hi nahi hoga
+      }
     }
-  }
 
-  // NUMBER ONLY
-  if (numberOnly.includes(name)) {
-    if (!/^\d*$/.test(value)) {
-      setErrors((p) => ({ ...p, [name]: "Only numbers allowed" }));
-      return;
+    // NUMBER ONLY
+    if (numberOnly.includes(name)) {
+      if (!/^\d*$/.test(value)) {
+        setErrors((p) => ({ ...p, [name]: "Only numbers allowed" }));
+        return;
+      }
     }
-  }
 
-  // CLEAR ERROR
-  setErrors((p) => ({ ...p, [name]: "" }));
+    // CLEAR ERROR
+    setErrors((p) => ({ ...p, [name]: "" }));
 
-  // ✅ update only valid value
-  setFormData((p) => ({ ...p, [name]: value }));
-};
+    // ✅ update only valid value
+    setFormData((p) => ({ ...p, [name]: value }));
+  };
 
   const handleImport = async (e) => {
     const file = e.target.files[0];
@@ -196,12 +196,12 @@ const handleChange = (e) => {
           if (updatedRes.data.success) {
             setStaff(updatedRes.data.staff);
           }
-          
+
           const { imported = [], skipped = [], errors = [] } = res.data;
           let msg = `Import complete ✅: ${imported.length} added`;
           if (skipped.length > 0) msg += `, ${skipped.length} skipped (exists)`;
           if (errors.length > 0) msg += `, ${errors.length} errors`;
-          
+
           setSuccessMsg(msg);
           setTimeout(() => setSuccessMsg(""), 5000);
         } else {
@@ -287,72 +287,72 @@ const handleChange = (e) => {
     console.log("Bulk select clicked");
   };
 
- const handleBulkExport = () => {
-  const selectedData = staff.filter((s) =>
-    selectedStudents.includes(s._id)
-  );
-
-  if (selectedData.length === 0) {
-    setSuccessMsg("Please select at least one staff");
-    setTimeout(() => setSuccessMsg(""), 3000);
-    return;
-  }
-
-  const exportData = selectedData.map((s, index) => ({
-    "S. No": index + 1,
-    "Staff ID": s.personalInfo?.staffId || "",
-    Name: s.personalInfo?.name || "",
-    Role: s.personalInfo?.role || "",
-    Department: s.personalInfo?.department || "",
-    Email: s.personalInfo?.email || "",
-    Status: s.status || "",
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const workbook = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Staff");
-
-  XLSX.writeFile(workbook, "Selected_Staff.xlsx");
-
-  setSuccessMsg("Excel exported successfully ");
-  setTimeout(() => setSuccessMsg(""), 3000);
-};
-
- const handleBulkDelete = async () => {
-  if (selectedStudents.length === 0) {
-    setSuccessMsg("Please select at least one staff");
-    setTimeout(() => setSuccessMsg(""), 3000);
-    return;
-  }
-
-  const confirmDelete = window.confirm(
-    "Are you sure you want to delete selected staff?"
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-    await Promise.all(
-      selectedStudents.map((id) =>
-        api.delete(`/staff/${id}`)
-      )
+  const handleBulkExport = () => {
+    const selectedData = staff.filter((s) =>
+      selectedStudents.includes(s._id)
     );
 
-    setStaff((prev) =>
-      prev.filter((s) => !selectedStudents.includes(s._id))
+    if (selectedData.length === 0) {
+      setSuccessMsg("Please select at least one staff");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
+    const exportData = selectedData.map((s, index) => ({
+      "S. No": index + 1,
+      "Staff ID": s.personalInfo?.staffId || "",
+      Name: s.personalInfo?.name || "",
+      Role: s.personalInfo?.role || "",
+      Department: s.personalInfo?.department || "",
+      Email: s.personalInfo?.email || "",
+      Status: s.status || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Staff");
+
+    XLSX.writeFile(workbook, "Selected_Staff.xlsx");
+
+    setSuccessMsg("Excel exported successfully ");
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) {
+      setSuccessMsg("Please select at least one staff");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete selected staff?"
     );
 
-    setSelectedStudents([]);
+    if (!confirmDelete) return;
 
-    setSuccessMsg("Selected staff deleted ");
-    setTimeout(() => setSuccessMsg(""), 3000);
-  } catch (err) {
-    console.error(err);
-    setSuccessMsg("Failed to delete selected staff ❌");
-    setTimeout(() => setSuccessMsg(""), 3000);
-  }
-};
+    try {
+      await Promise.all(
+        selectedStudents.map((id) =>
+          api.delete(`/staff/${id}`)
+        )
+      );
+
+      setStaff((prev) =>
+        prev.filter((s) => !selectedStudents.includes(s._id))
+      );
+
+      setSelectedStudents([]);
+
+      setSuccessMsg("Selected staff deleted ");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setSuccessMsg("Failed to delete selected staff ❌");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
 
   // Update Staff Password function
   const handleUpdatePassword = async (id, newPassword) => {
@@ -417,9 +417,9 @@ const handleChange = (e) => {
       case "Date of Joining":
         return formatReadableDate(
           selectedStaff.joiningDate ||
-            selectedStaff.personalInfo?.doj ||
-            selectedStaff.doj ||
-            selectedStaff.dateOfJoining
+          selectedStaff.personalInfo?.doj ||
+          selectedStaff.doj ||
+          selectedStaff.dateOfJoining
         );
       case "Gender": return selectedStaff.personalInfo?.gender || selectedStaff.gender || "N/A";
       case "Assigned Classes":
@@ -471,7 +471,10 @@ const handleChange = (e) => {
       .toLowerCase()
       .includes(searchLogin.toLowerCase())
   );
-
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
 
   // Pagination indexes
   const indexOfLastLogin = loginPage * loginPerPage;
@@ -564,152 +567,148 @@ Sections:
         </button>
       </div>
       {activeTab === "all" && (
-        <div className="flex min-h-0 w-full max-w-full flex-1 flex-col rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+        <div className="bg-white p-3 rounded-lg shadow-sm border">
 
-          <h3 className="mb-4 text-lg font-semibold">Staff List</h3>
+          <h3 className="text-lg font-semibold mb-4">Staff List</h3>
 
-          <div className="mb-4 w-full space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              {/* Search */}
+              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
+                <FiSearch className="text-gray-500 mr-2 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Search staff name or ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full outline-none text-sm"
+                />
+              </div>
 
-            {/* Search */}
-            <div className="flex min-w-0 max-w-full items-center rounded-md border bg-white px-3 py-2">
-              <FiSearch className="mr-2 shrink-0 text-sm text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search staff name or ID"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full min-w-0 outline-none"
-              />
-            </div>
-
-            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
-            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
-
-            {/* Department Dropdown */}
-            <div className="relative w-[120px] shrink-0" ref={deptDropdownRef}>
-              <button
-                onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-              >
-                <span>{filterDept || "Department"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
-              {showDeptDropdown && (
-                <div
-                  className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+              {/* Department Dropdown */}
+              <div className="relative group" ref={deptDropdownRef}>
+                <button
+                  onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
                 >
-                  <button
-                    onClick={() => {
-                      setFilterDept("");
-                      setShowDeptDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  <span>{filterDept || "Department"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+                {showDeptDropdown && (
+                  <div
+                    className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
                   >
-                    All Departments
-                  </button>
-                  {["Science", "IT", "Kindergarten"].map((dept) => (
                     <button
-                      key={dept}
                       onClick={() => {
-                        setFilterDept(dept);
+                        setFilterDept("");
                         setShowDeptDropdown(false);
                       }}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
-                      {dept}
+                      All Departments
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {["Science", "IT", "Kindergarten"].map((dept) => (
+                      <button
+                        key={dept}
+                        onClick={() => {
+                          setFilterDept(dept);
+                          setShowDeptDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Status Dropdown */}
-            <div className="relative w-[120px] shrink-0" ref={statusDropdownRef}>
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="flex w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-              >
-                <span>{filterStatus || "Status"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
-              {showStatusDropdown && (
-                <div
-                  className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+              {/* Status Dropdown */}
+              <div className="relative group" ref={statusDropdownRef}>
+                <button
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
                 >
-                  <button
-                    onClick={() => {
-                      setFilterStatus("");
-                      setShowStatusDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  <span>{filterStatus || "Status"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+                {showStatusDropdown && (
+                  <div
+                    className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
                   >
-                    All Status
-                  </button>
-                  {["Active", "On Leave"].map((status) => (
                     <button
-                      key={status}
                       onClick={() => {
-                        setFilterStatus(status);
+                        setFilterStatus("");
                         setShowStatusDropdown(false);
                       }}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
-                      {status}
+                      All Status
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {["Active", "On Leave"].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setFilterStatus(status);
+                          setShowStatusDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div className="relative min-w-[130px] shrink-0" ref={bulkActionRef}>
-              <button
-                onClick={() => setShowBulkActions(!showBulkActions)}
-                className="flex w-full min-w-[120px] items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 hover:border-blue-500"
-              >
-                <span>Bulk Actions</span>
-                <FiChevronDown className="text-xs" />
-              </button>
-
-              {showBulkActions && (
-                <div
-                  className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
+              <div className="relative group" ref={bulkActionRef}>
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 min-w-[120px] hover:border-blue-500"
                 >
-                  
-                  <button
-                   onClick={() => {
-  setShowBulkActions(false);
-  handleBulkExport();
-}}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  <span>Bulk Actions</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showBulkActions && (
+                  <div
+                    className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm"
                   >
-                    <FiDownload className="text-sm" />
-                    Export Excel
-                  </button>
-                  <button
-                    onClick={() => {
-  setShowBulkActions(false);
-  handleBulkDelete();
-}}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                  >
-                    <FiTrash2 className="text-sm" />
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
+                    <button
+                      onClick={() => {
+                        setShowBulkActions(false);
+                        handleBulkExport();
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <FiDownload className="text-sm" />
+                      Export Excel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBulkActions(false);
+                        handleBulkDelete();
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                    >
+                      <FiTrash2 className="text-sm" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Add Staff */}
-            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
+            <div className="ml-auto relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="flex items-center justify-center gap-1 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-white"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
               >
                 <FiPlus /> Add Staff
               </button>
               {showOptions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
                   <button
                     onClick={() => {
                       setShowForm(true);
@@ -731,9 +730,6 @@ Sections:
                 </div>
               )}
             </div>
-
-          </div>
-
           </div>
 
 
@@ -741,104 +737,104 @@ Sections:
 
           {/* Staff Table */}
           <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
-          <table className="min-w-[920px] w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">
-  <input
-    type="checkbox"
-    checked={
-      currentStaff.length > 0 &&
-      selectedStudents.length === currentStaff.length
-    }
-    onChange={(e) => {
-      if (e.target.checked) {
-        setSelectedStudents(currentStaff.map((s) => s._id));
-      } else {
-        setSelectedStudents([]);
-      }
-    }}
-  />
-</th>
-                <th className="p-2 border">S. no.</th>
-                <th className="p-2 border">Staff ID</th>
-                <th className="p-2 border">Name</th>
-                <th className="p-2 border">Role</th>
-                <th className="p-2 border">Department</th>
-                <th className="p-2 border">Email</th>
-                <th className="p-2 border">Status</th>
-                <th className="p-2 border">Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {currentStaff.map((s, idx) => (
-                <tr key={s._id || idx} className="text-center hover:bg-gray-50">
-                  <td className="p-2 border">
-  <input
-    type="checkbox"
-    checked={selectedStudents.includes(s._id)}
-    onChange={(e) => {
-      if (e.target.checked) {
-        setSelectedStudents((prev) => [...prev, s._id]);
-      } else {
-        setSelectedStudents((prev) =>
-          prev.filter((id) => id !== s._id)
-        );
-      }
-    }}
-  />
-</td>
-                  <td className="p-2 border">{indexOfFirst + idx + 1}</td>
-                  <td className="p-2 border">{s.personalInfo?.staffId}</td>
-
-                  <td className="p-2 border text-left">
-                    <div className="flex items-center gap-2">
-                      <ProfileAvatar
-                        name={s.personalInfo?.name || "Staff"}
-                        imageSrc={resolveStaffPhoto(s)}
-                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
-                        textClassName="text-xs"
-                        className="ring-2 ring-indigo-100 shrink-0"
-                      />
-                      <span>{s.personalInfo?.name}</span>
-                    </div>
-                  </td>
-
-                  <td className="p-2 border">{s.personalInfo?.role}</td>
-                  <td className="p-2 border">{s.personalInfo?.department}</td>
-                  <td className="p-2 border">{s.personalInfo?.email}</td>
-
-                  <td className="p-2 border">
-                    <span className={statusBadge(s.status)}>{s.status}</span>
-                  </td>
-
-                  <td className="p-2 border">
-                    <button
-                      className="text-blue-500"
-                      onClick={() => setSelectedStaff(s)}
-                    >
-                      <FiSearch />
-                    </button>
-                    <button
-                      className="text-red-500 ml-2"
-                      onClick={() => handleDelete(s._id)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {currentStaff.length === 0 && (
+            <table className="min-w-[920px] w-full border text-sm">
+              <thead className="bg-gray-100">
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan={9}>
-                    No staff found
-                  </td>
+                  <th className="p-2 border">
+                    <input
+                      type="checkbox"
+                      checked={
+                        currentStaff.length > 0 &&
+                        selectedStudents.length === currentStaff.length
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudents(currentStaff.map((s) => s._id));
+                        } else {
+                          setSelectedStudents([]);
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="p-2 border">S. no.</th>
+                  <th className="p-2 border">Staff ID</th>
+                  <th className="p-2 border">Name</th>
+                  <th className="p-2 border">Role</th>
+                  <th className="p-2 border">Department</th>
+                  <th className="p-2 border">Email</th>
+                  <th className="p-2 border">Status</th>
+                  <th className="p-2 border">Action</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {currentStaff.map((s, idx) => (
+                  <tr key={s._id || idx} className="text-center hover:bg-gray-50">
+                    <td className="p-2 border">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.includes(s._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedStudents((prev) => [...prev, s._id]);
+                          } else {
+                            setSelectedStudents((prev) =>
+                              prev.filter((id) => id !== s._id)
+                            );
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="p-2 border">{indexOfFirst + idx + 1}</td>
+                    <td className="p-2 border">{s.personalInfo?.staffId}</td>
+
+                    <td className="p-2 border text-left">
+                      <div className="flex items-center gap-2">
+                        <ProfileAvatar
+                          name={s.personalInfo?.name || "Staff"}
+                          imageSrc={resolveStaffPhoto(s)}
+                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                          textClassName="text-xs"
+                          className="ring-2 ring-indigo-100 shrink-0"
+                        />
+                        <span>{s.personalInfo?.name}</span>
+                      </div>
+                    </td>
+
+                    <td className="p-2 border">{s.personalInfo?.role}</td>
+                    <td className="p-2 border">{s.personalInfo?.department}</td>
+                    <td className="p-2 border">{s.personalInfo?.email}</td>
+
+                    <td className="p-2 border">
+                      <span className={statusBadge(s.status)}>{s.status}</span>
+                    </td>
+
+                    <td className="p-2 border">
+                      <button
+                        className="text-blue-500"
+                        onClick={() => setSelectedStaff(s)}
+                      >
+                        <FiSearch />
+                      </button>
+                      <button
+                        className="text-red-500 ml-2"
+                        onClick={() => handleDelete(s._id)}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {currentStaff.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan={9}>
+                      No staff found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
@@ -937,83 +933,83 @@ Sections:
 
           {/* Login Table */}
           <div className="-mx-3 overflow-x-auto rounded-md border border-gray-100 px-3 sm:mx-0 sm:border-0 sm:px-0">
-          <table className="min-w-[680px] w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">S. no.</th>
-                <th className="p-2 border">Staff ID</th>
-                <th className="p-2 border">Name</th>
-                <th className="p-2 border">Username</th>
-                <th className="p-2 border">Password</th>
-                <th className="p-2 border">Action</th>
-              </tr>
-            </thead>
+            <table className="min-w-[680px] w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 border">S. no.</th>
+                  <th className="p-2 border">Staff ID</th>
+                  <th className="p-2 border">Name</th>
+                  <th className="p-2 border">Username</th>
+                  <th className="p-2 border">Password</th>
+                  <th className="p-2 border">Action</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {currentLoginList.map((s, idx) => (
-                <tr key={s._id || idx} className="text-center hover:bg-gray-50">
-                  <td className="p-2 border">{indexOfFirstLogin + idx + 1}</td>
-                  <td className="p-2 border">{s.personalInfo?.staffId || "N/A"}</td>
+              <tbody>
+                {currentLoginList.map((s, idx) => (
+                  <tr key={s._id || idx} className="text-center hover:bg-gray-50">
+                    <td className="p-2 border">{indexOfFirstLogin + idx + 1}</td>
+                    <td className="p-2 border">{s.personalInfo?.staffId || "N/A"}</td>
 
-                  <td className="p-2 border text-left">
-                    <div className="flex items-center gap-2">
-                      <ProfileAvatar
-                        name={s.personalInfo?.name || "Staff"}
-                        imageSrc={resolveStaffPhoto(s)}
-                        sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
-                        textClassName="text-xs"
-                        className="ring-2 ring-indigo-100 shrink-0"
-                      />
-                      <span>{s.personalInfo?.name || "N/A"}</span>
-                    </div>
-                  </td>
+                    <td className="p-2 border text-left">
+                      <div className="flex items-center gap-2">
+                        <ProfileAvatar
+                          name={s.personalInfo?.name || "Staff"}
+                          imageSrc={resolveStaffPhoto(s)}
+                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                          textClassName="text-xs"
+                          className="ring-2 ring-indigo-100 shrink-0"
+                        />
+                        <span>{s.personalInfo?.name || "N/A"}</span>
+                      </div>
+                    </td>
 
-                  <td className="p-2 border">{s.personalInfo?.username || "N/A"}</td>
+                    <td className="p-2 border">{s.personalInfo?.username || "N/A"}</td>
 
-                  <td className="p-2 border">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-gray-500">••••••••</span>
+                    <td className="p-2 border">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-gray-500">••••••••</span>
+                        <button
+                          className="text-blue-500 hover:text-blue-700 text-xs"
+                          onClick={() => {
+                            setEditingPassword(s);
+                            setShowPasswordModal(true);
+                          }}
+                        >
+                          Show
+                        </button>
+                      </div>
+                    </td>
+
+                    <td className="p-2 border">
                       <button
-                        className="text-blue-500 hover:text-blue-700 text-xs"
+                        className="text-blue-500"
                         onClick={() => {
                           setEditingPassword(s);
                           setShowPasswordModal(true);
                         }}
                       >
-                        Show
+                        <FiEdit />
                       </button>
-                    </div>
-                  </td>
+                      <button
+                        className="text-red-500 ml-2"
+                        onClick={() => handleDelete(s._id)}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
 
-                  <td className="p-2 border">
-                    <button
-                      className="text-blue-500"
-                      onClick={() => {
-                        setEditingPassword(s);
-                        setShowPasswordModal(true);
-                      }}
-                    >
-                      <FiEdit />
-                    </button>
-                    <button
-                      className="text-red-500 ml-2"
-                      onClick={() => handleDelete(s._id)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {currentLoginList.length === 0 && (
-                <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan={6}>
-                    No staff found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                {currentLoginList.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan={6}>
+                      No staff found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
@@ -1063,19 +1059,18 @@ Sections:
                 className="border px-3 py-2 w-full rounded bg-gray-100 text-gray-500"
                 readOnly
               />
-             <input
-  name="name"
-  value={formData.name}
-  onChange={handleChange}
-  placeholder="Full Name"
-  className={`border px-3 py-2 w-full rounded ${
-    errors.name ? "border-red-500" : ""
-  }`}
-  required
-/>
-{errors.name && (
-  <p className="text-xs text-red-500">{errors.name}</p>
-)}
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Full Name"
+                className={`border px-3 py-2 w-full rounded ${errors.name ? "border-red-500" : ""
+                  }`}
+                required
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name}</p>
+              )}
               <select name="role" className="border px-3 py-2 w-full rounded" required>
                 <option value="">Select Role</option>
                 <option value="Teacher">Teacher</option>
@@ -1089,18 +1084,17 @@ Sections:
                 <option value="Other">Other</option>
               </select>
               <input
-  name="department"
-  value={formData.department}
-  onChange={handleChange}
-  placeholder="Department"
-  className={`border px-3 py-2 w-full rounded ${
-    errors.department ? "border-red-500" : ""
-  }`}
-  required
-/>
-{errors.department && (
-  <p className="text-xs text-red-500">{errors.department}</p>
-)}
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                placeholder="Department"
+                className={`border px-3 py-2 w-full rounded ${errors.department ? "border-red-500" : ""
+                  }`}
+                required
+              />
+              {errors.department && (
+                <p className="text-xs text-red-500">{errors.department}</p>
+              )}
               <select name="status" className="border px-3 py-2 w-full rounded">
                 <option value="Active">Active</option>
                 <option value="On Leave">On Leave</option>

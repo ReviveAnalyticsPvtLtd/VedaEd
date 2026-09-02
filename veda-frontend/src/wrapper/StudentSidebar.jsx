@@ -19,7 +19,7 @@ const MODULES = [
       { label: "Attendance", path: "/student/attendance" },
       { label: "Assignments", path: "/student/assignments" },
       { label: "Exams", path: "/student/exams" },
-      { label: "Results", path: "/student/results" },
+   
       { label: "Profile", path: "/student/profile" },
     ],
   },

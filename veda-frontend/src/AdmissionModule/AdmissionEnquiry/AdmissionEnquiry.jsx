@@ -333,7 +333,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
           {/* Table */}
           <div className="overflow-x-auto rounded-xl border border-gray-200">
-           <table className="w-full min-w-[1000px]">
+           <table className="w-full text-sm min-w-[1000px]">
       <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border text-center">
@@ -358,7 +358,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                 <th className="p-2 border text-left">Date</th>
                 <th className="p-2 border text-left">Status</th>
 
-                <th className="p-2 border text-left">Action</th>
+                <th className="p-2 border text-center">Action</th>
               </tr>
             </thead>
             <tbody>

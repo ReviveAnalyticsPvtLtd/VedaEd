@@ -22,7 +22,7 @@ export default function SelectedStudent() {
   const [showBulk, setShowBulk] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
   const bulkRef = useRef(null);
 
   const [form, setForm] = useState({
@@ -36,33 +36,33 @@ const [errors, setErrors] = useState({});
     docsVerified: false,
   });
 
-   const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
 
   const validateKey = (e, field) => {
-  const letterOnly = ["name", "parentName"];
-  const numberOnly = ["contact"];
+    const letterOnly = ["name", "parentName"];
+    const numberOnly = ["contact"];
 
-  // LETTERS ONLY
-  if (
-    letterOnly.includes(field) &&
-    !/^[a-zA-Z\s]$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault(); // ❌ TYPE NAHI HOGA
-    setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
-  }
+    // LETTERS ONLY
+    if (
+      letterOnly.includes(field) &&
+      !/^[a-zA-Z\s]$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault(); // ❌ TYPE NAHI HOGA
+      setErrors((p) => ({ ...p, [field]: "Only letters allowed" }));
+    }
 
-  // NUMBERS ONLY
-  if (
-    numberOnly.includes(field) &&
-    !/^\d$/.test(e.key) &&
-    !["Backspace", "Tab"].includes(e.key)
-  ) {
-    e.preventDefault(); // ❌ TYPE NAHI HOGA
-    setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
-  }
-};
+    // NUMBERS ONLY
+    if (
+      numberOnly.includes(field) &&
+      !/^\d$/.test(e.key) &&
+      !["Backspace", "Tab"].includes(e.key)
+    ) {
+      e.preventDefault(); // ❌ TYPE NAHI HOGA
+      setErrors((p) => ({ ...p, [field]: "Only numbers allowed" }));
+    }
+  };
   /* ================= FETCHER ================= */
   useEffect(() => {
     fetchSelectedStudents();
@@ -83,14 +83,14 @@ const [errors, setErrors] = useState({});
             id: app._id,
             applicationId: app.applicationId || "N/A",
             name: app.personalInfo?.name || "N/A",
-            class: app.personalInfo?.classApplied ||  "N/A",
+            class: app.personalInfo?.classApplied || "N/A",
             section: "Pending", // Section is usually assigned later or fetch if available
             parentName: app.parents?.father?.name || app.parents?.mother?.name || "N/A",
             contact: app.contactInfo?.phone || "N/A",
             email: app.contactInfo?.email || "N/A",
             docsVerified: (app.documentVerificationStatus || '').toLowerCase() === 'verified',
             status: "Selected"
-        }));
+          }));
         setStudents(mappedData);
       }
     } catch (err) {
@@ -217,119 +217,120 @@ const [errors, setErrors] = useState({});
     reader.readAsArrayBuffer(file);
   };
 
-  return ( <div className="p-0 m-0 min-h-screen mb-14">
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button className="hover:underline">Students</button>
-        <span>&gt;</span>
-        <span>Selected Students</span>
-      </div>
+  return (<div className="p-0 m-0 min-h-screen mb-14">
+    <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
+      <button className="hover:underline">Students</button>
+      <span>&gt;</span>
+      <span>Selected Students</span>
+    </div>
 
 
 
 
-       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Selected Students</h2>
-        <HelpInfo
-          title="Selected Students Help"
-          description={`This page shows all students who are selected.
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold">Selected Students</h2>
+      <HelpInfo
+        title="Selected Students Help"
+        description={`This page shows all students who are selected.
 You can search by name or parent, filter by class, add students manually, import/export Excel, and delete entries.`}
-          steps={[
-            "Search students using the input box",
-            "Filter by class",
-            "Use Bulk Actions for multiple students",
-            "Add a new student manually or import via Excel",
-          ]}
-        />
+        steps={[
+          "Search students using the input box",
+          "Filter by class",
+          "Use Bulk Actions for multiple students",
+          "Add a new student manually or import via Excel",
+        ]}
+      />
+    </div>
+
+
+    <div className="mb-4 flex flex-wrap gap-2">
+      <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+        Overview
+      </button>
+    </div>
+
+    <div className="bg-white border rounded-lg p-4 mb-8">
+      <h3 className="font-medium mb-3">Selected Student List</h3>
+      {/* FILTER BAR */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative w-64">
+          <FiSearch className="absolute left-3 top-2.5 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search student / parent..."
+            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
+          />
+        </div>
+
+        <select
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
+          <option value="">All Classes</option>
+          <option value="9">Class 9</option>
+          <option value="10">Class 10</option>
+        </select>
+
+        {/* BULK */}
+        <div className="relative" ref={bulkRef}>
+          <button
+            onClick={() => setShowBulk(!showBulk)}
+            className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
+          >
+            Bulk Action <FiChevronDown />
+          </button>
+
+          {showBulk && (
+            <div className="absolute mt-2 w-44 bg-white border rounded shadow z-10">
+              <label className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+                <FiUpload /> Import
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={importExcel}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={exportExcel}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+              >
+                <FiDownload /> Export
+              </button>
+              <button
+                onClick={deleteMultiple}
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setShowAdd(true)}
+          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          <FiUserPlus /> Add Student
+        </button>
       </div>
 
-
-       <div className="mb-4 flex flex-wrap gap-2">
-          <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
-            Overview
-          </button>
-        </div>
-
-      <div className="bg-white border rounded-lg p-4 mb-8 ">
-         <h3 className="font-medium mb-3">Selected Student List</h3>
-        {/* FILTER BAR */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative w-64">
-            <FiSearch className="absolute left-3 top-2.5 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search student / parent..."
-              className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
-            />
-          </div>
-
-          <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm"
-          >
-            <option value="">All Classes</option>
-            <option value="9">Class 9</option>
-            <option value="10">Class 10</option>
-          </select>
-
-          {/* BULK */}
-          <div className="relative" ref={bulkRef}>
-            <button
-              onClick={() => setShowBulk(!showBulk)}
-              className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
-            >
-              Bulk Action <FiChevronDown />
-            </button>
-
-            {showBulk && (
-              <div className="absolute mt-2 w-44 bg-white border rounded shadow z-10">
-                <label className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
-                  <FiUpload /> Import
-                  <input
-                    type="file"
-                    accept=".xlsx, .xls"
-                    onChange={importExcel}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  onClick={exportExcel}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <FiDownload /> Export
-                </button>
-                <button
-                  onClick={deleteMultiple}
-                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowAdd(true)}
-            className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-md"
-          >
-            <FiUserPlus /> Add Student
-          </button>
-        </div>
-
-        {/* TABLE */}
-        {/* TABLE */}
-<div className="w-full overflow-x-auto rounded-lg border border-gray-200">
-  <table className="w-full min-w-[1100px] text-sm border-collapse">
+      {/* TABLE */}
+      <div className="w-full overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full min-w-[1100px] text-sm border-collapse">
           <thead className="bg-gray-50">
             <tr>
-              <th className="p-3 border rounded-lg">
+              <th className="p-3 border">
                 <input
                   type="checkbox"
                   onChange={toggleAll}
                   checked={
-                    filteredStudents.length &&
-                    selectedIds.length === filteredStudents.length
+                    Boolean(
+                      filteredStudents.length &&
+                      selectedIds.length === filteredStudents.length
+                    )
                   }
                 />
               </th>
@@ -347,7 +348,7 @@ You can search by name or parent, filter by class, add students manually, import
           </thead>
 
           <tbody>
-           {currentStudents.map((s, index) => (
+            {currentStudents.map((s, index) => (
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="p-3 border text-center">
                   <input
@@ -357,8 +358,8 @@ You can search by name or parent, filter by class, add students manually, import
                   />
                 </td>
                 <td className="p-3 border text-center font-medium">
-  {(currentPage - 1) * studentsPerPage + index + 1}
-</td>
+                  {(currentPage - 1) * studentsPerPage + index + 1}
+                </td>
                 <td className="p-3 border text-center">{s.applicationId}</td>
                 <td className="p-3 border font-medium">{s.name}</td>
                 <td className="p-3 border text-center">{s.class}</td>
@@ -380,7 +381,7 @@ You can search by name or parent, filter by class, add students manually, import
                 <td className="p-3 border text-center">
                   <button
                     onClick={() => deleteOne(s.id)}
-                    className="text-red-600"
+                    className="text-red-600 hover:text-red-800"
                   >
                     <FiTrash2 />
                   </button>
@@ -389,105 +390,111 @@ You can search by name or parent, filter by class, add students manually, import
             ))}
           </tbody>
         </table>
-        </div>
-         <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-  <p>Page {currentPage} of {totalPages}</p>
-
-  <div className="space-x-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={currentPage === totalPages}
-      onClick={() => setCurrentPage((p) => p + 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Next
-    </button>
-  </div>
-</div>
       </div>
 
-      {/* ADD MODAL */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[420px]">
-            <h3 className="font-semibold mb-4">Add Selected Student</h3>
+      <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
+        <p>Page {currentPage} of {totalPages}</p>
 
-         {[
-  { k: "name", p: "Student Name" },
-  { k: "applicationId", p: "Application ID" },
-  { k: "class", p: "Class" },
-  { k: "parentName", p: "Parent Name" },
-  { k: "contact", p: "Contact Number" },
-  { k: "email", p: "Email" },
-].map((f) => (
-  <React.Fragment key={f.k}>
-    <input
-      placeholder={f.p}
-      value={form[f.k]}
-      onKeyDown={(e) => validateKey(e, f.k)}
-      onChange={(e) => {
-        setErrors((p) => ({ ...p, [f.k]: "" }));
-        setForm({ ...form, [f.k]: e.target.value });
-      }}
-      className={`w-full mb-1 px-3 py-2 border rounded text-sm ${
-        errors[f.k] ? "border-red-500" : ""
-      }`}
-    />
+        <div className="space-x-2">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+            className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
 
-    {errors[f.k] && (
-      <p className="text-xs text-red-500 mb-2">
-        {errors[f.k]}
-      </p>
-    )}
-  </React.Fragment>
-))}
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => p + 1)}
+            className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
 
-            <label className="flex items-center gap-2 text-sm mb-4">
+    {/* ADD MODAL */}
+    {showAdd && (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg w-[420px]">
+          <h3 className="font-semibold mb-4">Add Selected Student</h3>
+
+          {[
+            { k: "name", p: "Student Name" },
+            { k: "applicationId", p: "Application ID" },
+            { k: "class", p: "Class" },
+            { k: "parentName", p: "Parent Name" },
+            { k: "contact", p: "Contact Number" },
+            { k: "email", p: "Email" },
+          ].map((f) => (
+            <React.Fragment key={f.k}>
               <input
-                type="checkbox"
-                checked={form.docsVerified}
-                onChange={(e) =>
-                  setForm({ ...form, docsVerified: e.target.checked })
-                }
+                placeholder={f.p}
+                value={form[f.k]}
+                onKeyDown={(e) => validateKey(e, f.k)}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, [f.k]: "" }));
+                  setForm({ ...form, [f.k]: e.target.value });
+                }}
+                className={`w-full mb-1 px-3 py-2 border rounded text-sm ${
+                  errors[f.k] ? "border-red-500" : ""
+                }`}
               />
-              Docs Verified
-            </label>
 
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowAdd(false)}>Cancel</button>
-              <button
-                onClick={addStudent}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Add
-              </button>
-            </div>
+              {errors[f.k] && (
+                <p className="text-xs text-red-500 mb-2">
+                  {errors[f.k]}
+                </p>
+              )}
+            </React.Fragment>
+          ))}
+
+          <label className="flex items-center gap-2 text-sm mb-4">
+            <input
+              type="checkbox"
+              checked={form.docsVerified}
+              onChange={(e) =>
+                setForm({ ...form, docsVerified: e.target.checked })
+              }
+            />
+            Docs Verified
+          </label>
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={addStudent}
+              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            >
+              Add
+            </button>
           </div>
         </div>
-      )}
-      {/* BOTTOM ACTION BAR */}
-<div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">
-  <button
-    onClick={() => navigate("/admission/interview-list")}
-    className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300"
-  >
-     Back
-  </button>
+      </div>
+    )}
+    {/* BOTTOM ACTION BAR */}
+    <div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">
+      <button
+        onClick={() => navigate("/admission/interview-list")}
+        className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300"
+      >
+        Back
+      </button>
 
-  <button
-    onClick={() => navigate("/admission/application-offer")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-  >
-    Next →
-  </button>
-</div>
+      <button
+        onClick={() => navigate("/admission/application-offer")}
+        className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+      >
+        Next →
+      </button>
     </div>
+  </div>
   );
 }

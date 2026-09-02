@@ -464,6 +464,10 @@ const handleBulkExport = () => {
   setShowBulkActions(false);
 };
 
+useEffect(() => {
+  setCurrentPage(1);
+  setLoginPage(1);
+}, [search]);
 const handleBulkDelete = async () => {
   if (selectedStudents.length === 0) {
     setSuccessMsg("Please select students first");
@@ -718,155 +722,153 @@ Sections:
       </div>
 
       {activeTab === "all" && (
-        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full max-w-full flex flex-col flex-1 min-h-0">
+        <div className="bg-white p-3 rounded-lg shadow-sm border">
           <h3 className="text-lg font-semibold mb-4">Student List</h3>
-          <div className="mb-4 w-full space-y-3">
-            <div className="flex items-center border px-3 py-2 rounded-md bg-white w-full max-w-full min-w-0">
-              <FiSearch className="text-gray-500 mr-2 text-sm shrink-0" />
-              <input
-                type="text"
-                placeholder="Search student name or ID"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full min-w-0 outline-none text-sm"
-              />
-            </div>
 
-            <div className="flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 overflow-x-auto pb-1">
-            <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3">
-            <div className="relative w-[120px] shrink-0" ref={classDropdownRef}>
-              <button
-                onClick={() => setShowClassDropdown(!showClassDropdown)}
-                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500"
-              >
-                <span>{filterClass || "Class"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              {/* Search */}
+              <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
+                <FiSearch className="text-gray-500 mr-2 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Search student name or ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full outline-none text-sm"
+                />
+              </div>
 
-              {showClassDropdown && (
-                <div
-                  className="absolute left-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto"
+              {/* Class Filter */}
+              <div className="relative group" ref={classDropdownRef}>
+                <button
+                  onClick={() => setShowClassDropdown(!showClassDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
                 >
-                  <button
-                    onClick={() => {
-                      setFilterClass("");
-                      setFilterSection("");
-                      setShowClassDropdown(false);
-                      setShowSectionDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    All Classes
-                  </button>
-                  {classes.map((cls) => (
+                  <span>{filterClass || "Class"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showClassDropdown && (
+                  <div className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto">
                     <button
-                      key={cls._id}
                       onClick={() => {
-                        setFilterClass(cls.name);
+                        setFilterClass("");
                         setFilterSection("");
                         setShowClassDropdown(false);
                         setShowSectionDropdown(false);
                       }}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
-                      {cls.name}
+                      All Classes
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {classes.map((cls) => (
+                      <button
+                        key={cls._id}
+                        onClick={() => {
+                          setFilterClass(cls.name);
+                          setFilterSection("");
+                          setShowClassDropdown(false);
+                          setShowSectionDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        {cls.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div className="relative shrink-0 w-[120px]" ref={sectionDropdownRef}>
-              <button
-                onClick={() => filterClass && setShowSectionDropdown(!showSectionDropdown)}
-                disabled={!filterClass}
-                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span>{filterSection || "Section"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
-
-              {showSectionDropdown && filterClass && (
-                <div
-                  className="absolute left-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto"
+              {/* Section Filter */}
+              <div className="relative group" ref={sectionDropdownRef}>
+                <button
+                  onClick={() => filterClass && setShowSectionDropdown(!showSectionDropdown)}
+                  disabled={!filterClass}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <button
-                    onClick={() => {
-                      setFilterSection("");
-                      setShowSectionDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    All Sections
-                  </button>
-                  {availableSections && availableSections.length > 0 ? (
-                    availableSections.map((sec) => {
-                      const sectionId = sec._id || sec;
-                      const sectionName = sec.name || sec;
-                      return (
-                        <button
-                          key={sectionId}
-                          onClick={() => {
-                            setFilterSection(sectionName);
-                            setShowSectionDropdown(false);
-                          }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                        >
-                          {sectionName}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-2 text-gray-500 text-xs">No sections available</div>
-                  )}
-                </div>
-              )}
+                  <span>{filterSection || "Section"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showSectionDropdown && filterClass && (
+                  <div className="absolute left-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setFilterSection("");
+                        setShowSectionDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      All Sections
+                    </button>
+                    {availableSections && availableSections.length > 0 ? (
+                      availableSections.map((sec) => {
+                        const sectionId = sec._id || sec;
+                        const sectionName = sec.name || sec;
+                        return (
+                          <button
+                            key={sectionId}
+                            onClick={() => {
+                              setFilterSection(sectionName);
+                              setShowSectionDropdown(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            {sectionName}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-2 text-gray-500 text-xs">No sections available</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Bulk Actions */}
+              <div className="relative group" ref={bulkActionRef}>
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 min-w-[120px] hover:border-blue-500"
+                >
+                  <span>Bulk Actions</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showBulkActions && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+                    <button
+                      onClick={handleBulkExport}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <FiDownload className="text-sm" />
+                      Export Excel
+                    </button>
+
+                    <button
+                      onClick={handleBulkDelete}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                    >
+                      <FiTrash2 className="text-sm" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="relative shrink-0 min-w-[130px]" ref={bulkActionRef}>
-              <button
-                onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md bg-white flex w-full items-center gap-2 justify-between hover:border-blue-500"
-              >
-                <span>Bulk Actions</span>
-                <FiChevronDown className="text-xs" />
-              </button>
-
-             {showBulkActions && (
-  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
-
-    <button
-      onClick={handleBulkExport}
-      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-    >
-      <FiDownload className="text-sm" />
-      Export Excel
-    </button>
-
-    <button
-      onClick={handleBulkDelete}
-      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-red-600"
-    >
-      <FiTrash2 className="text-sm" />
-      Delete
-    </button>
-
-  </div>
-)}
-            </div>
-            </div>
-
-            <div className="relative shrink-0 pl-1" ref={dropdownRef}>
+            {/* Add Student */}
+            <div className="ml-auto relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center justify-center gap-1 whitespace-nowrap"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
               >
-                <FiPlus />
-                Add Student
+                <FiPlus /> Add Student
               </button>
 
               {showOptions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
                   <button
                     onClick={() => {
                       setShowForm(true);
@@ -888,7 +890,6 @@ Sections:
                   </label>
                 </div>
               )}
-            </div>
             </div>
           </div>
 

@@ -672,12 +672,11 @@ function App() {
       <Route element={<SetupGuard requireSetup />}>
         <Route element={<ProtectedRoute allowedRoles={["superadmin"]} />}>
         <Route path="/superadmin-front" element={<SuperAdminShellLayout />}>
-    <Route
-        index
-        element={<Navigate to="dashboard" replace />}
-    />
-    <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
-</Route>
+          <Route
+            index
+            element={<Navigate to="dashboard" replace />}
+          />
+          <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
           <Route
             path="identity-access"
             element={<Navigate to="/superadmin-front/identity-access/admins" replace />}
@@ -688,7 +687,8 @@ function App() {
           <Route path="identity-access/admins/:id/edit" element={<IdentityAccessEditAdmin />} />
           <Route path="identity-access/admins/:id" element={<IdentityAccessViewAdmin />} />
         </Route>
-        </Route>
+      </Route>
+
 
        
   {/* ===== SIS ===== */}
@@ -924,6 +924,7 @@ function App() {
   <Route path="receipts" element={<ParentFeesReceipts />} />
   <Route path="payment/:id" element={<ParentFeesPaymentDetails />} />
         </Route>
+      </Route>
 
       {/* ================= ADMIN SIS ================= */}
       <Route element={<ProtectedRoute allowedRoles={["admin", "staff"]} />}>

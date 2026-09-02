@@ -444,7 +444,7 @@ useEffect(() => {
 
         {/* TABLE */}
         <div className="overflow-x-auto rounded-xl border border-gray-200">
-        <table className="w-full min-w-[980px]">
+        <table className="w-full text-sm min-w-[980px]">
           <thead className="bg-gray-100 font-semibold">
             <tr>
               
@@ -543,10 +543,11 @@ useEffect(() => {
                       {s.status}
                     </span>
                 </td>
-                <td className="p-2 border text-center ">
-                 
-                  <FiTrash2 className="cursor-pointer text-red-600" />
-                </td>
+                <td className="p-2 border">
+  <div className="flex items-center justify-center">
+    <FiTrash2 className="cursor-pointer text-red-600" />
+  </div>
+</td>
               </tr>
             )))}
           </tbody>

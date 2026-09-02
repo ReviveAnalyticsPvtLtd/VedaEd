@@ -168,11 +168,7 @@ const validateKey = (e, field) => {
 };
   return (
     <div className="p-0 m-0 min-h-screen">
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Receptionist</span>
-        <span>&gt;</span>
-        <span>Visitor Book</span>
-      </div>
+      
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Visitor Book</h2>
         <HelpInfo
@@ -264,21 +260,30 @@ Sections:
         <table className="w-full  text-left border-collapse">
           <thead className="bg-gray-100 border-b">
             <tr>
-              <th className="p-2 border font-semibold">Purpose</th>
-              <th className="p-2 border font-semibold">Meeting With</th>
-              <th className="p-2 border font-semibold">Visitor Name</th>
-              <th className="p-2 border font-semibold">Phone</th>
-              <th className="p-2 border font-semibold">ID Card</th>
-              <th className="p-2 border font-semibold">No. of Person</th>
-              <th className="p-2 border font-semibold">Date</th>
-              <th className="p-2 border font-semibold">In Time</th>
-              <th className="p-2 border font-semibold">Out Time</th>
-              <th className="p-2 border font-semibold text-center">Action</th>
+              <th className="p-2 border text-center">S.No.</th>
+              <th className="p-2 border ">Purpose</th>
+              <th className="p-2 border ">Meeting With</th>
+              <th className="p-2 border">Visitor Name</th>
+              <th className="p-2 border ">Phone</th>
+              <th className="p-2 border ">ID Card</th>
+              <th className="p-2 border ">No. of Person</th>
+              <th className="p-2 border ">Date</th>
+              <th className="p-2 border ">In Time</th>
+              <th className="p-2 border ">Out Time</th>
+              <th className="p-2 border  text-center">Action</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredData.map((v) => (
-              <tr key={v._id || v.id} className="border-b hover:bg-gray-50">
+         <tbody>
+  {filteredData.map((v, index) => (
+    <tr
+      key={v._id || v.id}
+      className="border-b hover:bg-gray-50"
+    >
+      {/* S.No. */}
+      <td className="p-2 border text-center">
+        {index + 1}
+      </td>
+
                 <td className="p-2 border">{v.purpose}</td>
                 <td className="p-2 border">{v.meetingWith}</td>
                 <td className="p-2 border">{v.visitorName}</td>
@@ -288,16 +293,19 @@ Sections:
                 <td className="p-2 border">{v.date}</td>
                 <td className="p-2 border">{v.inTime}</td>
                 <td className="p-2 border">{v.outTime}</td>
-                <td className="p-2 border text-center flex justify-center gap-2">
-             <FiEdit2
-  className="cursor-pointer text-blue-600"
-  onClick={() => handleEdit(v)}
-/>
-                  <FiTrash2
-                    className="cursor-pointer text-red-600"
-                    onClick={() => handleDelete(v._id)}
-                  />
-                </td>
+                <td className="p-2 border text-center">
+  <div className="flex justify-center items-center gap-4">
+    <FiEdit2
+      className="cursor-pointer text-blue-600"
+      onClick={() => handleEdit(v)}
+    />
+
+    <FiTrash2
+      className="cursor-pointer text-red-600"
+      onClick={() => handleDelete(v._id)}
+    />
+  </div>
+</td>
               </tr>
             ))}
           </tbody>
