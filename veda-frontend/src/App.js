@@ -688,6 +688,7 @@ function App() {
           <Route path="identity-access/admins/:id" element={<IdentityAccessViewAdmin />} />
         </Route>
       </Route>
+      </Route>
 
 
        
@@ -924,7 +925,6 @@ function App() {
   <Route path="receipts" element={<ParentFeesReceipts />} />
   <Route path="payment/:id" element={<ParentFeesPaymentDetails />} />
         </Route>
-      </Route>
 
       {/* ================= ADMIN SIS ================= */}
       <Route element={<ProtectedRoute allowedRoles={["admin", "staff"]} />}>
