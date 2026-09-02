@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getAttendanceRules,
   getSetupWizard,
@@ -51,6 +52,10 @@ export function useSetupWizardStep8() {
         ]);
 
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
+          if (wizardRes.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           setSelectedSetupType(wizardRes.data.selectedSetupType || SETUP_TYPES.QUICK);
         }
 
@@ -89,7 +94,7 @@ export function useSetupWizardStep8() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const summary = useMemo(() => getAttendanceSummary(form), [form]);
 

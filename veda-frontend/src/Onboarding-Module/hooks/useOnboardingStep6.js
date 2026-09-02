@@ -5,9 +5,9 @@ import {
   getOnboardingProgress,
   completeOnboarding,
 } from "../../services/onboardingAPI";
-import { saveAuthSession } from "../../utils/authSession";
+import { saveAuthSession, getRoleDashboardPath } from "../../utils/authSession";
 import { ONBOARDING_ROUTES } from "../constants/onboarding";
-import { getOnboardingExitPath } from "../utils/onboardingNavigation";
+import { getSetupProgress } from "../../services/setupWizardAPI";
 import {
   canAccessOnboardingStep,
   getOnboardingResumePath,
@@ -93,11 +93,21 @@ export function useOnboardingStep6() {
       if (data?.token) {
         saveAuthSession(data);
       }
-      const exitPath =
-        data?.redirect && String(data.redirect).startsWith("/onboarding/")
-          ? data.redirect
-          : getOnboardingExitPath();
-      navigate(exitPath, { replace: true });
+
+      let setupCompleted = false;
+      try {
+        const progressRes = await getSetupProgress();
+        setupCompleted =
+          progressRes?.success &&
+          progressRes?.data?.setupStatus === "completed";
+      } catch (setupErr) {
+        console.error("Failed to check setup status:", setupErr);
+      }
+
+      navigate(
+        setupCompleted ? getRoleDashboardPath() : ONBOARDING_ROUTES.setupStart,
+        { replace: true }
+      );
     } catch (err) {
       setError(
         err.response?.data?.message ||

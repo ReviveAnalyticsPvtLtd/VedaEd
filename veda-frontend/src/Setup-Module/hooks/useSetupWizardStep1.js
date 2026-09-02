@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getSetupWizard,
   saveSetupProgress,
@@ -24,6 +25,10 @@ export function useSetupWizardStep1() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
+          if (res.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const completedSteps = res.data.completedSteps || [];
           // Only prefill if step 1 was previously completed (resume flow)
           if (completedSteps.includes(STEP_1_NUMBER) && res.data.selectedSetupType) {
@@ -41,7 +46,7 @@ export function useSetupWizardStep1() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const buildPayload = useCallback(
     ({ advancing = false } = {}) => ({

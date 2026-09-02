@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import { getSetupWizard, saveFeeSetup } from "../../services/setupWizardAPI";
 import {
   SETUP_ROUTES,
@@ -220,6 +221,10 @@ export function useSetupWizardStep10() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
+          if (res.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const data = res.data;
           const completedSteps = data.completedSteps || [];
 
@@ -256,7 +261,7 @@ export function useSetupWizardStep10() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [navigate]);
 
   const updateField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
