@@ -1,4 +1,5 @@
 const User = require("../../../models/User");
+const Role = require("../../../models/Role");
 const PlatformAdmin = require("../../../models/PlatformAdmin");
 const School = require("../../../models/School");
 const WorkspaceSubscription = require("../../../models/WorkspaceSubscription");
@@ -16,6 +17,20 @@ const {
 
 const ADMIN_DASHBOARD_PATH =
   process.env.ONBOARDING_DASHBOARD_PATH || "/admin-front";
+
+const SUPERADMIN_DASHBOARD_PATH = "/superadmin-front/dashboard";
+
+async function promoteToSuperAdmin(user) {
+  const superAdminRole = await Role.findOne({ name: "superadmin" });
+  if (!superAdminRole) {
+    throw new Error("SuperAdmin role is not configured");
+  }
+  if (!user.roleId || String(user.roleId) !== String(superAdminRole._id)) {
+    user.roleId = superAdminRole._id;
+    await user.save();
+  }
+  return superAdminRole;
+}
 
 async function linkSchoolAndSubscription(userId, workspaceDoc) {
   let school = await School.findOne({ workspaceId: workspaceDoc._id });
@@ -184,13 +199,16 @@ async function completeOnboardingAndAuthenticate(userId) {
     throw error;
   }
 
+  await promoteToSuperAdmin(user);
+  await user.populate("roleId");
+
   const authSession = await buildFullAuthSession(user);
 
   return {
     ...authSession,
     onboardingCompleted: true,
     workspaceUrl: workspace.workspaceUrl || workspace.workspacePreviewUrl,
-    redirect: ADMIN_DASHBOARD_PATH,
+    redirect: SUPERADMIN_DASHBOARD_PATH,
   };
 }
 

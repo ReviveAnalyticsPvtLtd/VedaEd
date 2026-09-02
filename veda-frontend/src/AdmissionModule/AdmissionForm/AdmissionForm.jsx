@@ -20,6 +20,12 @@ import {
 
 const allStates = State.getStatesOfCountry("IN");
 
+const REQUIRED_DOCUMENTS = [
+  "Passport Size Photo",
+  "Aadhaar Copy",
+  "Marksheet",
+  "Migration Certificate",
+];
 // Reusable Form Field Component
 const FormField = ({
   label,
@@ -413,6 +419,17 @@ if (
     if (!holderName || !String(holderName).trim()) {
       setErrorMsg(
         "Please enter the name for the parent/guardian you selected for Parent ID login (Father, Mother, or Guardian)."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const missingDocs = REQUIRED_DOCUMENTS.filter(
+      (type) => !documents.some((d) => d.type === type)
+    );
+    if (missingDocs.length > 0) {
+      setErrorMsg(
+        `Please upload required documents: ${missingDocs.join(", ")}`
       );
       setLoading(false);
       return;

@@ -8,10 +8,9 @@ import {
 import { SETUP_ROUTES, STEP_12_NUMBER } from "../constants/setupWizard";
 import { buildSetupReview } from "../utils/setupReview";
 import { formatSlugAsName } from "../../Onboarding-Module/utils/workspaceSlug";
-import { clearAuthSession } from "../../utils/authSession";
+import { getRoleDashboardPath } from "../../utils/authSession";
 
 const SPLASH_DURATION_MS = 2800;
-const LOGIN_PAGE = "/";
 
 export function useSetupWizardStep12() {
   const navigate = useNavigate();
@@ -24,6 +23,7 @@ export function useSetupWizardStep12() {
   const [showSplash, setShowSplash] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [toast, setToast] = useState("");
+  const dashboardPath = getRoleDashboardPath();
 
   const resolveSchoolName = useCallback((name, slug) => {
     return name?.trim() || formatSlugAsName(slug) || "";
@@ -32,6 +32,10 @@ export function useSetupWizardStep12() {
   const loadReview = useCallback(async () => {
     const wizardRes = await getSetupWizard();
     if (wizardRes?.success && wizardRes?.data) {
+      if (wizardRes.data.setupStatus === "completed") {
+        navigate(dashboardPath, { replace: true });
+        return true;
+      }
       const derived = buildSetupReview(wizardRes.data);
       setReviewData(derived);
       setSchoolName(
@@ -41,7 +45,7 @@ export function useSetupWizardStep12() {
       return true;
     }
     return false;
-  }, [resolveSchoolName]);
+  }, [navigate, resolveSchoolName, dashboardPath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,8 +113,7 @@ export function useSetupWizardStep12() {
       setLaunched(true);
       setShowSplash(true);
       splashTimerRef.current = setTimeout(() => {
-        clearAuthSession();
-        navigate(LOGIN_PAGE, { replace: true });
+        navigate(dashboardPath, { replace: true });
       }, SPLASH_DURATION_MS);
     } catch (err) {
       const msg =
@@ -121,7 +124,7 @@ export function useSetupWizardStep12() {
     } finally {
       setLaunching(false);
     }
-  }, [confirmed, navigate, resolveSchoolName]);
+  }, [confirmed, navigate, resolveSchoolName, dashboardPath]);
 
   const handleBack = useCallback(() => {
     navigate(SETUP_ROUTES.step(11));

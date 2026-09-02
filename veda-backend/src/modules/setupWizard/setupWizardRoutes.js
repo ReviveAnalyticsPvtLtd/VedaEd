@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const setupWizardController = require("./setupWizardController");
 const imageUpload = require("../../middleware/imageUpload");
+const authMiddleware = require("../../middleware/authMiddleware");
+
+router.use(authMiddleware);
 
 router.get("/progress", setupWizardController.getSetupProgress);
 router.get("/postal-lookup", setupWizardController.lookupPostalCode);
