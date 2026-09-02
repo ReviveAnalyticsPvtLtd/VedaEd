@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getSetupWizard,
   saveAcademicStructure,
@@ -162,6 +163,10 @@ export function useSetupWizardStep6() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
+          if (res.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const data = res.data;
           const step4Grades = {
             gradeFrom: data.gradeFrom,
@@ -189,7 +194,7 @@ export function useSetupWizardStep6() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const estimatedSections = useMemo(
     () => estimateSections(form.expectedStudents, form.maxStudentsPerSection),

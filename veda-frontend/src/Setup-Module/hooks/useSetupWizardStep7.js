@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   deleteStep7Role,
   getRolesHrFoundation,
@@ -59,6 +60,10 @@ export function useSetupWizardStep7() {
         ]);
 
         if (!cancelled && wizardRes?.success && wizardRes?.data) {
+          if (wizardRes.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const w = wizardRes.data;
           setEnabledModules(w.enabledModules || []);
           setSelectedSetupType(w.selectedSetupType || SETUP_TYPES.QUICK);
@@ -122,7 +127,7 @@ export function useSetupWizardStep7() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const optionalRolesOnCount = form.optionalRoles.length;
 
