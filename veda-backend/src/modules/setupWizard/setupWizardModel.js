@@ -137,6 +137,12 @@ const setupWizardSchema = new mongoose.Schema(
       default: () => randomUUID(),
       unique: true,
     },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     selectedSetupType: {
       type: String,
       enum: ["quick", "advanced", "import"],
@@ -483,6 +489,11 @@ const setupWizardSchema = new mongoose.Schema(
     launchedAt: { type: Date, default: null },
   },
   { timestamps: true }
+);
+
+setupWizardSchema.index(
+  { userId: 1, setupStatus: 1 },
+  { unique: true, partialFilterExpression: { setupStatus: "completed" } }
 );
 
 module.exports = mongoose.model("SetupWizard", setupWizardSchema);
