@@ -240,22 +240,22 @@ export default function ManageSalary() {
           </div>
 
           {/* Staff Table */}
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="w-full  text-left border-collapse">
-              <thead className="bg-gray-100 border-b">
+     <div className="overflow-x-auto">
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
                 <tr>
-                  <th className="p-3 font-semibold">#</th>
-                  <th className="p-3 font-semibold">Staff ID</th>
-                  <th className="p-3 font-semibold">Name</th>
-                  <th className="p-3 font-semibold">Role</th>
-                  <th className="p-3 font-semibold">Basic Salary</th>
-                  <th className="p-3 font-semibold">Allowances</th>
-                  <th className="p-3 font-semibold">Deductions</th>
-                  <th className="p-3 font-semibold">Gross</th>
-                  <th className="p-3 font-semibold">Net</th>
-                  <th className="p-3 font-semibold">Pay Status</th>
-                  <th className="p-3 font-semibold">Note</th>
-                  <th className="p-3 font-semibold text-center">Action</th>
+                  <th className="p-3 border">#</th>
+                  <th className="p-3 border">Staff ID</th>
+                  <th className="p-3 border">Name</th>
+                  <th className="p-3 border">Role</th>
+                  <th className="p-3 border">Basic Salary</th>
+                  <th className="p-3 border">Allowances</th>
+                  <th className="p-3 border">Deductions</th>
+                  <th className="p-3 border">Gross</th>
+                  <th className="p-3 border">Net</th>
+                  <th className="p-3 border">Pay Status</th>
+                  <th className="p-3 border">Note</th>
+                  <th className="p-3 border text-center">Action</th>
                 </tr>
               </thead>
               <tbody>

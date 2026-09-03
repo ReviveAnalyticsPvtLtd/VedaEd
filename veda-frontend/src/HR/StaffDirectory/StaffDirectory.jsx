@@ -424,20 +424,7 @@ export default function Staff() {
         </div>
       )}
       {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => setActiveTab("all")}
-          className="hover:underline"
-        >
-          Staff
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "all" && "All Staff"}
-          {activeTab === "login" && "Manage Login"}
-          {activeTab === "others" && "Others"}
-        </span>
-      </div>
+      
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Staff</h2>
@@ -688,7 +675,7 @@ Sections:
 
 
           {/* Staff Table */}
-          <table className="w-full border ">
+          <table className=" text-sm w-full border ">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">S. no.</th>
