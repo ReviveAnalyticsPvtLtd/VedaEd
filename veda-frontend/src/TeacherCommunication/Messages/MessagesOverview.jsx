@@ -283,11 +283,13 @@ export default function MessagesOverview() {
         {filteredMessages.length > 0 ? (
           filteredMessages.map((message) => (
             <div
-              key={message.id}
-              className={`bg-white p-4 rounded-lg shadow-sm border-l-4 ${
-                message.isRead ? "border-gray-300" : "border-blue-500"
-              } ${!message.isRead ? "bg-blue-50" : ""}`}
-            >
+  key={message.id}
+  className={`p-4 rounded-lg border transition-colors duration-200 ${
+    message.isRead
+      ? "bg-gray-100 border-gray-200"
+      : "bg-white border-gray-300"
+  }`}
+>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">

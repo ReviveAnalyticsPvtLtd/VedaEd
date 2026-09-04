@@ -246,9 +246,7 @@ const AssignmentDashboardUI = () => {
   };
   return (
     <div className="p-0 m-0 min-h-screen ">
-      <p className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        Assignment&gt;
-      </p>
+      
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Assignment</h2>
 
@@ -309,7 +307,12 @@ Tools available inside the assignments dashboard:
           />
         </div>
       </div>
-
+{/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       {/* Stat Cards Section */}
       <div className=" p-0 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
