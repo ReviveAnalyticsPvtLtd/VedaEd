@@ -58,7 +58,9 @@ export default function AcceptInvitation() {
         saveAuthSession(res.session);
       }
       setToast(res.message || "Invitation accepted successfully");
-      setTimeout(() => navigate("/setup/start"), 2500);
+      const role = res.session?.role;
+      const target = role === "superadmin" ? "/setup/start" : "/admin-front";
+      setTimeout(() => navigate(target), 2500);
     } catch (err) {
       setError(err.message);
     } finally {

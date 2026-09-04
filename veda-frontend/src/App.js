@@ -605,7 +605,6 @@ function App() {
         <Route path="/form/step-12" element={<Step12 />} />
 
         {/* ================= ROLE FRONTS ================= */}
-        <Route element={<SetupGuard requireSetup />}>
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin-front" element={<AdminShellLayout />}>
             <Route index element={<AdminMainDashboard />} />
@@ -647,7 +646,6 @@ function App() {
       <Route path="feedback" element={<AdminFeedback />} />
     </Route>
           </Route>
-        </Route>
         </Route>
 
       <Route element={<ProtectedRoute allowedRoles={["staff", "admin", "teacher"]} />}>

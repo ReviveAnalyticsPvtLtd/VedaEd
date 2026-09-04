@@ -123,7 +123,7 @@ export default function Login() {
         localStorage.removeItem("platformPermissions");
       }
 
-      if (role === "superadmin" || role === "admin") {
+      if (role === "superadmin") {
         try {
           const setupRes = await getSetupProgress();
           if (setupRes?.data?.setupStatus !== "completed") {
