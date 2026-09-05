@@ -1,45 +1,16 @@
 import React, { useState } from "react";
+import { initialTemplates } from "./templateData";
 
-export default function Templates() {
-  const [templates, setTemplates] = useState([
-    {
-      id: 1,
-      name: "Assignment Reminder",
-      type: "SMS",
-      content:
-        "Dear {student_name}, please submit your {subject} assignment by {due_date}. - Teacher",
-      category: "Academic",
-    },
-    {
-      id: 2,
-      name: "Parent Meeting",
-      type: "Email",
-      content:
-        "Dear {parent_name}, we would like to schedule a parent-teacher meeting for {student_name} on {date} at {time}. Please confirm your availability. - Teacher",
-      category: "Communication",
-    },
-    {
-      id: 3,
-      name: "Exam Schedule",
-      type: "SMS",
-      content:
-        "Dear {student_name}, your {exam_name} exam is scheduled on {exam_date} at {exam_time}. Please be prepared. - Teacher",
-      category: "Academic",
-    },
-    {
-      id: 4,
-      name: "Homework Reminder",
-      type: "SMS",
-      content:
-        "Dear {student_name}, please complete your {subject} homework and bring it tomorrow. - Teacher",
-      category: "Academic",
-    },
-  ]);
+export default function Templates({ templates, setTemplates }) {
+  const [localTemplates, setLocalTemplates] = useState(initialTemplates);
+
+  const templateList = templates ?? localTemplates;
+  const updateTemplates = setTemplates ?? setLocalTemplates;
 
   const [selectedType, setSelectedType] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const filteredTemplates = templates.filter((template) => {
+  const filteredTemplates = templateList.filter((template) => {
     const typeMatch = selectedType === "All" || template.type === selectedType;
     const categoryMatch =
       selectedCategory === "All" || template.category === selectedCategory;
@@ -52,7 +23,7 @@ export default function Templates() {
   };
 
   const handleDeleteTemplate = (templateId) => {
-    setTemplates(templates.filter((t) => t.id !== templateId));
+    updateTemplates(templateList.filter((t) => t.id !== templateId));
   };
 
   const handleUseTemplate = (template) => {

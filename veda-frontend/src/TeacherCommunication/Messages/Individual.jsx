@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { FiSearch, FiTrash2, FiUser } from "react-icons/fi";
 
-export default function Individual() {
+export default function Individual({ templates = [] }) {
   const [selectedType, setSelectedType] = useState("SMS");
   const [message, setMessage] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [sendOption, setSendOption] = useState("now");
   const [scheduleDate, setScheduleDate] = useState("");
+
+  const availableTemplates = templates.filter((t) => t.type === selectedType);
+
+  const handleTemplateChange = (e) => {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    const template = templates.find((t) => String(t.id) === id);
+    if (template) setMessage(template.content);
+  };
 
   // --- Message To States ---
   const [role, setRole] = useState("");
@@ -104,8 +114,17 @@ export default function Individual() {
           <label className="block  font-medium text-gray-600 mb-1">
             {selectedType} Template
           </label>
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <select
+            value={selectedTemplateId}
+            onChange={handleTemplateChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
             <option value="">Select</option>
+            {availableTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
           </select>
         </div>
 

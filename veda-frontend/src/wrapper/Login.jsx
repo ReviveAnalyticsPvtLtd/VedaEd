@@ -124,7 +124,7 @@ export default function Login() {
 
       if (role === "superadmin") navigate("/superadmin-front/dashboard");
       else if (role === "admin") navigate("/admin-front");
-      else if (role === "teacher") navigate("/teacher");
+      else if (role === "teacher") navigate("/staff-front");
       else if (role === "parent") navigate("/parent-front");
       else if (role === "staff") navigate("/staff-front");
       else if (role === "student") navigate("/student-front");

@@ -40,21 +40,17 @@ export default function TeacherDashboard() {
   }, []);
 
 
-  // Hardcoded fallback data
-  const assignmentData = [
-    { name: "Pending", value: 5 },
-    { name: "Submitted", value: 15 },
-    { name: "Graded", value: 10 },
-  ];
+  // Chart data derived from real stats (empty until the API returns data)
+  const assignmentData = stats?.assignmentStatus
+    ? [
+        { name: "Pending", value: stats.assignmentStatus.pending },
+        { name: "Submitted", value: stats.assignmentStatus.submitted },
+        { name: "Graded", value: stats.assignmentStatus.graded },
+      ]
+    : [];
   const COLORS = ["#F59E0B", "#10B981", "#3B82F6"];
 
-  const attendanceData = [
-    { day: "Mon", attendance: 85 },
-    { day: "Tue", attendance: 90 },
-    { day: "Wed", attendance: 75 },
-    { day: "Thu", attendance: 95 },
-    { day: "Fri", attendance: 80 },
-  ];
+  const attendanceData = stats?.weeklyAttendance || [];
 
   return (
     <div className="p-6 space-y-6">
@@ -163,8 +159,31 @@ export default function TeacherDashboard() {
           {/* Timetable */}
           <div className="bg-white p-4 rounded-xl shadow">
             <h3 className="font-medium">Today's Schedule</h3>
-            <div className="h-40 flex items-center justify-center text-gray-400">
-              [Timetable Data]
+            <div className="h-40 overflow-y-auto">
+              {loading ? (
+                <p className="text-gray-400 text-center">Loading...</p>
+              ) : stats?.todaySchedule?.length ? (
+                <ul className="text-sm space-y-2">
+                  {stats.todaySchedule.map((lec) => (
+                    <li
+                      key={lec.lectureId}
+                      className="flex items-center justify-between border-b pb-1"
+                    >
+                      <span className="font-medium">{lec.subject}</span>
+                      <span className="text-gray-500 text-xs">
+                        {lec.className}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        {lec.timeFrom} - {lec.timeTo}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-400 text-center">
+                  No lectures scheduled today.
+                </p>
+              )}
             </div>
             <Link
               to="/teacher/timetable"
@@ -179,8 +198,28 @@ export default function TeacherDashboard() {
       {/* My Classes */}
       <div className="bg-white p-4 rounded-xl shadow">
         <h3 className="font-medium">My Classes</h3>
-        <div className="h-32 flex items-center justify-center text-gray-400">
-          [Class List Data]
+        <div className="h-32 overflow-y-auto">
+          {loading ? (
+            <p className="text-gray-400 text-center">Loading...</p>
+          ) : stats?.classList?.length ? (
+            <ul className="text-sm space-y-2">
+              {stats.classList.map((c) => (
+                <li
+                  key={c.classId}
+                  className="flex items-center justify-between border-b pb-1"
+                >
+                  <span>{c.name}</span>
+                  {c.classTeacher && (
+                    <span className="text-xs text-blue-600">Class Teacher</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-400 text-center">
+              No classes assigned yet.
+            </p>
+          )}
         </div>
       </div>
 
@@ -222,14 +261,18 @@ export default function TeacherDashboard() {
           <h3 className="font-medium">Recent Notifications</h3>
           <ul className="text-sm space-y-2 mt-2">
             <li className="bg-blue-50 px-3 py-2 rounded">
-              📄 2 Assignments pending review
+              📄 {loading ? "..." : (stats?.assignmentStatus?.pending || 0)}{" "}
+              assignments pending review
             </li>
             <li className="bg-blue-50 px-3 py-2 rounded">
-              📅 Extra class scheduled tomorrow
+              📅 {loading ? "..." : (stats?.lecturesToday || 0)} lecture(s)
+              scheduled today
             </li>
-            <li className="bg-blue-50 px-3 py-2 rounded">
-              📝 Gradebook update required
-            </li>
+            {!loading && stats?.classList?.length === 0 && (
+              <li className="bg-yellow-50 px-3 py-2 rounded">
+                ⚠️ No classes assigned yet
+              </li>
+            )}
           </ul>
         </div>
       </div>
