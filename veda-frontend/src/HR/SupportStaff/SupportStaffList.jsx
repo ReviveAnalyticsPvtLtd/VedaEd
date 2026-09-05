@@ -157,6 +157,7 @@ const SupportStaffList = () => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-3 border">
+                  
                   <input
                     type="checkbox"
                     onChange={(e) =>

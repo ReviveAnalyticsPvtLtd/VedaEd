@@ -490,9 +490,9 @@ export default function ApproveLeave() {
           <p className="text-center text-gray-500 py-8">Loading leave requests...</p>
         ) : (
           <>
-            <div className="overflow-x-auto -mx-1 px-1">
-              <table className="w-full text-left border-collapse min-w-[1020px] text-sm">
-                <thead className="bg-gray-50 border-y border-gray-200">
+            <div className="overflow-x-auto">
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
                   <tr>
                     <th className="p-2 lg:p-3 font-semibold w-10 text-center">
                       <input
@@ -506,16 +506,16 @@ export default function ApproveLeave() {
                         aria-label="Select all matching rows for export"
                       />
                     </th>
-                    <th className="p-2 lg:p-3 font-semibold">Staff ID</th>
-                    <th className="p-2 lg:p-3 font-semibold">Teacher</th>
-                    <th className="p-2 lg:p-3 font-semibold">Leave Type</th>
-                    <th className="p-2 lg:p-3 font-semibold">Duration</th>
-                    <th className="p-2 lg:p-3 font-semibold">Date</th>
-                    <th className="p-2 lg:p-3 font-semibold whitespace-nowrap">Days</th>
-                    <th className="p-2 lg:p-3 font-semibold whitespace-nowrap">Paid / Unpaid</th>
-                    <th className="p-2 lg:p-3 font-semibold">Conflict</th>
-                    <th className="p-2 lg:p-3 font-semibold">Status</th>
-                    <th className="p-2 lg:p-3 font-semibold text-center">Action</th>
+                    <th className="p-2 lg:p-3 border">Staff ID</th>
+                    <th className="p-2 lg:p-3 border">Teacher</th>
+                    <th className="p-2 lg:p-3 border">Leave Type</th>
+                    <th className="p-2 lg:p-3 border ">Duration</th>
+                    <th className="p-2 lg:p-3 border">Date</th>
+                    <th className="p-2 lg:p-3 border whitespace-nowrap">Days</th>
+                    <th className="p-2 lg:p-3 border whitespace-nowrap">Paid / Unpaid</th>
+                    <th className="p-2 lg:p-3 border">Conflict</th>
+                    <th className="p-2 lg:p-3 border">Status</th>
+                    <th className="p-2 lg:p-3 border text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>

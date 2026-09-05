@@ -204,7 +204,7 @@ export default function ApplicationPipeline() {
         </div>
 
         {/* Table */}
-        <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="w-full overflow-x-auto  border border-gray-200 bg-white">
           <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead className="bg-gray-100">
               <tr>

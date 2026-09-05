@@ -17,6 +17,7 @@ function generateUsernameFromNameDob(name, dob) {
   const parsed = new Date(dob);
   if (Number.isNaN(parsed.getTime())) return firstPart;
 
+  
   const dd = String(parsed.getDate()).padStart(2, "0");
   const mm = String(parsed.getMonth() + 1).padStart(2, "0");
   const yy = String(parsed.getFullYear()).slice(-2);

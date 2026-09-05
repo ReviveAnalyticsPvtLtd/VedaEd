@@ -162,10 +162,9 @@ export default function AdminSidebar() {
 const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const navigate = useNavigate();
 
-  const visibleModules = useMemo(
-    () => filterModulesByPermission(MODULES),
-    []
-  );
+ // const visibleModules = useMemo(
+  //  () => filterModulesByPermission(MODULES), [] );
+  const visibleModules = MODULES;
 useEffect(() => {
   document.documentElement.style.setProperty(
     "--sidebar-width",

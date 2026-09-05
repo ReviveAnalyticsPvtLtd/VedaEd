@@ -155,7 +155,9 @@ const paginatedData = useMemo(() => {
          
         </div>
 
+
         {/* ================= TABLE ================= */}
+        
         <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm min-w-[980px] border-collapse">
           <thead className="bg-gray-100">

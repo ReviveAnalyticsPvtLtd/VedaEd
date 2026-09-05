@@ -7,11 +7,7 @@ export default function TeacherAttendance() {
 
   return (
     <div className="p-0 m-0 min-h-screen w-full max-w-full min-w-0">
-      <div className="text-gray-500 text-xs sm:text-sm mb-2 flex items-center gap-1 flex-wrap">
-        <span>Attendance</span>
-        <span>&gt;</span>
-        <span>{isLeave ? "Teacher Leave" : "Mark Attendance"}</span>
-      </div>
+      
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-xl sm:text-2xl font-bold min-w-0">Attendance</h2>

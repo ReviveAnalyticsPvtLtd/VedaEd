@@ -245,7 +245,7 @@ export default function Classes() {
       {error && (
         <div className="mb-4 text-red-600 font-semibold">{error}</div>
       )}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">Teacher &gt; Classes</div>
+
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Classes</h2>
 
@@ -293,7 +293,12 @@ Tools available inside every class:
           ]}
         />
       </div>
-
+{/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       <div className="bg-white p-3 rounded-lg shadow-sm border">
         <h3 className="text-lg font-semibold mb-4">Classes List</h3>
         {/* Search + Filters + Add */}

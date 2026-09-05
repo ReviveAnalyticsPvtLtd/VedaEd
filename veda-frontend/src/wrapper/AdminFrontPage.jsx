@@ -12,9 +12,9 @@ const MODULES = [
   { name: "Admission", path: "/admission", icon: <FiBookOpen /> },
 ];
 
-export default function AdminFrontPage() {
+export default function AdminFrontPage() { 
   const navigate = useNavigate();
-  const visibleModules = useMemo(() => filterModulesByPermission(MODULES), []);
+  const visibleModules = MODULES;
 
   const logout = () => {
     localStorage.removeItem("token");

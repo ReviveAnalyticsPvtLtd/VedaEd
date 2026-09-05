@@ -380,6 +380,7 @@ You can search by name or parent, filter by class, add students manually, import
                 </td>
                 <td className="p-3 border text-center">
                   <button
+                  
                     onClick={() => deleteOne(s.id)}
                     className="text-red-600 hover:text-red-800"
                   >

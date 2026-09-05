@@ -91,7 +91,7 @@ export default function TeacherCommunicationDashboard() {
   const COLORS = ["#22c55e", "#ef4444"];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
 
       {/* ================= HEADER ================= */}
       <div className="flex justify-between items-center">
@@ -100,42 +100,43 @@ export default function TeacherCommunicationDashboard() {
        
       </div>
 
-      {/* ================= STAT CARDS ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((item, index) => (
-          <Link to={item.link} key={index}>
-            <div className={`bg-white p-6 rounded-xl shadow-sm border-l-4 ${item.color}
-              hover:shadow-md transition cursor-pointer`}>
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">{item.title}</p>
-                  <h2 className="text-2xl font-bold text-gray-800 mt-1">
-                    {item.value}
-                  </h2>
+    {/* ================= STAT CARDS ================= */}
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  {stats.map((item, index) => (
+    <Link to={item.link} key={index}>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer">
+        <div className="flex justify-between">
+          <div>
+            <p className="text-sm text-gray-500">{item.title}</p>
 
-                  <div
-                    className={`flex items-center text-sm mt-2 ${
-                      item.growth > 0
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {item.growth > 0 ? (
-                      <FiTrendingUp className="mr-1" />
-                    ) : (
-                      <FiTrendingDown className="mr-1" />
-                    )}
-                    {item.growth}%
-                  </div>
-                </div>
+            <h2 className="text-2xl font-bold text-gray-800 mt-1">
+              {item.value}
+            </h2>
 
-                <div className="text-gray-400">{item.icon}</div>
-              </div>
+            <div
+              className={`flex items-center text-sm mt-2 ${
+                item.growth > 0
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}
+            >
+              {item.growth > 0 ? (
+                <FiTrendingUp className="mr-1" />
+              ) : (
+                <FiTrendingDown className="mr-1" />
+              )}
+              {item.growth}%
             </div>
-          </Link>
-        ))}
-      </div>
+          </div>
 
+          <div className="text-gray-400">
+            {item.icon}
+          </div>
+        </div>
+      </div>
+    </Link>
+  ))}
+</div>
       {/* ================= CHARTS ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
