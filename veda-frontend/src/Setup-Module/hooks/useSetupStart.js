@@ -5,6 +5,7 @@ import {
   initializeSetup,
 } from "../../services/setupWizardAPI";
 import { SETUP_ROUTES } from "../constants/setupWizard";
+import { getRoleDashboardPath } from "../../utils/authSession";
 
 export function useSetupStart() {
   const navigate = useNavigate();
@@ -20,6 +21,10 @@ export function useSetupStart() {
       try {
         const res = await getSetupProgress();
         if (!cancelled && res?.success) {
+          if (res.data?.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           setHasDraft(Boolean(res.hasDraft));
           setProgress(res.data || null);
         }
@@ -35,7 +40,7 @@ export function useSetupStart() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const handleStartSetup = useCallback(async () => {
     setActionLoading(true);

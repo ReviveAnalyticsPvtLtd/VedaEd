@@ -212,6 +212,14 @@ exports.createApplication = async (req, res) => {
     }
 };
 
+// Required document types for admission
+const REQUIRED_DOCUMENTS = [
+    "Passport Size Photo",
+    "Aadhaar Copy",
+    "Marksheet",
+    "Migration Certificate",
+];
+
 // Upload documents for an application
 exports.uploadApplicationDocument = async (req, res) => {
     try {
@@ -251,11 +259,20 @@ exports.uploadApplicationDocument = async (req, res) => {
         await application.save();
         console.log("Document saved successfully to application:", applicationId);
 
+        // Check if all required documents are now present
+        const uploadedTypes = application.documents.map(d => d.type);
+        const missingDocs = REQUIRED_DOCUMENTS.filter(type => !uploadedTypes.includes(type));
+        const allDocumentsUploaded = missingDocs.length === 0;
+
         res.status(200).json({
             success: true,
-            message: "Document uploaded successfully",
+            message: allDocumentsUploaded
+                ? "Document uploaded successfully. All required documents are now complete."
+                : `Document uploaded successfully. Missing documents: ${missingDocs.join(", ")}`,
             data: application,
             document: application.documents[application.documents.length - 1],
+            allDocumentsUploaded,
+            missingDocuments: missingDocs,
         });
     } catch (error) {
         console.error("Error uploading document:", error);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getExaminationGradebookSetup,
   getSetupWizard,
@@ -67,6 +68,11 @@ export function useSetupWizardStep9() {
         const wizardData = wizardRes?.data || {};
         const existingStep9 = wizardData?.step9ExaminationGradebook || null;
 
+        if (!cancelled && wizardData?.setupStatus === "completed") {
+          navigate(getRoleDashboardPath(), { replace: true });
+          return;
+        }
+
         if (!cancelled) {
           setWizardMeta(wizardData);
           setHasPersistedStep9(Boolean(existingStep9));
@@ -87,7 +93,7 @@ export function useSetupWizardStep9() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const summary = useMemo(() => getExamSummary(form), [form]);
 

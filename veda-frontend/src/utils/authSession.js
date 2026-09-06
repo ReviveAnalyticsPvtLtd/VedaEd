@@ -51,3 +51,18 @@ export function navigateAfterRoleLogin(role, navigate) {
   else if (role === "transport") navigate("/admin/transport");
   else navigate("/");
 }
+
+export function getRoleDashboardPath() {
+  const role = localStorage.getItem("role");
+  if (role === "superadmin") return "/superadmin-front/dashboard";
+  if (role === "admin") return "/admin-front";
+  if (role === "teacher") return "/teacher";
+  if (role === "parent") return "/parent-front";
+  if (role === "staff") return "/staff-front";
+  if (role === "student") return "/student-front";
+  if (role === "hr") return "/hr";
+  if (role === "receptionist") return "/receptionist";
+  if (role === "admission") return "/admission";
+  if (role === "transport") return "/admin/transport";
+  return "/";
+}
