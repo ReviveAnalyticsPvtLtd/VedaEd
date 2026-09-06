@@ -4,6 +4,7 @@ import { FiEdit, FiTrash2 } from "react-icons/fi";
 import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import api from "../../services/apiClient";
 import axios from "axios";
 import config from "../../config";
 
@@ -45,13 +46,13 @@ const navigate = useNavigate();
       let res;
       if (editId) {
         // Update existing subject
-        res = await axios.put(`${config.API_BASE_URL}/subjects/${editId}`, {
+        res = await api.put(`/subjects/${editId}`, {
           subjectName: name,
           type,
         });
       } else {
         // Add new subject
-        res = await axios.post(`${config.API_BASE_URL}/subjects`, {
+        res = await api.post(`/subjects`, {
           subjectName: name,
           type,
         });

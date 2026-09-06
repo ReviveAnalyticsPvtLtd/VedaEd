@@ -4,6 +4,9 @@ const StaffAttendance = require("./staffAttendanceModel");
 const StaffLeave = require("./staffLeaveModel");
 const StaffPayroll = require("./staffPayrollModel");
 const LeavePolicy = require("./leavePolicyModel");
+const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
+const Assignment = require("../assignment/assignment");
+const Timetable = require("../Timetable/timeTableSchema");
 const {
   getLeaveCycleRange,
   leaveFullyInsideCycle,
@@ -1212,15 +1215,97 @@ exports.deleteDocument = async (req, res) => {
 exports.getTeacherDashboardStats = async (req, res) => {
   try {
     const { id } = req.params;
-    const teacher = await Staff.findById(id);
+    const teacherId = id || req.user?.refId;
+    if (!teacherId) {
+      return res.status(400).json({ success: false, message: "Teacher id required" });
+    }
+
+    const [assignedClasses, assignments] = await Promise.all([
+      AssignTeacher.find({
+        $or: [{ teachers: teacherId }, { classTeacher: teacherId }],
+      })
+        .select("class section classTeacher")
+        .populate("class", "name")
+        .populate("section", "name"),
+      Assignment.find({ teacher: teacherId }).select(
+        "status submissions title"
+      ),
+    ]);
+
+    const classList = assignedClasses.map((a) => ({
+      classId: a._id,
+      name: `${(a.class?.name || "").trim()}${a.section ? ` - ${a.section.name}` : ""}`,
+      classTeacher: String(a.classTeacher) === String(teacherId),
+    }));
+
+    const assignmentStatus = {
+      pending: assignments.filter((a) => a.status === "Active").length,
+      submitted: assignments.filter((a) => a.status === "Late Submission").length,
+      graded: assignments.filter((a) => a.status === "Pending Review").length,
+    };
+
+    // Weekly attendance (Mon → Fri) for current week
+    const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const now = new Date();
+    const startOfLocalDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const today = startOfLocalDay(now);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+
+    const attendanceRecords = await StaffAttendance.find({
+      staff: teacherId,
+      date: { $gte: monday, $lte: today },
+    });
+
+    const presentDays = attendanceRecords.filter(
+      (r) => r.status === "Present"
+    ).length;
+    const attendance = attendanceRecords.length
+      ? Math.round((presentDays / attendanceRecords.length) * 100)
+      : 0;
+
+    const weeklyAttendance = weekdays.map((d) => {
+      const dayRecords = attendanceRecords.filter(
+        (r) =>
+          new Date(r.date).toLocaleDateString("en-US", { weekday: "long" }) === d
+      );
+      const present = dayRecords.filter((r) => r.status === "Present").length;
+      return {
+        day: d.slice(0, 3),
+        attendance: dayRecords.length ? Math.round((present / dayRecords.length) * 100) : 0,
+      };
+    });
+
+    // Today's lectures from timetable
+    const todayName = now.toLocaleDateString("en-US", { weekday: "long" });
+    const todayLectures = await Timetable.find({ teacher: teacherId, day: todayName })
+      .select("class section subject timeFrom timeTo roomNo")
+      .populate("class", "name")
+      .populate("section", "name")
+      .populate("subject", "subjectName")
+      .sort({ timeFrom: 1 });
+
+    const todaySchedule = todayLectures.map((t) => ({
+      lectureId: t._id,
+      timeFrom: t.timeFrom,
+      timeTo: t.timeTo,
+      subject: t.subject?.subjectName || "N/A",
+      roomNo: t.roomNo || "",
+      className: `${(t.class?.name || "").trim()}${t.section ? ` - ${t.section.name}` : ""}`,
+    }));
+
     res.status(200).json({
       success: true,
       stats: {
-        classes: teacher?.classesAssigned?.length || 6,
-        assignments: 12,
-        attendance: 92,
-        lecturesToday: 3,
-      }
+        classes: classList.length,
+        classList,
+        assignments: assignments.length,
+        assignmentStatus,
+        attendance,
+        weeklyAttendance,
+        lecturesToday: todaySchedule.length,
+        todaySchedule,
+      },
     });
   } catch (error) {
     console.error("Error fetching teacher dashboard stats:", error);

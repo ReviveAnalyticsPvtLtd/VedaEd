@@ -176,8 +176,14 @@ const validateStepProgress = (currentStep, progressPercentage, res) => {
   return { step, progress };
 };
 
-const upsertSetupDoc = async (payload) => {
-  let doc = await SetupWizard.findOne();
+const upsertSetupDoc = async (userId, payload) => {
+  const query = userId ? { userId } : {};
+  let doc = await SetupWizard.findOne(query);
+  if (doc && getSetupStatus(doc) === "completed") {
+    const error = new Error("Setup is already completed. You cannot modify it.");
+    error.statusCode = 409;
+    throw error;
+  }
   if (doc) {
     doc = await SetupWizard.findByIdAndUpdate(doc._id, payload, {
       new: true,
@@ -186,6 +192,7 @@ const upsertSetupDoc = async (payload) => {
   } else {
     doc = await SetupWizard.create({
       setupId: randomUUID(),
+      userId,
       selectedSetupType: "quick",
       ...payload,
     });
@@ -203,7 +210,9 @@ const hasResumableDraft = (doc) => {
 /** GET /api/setup-wizard/progress — fetch existing setup progress */
 exports.getSetupProgress = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({
+      updatedAt: -1,
+    });
     return res.status(200).json({
       success: true,
       data: formatSetupDoc(doc),
@@ -223,7 +232,9 @@ exports.getSetupProgress = async (req, res) => {
 /** GET /api/setup-wizard — fetch saved wizard progress for prefill (step pages) */
 exports.getSetupWizard = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({
+      updatedAt: -1,
+    });
     return res.status(200).json({
       success: true,
       data: doc,
@@ -411,7 +422,13 @@ exports.initializeSetup = async (req, res) => {
       launchedAt: null,
     };
 
-    const existing = await SetupWizard.findOne();
+    const existing = await SetupWizard.findOne({ userId: req.user.userId });
+    if (existing && getSetupStatus(existing) === "completed") {
+      return res.status(409).json({
+        success: false,
+        message: "Setup is already completed. You cannot re-initialize it.",
+      });
+    }
     let doc;
     if (existing) {
       doc = await SetupWizard.findByIdAndUpdate(
@@ -423,7 +440,7 @@ exports.initializeSetup = async (req, res) => {
         { new: true, runValidators: false }
       );
     } else {
-      doc = await SetupWizard.create(payload);
+      doc = await SetupWizard.create({ userId: req.user.userId, ...payload });
     }
 
     return res.status(201).json({
@@ -482,7 +499,7 @@ exports.saveSetupWizard = async (req, res) => {
       completedSteps: completed,
     };
 
-    let doc = await SetupWizard.findOne();
+    let doc = await SetupWizard.findOne({ userId: req.user.userId });
     if (doc) {
       doc = await SetupWizard.findByIdAndUpdate(doc._id, payload, {
         new: true,
@@ -491,6 +508,7 @@ exports.saveSetupWizard = async (req, res) => {
     } else {
       doc = await SetupWizard.create({
         setupId: randomUUID(),
+        userId: req.user.userId,
         ...payload,
       });
     }
@@ -555,7 +573,7 @@ exports.saveStep2OrganizationType = async (req, res) => {
       completedSteps: completed,
     };
 
-    let doc = await SetupWizard.findOne();
+    let doc = await SetupWizard.findOne({ userId: req.user.userId });
     if (doc) {
       doc = await SetupWizard.findByIdAndUpdate(doc._id, payload, {
         new: true,
@@ -564,6 +582,7 @@ exports.saveStep2OrganizationType = async (req, res) => {
     } else {
       doc = await SetupWizard.create({
         setupId: randomUUID(),
+        userId: req.user.userId,
         selectedSetupType: "quick",
         ...payload,
       });
@@ -595,7 +614,10 @@ exports.uploadSchoolLogo = async (req, res) => {
     }
 
     const schoolLogo = `/uploads/${req.file.filename}`;
-    const doc = await upsertSetupDoc({ schoolLogo, setupStatus: "draft" });
+    const doc = await upsertSetupDoc(req.user.userId, {
+      schoolLogo,
+      setupStatus: "draft",
+    });
 
     return res.status(200).json({
       success: true,
@@ -754,7 +776,7 @@ exports.saveStep3SchoolProfile = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -881,7 +903,7 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -983,7 +1005,7 @@ exports.saveStep5ModuleSelection = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -1161,7 +1183,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -1210,7 +1232,7 @@ exports.generateRecommendation = async (req, res) => {
 
     const shouldPersist = persist === true || persist === "true";
     if (shouldPersist) {
-      await upsertSetupDoc({
+      await upsertSetupDoc(req.user.userId, {
         ...recommendationToStoredFields(recommendation),
         institutionType: institutionType || undefined,
         curriculumCountry: String(country || curriculumCountry || "").trim(),
@@ -1242,7 +1264,7 @@ exports.generateRecommendation = async (req, res) => {
 /** GET /api/setup-wizard/recommendation — fetch stored or regenerate from wizard */
 exports.getRecommendation = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
 
     if (!doc) {
       return res.status(200).json({
@@ -1385,7 +1407,7 @@ const buildStep7PersistPayload = (
 /** GET /api/setup-wizard/step-7 — fetch saved roles & HR foundation */
 exports.getStep7RolesHrFoundation = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     const data = mapWizardToStep7Response(doc);
     const smartChecks = doc
       ? getRolesHrSmartChecks(doc.enabledModules, data?.optionalRoles)
@@ -1464,7 +1486,7 @@ exports.saveStep7RolesHrFoundation = async (req, res) => {
       });
     }
 
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     const completed = Array.isArray(completedSteps)
       ? completedSteps.filter((n) => Number.isFinite(Number(n)))
       : [];
@@ -1477,7 +1499,7 @@ exports.saveStep7RolesHrFoundation = async (req, res) => {
       req.body
     );
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -1624,7 +1646,7 @@ exports.saveStep10FeeSetup = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -1661,7 +1683,7 @@ exports.updateStep7RoleConfiguration = async (req, res) => {
       });
     }
 
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!doc) {
       return res.status(404).json({
         success: false,
@@ -1742,7 +1764,7 @@ exports.deleteStep7OptionalRole = async (req, res) => {
       });
     }
 
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!doc) {
       return res.status(404).json({
         success: false,
@@ -1841,14 +1863,14 @@ const persistStep8FromBody = async (req, res, { advancingDefaults } = {}) => {
     completed
   );
 
-  const doc = await upsertSetupDoc(payload);
+  const doc = await upsertSetupDoc(req.user.userId, payload);
   return doc;
 };
 
 /** GET /api/setup-wizard/step-8 — fetch saved attendance rules */
 exports.getStep8AttendanceRules = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     const data = mapWizardToStep8Response(doc);
 
     return res.status(200).json({
@@ -1929,7 +1951,7 @@ exports.saveStep11CommunicationSetup = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -1972,7 +1994,7 @@ exports.saveStep8AttendanceRules = async (req, res) => {
 /** PUT /api/setup-wizard/step-8 — update attendance rules */
 exports.updateStep8AttendanceRules = async (req, res) => {
   try {
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -2010,7 +2032,7 @@ exports.patchStep8AttendanceToggles = async (req, res) => {
       });
     }
 
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!doc) {
       return res.status(404).json({
         success: false,
@@ -2079,7 +2101,7 @@ const persistStep9ExaminationGradebook = async (
   if (!progressMeta) return null;
 
   const wizardDoc =
-    existingWizardDoc || (await SetupWizard.findOne().sort({ updatedAt: -1 }));
+    existingWizardDoc || (await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 }));
   const currentConfig = wizardDoc?.step9ExaminationGradebook || getDefaultStep9State(wizardDoc);
   const mergedPayload = {
     ...currentConfig,
@@ -2121,7 +2143,7 @@ const persistStep9ExaminationGradebook = async (
     revertToVersionNumber,
   });
 
-  const doc = await upsertSetupDoc({
+  const doc = await upsertSetupDoc(req.user.userId, {
     step9ExaminationGradebook: nextStep9Payload,
     currentStep: progressMeta.step,
     progressPercentage: progressMeta.progress,
@@ -2135,7 +2157,7 @@ const persistStep9ExaminationGradebook = async (
 /** GET /api/setup-wizard/step-9 — fetch examination & gradebook setup */
 exports.getStep9ExaminationGradebook = async (req, res) => {
   try {
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     return res.status(200).json({
       success: true,
       data: mapWizardToStep9Response(doc || {}),
@@ -2177,7 +2199,7 @@ exports.saveStep9ExaminationGradebook = async (req, res) => {
 /** PUT /api/setup-wizard/step-9 — update examination & gradebook rules */
 exports.updateStep9ExaminationGradebook = async (req, res) => {
   try {
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -2209,7 +2231,7 @@ exports.updateStep9ExaminationGradebook = async (req, res) => {
 /** PATCH /api/setup-wizard/step-9/grade-scale — update grade scale independently */
 exports.patchStep9GradeScale = async (req, res) => {
   try {
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -2280,7 +2302,7 @@ exports.launchSchoolSetup = async (req, res) => {
       : [];
 
     // Build a snapshot of the current wizard state
-    const existingDoc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existingDoc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     const snapshot = existingDoc ? existingDoc.toObject() : {};
 
     const payload = {
@@ -2297,7 +2319,7 @@ exports.launchSchoolSetup = async (req, res) => {
       completedSteps: completed,
     };
 
-    const doc = await upsertSetupDoc(payload);
+    const doc = await upsertSetupDoc(req.user.userId, payload);
 
     return res.status(200).json({
       success: true,
@@ -2325,7 +2347,7 @@ exports.deleteStep9GradeRow = async (req, res) => {
       });
     }
 
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -2373,7 +2395,7 @@ exports.deleteStep9WeightageRow = async (req, res) => {
       });
     }
 
-    const existing = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const existing = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -2414,7 +2436,7 @@ exports.deleteStep9WeightageRow = async (req, res) => {
 exports.getSetupReview = async (req, res) => {
   try {
     const { buildSetupReview } = require("./setupReviewBuilder");
-    const doc = await SetupWizard.findOne().sort({ updatedAt: -1 });
+    const doc = await SetupWizard.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
 
     if (!doc) {
       return res.status(404).json({

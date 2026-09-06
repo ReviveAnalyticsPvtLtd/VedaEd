@@ -20,6 +20,7 @@ import {
 } from "react-icons/fi";
 
 import config from "../config";
+import { getSetupProgress } from "../services/setupWizardAPI";
 
 const ADMIN_ROLES = [
   { key: "superadmin", label: "Super Admin", icon: FiShield },
@@ -122,9 +123,22 @@ export default function Login() {
         localStorage.removeItem("platformPermissions");
       }
 
+      if (role === "superadmin") {
+        try {
+          const setupRes = await getSetupProgress();
+          if (setupRes?.data?.setupStatus !== "completed") {
+            navigate("/setup/start");
+            return;
+          }
+        } catch (err) {
+          // If setup status cannot be verified, continue to the normal redirect.
+          console.error("Failed to check setup status on login:", err);
+        }
+      }
+
       if (role === "superadmin") navigate("/superadmin-front/dashboard");
       else if (role === "admin") navigate("/admin-front");
-      else if (role === "teacher") navigate("/teacher");
+      else if (role === "teacher") navigate("/staff-front");
       else if (role === "parent") navigate("/parent-front");
       else if (role === "staff") navigate("/staff-front");
       else if (role === "student") navigate("/student-front");

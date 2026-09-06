@@ -1,8 +1,18 @@
 import React, { useState } from "react";
 
-export default function Group() {
+export default function Group({ templates = [] }) {
   const [selectedType, setSelectedType] = useState("SMS");
   const [message, setMessage] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
+  const availableTemplates = templates.filter((t) => t.type === selectedType);
+
+  const handleTemplateChange = (e) => {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    const template = templates.find((t) => String(t.id) === id);
+    if (template) setMessage(template.content);
+  };
 
   return (
     <div>
@@ -26,8 +36,17 @@ export default function Group() {
           <label className="block  font-medium text-gray-600 mb-1">
             {selectedType} Template
           </label>
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <select
+            value={selectedTemplateId}
+            onChange={handleTemplateChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
             <option value="">Select</option>
+            {availableTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
           </select>
         </div>
 

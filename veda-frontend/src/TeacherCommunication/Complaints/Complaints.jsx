@@ -20,10 +20,17 @@ export default function TeacherComplaints() {
     if (stored) {
       try {
         const u = JSON.parse(stored);
+        const role = u.role || "Teacher";
+        const modelMap = {
+          teacher: "Teacher",
+          parent: "Parent",
+          student: "Student",
+          admin: "Admin",
+        };
         setCurrentUser({
-          id: u._id,
+          id: u.refId || u._id,
           name: u.personalInfo?.fullName || u.name || "Teacher",
-          model: u.role || "Teacher"
+          model: modelMap[(role || "").toLowerCase()] || role
         });
       } catch (e) {
         console.error("Failed to parse user", e);
