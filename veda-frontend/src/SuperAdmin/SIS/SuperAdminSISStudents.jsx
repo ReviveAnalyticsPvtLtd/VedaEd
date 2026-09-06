@@ -233,43 +233,6 @@ export default function SuperAdminSISStudents() {
       <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
         <button
           onClick={() => {
-            setActiveTab("all");
-            setLoginPage(1);
-          }}
-          className="hover:underline"
-        >
-          Students
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "all" && "All Student"}
-          {activeTab === "login" && "Manage Login"}
-          {activeTab === "others" && "Others"}
-        </span>
-      </div>
-
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Students</h2>
-
-
-      </div>
-
-      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
-        <button
-          onClick={() => {
-            setActiveTab("all");
-            setLoginPage(1);
-          }}
-          className={`pb-2 ${activeTab === "all"
-              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-              : "text-gray-500"
-            }`}
-        >
-          All Student
-        </button>
-
-        <button
-          onClick={() => {
             setActiveTab("login");
             setLoginPage(1);
           }}

@@ -177,9 +177,7 @@ const TeacherExams = () => {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <p className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        Teacher Exam Timetable &gt;
-      </p>
+      
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Teacher Exam Timetable</h2>
 
@@ -194,7 +192,12 @@ Manage exam schedules, create exam papers...`}
           ]}
         />
       </div>
-
+{/* Tabs */}
+      <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto">
+        <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
+          Overview
+        </button>
+      </div>
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <h3 className="text-lg font-semibold mb-4">
           {editingId ? "Update Exam Timetable" : "Upload New Exam Timetable"}

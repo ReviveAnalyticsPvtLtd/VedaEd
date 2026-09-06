@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getRoleDashboardPath } from "../../utils/authSession";
 import {
   getSetupWizard,
   saveModuleSelection,
@@ -46,6 +47,10 @@ export function useSetupWizardStep5() {
       try {
         const res = await getSetupWizard();
         if (!cancelled && res?.success && res?.data) {
+          if (res.data.setupStatus === "completed") {
+            navigate(getRoleDashboardPath(), { replace: true });
+            return;
+          }
           const data = res.data;
           setEnabledOptional(normalizeOptionalModules(data.enabledModules));
           if (data.institutionType) {
@@ -64,7 +69,7 @@ export function useSetupWizardStep5() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const recommendations = useMemo(
     () => getModuleRecommendations(institutionType),
