@@ -13,8 +13,7 @@ import {
   FiDownload,
   FiChevronDown,
 } from "react-icons/fi";
-
-
+import Pagination from "../../components/common/Pagination";
 
 /* =========================
    Utility
@@ -418,7 +417,8 @@ export default function SuperAdminSISStudents() {
                       </span>
                     )}
                   </td>
-                  <td className="p-2 border">
+                    <td className="p-2 border">
+                    <div className="flex items-center justify-center gap-1">
                     <button
                       className="text-blue-500"
                       onClick={() => setSelectedStudent(s)}
@@ -426,39 +426,19 @@ export default function SuperAdminSISStudents() {
                       <FiSearch />
                     </button>
                     <button
-                      className="text-red-500 ml-2"
+                      className="text-red-500"
                       onClick={() => handleDelete(s._id)}
                     >
                       <FiTrash2 />
                     </button>
-                  </td>
+                    </div>
+                    </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {/* Pagination */}
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-            <p>
-              Page {currentPage} of {totalPages}
-            </p>
-            <div className="space-x-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       )}{activeTab === "login" && (() => {
         const filteredLoginStudents = students.filter(
@@ -606,6 +586,7 @@ export default function SuperAdminSISStudents() {
                       })()}
                     </td>
                     <td className="p-2 border">
+                      <div className="flex items-center justify-center gap-1">
                       <button
                         className="text-blue-500"
                         onClick={() => {
@@ -616,7 +597,7 @@ export default function SuperAdminSISStudents() {
                         <FiEdit />
                       </button>
                       <button
-                        className="text-red-500 ml-2"
+                        className="text-red-500"
                         onClick={() => {
                           if (
                             window.confirm(
@@ -629,33 +610,14 @@ export default function SuperAdminSISStudents() {
                       >
                         <FiTrash2 />
                       </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-              <p>
-                Page {loginPage} of {loginTotalPages}
-              </p>
-              <div className="space-x-2">
-                <button
-                  disabled={loginPage === 1}
-                  onClick={() => setLoginPage(loginPage - 1)}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={loginPage === loginTotalPages}
-                  onClick={() => setLoginPage(loginPage + 1)}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <Pagination currentPage={loginPage} totalPages={loginTotalPages} onPageChange={setLoginPage} />
           </div>
         );
       })()}

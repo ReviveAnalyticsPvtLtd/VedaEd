@@ -26,7 +26,7 @@ const SuperAdminSettingsAccountControl = () => {
           Account Control
         </h1>
 
-        <p className="text-slate-500">
+        <p className="text-slate-900">
           Privacy and data management settings.
         </p>
       </div>

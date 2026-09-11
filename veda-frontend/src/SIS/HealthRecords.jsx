@@ -15,6 +15,7 @@ import axios from "axios";
 import config from "../config";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import Pagination from "../components/common/Pagination";
 
 // Helper to map Backend Student Object -> Frontend State Object
 const mapStudentToState = (s) => {
@@ -581,30 +582,7 @@ export default function HealthRecords() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-          <p>
-            Page {currentPage} of {totalPages}
-          </p>
-
-          <div className="space-x-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
 
       {/* Add Modal */}

@@ -71,7 +71,7 @@ export default function AdminAccountSettings() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Account</h2>
-        <p className="text-slate-500 mt-1 text-sm">
+        <p className="text-slate-900 mt-1 text-sm">
           Manage your profile information and account details
         </p>
       </div>

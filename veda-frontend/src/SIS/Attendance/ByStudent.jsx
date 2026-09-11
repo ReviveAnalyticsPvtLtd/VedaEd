@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/apiClient";
+import Pagination from "../../components/common/Pagination";
 
 export default function ByStudent() {
   const navigate = useNavigate();
@@ -215,28 +216,7 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
               )}
             </tbody>
           </table>
-                 {/* Pagination */}
-<div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-  <p>
-    Page {currentPage} of {totalPages}
-  </p>
-  <div className="space-x-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage(currentPage - 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Previous
-    </button>
-    <button
-      disabled={currentPage === totalPages || totalPages === 0}
-      onClick={() => setCurrentPage(currentPage + 1)}
-      className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Next
-    </button>
-  </div>
-</div>
+                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
         
       </div>

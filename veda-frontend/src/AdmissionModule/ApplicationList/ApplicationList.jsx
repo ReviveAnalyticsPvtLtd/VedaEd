@@ -6,6 +6,7 @@ import HelpInfo from "../../components/HelpInfo";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import config from "../../config";
+import Pagination from "../../components/common/Pagination";
 
 
 export default function ApplicationList() {
@@ -57,7 +58,7 @@ const itemsPerPage = 10; // jitne rows per page chahiye
         (a._id || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [applications, searchQuery]);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
 const paginatedData = useMemo(() => {
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -239,31 +240,7 @@ const paginatedData = useMemo(() => {
         </table>
         </div>
        {/* ================= SIMPLE PAGINATION ================= */}
-{filteredData.length > itemsPerPage && (
-  <div className="flex justify-between items-center mt-4">
-    <p className="text-sm text-gray-600">
-      Page {currentPage} of {totalPages}
-    </p>
-
-    <div className="flex gap-2">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => setCurrentPage(currentPage - 1)}
-        className="px-4 py-1 border rounded disabled:opacity-50"
-      >
-        Previous
-      </button>
-
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => setCurrentPage(currentPage + 1)}
-        className="px-4 py-1 border rounded disabled:opacity-50"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+<Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
 
         {filteredData.length === 0 && !loading && (

@@ -7,6 +7,7 @@ import {
   FiPrinter,
 } from "react-icons/fi";
 import { FaFileExcel } from "react-icons/fa";
+import Pagination from "../components/common/Pagination";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -245,31 +246,7 @@ export default function StudentTransportFees() {
           </table>
 
           {/* Pagination */}
-         <div className="flex justify-between items-center text-sm text-gray-500 mt-4">
-  <p>
-    Page {page} of {totalPages}
-  </p>
-
-  <div className="space-x-2">
-    <button
-      disabled={page === 1}
-      onClick={() => setPage(page - 1)}
-      className="px-3 py-1 border rounded text-sm
-                 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={page === totalPages}
-      onClick={() => setPage(page + 1)}
-      className="px-3 py-1 border rounded text-sm
-                 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      Next
-    </button>
-  </div>
-</div>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
 

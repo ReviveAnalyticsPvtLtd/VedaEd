@@ -5,6 +5,7 @@ import axios from "axios";
 import config from "../../config";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/common/Pagination";
 export default function RegistrationFees() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
@@ -519,29 +520,7 @@ Use the search feature to quickly find student fee records. Add new payments as 
             </div>
           </div>
         )}
-          <div className="flex justify-between items-center mt-4">
-  <span className="text-sm text-gray-600">
-    Page {currentPage} of {totalPages}
-  </span>
-
-  <div className="flex gap-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-      className="px-4 py-1 border rounded disabled:opacity-50"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={currentPage === totalPages}
-      onClick={() => setCurrentPage((p) => p + 1)}
-      className="px-4 py-1 border rounded disabled:opacity-50"
-    >
-      Next
-    </button>
-  </div>
-</div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     </div>
   );

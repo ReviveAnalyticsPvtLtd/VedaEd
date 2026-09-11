@@ -15,6 +15,7 @@ import {
   FiEye,
 } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
+import Pagination from "../../components/common/Pagination";
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -544,31 +545,7 @@ Use this page to efficiently track and manage application offers and ensure time
       ))}
     </tbody>
   </table>
-  {totalPages > 1 && (
-  <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-    <p>
-      Page {currentPage} of {totalPages}
-    </p>
-
-    <div className="flex gap-2">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => setCurrentPage((p) => p - 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Previous
-      </button>
-
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => setCurrentPage((p) => p + 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+  <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
   {/* FIXED BOTTOM NAVIGATION */}
 <div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">
   <button
