@@ -75,15 +75,17 @@ export default function Complaints() {
   // Fetch Complaints
   const fetchData = async () => {
     if (!user) return;
+    const uId = user.refId || user._id;
+    const uModel = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student";
     try {
       // 1. My Complaints (Raised by me)
-      const myResponse = await complaintAPI.getUserComplaints(user._id, user.role || 'Student');
+      const myResponse = await complaintAPI.getUserComplaints(uId, uModel);
       setComplaints(transformComplaints(myResponse.data, user));
 
       // 2. Logs (Complaints against me)
       // We use targetUser filter
       // Note: Backend must support filtering by targetUser in getComplaints
-      const logsResponse = await complaintAPI.getComplaints({ targetUser: user._id });
+      const logsResponse = await complaintAPI.getComplaints({ targetUser: uId });
       setLogs(transformComplaints(logsResponse.data, user));
 
     } catch (error) {
@@ -171,14 +173,15 @@ export default function Complaints() {
 
     try {
       const payload = {
-        complainant: user._id,
-        complainantModel: user.role || "Student",
+        complainant: user.refId || user._id,
+        complainantModel: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student",
         subject: form.subject,
         description: form.message,
         category: form.category || 'academic', // default
         sendTo: [form.sendTo],
-        targetUser: form.sendTo === 'Teacher' ? form.teacherId : null,
-        targetUserModel: form.sendTo === 'Teacher' ? 'Teacher' : null,
+        ...(form.sendTo === 'Teacher' && form.teacherId
+          ? { targetUser: form.teacherId, targetUserModel: 'Teacher' }
+          : {}),
         // attachments... (need file upload logic, skipping for now or assumed handled if we implemented upload)
       };
 
@@ -206,8 +209,8 @@ export default function Complaints() {
 
     try {
         await complaintAPI.addResponse(selectedComplaint.id, {
-            responder: user._id,
-            responderModel: user.role || "Student",
+            responder: user.refId || user._id,
+            responderModel: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student",
             response: reply
         });
         

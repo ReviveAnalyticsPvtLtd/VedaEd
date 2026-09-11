@@ -4,6 +4,19 @@ import CommunicationAPI from "../communicationAPI";
 
 export default function PostNotices() {
   const navigate = useNavigate();
+
+  // Load current user author id from localStorage
+  let currentUserId = null;
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      const u = JSON.parse(storedUser);
+      currentUserId = u.refId || u._id || null;
+    } catch (e) {
+      console.error("Failed to parse user", e);
+    }
+  }
+
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [noticeDate, setNoticeDate] = useState("");
@@ -46,7 +59,7 @@ export default function PostNotices() {
       const noticeData = {
         title: title.trim(),
         content: message.trim(),
-        author: "68c1b2977fa6e0a4c8af3242", // Using real teacher ID from database
+        author: currentUserId,
         authorModel: "Staff",
         category: "general",
         priority: "medium",
@@ -60,6 +73,11 @@ export default function PostNotices() {
         tags: selectedRoles,
         status: "draft",
       };
+
+      // For safety, fall back to the previously used working id if no user is loaded
+      if (!noticeData.author) {
+        noticeData.author = "68c1b2977fa6e0a4c8af3242";
+      }
 
       // Upload attachment if provided
       if (attachmentFile) {
@@ -91,7 +109,7 @@ export default function PostNotices() {
       if (sendOption === "now") {
         await CommunicationAPI.publishNotice(
           response.data._id,
-          "68c1b2977fa6e0a4c8af3242",
+          currentUserId,
           "Staff"
         );
       }

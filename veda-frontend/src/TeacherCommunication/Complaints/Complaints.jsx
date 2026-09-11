@@ -205,8 +205,9 @@ export default function TeacherComplaints() {
         status: "Pending",
         sendTo: form.sendTo,
         complaintAgainst: isParentSelected ? "Student" : (form.sendTo.includes("ADMIN") ? "Admin" : "Other"),
-        targetUser: selectedStudent ? selectedStudent.id : null,
-        targetUserModel: selectedStudent ? "Student" : null,
+        ...(selectedStudent
+          ? { targetUser: selectedStudent.id, targetUserModel: "Student" }
+          : {}),
       };
 
       const res = await complaintAPI.createComplaint(payload);
