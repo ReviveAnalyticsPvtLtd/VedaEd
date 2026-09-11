@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiDownload, FiChevronDown } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
 import ProfileAvatar from "../components/ProfileAvatar";
+import Pagination from "../components/common/Pagination";
 
 import api from "../services/apiClient";
 import { isToastErrorMessage, toastBannerClassName } from "../utils/toastMessageStyle";
@@ -1012,27 +1013,11 @@ Sections:
           </table>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center text-sm text-gray-500 mt-3">
-            <p>
-              Page {currentPage} of {totalPages}
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+         <Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  onPageChange={setCurrentPage}
+/>
         </div>
       )}
 
@@ -1234,27 +1219,11 @@ Sections:
             </table>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center text-sm text-gray-500 mt-3">
-              <p>
-                Page {loginPage} of {loginTotalPages}
-              </p>
-              <div className="flex gap-2 justify-end">
-                <button
-                  disabled={loginPage === 1}
-                  onClick={() => setLoginPage(loginPage - 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={loginPage === loginTotalPages}
-                  onClick={() => setLoginPage(loginPage + 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+           <Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  onPageChange={setCurrentPage}
+/>
           </div>
         );
       })()}
