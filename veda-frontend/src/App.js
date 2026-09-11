@@ -298,6 +298,8 @@ import IdentityAccessCreateAdmin from "./superadmin-front/identity-access/Create
 import IdentityAccessViewAdmin from "./superadmin-front/identity-access/ViewAdmin";
 import IdentityAccessEditAdmin from "./superadmin-front/identity-access/EditAdmin";
 import IdentityAccessInvitePreview from "./superadmin-front/identity-access/InvitePreview";
+import ViewSetupProfile from "./superadmin-front/setup-profile/ViewSetupProfile";
+import EditSetupProfile from "./superadmin-front/setup-profile/EditSetupProfile";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import AdminProfile from "./admin-front/AdminProfile";
 
@@ -682,6 +684,8 @@ function App() {
             element={<Navigate to="dashboard" replace />}
           />
           <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+          <Route path="setup-profile" element={<ViewSetupProfile />} />
+          <Route path="setup-profile/edit" element={<EditSetupProfile />} />
           <Route
             path="identity-access"
             element={<Navigate to="/superadmin-front/identity-access/admins" replace />}

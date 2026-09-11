@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   PieChart, Pie, Cell,
   BarChart, Bar,
@@ -5,71 +6,64 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Link } from "react-router-dom";
+import api from "../services/apiClient";
 
 /* ================= COLORS ================= */
 const COLORS = ["#4F46E5", "#22C55E", "#3B82F6", "#F59E0B", "#EF4444"];
 
-/* ================= DUMMY DATA ================= */
-
-const SIS = {
-  totalStudents: 1240,
-  studentsByClass: [
-    { name: "Class 1", value: 120 },
-    { name: "Class 2", value: 150 },
-    { name: "Class 3", value: 180 },
-    { name: "Class 4", value: 200 },
-  ],
-  genderRatio: [
-    { name: "Boys", value: 680 },
-    { name: "Girls", value: 560 },
-  ],
-};
-
-const COMMUNICATION = {
-  totalNotices: 18,
-  totalComplaints: 6,
-  totalMessages: 142,
-};
-
-const ADMISSION = {
-  totalEnquiries: 210,
-  totalApplications: 140,
-  confirmedAdmissions: 92,
-};
-
-const HR = {
-  totalStaff: 86,
-};
-
-const CALENDAR = {
-  totalEvents: 14,
-};
-
-const FEES = {
-  collected: 1250000,
-};
-
 /* ================= DASHBOARD ================= */
 
 export default function SuperAdminMasterDashboard() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/dashboard/master-stats")
+      .then((res) => setStats(res.data.stats))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading && !stats) {
+    return (
+      <div className="p-4 bg-gray-100 min-h-screen">
+        <div className="flex items-center justify-center h-64 text-gray-500">
+          Loading dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="p-4 bg-gray-100 min-h-screen">
+        <p className="text-center text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3 inline-block text-sm">
+          {error}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-6 bg-gray-100 min-h-screen">
 
       {/* ===== TOP MODULE CARDS ===== */}
       <div className="grid grid-cols-6 gap-3">
-        <TopCard title="Admin SIS" value={`${SIS.totalStudents} Students`} to="/superadmin/admin" />
-        <TopCard title="Communication" value={`${COMMUNICATION.totalNotices + COMMUNICATION.totalComplaints} Logs`} to="/superadmin/communication" />
-        <TopCard title="Calendar" value={`${CALENDAR.totalEvents} Events`} to="/superadmin/calendar" />
-        <TopCard title="Admission" value={`${ADMISSION.confirmedAdmissions} Confirmed`} to="/superadmin/admission" />
-        <TopCard title="HR Module" value={`${HR.totalStaff} Staff`} to="/superadmin/hr" />
-        <TopCard title="Fees" value={`₹${FEES.collected}`} to="/superadmin/fees" />
+        <TopCard title="Admin SIS" value={`${stats?.sis?.totalStudents ?? 0} Students`} to="/superadmin/admin" />
+        <TopCard title="Communication" value={`${(stats?.communication?.totalNotices ?? 0) + (stats?.communication?.totalComplaints ?? 0)} Logs`} to="/superadmin/communication" />
+        <TopCard title="Calendar" value={`${stats?.calendar?.totalEvents ?? 0} Events`} to="/superadmin/calendar" />
+        <TopCard title="Admission" value={`${stats?.admission?.confirmedAdmissions ?? 0} Confirmed`} to="/superadmin/admission" />
+        <TopCard title="HR Module" value={`${stats?.hr?.totalStaff ?? 0} Staff`} to="/superadmin/hr" />
+        <TopCard title="Fees" value={`₹${stats?.fees?.collected ?? 0}`} to="/superadmin/fees" />
       </div>
 
       {/* ===== SIS ===== */}
       <Section title="Student Information System">
         <Grid3>
           <Card title="Students by Class">
-            <PieBlock data={SIS.studentsByClass} />
+            <PieBlock data={stats?.sis?.studentsByClass ?? []} />
           </Card>
 
           <Card title="Weekly Attendance">
@@ -86,7 +80,7 @@ export default function SuperAdminMasterDashboard() {
           </Card>
 
           <Card title="Gender Ratio">
-            <PieBlock data={SIS.genderRatio} />
+            <PieBlock data={stats?.sis?.genderRatio ?? []} />
           </Card>
         </Grid3>
       </Section>
@@ -97,9 +91,9 @@ export default function SuperAdminMasterDashboard() {
           <Card title="Activity Count">
             <BarBlock
               data={[
-                { name: "Notices", value: COMMUNICATION.totalNotices },
-                { name: "Complaints", value: COMMUNICATION.totalComplaints },
-                { name: "Messages", value: COMMUNICATION.totalMessages },
+                { name: "Notices", value: stats?.communication?.totalNotices ?? 0 },
+                { name: "Complaints", value: stats?.communication?.totalComplaints ?? 0 },
+                { name: "Messages", value: stats?.communication?.totalMessages ?? 0 },
               ]}
               x="name"
             />
@@ -114,9 +108,9 @@ export default function SuperAdminMasterDashboard() {
           </Card>
 
           <Card title="Status">
-            <Muted>Notices: {COMMUNICATION.totalNotices}</Muted>
-            <Muted>Complaints: {COMMUNICATION.totalComplaints}</Muted>
-            <Muted>Messages: {COMMUNICATION.totalMessages}</Muted>
+            <Muted>Notices: {stats?.communication?.totalNotices ?? 0}</Muted>
+            <Muted>Complaints: {stats?.communication?.totalComplaints ?? 0}</Muted>
+            <Muted>Messages: {stats?.communication?.totalMessages ?? 0}</Muted>
           </Card>
         </Grid3>
       </Section>
@@ -125,7 +119,7 @@ export default function SuperAdminMasterDashboard() {
       <Section title="Calendar">
         <Grid3>
           <Card title="Events Summary">
-            <Big>{CALENDAR.totalEvents}</Big>
+            <Big>{stats?.calendar?.totalEvents ?? 0}</Big>
             <Muted>Total Events</Muted>
             <LinkText to="/superadmin/calendar">Open Calendar</LinkText>
           </Card>
@@ -138,17 +132,17 @@ export default function SuperAdminMasterDashboard() {
           <Card title="Admission Funnel">
             <PieBlock
               data={[
-                { name: "Enquiry", value: ADMISSION.totalEnquiries },
-                { name: "Applied", value: ADMISSION.totalApplications },
-                { name: "Confirmed", value: ADMISSION.confirmedAdmissions },
+                { name: "Enquiry", value: stats?.admission?.totalEnquiries ?? 0 },
+                { name: "Applied", value: stats?.admission?.totalApplications ?? 0 },
+                { name: "Confirmed", value: stats?.admission?.confirmedAdmissions ?? 0 },
               ]}
             />
           </Card>
 
           <Card title="Overview">
-            <Muted>Enquiries: {ADMISSION.totalEnquiries}</Muted>
-            <Muted>Applications: {ADMISSION.totalApplications}</Muted>
-            <Muted>Confirmed: {ADMISSION.confirmedAdmissions}</Muted>
+            <Muted>Enquiries: {stats?.admission?.totalEnquiries ?? 0}</Muted>
+            <Muted>Applications: {stats?.admission?.totalApplications ?? 0}</Muted>
+            <Muted>Confirmed: {stats?.admission?.confirmedAdmissions ?? 0}</Muted>
             <LinkText to="/superadmin/admission">Open Admission</LinkText>
           </Card>
         </Grid3>

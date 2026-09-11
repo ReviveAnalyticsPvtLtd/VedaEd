@@ -12,7 +12,8 @@ import {
   FiTruck,
   FiMenu,
   FiShield,
-  FiUser
+  FiUser,
+  FiDatabase
 } from "react-icons/fi";
 import { FiSettings } from "react-icons/fi";
 /* ================= MODULE CONFIG ================= */
@@ -280,6 +281,18 @@ ${
       </div>
       {/* SETTINGS + ADMIN */}
 <div className="shrink-0 bg-white border-t px-3 pb-4">
+  <button
+    onClick={() => navigate("/superadmin-front/setup-profile")}
+    className="flex items-center h-10 w-full rounded-lg px-2 gap-3
+    text-gray-700 hover:bg-gray-100 transition-colors"
+  >
+    <span className="flex w-6 justify-center">
+      <FiDatabase size={18} />
+    </span>
+
+    {isSidebarOpen && <span>Setup Profile</span>}
+  </button>
+
   <button
     onClick={() => setSettingsOpen(!settingsOpen)}
     className="flex items-center h-10 w-full rounded-lg px-2 gap-3
