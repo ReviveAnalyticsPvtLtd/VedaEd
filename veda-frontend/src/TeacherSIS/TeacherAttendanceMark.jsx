@@ -358,7 +358,7 @@ export default function TeacherAttendanceMark() {
     <div className="p-0 m-0 w-full max-w-full min-w-0">
       <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full max-w-full min-w-0">
         
-<h3 className="text-base sm:text-lg font-semibold mb-4">Class Attendance</h3>
+<h3 className="text-2xl font-bold mb-4">Class Attendance</h3>
     {/* Filters */}
 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-4 min-w-0">
 

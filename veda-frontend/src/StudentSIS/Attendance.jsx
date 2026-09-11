@@ -85,7 +85,7 @@ Sections:
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full border rounded px-3 py-2 "
+                className="w-full border rounded px-3 py-2 bg-white"
               />
             </div>
             <div className="flex-1">
@@ -93,7 +93,7 @@ Sections:
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border rounded px-3 py-2 "
+                className="w-full border rounded px-3 py-2 bg-white"
               >
                 <option value="all">All</option>
                 <option value="Present">Present</option>

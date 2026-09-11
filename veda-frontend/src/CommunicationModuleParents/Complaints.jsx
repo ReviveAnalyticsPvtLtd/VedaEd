@@ -255,7 +255,7 @@ export default function ParentComplaints() {
             <div>
               <label className="block  font-medium text-gray-700 mb-1">Category</label>
               <select 
-                className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.category}
                 onChange={e => setFormData({...formData, category: e.target.value})}
               >

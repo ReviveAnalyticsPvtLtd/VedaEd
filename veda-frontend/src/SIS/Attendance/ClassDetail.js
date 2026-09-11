@@ -203,20 +203,8 @@ export default function ClassDetail() {
 
   return (
     <div className="p-0">
-      <nav className="text-sm text-gray-500 mb-4">
-        <Link to="/admin/attendance" className="hover:underline">
-          Attendance
-        </Link>{" "}
-        ›{" "}
-        <Link to="/admin/attendance/by-class" className="hover:underline">
-          By Class
-        </Link>{" "}
-        › <span className="text-gray-700 font-medium">
-  {selectedClassName} {selectedSectionName}
-</span>
-      </nav>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-        <h1 className="text-2xl font-bold text-gray-700">
+        <h1 className="text-2xl font-bold text-gray-800">
           {selectedClassName} {selectedSectionName} - Attendance
         </h1>
         <div className="flex items-center gap-2">

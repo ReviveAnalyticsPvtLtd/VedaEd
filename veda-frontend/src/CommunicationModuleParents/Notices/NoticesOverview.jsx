@@ -1,81 +1,65 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiMail, FiCalendar, FiUser, FiDownload } from "react-icons/fi";
+import CommunicationAPI from "../../services/communicationAPI";
 
 export default function NoticesOverview() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("Parent");
-const [selectedNotice, setSelectedNotice] = useState(null);
+  const [selectedNotice, setSelectedNotice] = useState(null);
+const [notices, setNotices] = useState([]);
+const [user, setUser] = useState(null);
 
-  // Dummy data (same as student)
-  const dummyNotices = [
-    {
-      id: 1,
-      title: "Holiday Notice - Diwali Break",
-      message:
-        "School will remain closed from 12th to 16th November for Diwali celebrations. Classes will resume on 17th November.",
-      sender: "Principal Office",
-      sentDate: "2024-01-15",
-      publishDate: "2024-01-15",
-      roles: ["Student", "Parent"],
-      channels: ["Email", "SMS"],
-      attachment: "holiday_schedule.pdf",
-      isRead: false,
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Parent-Teacher Meeting Schedule",
-      message:
-        "Parent-Teacher meetings are scheduled for next week. Please check the attached schedule for your child’s class timing.",
-      sender: "Class Teacher - Grade 8A",
-      sentDate: "2024-01-14",
-      publishDate: "2024-01-14",
-      roles: ["Parent"],
-      channels: ["Email"],
-      attachment: "ptm_schedule.pdf",
-      isRead: true,
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Exam Schedule - Mid Term",
-      message:
-        "Mid-term examination schedule has been published. Please check the attached timetable for your child’s exams.",
-      sender: "Examination Department",
-      sentDate: "2024-01-11",
-      publishDate: "2024-01-11",
-      roles: ["Parent"],
-      channels: ["Email"],
-      attachment: "exam_schedule.pdf",
-      isRead: false,
-      priority: "high",
-    },
-  ];
+useEffect(() => {
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch(e) { console.error(e); }
+  }
+}, []);
 
-  const handleDownload = (notice) => {
-  alert(`Downloading: ${notice.attachment}`);
+useEffect(() => {
+  const fetchNotices = async () => {
+    if (!user) return;
+    try {
+      const response = await CommunicationAPI.getPublishedNotices(user._id, user.role || "Parent");
+      const data = response.data || [];
+      setNotices(data);
+    } catch (error) {
+      console.error("Error fetching notices", error);
+    }
+  };
+  fetchNotices();
+}, [user]);
+
+const handleDownload = (notice) => {
+  const attachment = notice.attachments?.[0];
+  alert(`Downloading: ${attachment?.originalName || "attachment"}`);
 };
 
-const [notices, setNotices] = useState(dummyNotices);
+const isRead = (notice) =>
+  Array.isArray(notice.views) && notice.views.some((v) => String(v.user) === String(user?._id));
+
 const openNotice = (notice) => {
-  const updated = notices.map((n) =>
-    n.id === notice.id ? { ...n, isRead: true } : n
-  );
+  const updated = notices.map((n) => {
+    if (String(n._id) !== String(notice._id)) return n;
+    const views = n.views || [];
+    if (!views.some((v) => String(v.user) === String(user?._id))) {
+      return { ...n, views: [...views, { user: user?._id }] };
+    }
+    return n;
+  });
 
   setNotices(updated);
-  setSelectedNotice({ ...notice, isRead: true });
+  setSelectedNotice(updated.find((n) => String(n._id) === String(notice._id)) || notice);
 };
  const filteredNotices = notices.filter(
   (n) =>
-    n.roles.includes("Parent") &&
-    (n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.sender.toLowerCase().includes(searchQuery.toLowerCase()))
+    n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (n.content || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (n.author?.personalInfo?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
 );
 
- const unreadCount = notices.filter(
-  (n) => n.roles.includes("Parent") && !n.isRead
-).length;
+ const unreadCount = notices.filter((n) => !isRead(n)).length;
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -130,9 +114,9 @@ const openNotice = (notice) => {
         {filteredNotices.length > 0 ? (
           filteredNotices.map((notice) => (
             <div
-              key={notice.id}
+              key={notice._id}
               className={`p-4 rounded-lg border transition-colors duration-200 ${
-                notice.isRead ? "bg-gray-100 border-gray-200" : "bg-white border-gray-300"
+                isRead(notice) ? "bg-gray-100 border-gray-200" : "bg-white border-gray-300"
               }`}
             >
               <div className="flex items-start justify-between">
@@ -140,12 +124,12 @@ const openNotice = (notice) => {
                   <div className="flex items-center gap-2 mb-2">
                     <h4
                       className={`font-semibold ${
-                        !notice.isRead ? "text-blue-900" : "text-gray-900"
+                        !isRead(notice) ? "text-blue-900" : "text-gray-900"
                       }`}
                     >
                       {notice.title}
                     </h4>
-                    {!notice.isRead && (
+                    {!isRead(notice) && (
                       <span className="bg-blue-600 text-white  px-2 py-1 rounded-full">
                         New
                       </span>
@@ -160,26 +144,26 @@ const openNotice = (notice) => {
                   </div>
 
                   <p className="text-gray-700  mb-3 line-clamp-2">
-                    {notice.message}
+                    {notice.content}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-4  text-gray-500">
                     <div className="flex items-center gap-1">
                       <FiUser />
-                      <span>{notice.sender}</span>
+                      <span>{notice.author?.personalInfo?.name || "School Admin"}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <FiCalendar />
-                      <span>Sent: {formatDate(notice.sentDate)}</span>
+                      <span>Sent: {formatDate(notice.publishDate)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <FiMail />
-                      <span>{notice.channels.join(", ")}</span>
+                      <span>{notice.category || "general"}</span>
                     </div>
-                    {notice.attachment && (
+                    {notice.attachments?.[0] && (
                       <div className="flex items-center gap-1 text-blue-600">
                         <FiDownload />
-                        <span>{notice.attachment}</span>
+                        <span>{notice.attachments[0].originalName}</span>
                       </div>
                     )}
                   </div>
@@ -192,7 +176,7 @@ const openNotice = (notice) => {
 >
   View Details
 </button>
-                  {notice.attachment && (
+                  {notice.attachments?.[0] && (
                     <button
   onClick={() => handleDownload(notice)}
   className="text-gray-600 hover:text-gray-800"
@@ -236,17 +220,17 @@ const openNotice = (notice) => {
       </h2>
 
       <p className="text-gray-700 mb-4">
-        {selectedNotice.message}
+        {selectedNotice.content}
       </p>
 
       <div className="text-sm text-gray-500 space-y-1 mb-4">
-        <div> {selectedNotice.sender}</div>
-        <div> {formatDate(selectedNotice.sentDate)}</div>
-        <div> Channels: {selectedNotice.channels.join(", ")}</div>
+        <div> {selectedNotice.author?.personalInfo?.name || "School Admin"}</div>
+        <div> {formatDate(selectedNotice.publishDate)}</div>
+        <div> Category: {selectedNotice.category || "general"}</div>
         <div> Priority: {selectedNotice.priority}</div>
       </div>
 
-      {selectedNotice.attachment && (
+      {selectedNotice.attachments?.[0] && (
         <button
           onClick={() => handleDownload(selectedNotice)}
           className="bg-blue-600 text-white px-4 py-2 rounded"
