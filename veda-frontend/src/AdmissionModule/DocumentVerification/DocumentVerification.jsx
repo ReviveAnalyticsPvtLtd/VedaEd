@@ -17,6 +17,7 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
+import Pagination from "../../components/common/Pagination";
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -584,29 +585,7 @@ Use this page to carefully verify each document and update the status accordingl
   </table>
   
 </div>
-<div className="flex flex-col sm:flex-row justify-between sm:items-center px-4 py-3 gap-2">
-  <span className="text-sm text-gray-600">
-    Page {currentPage} of {totalPages || 1}
-  </span>
-
-  <div className="flex gap-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-      className="px-4 py-1 border rounded disabled:opacity-50"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={currentPage === totalPages || totalPages === 0}
-      onClick={() => setCurrentPage((p) => p + 1)}
-      className="px-4 py-1 border rounded disabled:opacity-50"
-    >
-      Next
-    </button>
-  </div>
-</div>
+<Pagination currentPage={currentPage} totalPages={totalPages || 1} onPageChange={setCurrentPage} />
 
 
                 

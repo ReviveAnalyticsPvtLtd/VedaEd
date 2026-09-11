@@ -3,6 +3,7 @@ import { FiTrash2 } from "react-icons/fi";
 import axios from "axios";
 import config from "../config";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../components/common/Pagination";
 
 export default function VacancySetup() {
    const navigate = useNavigate(); 
@@ -452,31 +453,7 @@ useEffect(() => {
         
       </div>
       {/* PAGINATION */}
-{filteredVacancies.length > 0 && (
-  <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-    <span>
-      Page {currentPage} of {totalPages}
-    </span>
-
-    <div className="flex gap-2">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => setCurrentPage(p => p - 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Previous
-      </button>
-
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => setCurrentPage(p => p + 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+<Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
      {/* BACK & NEXT BUTTONS – BOTTOM (NOT FIXED) */}
 <div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">

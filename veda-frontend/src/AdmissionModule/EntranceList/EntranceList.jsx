@@ -11,6 +11,7 @@ import {
   getVacancies
 } from "../../api/admissionExamAPI";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/common/Pagination";
 export default function EntranceList() {
   const navigate = useNavigate();
   /* ================= MODAL ================= */
@@ -554,31 +555,7 @@ useEffect(() => {
         </table>
         </div>
         {/* ================= SIMPLE PAGINATION ================= */}
-{filteredStudents.length > itemsPerPage && (
-  <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-4 gap-2">
-    <p className="text-sm text-gray-600">
-      Page {currentPage} of {totalPages}
-    </p>
-
-    <div className="flex gap-2">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => setCurrentPage(currentPage - 1)}
-        className="px-4 py-1 border rounded disabled:opacity-50"
-      >
-        Previous
-      </button>
-
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => setCurrentPage(currentPage + 1)}
-        className="px-4 py-1 border rounded disabled:opacity-50"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+<Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         {/* BACK & NEXT BUTTONS – BOTTOM (NOT FIXED) */}
 <div className="fixed bottom-4 left-4 right-4 md:left-[calc(16rem+1rem)] md:right-8 flex flex-col sm:flex-row justify-between gap-2 z-40">
   {/* BACK */}

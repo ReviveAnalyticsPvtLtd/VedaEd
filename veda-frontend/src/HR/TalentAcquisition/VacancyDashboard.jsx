@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { FiTrash2, FiPlus, FiBriefcase, FiCheckCircle, FiUsers } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import Pagination from "../../components/common/Pagination";
 
 export default function VacancyDashboard() {
   const navigate = useNavigate();
@@ -350,27 +351,7 @@ export default function VacancyDashboard() {
       </div>
 
       {/* Pagination */}
-      {filteredVacancies.length > itemsPerPage && (
-        <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-          <span>Page {currentPage} of {totalPages}</span>
-          <div className="flex gap-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50 transition"
-            >
-              Previous
-            </button>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50 transition"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {/* BACK & NEXT NAVIGATION BUTTONS - BOTTOM (NOT FIXED) */}
       <div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">

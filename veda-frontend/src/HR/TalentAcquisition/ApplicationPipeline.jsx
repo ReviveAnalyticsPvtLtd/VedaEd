@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import config from "../../config";
+import Pagination from "../../components/common/Pagination";
 
 export default function ApplicationPipeline() {
   const navigate = useNavigate();
@@ -294,31 +295,7 @@ export default function ApplicationPipeline() {
         </div>
 
         {/* Pagination */}
-        {filteredData.length > itemsPerPage && (
-          <div className="flex justify-between items-center mt-4">
-            <p className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-4 py-1 border rounded disabled:opacity-50 hover:bg-gray-50 transition text-sm"
-              >
-                Previous
-              </button>
-
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-4 py-1 border rounded disabled:opacity-50 hover:bg-gray-50 transition text-sm"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
 
       {/* Details Modal */}

@@ -23,7 +23,7 @@ export default function SuperAdminSettingsFeedback() {
           Feedback
         </h1>
 
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-900 mt-1">
           Help us improve by sharing your thoughts and suggestions.
         </p>
       </div>

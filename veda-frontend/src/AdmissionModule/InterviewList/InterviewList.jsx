@@ -5,6 +5,7 @@ import HelpInfo from "../../components/HelpInfo";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 import { getInterviewCandidates, scheduleInterview, updateInterviewResult, declareInterviewResult } from "../../api/admissionExamAPI";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/common/Pagination";
 export default function InterviewList() {
   /* ================= MODAL ================= */
   const [openModal, setOpenModal] = useState(false);
@@ -496,29 +497,7 @@ useEffect(() => {
           </table>
           </div>
 {/* Pagination */}
-<div className="flex flex-col sm:flex-row justify-between sm:items-center mt-4 text-sm gap-2">
-  <p className="text-gray-600">
-    Page {currentPage} of {totalPages || 1}
-  </p>
-
-  <div className="flex gap-2">
-    <button
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-      className="px-3 py-1 border rounded disabled:opacity-50"
-    >
-      Previous
-    </button>
-
-    <button
-      disabled={currentPage === totalPages || totalPages === 0}
-      onClick={() => setCurrentPage((p) => p + 1)}
-      className="px-3 py-1 border rounded disabled:opacity-50"
-    >
-      Next
-    </button>
-  </div>
-</div>
+<Pagination currentPage={currentPage} totalPages={totalPages || 1} onPageChange={setCurrentPage} />
         </div>
         
         {/* Bottom Navigation Buttons */}

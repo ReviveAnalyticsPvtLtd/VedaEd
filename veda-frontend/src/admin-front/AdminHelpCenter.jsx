@@ -45,7 +45,7 @@
            Help Center
          </h1>
  
-         <p className="text-slate-500 mt-1">
+         <p className="text-slate-900 mt-1">
            Find guides, tutorials and support resources.
          </p>
        </div>
