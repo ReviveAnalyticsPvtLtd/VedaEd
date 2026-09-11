@@ -94,7 +94,7 @@ const MODULES = [
     subs: [
    
       { label: "Enquiry", path: "/superadmin/admission/enquiry" },
-      { label: "Applications", path: "/superadmin/admission/applications" },
+     
       { label: "Final Students", path: "/superadmin/admission/final-students" },
     ],
   },

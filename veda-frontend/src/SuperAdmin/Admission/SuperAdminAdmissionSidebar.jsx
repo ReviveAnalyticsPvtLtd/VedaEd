@@ -29,12 +29,15 @@ export default function SuperAdminAdmissionSidebar({
   }, [isSidebarOpen]);
 
   const menuItems = [
-    { name: "Dashboard", path: "/superadmin/admission/dashboard", icon: <FiHome />, end: true },
+   {
+  name: "Dashboard",
+  path: "/superadmin/admission",
+  icon: <FiHome />,
+  end: true
+},
     { name: "Enquiry", path: "/superadmin/admission/enquiry", icon: <FiHelpCircle /> },
-    { name: "Entrance List", path: "/superadmin/admission/entrance-list", icon: <FiList /> },
-    { name: "Interview", path: "/superadmin/admission/interview", icon: <FiUsers /> },
-    { name: "Documents", path: "/superadmin/admission/documents", icon: <FiFileText /> },
-    { name: "Applications", path: "/superadmin/admission/applications", icon: <FiSettings /> },
+    
+    { name: "Status Tracking", path: "/superadmin/admission/status-tracking", icon: <FiSettings /> },
     { name: "Final Students", path: "/superadmin/admission/final-students", icon: <FiCheckCircle /> },
   ];
 

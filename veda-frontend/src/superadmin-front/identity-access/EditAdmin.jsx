@@ -111,7 +111,7 @@ export default function EditAdmin() {
 
   return (
     <div
-      className="min-h-full bg-gray-100 p-4 md:p-6"
+      className="min-h-full bg-gray-100 p-0"
     >
       <PageHeader
         breadcrumbs={[
@@ -137,7 +137,7 @@ export default function EditAdmin() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3">
           <AdminForm
             form={form}
             meta={meta}

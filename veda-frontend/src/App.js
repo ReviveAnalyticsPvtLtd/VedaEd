@@ -524,6 +524,11 @@ import StudentProfileSettingsTwoFactorAuth from "./StudentProfileSettings/pages/
 import StudentProfileSettingsSessions from "./StudentProfileSettings/pages/StudentProfileSettingsSessions";
 import StudentProfileSettingsAccountControl from "./StudentProfileSettings/pages/StudentProfileSettingsAccountControl";
 
+import SuperAdminAdmissionStatusTracking
+  from "./SuperAdmin/Admission/SuperAdminAdmissionStatusTracking";
+
+import SuperAdminAdmissionFinalStudentProfile
+  from "./SuperAdmin/Admission/SuperAdminAdmissionFinalStudentProfile";
 
 // Cashier Fees
 import CashierFeesLayout from "./CashierFees/CashierFeesLayout";
@@ -842,6 +847,15 @@ function App() {
         <Route path="applications" element={<SuperAdminAdmissionApplicationList />} />
         <Route path="review/:id" element={<SuperAdminAdmissionApplicationReview />} />
         <Route path="final-students" element={<SuperAdminAdmissionFinalStudents />} />
+        <Route
+  path="status-tracking"
+  element={<SuperAdminAdmissionStatusTracking />}
+/>
+
+<Route
+  path="final-student-profile/:id"
+  element={<SuperAdminAdmissionFinalStudentProfile />}
+/>
         <Route path="vacancy-setup" element={<SuperAdminAdmissionVacancySetup />} />
       </Route>
 

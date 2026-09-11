@@ -47,7 +47,7 @@ export default function AdminList() {
 
   return (
     <div
-      className="min-h-full bg-gray-100 p-4 md:p-6"
+      className="min-h-full bg-gray-100 p-0 "
     >
       <PageHeader
         breadcrumbs={[

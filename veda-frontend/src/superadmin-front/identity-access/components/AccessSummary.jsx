@@ -32,8 +32,8 @@ export default function AccessSummary({ form, statusLabel = "Pending", variant =
       : "bg-gray-100 text-gray-600";
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold text-gray-900">Access Summary</h3>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColors}`}>
           {statusLabel}
