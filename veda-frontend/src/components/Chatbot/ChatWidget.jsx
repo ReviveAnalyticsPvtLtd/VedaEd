@@ -4,6 +4,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 import chatbotAPI from "../../services/chatbotAPI";
 import VedaMascot from "./VedaMascot";
 
+const RESIZE_MIN_W = 340;
+const RESIZE_MIN_H = 420;
+const maxPanelWidth = Math.max(
+  RESIZE_MIN_W,
+  (typeof window !== "undefined" ? window.innerWidth : 1280) - 32
+);
+const maxPanelHeight = Math.max(
+  RESIZE_MIN_H,
+  (typeof window !== "undefined" ? window.innerHeight : 800) - 96
+);
+
 const formatMessageText = (text) => {
   if (!text) return "";
   
@@ -117,6 +128,12 @@ const ChatWidget = () => {
     hasMoved: false,
   });
 
+  const [dimensions, setDimensions] = useState({
+    width: Math.min(384, maxPanelWidth),
+    height: Math.min(540, maxPanelHeight),
+  });
+  const resizeRef = useRef(null);
+
   const messagesEndRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -159,6 +176,79 @@ const ChatWidget = () => {
       startDrag(e.touches[0].clientX, e.touches[0].clientY);
     }
   };
+
+  const startResize = (dir) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!widgetRef.current) return;
+    const point = e.touches ? e.touches[0] : e;
+    const rect = widgetRef.current.getBoundingClientRect();
+    resizeRef.current = {
+      dir,
+      startX: point.clientX,
+      startY: point.clientY,
+      width: rect.width,
+      height: rect.height,
+      left: rect.left,
+      top: rect.top,
+      started: false,
+    };
+  };
+
+  useEffect(() => {
+    const handleResizeMove = (e) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const dx = e.clientX - r.startX;
+      const dy = e.clientY - r.startY;
+      if (!r.started && (Math.abs(dx) < 3 && Math.abs(dy) < 3)) return;
+      r.started = true;
+
+      let w = r.width;
+      let h = r.height;
+      let left = r.left;
+      let top = r.top;
+
+      if (r.dir.includes("e")) w = r.width + dx;
+      if (r.dir.includes("s")) h = r.height + dy;
+      if (r.dir.includes("w")) {
+        w = r.width - dx;
+        left = r.left + dx;
+      }
+      if (r.dir.includes("n")) {
+        h = r.height - dy;
+        top = r.top + dy;
+      }
+
+      w = Math.max(RESIZE_MIN_W, Math.min(maxPanelWidth, w));
+      h = Math.max(RESIZE_MIN_H, Math.min(maxPanelHeight, h));
+
+      if (r.dir.includes("w")) left = r.left + (r.width - w);
+      if (r.dir.includes("n")) top = r.top + (r.height - h);
+
+      left = Math.max(0, Math.min(window.innerWidth - w, left));
+      top = Math.max(0, Math.min(window.innerHeight - h, top));
+
+      setDimensions({ width: w, height: h });
+      setPosition({ x: left, y: top });
+    };
+
+    const handleResizeUp = () => {
+      resizeRef.current = null;
+    };
+
+    window.addEventListener("mousemove", handleResizeMove);
+    window.addEventListener("mouseup", handleResizeUp);
+    window.addEventListener("touchmove", handleResizeMove, { passive: false });
+    window.addEventListener("touchend", handleResizeUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleResizeMove);
+      window.removeEventListener("mouseup", handleResizeUp);
+      window.removeEventListener("touchmove", handleResizeMove);
+      window.removeEventListener("touchend", handleResizeUp);
+    };
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -443,10 +533,22 @@ const ChatWidget = () => {
 
       {/* Upgraded Floating Assistant Panel (Expands smoothly from trigger location) */}
       <div 
-        className={`w-[calc(100vw-2rem)] sm:w-96 h-[510px] sm:h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-3xl shadow-[0_20px_50px_rgba(49,46,129,0.22)] flex flex-col overflow-hidden border border-indigo-50/60 transition-all duration-300 transform origin-bottom-right ${
+        style={{ width: dimensions.width, height: dimensions.height }}
+        className={`min-w-[320px] min-h-[400px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] bg-white rounded-3xl shadow-[0_20px_50px_rgba(49,46,129,0.22)] flex flex-col overflow-hidden border border-indigo-50/60 transition-[transform,opacity] duration-300 transform origin-bottom-right ${
           isOpen ? "relative scale-100 opacity-100" : "absolute scale-0 opacity-0 pointer-events-none"
         }`}
       >
+        {/* Resize handles (edges + corners) */}
+        <div className="absolute inset-0 pointer-events-none z-50">
+          <div onMouseDown={startResize("n")} onTouchStart={startResize("n")} className="absolute top-0 left-4 right-4 h-2 cursor-ns-resize pointer-events-auto" />
+          <div onMouseDown={startResize("s")} onTouchStart={startResize("s")} className="absolute bottom-0 left-4 right-4 h-2 cursor-ns-resize pointer-events-auto" />
+          <div onMouseDown={startResize("w")} onTouchStart={startResize("w")} className="absolute left-0 top-4 bottom-4 w-2 cursor-ew-resize pointer-events-auto" />
+          <div onMouseDown={startResize("e")} onTouchStart={startResize("e")} className="absolute right-0 top-4 bottom-4 w-2 cursor-ew-resize pointer-events-auto" />
+          <div onMouseDown={startResize("nw")} onTouchStart={startResize("nw")} className="absolute left-0 top-0 w-4 h-4 cursor-nwse-resize pointer-events-auto" />
+          <div onMouseDown={startResize("ne")} onTouchStart={startResize("ne")} className="absolute right-0 top-0 w-4 h-4 cursor-nesw-resize pointer-events-auto" />
+          <div onMouseDown={startResize("sw")} onTouchStart={startResize("sw")} className="absolute left-0 bottom-0 w-4 h-4 cursor-nesw-resize pointer-events-auto" />
+          <div onMouseDown={startResize("se")} onTouchStart={startResize("se")} className="absolute right-0 bottom-0 w-4 h-4 cursor-nwse-resize pointer-events-auto" />
+        </div>
         {/* Header (Gradient Brand bar) - Draggable */}
         <div
           onMouseDown={handleMouseDown}

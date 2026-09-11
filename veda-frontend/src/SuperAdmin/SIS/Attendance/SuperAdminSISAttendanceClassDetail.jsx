@@ -113,20 +113,7 @@ export default function SuperAdminSISAttendanceClassDetail() {
 
   return (
     <div className="p-0">
-      <nav className="text-sm text-gray-500 mb-4">
-        <Link to="/superadmin/sis/attendance/overview" className="hover:underline">
-          Attendance
-        </Link>{" "}
-        ›{" "}
-       <Link to="/superadmin/sis/attendance/by-class" className="hover:underline">
-          By Class
-
-        </Link>{" "}
-        › <span className="text-gray-700 font-medium">
-  {selectedClassName} {selectedSectionName}
-</span>
-      </nav>
-      <h1 className="text-2xl font-bold text-gray-700 mb-4">
+      <h1 className="text-lg font-semibold mb-4">
  {selectedClassName} {selectedSectionName} - Attendance
 </h1>
 

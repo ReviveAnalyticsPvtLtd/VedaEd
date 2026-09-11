@@ -100,7 +100,7 @@ export default function SuperAdminSISAttendanceByClass() {
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="w-full border px-3 py-2 rounded-md "
+              className="w-full border px-3 py-2 rounded-md bg-white"
             >
               <option value="">Search Class</option>
               {uniqueClassNames.map((className) => (
@@ -117,7 +117,7 @@ export default function SuperAdminSISAttendanceByClass() {
               value={sectionFilter}
               onChange={(e) => setSectionFilter(e.target.value)}
               disabled={!classFilter}
-              className="w-full border px-3 py-2 rounded-md  disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full border px-3 py-2 rounded-md bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Search Section</option>
               {availableSections.map((section) => (
@@ -158,7 +158,7 @@ export default function SuperAdminSISAttendanceByClass() {
               >
                 <div className="w-10 h-10 bg-orange-400 rounded-md mr-4"></div>
                 <div>
-                  <h3 className="">{cls.name}</h3>
+                  <h3 className="mb-4 text-lg font-semibold">{cls.name}</h3>
                   <p className=" text-gray-500">
                     Homeroom: {cls.homeroom}
                   </p>

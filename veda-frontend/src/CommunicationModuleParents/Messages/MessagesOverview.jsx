@@ -13,52 +13,7 @@ export default function MessagesOverview() {
   const [filterChannel, setFilterChannel] = useState("all");
 const [selectedMessage, setSelectedMessage] = useState(null);
 
-  // Dummy data for parent messages
-  const dummyMessages = [
-    {
-      id: 1,
-      title: "Parent Meeting Invitation",
-      message:
-        "Parent-teacher meeting is scheduled for next week. You are invited to discuss your child's progress.",
-      sender: "Class Teacher",
-      senderRole: "Teacher",
-      sentDate: "2024-01-11",
-      messageType: "Individual",
-      channel: "Email",
-      isRead: false,
-      priority: "high",
-      childClass: "Grade 8A",
-    },
-    {
-      id: 2,
-      title: "Exam Schedule - Mid Term",
-      message:
-        "Mid-term examination schedule has been published. Please review your child's timetable.",
-      sender: "Examination Department",
-      senderRole: "Admin",
-      sentDate: "2024-01-10",
-      messageType: "Group",
-      channel: "Email",
-      isRead: true,
-      priority: "medium",
-      childClass: "All Classes",
-    },
-    {
-      id: 3,
-      title: "Sports Day Participation",
-      message:
-        "Your child can participate in upcoming Sports Day events. Please check the registration form.",
-      sender: "Sports Department",
-      senderRole: "Staff",
-      sentDate: "2024-01-09",
-      messageType: "Group",
-      channel: "SMS",
-      isRead: false,
-      priority: "medium",
-      childClass: "All Classes",
-    },
-  ];
-  const [messages, setMessages] = useState(dummyMessages);
+  const [messages, setMessages] = useState([]);
 const openMessage = (msg) => {
   const updated = messages.map((m) =>
     m.id === msg.id ? { ...m, isRead: true } : m

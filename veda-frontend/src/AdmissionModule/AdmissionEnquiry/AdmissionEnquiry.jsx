@@ -9,13 +9,17 @@ export default function AdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
   const [classes, setClasses] = useState([]);
-  const totalEnquiries = enquiries.length;
-const reviewedCount = enquiries.filter(e => e.status === "reviewed").length;
-const pendingCount = enquiries.filter(e => e.status !== "reviewed").length;
-const [errors, setErrors] = useState({});
+  const totalEnquiries = Array.isArray(enquiries) ? enquiries.length : 0;
+  const reviewedCount = Array.isArray(enquiries)
+    ? enquiries.filter((e) => e?.status === "reviewed").length
+    : 0;
+  const pendingCount = Array.isArray(enquiries)
+    ? enquiries.filter((e) => e?.status !== "reviewed").length
+    : 0;
+  const [errors, setErrors] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 10;
+  const itemsPerPage = 10;
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingEnquiryId, setEditingEnquiryId] = useState(null);
@@ -44,74 +48,88 @@ const itemsPerPage = 10;
     const loadClasses = async () => {
       try {
         const clsList = await classAPI.getAllClasses();
-        setClasses(clsList || []);
+        const list = Array.isArray(clsList)
+          ? clsList
+          : Array.isArray(clsList?.data)
+          ? clsList.data
+          : [];
+        setClasses(list);
       } catch (err) {
         console.error("Failed to load classes in enquiries:", err);
+        setClasses([]);
       }
     };
     loadClasses();
   }, []);
 
- const fetchEnquiries = async () => {
-  try {
-    const data = await getEnquiries();
-    setEnquiries(
-      data.map(e => ({ ...e, status: e.status || "pending" }))
+  const fetchEnquiries = async () => {
+    try {
+      const data = await getEnquiries();
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+      setEnquiries(
+        list.map((e) => ({ ...e, status: e.status || "pending" }))
+      );
+    } catch (error) {
+      console.warn("API failed, loading dummy data");
+
+      setEnquiries([
+        {
+          _id: "1",
+          studentName: "Aarav Sharma",
+          guardianName: "Rohit Sharma",
+          mobile: "9876543210",
+          whatsapp: "9876543210",
+          email: "aarav@gmail.com",
+          enquiryClass: "Class 5",
+          date: "2026-01-10",
+          status: "pending",
+        },
+        {
+          _id: "2",
+          studentName: "Ananya Verma",
+          guardianName: "Suresh Verma",
+          mobile: "9123456789",
+          whatsapp: "9123456789",
+          email: "ananya@gmail.com",
+          enquiryClass: "Class 8",
+          date: "2026-01-11",
+          status: "reviewed",
+        },
+      ]);
+    }
+  };
+
+  const mergeUpdatedEnquiry = (updatedEnquiry) => {
+    if (!updatedEnquiry?._id) return;
+    setEnquiries((prev) =>
+      Array.isArray(prev)
+        ? prev.map((entry) =>
+            entry._id === updatedEnquiry._id ? updatedEnquiry : entry
+          )
+        : []
     );
-  } catch (error) {
-    console.warn("API failed, loading dummy data");
-
-    setEnquiries([
-      {
-        _id: "1",
-        studentName: "Aarav Sharma",
-        guardianName: "Rohit Sharma",
-        mobile: "9876543210",
-        whatsapp: "9876543210",
-        email: "aarav@gmail.com",
-        enquiryClass: "Class 5",
-        date: "2026-01-10",
-        status: "pending",
-      },
-      {
-        _id: "2",
-        studentName: "Ananya Verma",
-        guardianName: "Suresh Verma",
-        mobile: "9123456789",
-        whatsapp: "9123456789",
-        email: "ananya@gmail.com",
-        enquiryClass: "Class 8",
-        date: "2026-01-11",
-        status: "reviewed",
-      },
-    ]);
-  }
-};
-
-const mergeUpdatedEnquiry = (updatedEnquiry) => {
-  if (!updatedEnquiry?._id) return;
-  setEnquiries((prev) =>
-    prev.map((entry) => (entry._id === updatedEnquiry._id ? updatedEnquiry : entry))
-  );
-};
-
+  };
 
   // Excel export
- const exportToExcel = () => {
-  if (selectedIds.length === 0) {
-    alert("Please select at least one enquiry to export");
-    return;
-  }
+  const exportToExcel = () => {
+    if (selectedIds.length === 0) {
+      alert("Please select at least one enquiry to export");
+      return;
+    }
 
-  const selectedData = enquiries.filter(e =>
-    selectedIds.includes(e._id)
-  );
+    const selectedData = enquiries.filter((e) =>
+      selectedIds.includes(e._id)
+    );
 
-  const ws = XLSX.utils.json_to_sheet(selectedData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Admission Enquiry");
-  XLSX.writeFile(wb, "AdmissionEnquiry.xlsx");
-};
+    const ws = XLSX.utils.json_to_sheet(selectedData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Admission Enquiry");
+    XLSX.writeFile(wb, "AdmissionEnquiry.xlsx");
+  };
 
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -125,6 +143,7 @@ const mergeUpdatedEnquiry = (updatedEnquiry) => {
       enquiryClass: "",
       date: "",
     });
+    setErrors({});
   };
 
   const openEditModal = (enquiry) => {
@@ -193,11 +212,17 @@ const mergeUpdatedEnquiry = (updatedEnquiry) => {
     }
   };
 
-  const filteredData = enquiries.filter((e) =>
-    e.studentName.toLowerCase().includes(searchQuery.toLowerCase())
-  );useEffect(() => {
-  setCurrentPage(1);
-}, [searchQuery]);
+  const filteredData = Array.isArray(enquiries)
+    ? enquiries.filter((e) =>
+        (e?.studentName || "")
+          .toLowerCase()
+          .includes((searchQuery || "").toLowerCase())
+      )
+    : [];
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
 const indexOfLast = currentPage * itemsPerPage;
@@ -287,10 +312,21 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
     {/* BULK ACTION – YAHAN ADD */}
     <select
-      className="border px-3 py-2 rounded-md"
+      className="border px-3 py-2 rounded-md bg-white text-gray-700"
+      defaultValue=""
       onChange={async (e) => {
-        if (e.target.value === "excel") exportToExcel();
-        if (e.target.value === "reviewed") {
+        const val = e.target.value;
+        if (!val) return;
+        if (val === "excel") {
+          exportToExcel();
+          e.target.value = "";
+        }
+        if (val === "reviewed") {
+          if (selectedIds.length === 0) {
+            alert("Please select at least one enquiry to mark as reviewed");
+            e.target.value = "";
+            return;
+          }
           try {
              const updatedRows = await Promise.all(
                selectedIds.map((id) => updateEnquiry(id, { status: "reviewed" }))
@@ -303,11 +339,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               console.error("Error bulk updating:", error);
               alert("Failed to update some enquiries.");
           }
+          e.target.value = "";
         }
       }}
     >
-      <option>Bulk Action</option>
-      
+      <option value="">Bulk Action</option>
       <option value="reviewed">Mark as Reviewed</option>
       <option value="excel">Export Excel</option>
     </select>
@@ -315,15 +351,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
   <div className="flex gap-3 justify-end">
     <button
-      onClick={exportToExcel}
-      className="flex items-center gap-2 px-4 py-2 "
-    >
-     
-    </button>
-
-    <button
-      onClick={() => setShowModal(true)}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+      onClick={() => {
+        resetAddForm();
+        setShowModal(true);
+      }}
+      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium shadow-sm transition-colors"
     >
       <FiPlus /> Add
     </button>
@@ -504,11 +536,14 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
       {/* Add Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[95%] max-w-[700px] relative animate-fadeIn max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-[700px] relative animate-fadeIn max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-red-500"
+              onClick={() => {
+                setShowModal(false);
+                resetAddForm();
+              }}
+              className="absolute top-3 right-3 text-gray-500 hover:text-red-500 transition-colors"
             >
               <FiX size={20} />
             </button>
@@ -517,134 +552,117 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               Add Admission Enquiry
             </h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Student Name <span className="text-red-500">*</span>
                 </label>
-               <input
-  type="text"
-  className="border rounded-md px-3 py-2 w-full"
-  value={formData.studentName}
-  onKeyDown={(e) => {
-    if (!/[a-zA-Z\s]/.test(e.key) && e.key !== "Backspace") {
-      e.preventDefault(); 
-      setErrors((prev) => ({
-        ...prev,
-        studentName: "Only letters allowed",
-      }));
-    } else {
-      setErrors((prev) => ({ ...prev, studentName: "" }));
-    }
-  }}
-  onChange={(e) =>
-    setFormData({ ...formData, studentName: e.target.value })
-  }
-/>
-
-{errors.studentName && (
-  <p className="text-red-500 text-xs mt-1">{errors.studentName}</p>
-)}
+                <input
+                  type="text"
+                  placeholder="Enter student name"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={formData.studentName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^[a-zA-Z\s]*$/.test(val)) {
+                      setFormData({ ...formData, studentName: val });
+                      setErrors((prev) => ({ ...prev, studentName: "" }));
+                    } else {
+                      setErrors((prev) => ({
+                        ...prev,
+                        studentName: "Only letters and spaces allowed",
+                      }));
+                    }
+                  }}
+                />
+                {errors.studentName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.studentName}</p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Guardian Name <span className="text-red-500">*</span>
                 </label>
-               <input
-  type="text"
-  className="border rounded-md px-3 py-2 w-full"
-  value={formData.guardianName}
-  onKeyDown={(e) => {
-    if (!/[a-zA-Z\s]/.test(e.key) && e.key !== "Backspace") {
-      e.preventDefault();
-      setErrors((prev) => ({
-        ...prev,
-        guardianName: "Only letters allowed",
-      }));
-    } else {
-      setErrors((prev) => ({ ...prev, guardianName: "" }));
-    }
-  }}
-  onChange={(e) =>
-    setFormData({ ...formData, guardianName: e.target.value })
-  }
-/>
-
-{errors.guardianName && (
-  <p className="text-red-500 text-xs mt-1">{errors.guardianName}</p>
-)}
+                <input
+                  type="text"
+                  placeholder="Enter guardian name"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={formData.guardianName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^[a-zA-Z\s]*$/.test(val)) {
+                      setFormData({ ...formData, guardianName: val });
+                      setErrors((prev) => ({ ...prev, guardianName: "" }));
+                    } else {
+                      setErrors((prev) => ({
+                        ...prev,
+                        guardianName: "Only letters and spaces allowed",
+                      }));
+                    }
+                  }}
+                />
+                {errors.guardianName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.guardianName}</p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Mobile No. <span className="text-red-500">*</span>
                 </label>
                 <input
-  type="text"
-  className="border rounded-md px-3 py-2 w-full"
-  value={formData.mobile}
-  maxLength={10}
-  inputMode="numeric"
-  onKeyDown={(e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace") {
-      e.preventDefault();
-      setErrors((prev) => ({
-        ...prev,
-        mobile: "Only numbers allowed",
-      }));
-    } else {
-      setErrors((prev) => ({ ...prev, mobile: "" }));
-    }
-  }}
-  onChange={(e) =>
-    setFormData({ ...formData, mobile: e.target.value })
-  }
-/>
-
-{errors.mobile && (
-  <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>
-)}
+                  type="tel"
+                  maxLength={10}
+                  inputMode="numeric"
+                  placeholder="10-digit mobile number"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={formData.mobile}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setFormData({ ...formData, mobile: val });
+                    if (val.length === 10 || val.length === 0) {
+                      setErrors((prev) => ({ ...prev, mobile: "" }));
+                    }
+                  }}
+                />
+                {errors.mobile && (
+                  <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   WhatsApp No.
                 </label>
                 <input
-  type="text"
-  className="border rounded-md px-3 py-2 w-full"
-  value={formData.whatsapp}
-  maxLength={10}
-  inputMode="numeric"
-  onKeyDown={(e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace") {
-      e.preventDefault();
-      setErrors((prev) => ({
-        ...prev,
-        whatsapp: "Only numbers allowed",
-      }));
-    } else {
-      setErrors((prev) => ({ ...prev, whatsapp: "" }));
-    }
-  }}
-  onChange={(e) =>
-    setFormData({ ...formData, whatsapp: e.target.value })
-  }
-/>
-
-{errors.whatsapp && (
-  <p className="text-red-500 text-xs mt-1">{errors.whatsapp}</p>
-)}
+                  type="tel"
+                  maxLength={10}
+                  inputMode="numeric"
+                  placeholder="10-digit WhatsApp number"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={formData.whatsapp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setFormData({ ...formData, whatsapp: val });
+                    if (val.length === 10 || val.length === 0) {
+                      setErrors((prev) => ({ ...prev, whatsapp: "" }));
+                    }
+                  }}
+                />
+                {errors.whatsapp && (
+                  <p className="text-red-500 text-xs mt-1">{errors.whatsapp}</p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Email
                 </label>
                 <input
                   type="email"
-                  className="border rounded-md px-3 py-2 w-full"
+                  placeholder="email@example.com"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
@@ -653,11 +671,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
                 <select
-                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white"
+                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={formData.enquiryClass}
                   onChange={(e) =>
                     setFormData({ ...formData, enquiryClass: e.target.value })
@@ -665,19 +683,25 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   required
                 >
                   <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option key={cls._id || cls.name} value={cls.name}>
-                      {cls.name}
-                    </option>
-                  ))}
+                  {Array.isArray(classes) &&
+                    classes.map((cls) => {
+                      const className = typeof cls === "string" ? cls : cls?.name;
+                      const classKey = cls?._id || className;
+                      if (!className) return null;
+                      return (
+                        <option key={classKey} value={className}>
+                          {className}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">Date</label>
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">Date</label>
                 <input
                   type="date"
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={formData.date}
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
@@ -686,10 +710,21 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
             </div>
 
-            <div className="flex justify-end mt-5">
+            <div className="flex justify-end gap-3 mt-5">
               <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  resetAddForm();
+                }}
+                className="bg-gray-100 text-gray-700 px-5 py-2 rounded-md hover:bg-gray-200 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
                 onClick={handleAdd}
-                className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm"
               >
                 Save
               </button>
@@ -700,11 +735,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[95%] max-w-[700px] relative animate-fadeIn max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-[700px] relative animate-fadeIn max-h-[90vh] overflow-y-auto">
             <button
               onClick={closeEditModal}
-              className="absolute top-3 right-3 text-gray-500 hover:text-red-500"
+              className="absolute top-3 right-3 text-gray-500 hover:text-red-500 transition-colors"
             >
               <FiX size={20} />
             </button>
@@ -715,12 +750,12 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Student Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.studentName}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, studentName: e.target.value })
@@ -729,12 +764,12 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Guardian Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.guardianName}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, guardianName: e.target.value })
@@ -743,44 +778,44 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Mobile No. <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="text"
-                  className="border rounded-md px-3 py-2 w-full"
+                  type="tel"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.mobile}
                   maxLength={10}
                   inputMode="numeric"
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, mobile: e.target.value.replace(/\D/g, "") })
+                    setEditFormData({ ...editFormData, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) })
                   }
                 />
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   WhatsApp No.
                 </label>
                 <input
-                  type="text"
-                  className="border rounded-md px-3 py-2 w-full"
+                  type="tel"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.whatsapp}
                   maxLength={10}
                   inputMode="numeric"
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, whatsapp: e.target.value.replace(/\D/g, "") })
+                    setEditFormData({ ...editFormData, whatsapp: e.target.value.replace(/\D/g, "").slice(0, 10) })
                   }
                 />
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Email
                 </label>
                 <input
                   type="email"
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.email}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, email: e.target.value })
@@ -789,11 +824,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
                 <select
-                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white"
+                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.enquiryClass}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, enquiryClass: e.target.value })
@@ -801,19 +836,25 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   required
                 >
                   <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option key={cls._id || cls.name} value={cls.name}>
-                      {cls.name}
-                    </option>
-                  ))}
+                  {Array.isArray(classes) &&
+                    classes.map((cls) => {
+                      const className = typeof cls === "string" ? cls : cls?.name;
+                      const classKey = cls?._id || className;
+                      if (!className) return null;
+                      return (
+                        <option key={classKey} value={className}>
+                          {className}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">Date</label>
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">Date</label>
                 <input
                   type="date"
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.date}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, date: e.target.value })
@@ -822,9 +863,9 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold ">Status</label>
+                <label className="block mb-1 font-semibold text-gray-700 text-sm">Status</label>
                 <select
-                  className="border rounded-md px-3 py-2 w-full"
+                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={editFormData.status}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, status: e.target.value })
@@ -838,14 +879,16 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
             <div className="flex justify-end gap-3 mt-5">
               <button
+                type="button"
                 onClick={closeEditModal}
-                className="bg-gray-100 text-gray-700 px-5 py-2 rounded-md hover:bg-gray-200"
+                className="bg-gray-100 text-gray-700 px-5 py-2 rounded-md hover:bg-gray-200 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleUpdateEnquiry}
-                className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm"
               >
                 Update
               </button>

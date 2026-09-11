@@ -203,3 +203,17 @@ export const launchSchoolSetup = async (payload) => {
   const response = await api.post(`${API_URL}/step-12/launch`, payload);
   return response.data;
 };
+
+const SETUP_PROFILE_URL = `${config.API_BASE_URL}/setup-profile`;
+
+/** Fetch logged-in superadmin's own setup profile data */
+export const getSetupProfile = async () => {
+  const response = await api.get(SETUP_PROFILE_URL);
+  return response.data;
+};
+
+/** Update logged-in superadmin's own setup profile data */
+export const updateSetupProfile = async (payload) => {
+  const response = await api.put(SETUP_PROFILE_URL, payload);
+  return response.data;
+};

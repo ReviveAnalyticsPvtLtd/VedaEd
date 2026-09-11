@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { isPast, parseISO } from "date-fns";
 import config from "../config";
+import { assignmentAPI } from "../services/assignmentAPI";
 import {
   PieChart,
   Pie,
@@ -16,6 +18,7 @@ import {
 
 export default function StudentDashboard() {
   const [timetable, setTimetable] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     assignments: 0,
@@ -38,7 +41,7 @@ export default function StudentDashboard() {
           const res = await axios.get(`${config.API_BASE_URL}/students/${user.refId}/dashboard-stats`, { headers: authHeaders });
           setStats(res.data.stats);
 
-          // 2. Get today's timetable
+          // 3. Get today's timetable
           const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
           const today = DAYS[new Date().getDay()];
           
@@ -62,13 +65,41 @@ export default function StudentDashboard() {
         setLoading(false);
       }
     };
+
+    const fetchAssignments = async () => {
+      try {
+        const assignmentsData = await assignmentAPI.getAssignments();
+        setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
+      } catch (err) {
+        console.error("Error fetching assignments:", err);
+      }
+    };
+
     fetchStats();
+    fetchAssignments();
   }, []);
 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const studentId = user?._id || user?.refId;
+
+  const completed = assignments.filter(a =>
+    a.submissions?.some(s => s.student === studentId)
+  ).length;
+  const pending = assignments.filter(a => {
+    const hasSubmission = a.submissions?.some(s => s.student === studentId);
+    const dueDate = a.dueDate ? parseISO(a.dueDate) : null;
+    return !hasSubmission && dueDate && !isPast(dueDate);
+  }).length;
+  const overdue = assignments.filter(a => {
+    const hasSubmission = a.submissions?.some(s => s.student === studentId);
+    const dueDate = a.dueDate ? parseISO(a.dueDate) : null;
+    return !hasSubmission && dueDate && isPast(dueDate);
+  }).length;
+
   const assignmentStatusData = [
-    { name: "Completed", value: 8 },
-    { name: "Pending", value: 3 },
-    { name: "Overdue", value: 1 },
+    { name: "Completed", value: completed },
+    { name: "Pending", value: pending },
+    { name: "Overdue", value: overdue },
   ];
   const COLORS = ["#10B981", "#F59E0B", "#EF4444"];
 
@@ -99,8 +130,8 @@ export default function StudentDashboard() {
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Assignments</p>
           <div className="flex items-end justify-between mt-2">
-            <h3 className="text-2xl font-bold">{loading ? "..." : (stats.assignments || 0)}</h3>
-            <span className="text-orange-500 text-xs font-medium">3 Pending</span>
+            <h3 className="text-2xl font-bold">{loading ? "..." : assignments.length}</h3>
+            <span className="text-orange-500 text-xs font-medium">{pending} Pending</span>
           </div>
         </div>
 

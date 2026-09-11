@@ -81,7 +81,7 @@ function StudentDetail() {
         / <span className="text-gray-700 font-medium">{student.name}</span>
       </div>
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">
+        <h2 className="text-2xl font-bold">
           {student.name} - {student.grade}
         </h2>
         <button
