@@ -41,6 +41,7 @@ const {
   removeWeightageRow,
 } = require("./examination/examinationGradebookService");
 const { lookupPostalCode } = require("../../services/postalCodeLookup");
+const { syncClassesAndSections } = require("../class/services/classAutomationService");
 
 const VALID_SETUP_TYPES = ["quick", "advanced", "import"];
 const VALID_ORGANIZATION_TYPES = [
@@ -499,18 +500,21 @@ exports.saveSetupWizard = async (req, res) => {
       completedSteps: completed,
     };
 
-    let doc = await SetupWizard.findOne({ userId: req.user.userId });
-    if (doc) {
-      doc = await SetupWizard.findByIdAndUpdate(doc._id, payload, {
-        new: true,
-        runValidators: true,
-      });
-    } else {
-      doc = await SetupWizard.create({
-        setupId: randomUUID(),
-        userId: req.user.userId,
-        ...payload,
-      });
+    const doc = await upsertSetupDoc(req.user.userId, payload);
+
+    try {
+      if (doc?.gradeFrom && doc?.gradeTo) {
+        await syncClassesAndSections({
+          gradeFrom: doc.gradeFrom,
+          gradeTo: doc.gradeTo,
+          institutionType: doc.institutionType,
+          expectedStudents: doc.expectedStudents,
+          maxStudentsPerSection: doc.maxStudentsPerSection,
+          sectionMode: doc.sectionMode,
+        });
+      }
+    } catch (syncErr) {
+      console.error("SetupWizard class sync error:", syncErr);
     }
 
     return res.status(200).json({
@@ -905,6 +909,16 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
 
     const doc = await upsertSetupDoc(req.user.userId, payload);
 
+    try {
+      await syncClassesAndSections({
+        gradeFrom: trimmedGradeFrom,
+        gradeTo: trimmedGradeTo,
+        institutionType: trimmedInstitution,
+      });
+    } catch (syncErr) {
+      console.error("Step 4 class sync error:", syncErr);
+    }
+
     return res.status(200).json({
       success: true,
       data: doc,
@@ -1184,6 +1198,19 @@ exports.saveStep6AcademicStructure = async (req, res) => {
     };
 
     const doc = await upsertSetupDoc(req.user.userId, payload);
+
+    try {
+      await syncClassesAndSections({
+        gradeFrom: trimmedGradeFrom,
+        gradeTo: trimmedGradeTo,
+        institutionType: doc?.institutionType,
+        expectedStudents: parsedExpected,
+        maxStudentsPerSection: parsedMaxPerSection,
+        sectionMode: trimmedSectionMode,
+      });
+    } catch (syncErr) {
+      console.error("Step 6 class sync error:", syncErr);
+    }
 
     return res.status(200).json({
       success: true,
@@ -2320,6 +2347,19 @@ exports.launchSchoolSetup = async (req, res) => {
     };
 
     const doc = await upsertSetupDoc(req.user.userId, payload);
+
+    try {
+      await syncClassesAndSections({
+        gradeFrom: doc?.gradeFrom || snapshot?.gradeFrom,
+        gradeTo: doc?.gradeTo || snapshot?.gradeTo,
+        institutionType: doc?.institutionType || snapshot?.institutionType,
+        expectedStudents: doc?.expectedStudents || snapshot?.expectedStudents,
+        maxStudentsPerSection: doc?.maxStudentsPerSection || snapshot?.maxStudentsPerSection,
+        sectionMode: doc?.sectionMode || snapshot?.sectionMode,
+      });
+    } catch (syncErr) {
+      console.error("Launch setup class sync error:", syncErr);
+    }
 
     return res.status(200).json({
       success: true,

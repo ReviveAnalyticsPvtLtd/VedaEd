@@ -95,16 +95,17 @@ const SuperAdminSISAddClass = () => {
 const navigate = useNavigate();
  const isValidClassName = (value) => {
   const trimmed = value.trim();
-  // ONLY: "Class " + number
-  const exactPattern = /^Class\s+[0-9]+$/;
-  return exactPattern.test(trimmed);
+  return (
+    /^(Grade|Class)\s+[0-9]+$/i.test(trimmed) ||
+    /^(Nursery|LKG|UKG|KG|Kindergarten)$/i.test(trimmed)
+  );
 };
 
   const handleSaveClass = async () => {
     if (!className) return alert("Class name required!");
     if (!isValidClassName(className)) {
       setClassNameError(
-        "Class Name must be in format: Class 1 or Grade 1."
+        "Class Name must be in format: Grade 1, Grade 2, Nursery, etc."
       );
       return;
     }
@@ -395,13 +396,13 @@ const navigate = useNavigate();
       setClassNameError("");
     } else if (!isValidClassName(value)) {
       setClassNameError(
-        "Invalid format. Use: Class 1 (C capital, rest small)"
+        "Invalid format. Use: Grade 1, Grade 2, Nursery, etc."
       );
     } else {
       setClassNameError("");
     }
   }}
-  placeholder="Class 1"
+  placeholder="Grade 1"
   className={`w-full border px-2 py-1 rounded ${
     classNameError ? "border-red-500" : ""
   }`}

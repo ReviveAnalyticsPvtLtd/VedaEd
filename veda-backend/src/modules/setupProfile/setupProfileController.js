@@ -1,4 +1,5 @@
 const SetupWizard = require("../setupWizard/setupWizardModel");
+const { syncClassesAndSections } = require("../class/services/classAutomationService");
 
 const PROFILE_FIELDS =
   "organizationType schoolName schoolCode establishedYear website schoolLogo " +
@@ -79,6 +80,18 @@ exports.updateSetupProfile = async (req, res) => {
         message: "Setup profile not found",
       });
     }
+
+    // Automatically synchronize classes and sections based on the updated academic details
+    try {
+      await syncClassesAndSections({
+        gradeFrom: doc.gradeFrom,
+        gradeTo: doc.gradeTo,
+        institutionType: doc.institutionType,
+      });
+    } catch (syncErr) {
+      console.error("Automatic class synchronization error:", syncErr);
+    }
+
     return res.status(200).json({
       success: true,
       data: doc,

@@ -6,33 +6,41 @@ const Student = require('../student/studentModels');
 const Timetable = require("../Timetable/timeTableSchema");
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const Assignment = require("../assignment/assignment");
+const {
+  normalizeClassName,
+  matchesGrade,
+  sortClasses,
+} = require("./services/classAutomationService");
 
 // @route   POST /api/classes/
 exports.createClass = async (req, res) => {
   console.log("create class backend posted: ", req.body);
-  const {name, sections, capacity} = req.body;
+  const { name, sections, capacity } = req.body;
   try {
-    if(!name || !sections)
+    if (!name || !sections)
       return res.status(400).json({ success: false, message: 'Required Fields Missing' });
-    // console.log("hello11");
 
-    //validate Sections 
-    if(sections && sections.length> 0){
-      const sectionFound = await Section.find({_id:{$in:sections}});
-      if(sectionFound.length !== sections.length) 
+    const normalizedName = normalizeClassName(name);
+
+    // Validate Sections
+    if (sections && sections.length > 0) {
+      const sectionFound = await Section.find({ _id: { $in: sections } });
+      if (sectionFound.length !== sections.length)
         return res.status(400).json({ success: false, message: 'Some sections not found' });
     }
-    //check if class already exists 
-    const isclassExist = await Class.findOne({name});
-    if(isclassExist)  
-        return res.status(409).json({ success: false, message: 'Class already exists' });
 
-    const newClass = await Class.create({name, sections, capacity});
-    // console.log("hello1");
-   const reply = await Class.findById(newClass._id).populate("sections", "name");
-    console.log("hello2");
-    
-   res.status(201).json({
+    // Check if class already exists (exact or alias)
+    const existingClasses = await Class.find({});
+    const isclassExist = existingClasses.find((c) =>
+      matchesGrade(c.name, normalizedName)
+    );
+    if (isclassExist)
+      return res.status(409).json({ success: false, message: 'Class already exists' });
+
+    const newClass = await Class.create({ name: normalizedName, sections, capacity });
+    const reply = await Class.findById(newClass._id).populate("sections", "name");
+
+    res.status(201).json({
       success: true,
       message: "Class created successfully",
       data: reply,
@@ -111,15 +119,19 @@ exports.getClasses = async (req, res) => {
       .populate("classTeacher", "personalInfo.name");
 
     const updatedClasses = classes.map((cls) => {
-      const sectionsWithTeachers = cls.sections.map((sec) => {
+      const validSections = Array.isArray(cls.sections) ? cls.sections.filter(Boolean) : [];
+      const sectionsWithTeachers = validSections.map((sec) => {
         const teacherData = assignedTeachers.find(
           (item) =>
+            item?.class &&
+            item?.section &&
+            sec?._id &&
             item.class.toString() === cls._id.toString() &&
             item.section.toString() === sec._id.toString()
         );
 
         return {
-          ...sec.toObject(),
+          ...(typeof sec?.toObject === "function" ? sec.toObject() : sec),
           classTeacher:
             teacherData?.classTeacher?.personalInfo?.name || "N/A",
         };
@@ -131,10 +143,12 @@ exports.getClasses = async (req, res) => {
       };
     });
 
+    const sortedClasses = sortClasses(updatedClasses);
+
     res.status(200).json({
       success: true,
-      count: updatedClasses.length,
-      data: updatedClasses,
+      count: sortedClasses.length,
+      data: sortedClasses,
     });
   } catch (err) {
     res.status(500).json({
@@ -259,7 +273,12 @@ exports.updateClass = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Some sections not found' });
     }
 
-    const updatedClass = await Class.findByIdAndUpdate(id, { name, sections, capacity }, {
+    const updatePayload = {};
+    if (name !== undefined) updatePayload.name = normalizeClassName(name);
+    if (sections !== undefined) updatePayload.sections = sections;
+    if (capacity !== undefined) updatePayload.capacity = capacity;
+
+    const updatedClass = await Class.findByIdAndUpdate(id, updatePayload, {
       new: true,
       runValidators: true,
     });
