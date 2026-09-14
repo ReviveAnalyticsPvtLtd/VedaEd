@@ -1,5 +1,7 @@
 const { Vehicle, Route, PickupPoint, VehicleAssignment, RouteStop, Maintenance, Document, Fueling, Expense, Allocation, Driver, TransportStudent } = require('./transportModels');
 const Student = require('../student/studentModels');
+const Class = require('../class/classSchema');
+const Section = require('../section/sectionSchema');
 
 // Drivers
 exports.getDrivers = async (req, res) => {
@@ -561,11 +563,54 @@ exports.assignStudentTransport = async (req, res) => {
 
 exports.getAllTransportStudents = async (req, res) => {
     try {
-        const students = await TransportStudent.find()
-            .populate('studentId')
+        const { klass, section } = req.query;
+        const transportQuery = {};
+
+        if (klass) {
+            const classDoc = await Class.findOne({ name: klass });
+            if (!classDoc) return res.status(200).json([]);
+
+            const studentFilter = { 'personalInfo.class': classDoc._id };
+            if (section) {
+                const sectionDoc = await Section.findOne({ name: section });
+                if (!sectionDoc) return res.status(200).json([]);
+                studentFilter['personalInfo.section'] = sectionDoc._id;
+            }
+
+            const classStudents = await Student.find(studentFilter).select('_id');
+            const studentIds = classStudents.map(s => s._id);
+            if (!studentIds.length) return res.status(200).json([]);
+            transportQuery.studentId = { $in: studentIds };
+        }
+
+        const transportStudents = await TransportStudent.find(transportQuery)
+            .populate({ path: 'studentId', populate: { path: 'parent', select: 'fatherName motherName' } })
             .populate('routeId')
             .populate('pickupPointId');
-        res.status(200).json(students);
+
+        const results = [];
+        for (const ts of transportStudents) {
+            const student = ts.studentId;
+            if (!student) continue;
+
+            const allocation = await Allocation.findOne({ routeId: ts.routeId })
+                .populate('vehicleId')
+                .populate('driverId');
+
+            results.push({
+                _id: ts._id,
+                studentId: student._id,
+                admissionNo: student.personalInfo?.stdId || 'N/A',
+                name: student.personalInfo?.name || 'N/A',
+                father: student.parent?.fatherName || '-',
+                route: ts.routeId?.title || '-',
+                vehicle: allocation?.vehicleId?.vehicleNumber || 'Not Assigned',
+                pickup: ts.pickupPointId?.name || '-',
+                fees: ts.fees || []
+            });
+        }
+
+        res.status(200).json(results);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

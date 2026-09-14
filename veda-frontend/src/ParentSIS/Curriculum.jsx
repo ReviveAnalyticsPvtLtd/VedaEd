@@ -144,7 +144,7 @@ export default function Curriculum() {
         setLoading(true);
         const data = await getSubjects({ studentId: selectedChildId });
         if (data.success) {
-          setSubjects(data.subjects || []);
+          setSubjects(data.data || []);
         }
       } catch (err) {
         console.error("Error loading subjects:", err);

@@ -66,4 +66,8 @@ router.delete('/allocations/:id', transportController.deleteAllocation);
 
 router.get('/fleet-stats', transportController.getFleetStats);
 
+// Student Transport (allocation + fees)
+router.get('/student-transports', transportController.getAllTransportStudents);
+router.post('/student-transports/pay', transportController.payStudentTransportFees);
+
 module.exports = router;

@@ -5,6 +5,14 @@ const path = require("path");
 const fs = require("fs");
 const Student = require("../student/studentModels");
 const AdmissionApplication = require("../admission/admissionApplicationModel");
+const User = require("../../models/User");
+const Attendance = require("../attendence/attendenceSchema");
+const Gradebook = require("../gradebook/gradebookModel");
+const Assignment = require("../assignment/assignment");
+const Complaint = require("../communication/complaintModel");
+const Notice = require("../communication/noticeModel");
+const CalendarEvent = require("../calendar/calendarModel");
+const { AcademicYear, GradeFee, FeeTransaction } = require("../fees/feeModels");
 const {
   normalizeParentIdAccountHolder,
   getPersonForHolder,
@@ -60,6 +68,7 @@ function mapChildrenForParentProfile(children = []) {
       section = String(secVal);
     }
     return {
+      _id: child._id,
       name: pi.name || child.name || "Student",
       grade,
       section,
@@ -211,6 +220,7 @@ function formatParentProfileApiData(parentDoc) {
     role: parentDoc.role,
     photo: parentDoc.photo || "",
     children: mappedChildren.map((c) => ({
+      _id: c._id,
       name: c.name,
       grade: c.grade,
       section: c.section,
@@ -1093,33 +1103,440 @@ exports.deleteDocument = async (req, res) => {
   }
 };
 
+/* ================= PARENT DASHBOARD STATS (real data) ================= */
+
+const DASHBOARD_MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const dashMonthKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const dashGradeFromPct = (pct) => {
+  if (pct == null || Number.isNaN(pct)) return "—";
+  if (pct >= 90) return "A+";
+  if (pct >= 80) return "A";
+  if (pct >= 70) return "B";
+  if (pct >= 60) return "C";
+  if (pct >= 50) return "D";
+  return "E";
+};
+
+const dashFormatShortDate = (date) => {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+};
+
+const dashSafe = async (fn, fallback) => {
+  try {
+    return await fn();
+  } catch (error) {
+    console.error("Parent dashboard subquery error:", error);
+    return fallback;
+  }
+};
+
+/** Turn a raw populated child doc into a normalized dashboard row. */
+function normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade) {
+  const pi = ch.personalInfo || {};
+  const rawClass = pi.class;
+  const rawSection = pi.section;
+  const className =
+    rawClass && typeof rawClass === "object"
+      ? rawClass.name || rawClass.className
+      : rawClass;
+  const sectionName =
+    rawSection && typeof rawSection === "object"
+      ? rawSection.name || rawSection.sectionName
+      : rawSection;
+  const classNameStr = className != null ? String(className) : "N/A";
+  const sectionNameStr = sectionName != null ? String(sectionName) : "N/A";
+  const key = String(ch._id);
+  const att = attByChild[key];
+  const attendance =
+    att && att.total ? Math.round((att.present / att.total) * 100) : null;
+  const expected = expectedByGrade[classNameStr.toLowerCase()] || 0;
+  const paid = paidByChild[key] || 0;
+  return {
+    _id: ch._id,
+    stdId: pi.stdId || ch.stdId || "N/A",
+    name: pi.name || ch.name || "Student",
+    rollNo: pi.rollNo || ch.rollNo || "N/A",
+    className: classNameStr,
+    sectionName: sectionNameStr,
+    attendance,
+    examScore: null,
+    pendingAssignments: 0,
+    feePaid: paid,
+    feePending: Math.max(expected - paid, 0),
+  };
+}
+
 exports.getParentDashboardStats = async (req, res) => {
   try {
     const { id } = req.params;
-    let parent;
-    
-    if (id.startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(404).json({ success: false, message: "Invalid admission parent id" });
+    const refId = req.user && req.user.refId ? String(req.user.refId) : null;
+    const candidates = [refId, id].filter(Boolean);
+
+    // ---- Resolve the parent (SIS Parent or admission-linked application) ----
+    let parent = null;
+    let admissionApp = null;
+    const populateChildren = {
+      path: "children",
+      populate: [
+        { path: "personalInfo.class", select: "name" },
+        { path: "personalInfo.section", select: "name" },
+      ],
+    };
+
+    for (const c of candidates) {
+      const str = String(c);
+      if (str.startsWith("adm-")) {
+        const parsed = parseAdmissionSyntheticParentRouteId(str);
+        if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
+          admissionApp = await AdmissionApplication.findById(
+            parsed.applicationId
+          ).lean();
+          if (admissionApp) break;
+        }
+        continue;
       }
-      parent = await AdmissionApplication.findById(parsed.applicationId);
-    } else if (mongoose.Types.ObjectId.isValid(id)) {
-      parent = await Parent.findById(id).populate("children");
+      if (!mongoose.Types.ObjectId.isValid(str)) continue;
+
+      parent = await Parent.findById(str).populate(populateChildren).lean();
+      if (parent) break;
+
+      // Maybe the id is a User._id → resolve its refId to the Parent
+      const user = await User.findById(str).lean().catch(() => null);
+      if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
+        parent = await Parent.findById(user.refId)
+          .populate(populateChildren)
+          .lean();
+        if (parent) break;
+      }
+
+      // Admission-linked parents use the application _id as their refId
+      const app = await AdmissionApplication.findById(str).lean();
+      if (app) {
+        admissionApp = app;
+        break;
+      }
     }
 
-    if (!parent) {
-      return res.status(404).json({ success: false, message: "Parent not found" });
+    if (!parent && !admissionApp) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Parent not found" });
     }
+
+    const childrenRaw = (parent && parent.children ? parent.children : []).filter(
+      (c) => c && c._id
+    );
+    const childIds = childrenRaw.map((ch) => ch._id);
+
+    // ---- Attendance ----
+    const attendanceRecs = await dashSafe(
+      () => Attendance.find({ student: { $in: childIds } }).lean(),
+      []
+    );
+    const attByChild = {};
+    const attMonthly = {};
+    for (const rec of attendanceRecs) {
+      const sid = String(rec.student);
+      const entry = (attByChild[sid] = attByChild[sid] || { present: 0, total: 0 });
+      entry.total += 1;
+      if (rec.status !== "Absent") entry.present += 1;
+      if (rec.date) {
+        const mkey = dashMonthKey(new Date(rec.date));
+        const m = (attMonthly[mkey] = attMonthly[mkey] || { present: 0, total: 0 });
+        m.total += 1;
+        if (rec.status !== "Absent") m.present += 1;
+      }
+    }
+
+    // ---- Fees ----
+    const activeYear = await dashSafe(
+      () => AcademicYear.findOne({ isActive: true }).lean(),
+      null
+    );
+    const feeYear = activeYear && activeYear.label ? activeYear.label : null;
+    const feeFilter = { studentId: { $in: childIds } };
+    if (feeYear) feeFilter.year = feeYear;
+    const feeTxs = await dashSafe(
+      () => FeeTransaction.find(feeFilter).lean(),
+      []
+    );
+    const paidByChild = {};
+    for (const t of feeTxs) {
+      if (t.status === "Cancelled") continue;
+      const sid = String(t.studentId);
+      paidByChild[sid] = (paidByChild[sid] || 0) + (Number(t.totalAmount) || 0);
+    }
+    const gradeFees = await dashSafe(
+      () => GradeFee.find(feeYear ? { year: feeYear } : {}).lean(),
+      []
+    );
+    const expectedByGrade = {};
+    for (const gf of gradeFees) {
+      const sum = Object.values(gf.fees || {}).reduce(
+        (a, b) => a + (Number(b) || 0),
+        0
+      );
+      expectedByGrade[String(gf.grade).toLowerCase()] = sum;
+    }
+
+    // ---- Gradebook (scores + subject performance) ----
+    const gradeRecs = await dashSafe(
+      () =>
+        Gradebook.find({ student: { $in: childIds } })
+          .populate("subject", "name")
+          .lean(),
+      []
+    );
+    const scoreByChild = {};
+    const subjectAgg = {};
+    for (const g of gradeRecs) {
+      const sid = String(g.student);
+      let total = 0;
+      let count = 0;
+      for (const m of g.marks || []) {
+        total += (Number(m.theory) || 0) + (Number(m.practical) || 0);
+        count += 100;
+      }
+      if (!count) continue;
+      const pct = (total / count) * 100;
+      (scoreByChild[sid] = scoreByChild[sid] || []).push(pct);
+      const subjectName =
+        g.subject && typeof g.subject === "object" && g.subject.name
+          ? String(g.subject.name)
+          : String(g.subject || "Subject");
+      (subjectAgg[subjectName] = subjectAgg[subjectName] || []).push(pct);
+    }
+
+    // ---- Assignments (pending per child) ----
+    const pairs = childrenRaw
+      .map((ch) => {
+        const pi = ch.personalInfo || {};
+        const clsId =
+          pi.class && typeof pi.class === "object" ? pi.class._id : pi.class;
+        const secId =
+          pi.section && typeof pi.section === "object" ? pi.section._id : pi.section;
+        return clsId && secId ? { class: clsId, section: secId } : null;
+      })
+      .filter(Boolean);
+    const assignments =
+      pairs.length > 0
+        ? await dashSafe(
+            () =>
+              Assignment.find({ $or: pairs, status: "Active" }).lean(),
+            []
+          )
+        : [];
+    const childKeyByClassSection = {};
+    childrenRaw.forEach((ch, idx) => {
+      const pair = pairs[idx];
+      const key = pair ? `${String(pair.class)}|${String(pair.section)}` : null;
+      if (key) {
+        (childKeyByClassSection[key] =
+          childKeyByClassSection[key] || []).push(String(ch._id));
+      }
+    });
+    const pendingByChild = {};
+    for (const a of assignments) {
+      const eligible = childKeyByClassSection[`${String(a.class)}|${String(a.section)}`];
+      if (!eligible || !eligible.length) continue;
+      const submitted = new Set(
+        (a.submissions || [])
+          .filter((s) => s && (s.status === "Submitted" || s.status === "Late"))
+          .map((s) => String(s.student))
+      );
+      for (const sid of eligible) {
+        if (!submitted.has(sid)) {
+          pendingByChild[sid] = (pendingByChild[sid] || 0) + 1;
+        }
+      }
+    }
+
+    // ---- Assemble children rows ----
+    const children = childrenRaw.map((ch) => {
+      const row = normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade);
+      const key = String(ch._id);
+      const scores = scoreByChild[key];
+      if (scores && scores.length) {
+        row.examScore = Math.round(
+          scores.reduce((a, b) => a + b, 0) / scores.length
+        );
+      }
+      row.pendingAssignments = pendingByChild[key] || 0;
+      return row;
+    });
+
+    // Admission-linked fallback row (name/class/section only)
+    if (!parent && admissionApp) {
+      const pi = admissionApp.personalInfo || {};
+      const rawClass = pi.classApplied;
+      children.push({
+        _id: admissionApp._id || null,
+        stdId: pi.stdId || "N/A",
+        name: pi.name || "Child",
+        rollNo: "N/A",
+        className: rawClass ? String(rawClass) : "N/A",
+        sectionName: pi.section ? String(pi.section) : "N/A",
+        attendance: null,
+        examScore: null,
+        pendingAssignments: 0,
+        feePaid: 0,
+        feePending: 0,
+      });
+    }
+
+    // ---- Aggregates ----
+    const scoreValues = children
+      .map((c) => c.examScore)
+      .filter((s) => typeof s === "number");
+    const overallAverage =
+      scoreValues.length > 0
+        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+        : null;
+    const attValues = children
+      .map((c) => c.attendance)
+      .filter((a) => typeof a === "number");
+    const attendanceAverage =
+      attValues.length > 0
+        ? Math.round(attValues.reduce((a, b) => a + b, 0) / attValues.length)
+        : 0;
+    const totalFees = children.reduce((a, c) => a + (c.feePaid || 0), 0);
+    const pendingFees = children.reduce((a, c) => a + (c.feePending || 0), 0);
+
+    // ---- Monthly attendance (last 6 months) ----
+    const now = new Date();
+    const monthlyAttendance = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = attMonthly[dashMonthKey(d)];
+      monthlyAttendance.push({
+        month: DASHBOARD_MONTH_NAMES[d.getMonth()],
+        value: m && m.total ? Math.round((m.present / m.total) * 100) : 0,
+      });
+    }
+
+    // ---- Subject performance ----
+    const subjectProgress = Object.entries(subjectAgg)
+      .map(([name, vals]) => ({
+        name,
+        value: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length),
+      }))
+      .filter((s) => s.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    // ---- Complaints ----
+    const parentRefId = parent ? parent._id : admissionApp ? admissionApp._id : null;
+    const complaints = await dashSafe(
+      () =>
+        parentRefId &&
+        mongoose.Types.ObjectId.isValid(
+          String(parentRefId).replace(/^adm-/, "")
+        )
+          ? Complaint.find({
+              complainant: parentRefId,
+              complainantModel: "Parent",
+            })
+              .sort({ createdAt: -1 })
+              .limit(20)
+              .lean()
+          : Promise.resolve([]),
+      []
+    );
+    const complaintsOpen = complaints.filter(
+      (c) =>
+        !["resolved", "closed", "rejected"].includes(
+          String(c.status || "").toLowerCase()
+        )
+    ).length;
+
+    // ---- Notices & events ----
+    const targetAudienceFilter = {
+      $or: [
+        { targetAudience: "all" },
+        { targetAudience: "parents" },
+        ...(parentRefId ? [{ specificTargets: parentRefId }] : []),
+      ],
+    };
+    const notices = await dashSafe(
+      () =>
+        Notice.find({
+          status: "published",
+          publishDate: { $lte: new Date() },
+          $and: [
+            {
+              $or: [
+                { expiryDate: { $exists: false } },
+                { expiryDate: { $gte: new Date() } },
+              ],
+            },
+          ],
+          ...targetAudienceFilter,
+        })
+          .sort({ publishDate: -1 })
+          .limit(6)
+          .lean(),
+      []
+    );
+    const upcomingEvents = await dashSafe(
+      () =>
+        CalendarEvent.find({
+          status: "Scheduled",
+          endDate: { $gte: new Date() },
+          visibility: "Parent",
+        })
+          .sort({ startDate: 1 })
+          .limit(6)
+          .lean(),
+      []
+    );
+    const ptaEvent = upcomingEvents.find(
+      (e) => String(e.type || "").toLowerCase() === "meeting"
+    );
 
     res.status(200).json({
       success: true,
       stats: {
-        childrenCount: parent.children ? parent.children.length : (id.startsWith("adm-") ? 1 : 0),
-        totalFees: 0,
-        pendingFees: 12000,
-        attendanceAverage: 93.5,
-        upcomingPTA: "15 Oct",
+        childrenCount: parent ? children.length : 1,
+        children,
+        totalFees,
+        pendingFees,
+        attendanceAverage,
+        overallGrade: dashGradeFromPct(overallAverage),
+        upcomingPTA: ptaEvent
+          ? `${ptaEvent.title} · ${dashFormatShortDate(ptaEvent.startDate)}`
+          : "No upcoming PTM",
+        monthlyAttendance,
+        subjectProgress,
+        complaintsOpen,
+        complaints: complaints.map((c) => ({
+          id: c._id,
+          subject: c.subject,
+          status: c.status,
+          category: c.category,
+          date: c.createdAt,
+        })),
+        notices: notices.map((n) => ({
+          id: n._id,
+          title: n.title,
+          category: n.category,
+          priority: n.priority,
+          date: n.publishDate,
+        })),
+        upcomingEvents: upcomingEvents.map((e) => ({
+          id: e._id,
+          title: e.title,
+          type: e.type,
+          date: e.startDate,
+        })),
+        academicYear: feeYear,
       },
     });
   } catch (error) {

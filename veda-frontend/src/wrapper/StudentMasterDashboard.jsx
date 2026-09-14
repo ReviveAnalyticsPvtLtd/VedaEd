@@ -20,30 +20,54 @@ import {
   Cell,
 } from "recharts";
 
-const ATTENDANCE_DATA = [
-  { month: "Jan", value: 92 },
-  { month: "Feb", value: 88 },
-  { month: "Mar", value: 94 },
-];
-
 const COLORS = ["#4F46E5", "#22C55E", "#F59E0B", "#EF4444"];
 
+const defaultStats = {
+  assignments: 0,
+  pendingAssignments: [],
+  attendance: 0,
+  exams: 0,
+  subjectsCount: 0,
+  monthlyAttendance: [],
+  subjectProgress: [],
+  todayClasses: [],
+  upcomingEvents: [],
+};
+
 export default function StudentMasterDashboard() {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(defaultStats);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user"));
-        if (user && user._id) {
-          const res = await axios.get(`${config.API_BASE_URL}/students/${user._id}/dashboard-stats`);
-          if (res.data.success) {
-            setStats(res.data.stats);
-          }
+        const studentId = user?.refId || user?._id;
+        if (!studentId) {
+          setError("Student account not found. Please log in again.");
+          setLoading(false);
+          return;
+        }
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await axios.get(
+          `${config.API_BASE_URL}/students/${studentId}/dashboard-stats`,
+          { headers }
+        );
+        if (res.data.success) {
+          setStats(res.data.stats);
+          setError("");
+        } else {
+          setError(res.data.message || "Failed to load dashboard data.");
         }
       } catch (err) {
         console.error("Error fetching student master stats:", err);
+        setError(
+          err.response?.status === 401
+            ? "Session expired. Please log in again."
+            : "Could not load dashboard data. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -51,11 +75,19 @@ export default function StudentMasterDashboard() {
     fetchStats();
   }, []);
 
-  const SUBJECT_PROGRESS = [
-    { name: "Maths", value: 85 },
-    { name: "Science", value: 78 },
-    { name: "English", value: 90 },
-  ];
+  const pendingAssignments = stats.pendingAssignments || [];
+  const upcomingEvents = stats.upcomingEvents || [];
+  const todayClasses = stats.todayClasses || [];
+
+  const formatDate = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+    });
+  };
 
   if (loading) {
     return <div className="p-6 text-center text-gray-500">Loading Student Dashboard...</div>;
@@ -63,12 +95,18 @@ export default function StudentMasterDashboard() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat title="Subjects" value="7" icon={<FiBookOpen />} />
-        <Stat title="Assignments" value={`${stats?.assignments || 0} Total`} icon={<FiClipboard />} />
-        <Stat title="Attendance" value={`${stats?.attendance || 0}%`} icon={<FiActivity />} />
-        <Stat title="Exams" value={`${stats?.exams || 0} Upcoming`} icon={<FiAward />} />
+        <Stat title="Subjects" value={stats.subjectsCount || 0} icon={<FiBookOpen />} />
+        <Stat title="Assignments" value={`${stats.assignments || 0} Total`} icon={<FiClipboard />} />
+        <Stat title="Attendance" value={`${stats.attendance || 0}%`} icon={<FiActivity />} />
+        <Stat title="Exams" value={`${stats.exams || 0} Upcoming`} icon={<FiAward />} />
       </div>
 
       {/* GRAPHS */}
@@ -76,30 +114,42 @@ export default function StudentMasterDashboard() {
         {/* Attendance Graph */}
         <Card title="Monthly Attendance (%)">
           <div className="h-56">
-            <ResponsiveContainer>
-              <BarChart data={ATTENDANCE_DATA}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#4F46E5" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {stats.monthlyAttendance.length > 0 ? (
+              <ResponsiveContainer>
+                <BarChart data={stats.monthlyAttendance}>
+                  <XAxis dataKey="month" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                No attendance data available
+              </div>
+            )}
           </div>
         </Card>
 
         {/* Subject Progress */}
         <Card title="Subject Performance">
           <div className="h-56">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={SUBJECT_PROGRESS} dataKey="value" outerRadius={80}>
-                  {SUBJECT_PROGRESS.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {stats.subjectProgress.length > 0 ? (
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={stats.subjectProgress} dataKey="value" nameKey="name" outerRadius={80}>
+                    {stats.subjectProgress.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                No gradebook data available
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -108,23 +158,43 @@ export default function StudentMasterDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today Classes */}
         <Card title="Today's Classes">
-          <List title="Maths" meta="09:00 – 09:45" />
-          <List title="Science" meta="10:00 – 10:45" />
-          <List title="English" meta="11:00 – 11:45" />
+          {todayClasses.length > 0 ? (
+            todayClasses.map((item) => (
+              <List key={item.id} title={item.title} meta={item.time} />
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">No classes scheduled today.</p>
+          )}
         </Card>
 
         {/* Assignments */}
         <Card title="Assignments">
-          <List title="Algebra Worksheet" meta="Due Tomorrow" />
-          <List title="Physics Notes" meta="Due in 2 days" />
-          <List title="Essay Writing" meta="Due Friday" />
+          {pendingAssignments.length > 0 ? (
+            pendingAssignments.map((item) => (
+              <List
+                key={item.id}
+                title={item.title}
+                meta={item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date"}
+              />
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">No pending assignments.</p>
+          )}
         </Card>
 
-        {/* Mini Calendar */}
+        {/* Upcoming Events */}
         <Card title="Upcoming Events">
-          <List title="Unit Test" meta="20 Feb" />
-          <List title="Sports Day" meta="25 Feb" />
-          <List title="Holiday" meta="2 March" />
+          {upcomingEvents.length > 0 ? (
+            upcomingEvents.map((item) => (
+              <List
+                key={item.id}
+                title={item.title}
+                meta={item.date ? `${item.type} • ${formatDate(item.date)}` : item.type}
+              />
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">No upcoming events.</p>
+          )}
         </Card>
       </div>
 

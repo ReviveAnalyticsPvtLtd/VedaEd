@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FiMessageCircle,
   FiCalendar,
@@ -6,34 +6,115 @@ import {
   FiSend,
   FiInbox,
 } from "react-icons/fi";
+import CommunicationAPI from "../../services/communicationAPI";
+
+const TYPE_LABELS = {
+  text: "Message",
+  file: "File",
+  image: "Image",
+  announcement: "Announcement",
+};
 
 export default function MessagesOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
-  const [filterChannel, setFilterChannel] = useState("all");
-const [selectedMessage, setSelectedMessage] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedMessage, setSelectedMessage] = useState(null);
 
   const [messages, setMessages] = useState([]);
-const openMessage = (msg) => {
-  const updated = messages.map((m) =>
-    m.id === msg.id ? { ...m, isRead: true } : m
-  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  setMessages(updated);
-  setSelectedMessage({ ...msg, isRead: true });
-};
+  useEffect(() => {
+    let active = true;
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.refId || user?._id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    const userModel = user.role || "Parent";
+
+    const load = async () => {
+      try {
+        const [msgRes, notifRes] = await Promise.allSettled([
+          CommunicationAPI.getMessages(userId, userModel, { limit: 100 }),
+          CommunicationAPI.getReceivedNotifications(userId, userModel, { limit: 100 }),
+        ]);
+        if (!active) return;
+        const msgList = Array.isArray(msgRes.value?.data) ? msgRes.value.data : [];
+        const notifList = Array.isArray(notifRes.value?.data) ? notifRes.value.data : [];
+        const list = [
+          ...msgList.map((m) => ({
+            id: m._id,
+            title: m.subject,
+            message: m.content,
+            sender: m.sender?.personalInfo?.name || m.senderModel || "School",
+            senderRole: m.senderModel || "",
+            priority: m.priority || "medium",
+            messageType: m.messageType || "text",
+            channel: "Portal",
+            isRead: m.status === "read",
+            sentDate: m.createdAt,
+          })),
+          ...notifList.map((n) => ({
+            id: n._id,
+            isNotification: true,
+            title: n.title,
+            message: n.description,
+            sender: n.createdBy?.personalInfo?.name || n.createdByModel || "School",
+            senderRole: n.createdByModel || "Admin",
+            priority: n.type === "Urgent" ? "high" : "medium",
+            messageType: "announcement",
+            channel: "Portal",
+            isRead: false,
+            sentDate: n.publishDate || n.createdAt,
+          })),
+        ].sort((a, b) => new Date(b.sentDate) - new Date(a.sentDate));
+        setMessages(list);
+      } catch (e) {
+        if (active) setError(e.message || "Failed to load messages");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const openMessage = (msg) => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.refId || user?._id;
+    const userModel = user.role || "Parent";
+    const updated = messages.map((m) =>
+      m.id === msg.id ? { ...m, isRead: true } : m
+    );
+
+    setMessages(updated);
+    setSelectedMessage({ ...msg, isRead: true });
+
+    if (!msg.isRead && !msg.isNotification) {
+      CommunicationAPI.updateMessageStatus(msg.id, "read", userId, userModel).catch(
+        () => {}
+      );
+    }
+  };
+
   const filteredMessages = messages.filter((message) => {
     const matchesSearch =
       message.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       message.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.sender.toLowerCase().includes(searchQuery.toLowerCase());
+      (message.sender || "").toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesType =
       filterType === "all" || message.messageType === filterType;
-    const matchesChannel =
-      filterChannel === "all" || message.channel === filterChannel;
+    const matchesStatus =
+      filterStatus === "all" ||
+      (filterStatus === "read" ? message.isRead : !message.isRead);
 
-    return matchesSearch && matchesType && matchesChannel;
+    return matchesSearch && matchesType && matchesStatus;
   });
 
   const unreadCount = messages.filter((message) => !message.isRead).length;
@@ -46,6 +127,8 @@ const openMessage = (msg) => {
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "low":
         return "bg-green-100 text-green-800 border-green-200";
+      case "urgent":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -53,12 +136,14 @@ const openMessage = (msg) => {
 
   const getMessageTypeColor = (type) => {
     switch (type) {
-      case "Individual":
-        return "bg-blue-100 text-blue-800";
-      case "Class":
-        return "bg-green-100 text-green-800";
-      case "Group":
+      case "announcement":
         return "bg-purple-100 text-purple-800";
+      case "file":
+        return "bg-blue-100 text-blue-800";
+      case "image":
+        return "bg-green-100 text-green-800";
+      case "text":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -102,25 +187,38 @@ const openMessage = (msg) => {
             className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="all">All Types</option>
-            <option value="Individual">Individual</option>
-            <option value="Class">Class</option>
-            <option value="Group">Group</option>
+            <option value="text">Message</option>
+            <option value="announcement">Announcement</option>
+            <option value="file">File</option>
+            <option value="image">Image</option>
           </select>
           <select
-            value={filterChannel}
-            onChange={(e) => setFilterChannel(e.target.value)}
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
-            <option value="all">All Channels</option>
-            <option value="SMS">SMS</option>
-            <option value="Email">Email</option>
+            <option value="all">All Status</option>
+            <option value="read">Read</option>
+            <option value="unread">Unread</option>
           </select>
         </div>
       </div>
 
       {/* Messages List */}
       <div className="space-y-4">
-        {filteredMessages.length > 0 ? (
+        {loading ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm text-center text-gray-500">
+            Loading messages...
+          </div>
+        ) : error ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+            <FiMessageCircle className="mx-auto text-red-400 mb-4" size={48} />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Failed to load messages
+            </h3>
+            <p className="text-gray-500">{error}</p>
+          </div>
+        ) : filteredMessages.length > 0 ? (
           filteredMessages.map((message) => (
             <div
               key={message.id}
@@ -155,7 +253,7 @@ const openMessage = (msg) => {
                         message.messageType
                       )}`}
                     >
-                      {message.messageType}
+                      {TYPE_LABELS[message.messageType] || message.messageType}
                     </span>
                   </div>
 
@@ -178,10 +276,6 @@ const openMessage = (msg) => {
                       <FiSend />
                       <span>{message.channel}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <FiMessageCircle />
-                      <span>Child Class: {message.childClass}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -203,7 +297,7 @@ const openMessage = (msg) => {
               No messages for parents
             </h3>
             <p className="text-gray-500">
-              {searchQuery || filterType !== "all" || filterChannel !== "all"
+              {searchQuery || filterType !== "all" || filterStatus !== "all"
                 ? "Try adjusting your search or filter criteria."
                 : "You haven't received any messages related to your child yet."}
             </p>
@@ -247,8 +341,7 @@ const openMessage = (msg) => {
 
       {/* Footer */}
       <div className="p-3 border-t text-sm text-gray-600">
-        Child Class: {selectedMessage.childClass} | Priority:{" "}
-        {selectedMessage.priority}
+        Priority: {selectedMessage.priority}
       </div>
     </div>
   </div>

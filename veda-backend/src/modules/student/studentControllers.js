@@ -9,6 +9,12 @@ const Section = require("../section/sectionSchema");
 const path = require('path');
 const fs = require('fs');
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
+const Attendance = require("../attendence/attendenceSchema");
+const Gradebook = require("../gradebook/gradebookModel");
+const Assignment = require("../assignment/assignment");
+const Timetable = require("../Timetable/timeTableSchema");
+const CalendarEvent = require("../calendar/calendarModel");
+const Notice = require("../communication/noticeModel");
 const User = require('../../models/User');
 const { generateStudentUsernameBase } = require("../../utils/studentUsernameGenerator");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
@@ -1202,36 +1208,236 @@ exports.getNextStudentId = async (req, res) => {
 };
 
 // Get student dashboard stats (for mobile/web portal)
+const STUDENT_MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function studMonthKey(d) {
+  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(2)}`;
+}
+
+async function studSafe(fn, fallback) {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error("Student dashboard stats sub-error:", e.message);
+    return fallback;
+  }
+}
+
 exports.getStudentDashboardStats = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // RBAC check: Student can only view their own dashboard stats
-    if (req.user && req.user.role === 'student' && req.user.refId !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied."
+    // Resolve student via route id, req.user.refId, or a User._id → refId chain
+    let student = null;
+    const candidates = [
+      req.user && req.user.refId ? String(req.user.refId) : null,
+      id,
+    ].filter(Boolean);
+    for (const c of candidates) {
+      const str = String(c);
+      if (!mongoose.Types.ObjectId.isValid(str)) continue;
+      student = await studSafe(() => Student.findById(str).lean(), null);
+      if (student) break;
+      const user = await studSafe(() => User.findById(str).lean(), null);
+      if (
+        user &&
+        user.refId &&
+        mongoose.Types.ObjectId.isValid(user.refId)
+      ) {
+        student = await studSafe(() => Student.findById(user.refId).lean(), null);
+        if (student) break;
+      }
+    }
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
+    // RBAC: Students may only view their own stats
+    if (
+      req.user &&
+      req.user.role === "student" &&
+      String(req.user.refId) !== String(student._id)
+    ) {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+
+    const studentId = student._id;
+    const personalInfo = student.personalInfo || {};
+    const classId = personalInfo.class;
+    const sectionId = personalInfo.section;
+    const now = new Date();
+
+    // ---- Attendance (overall + last 6 months) ----
+    const attRecs = await studSafe(
+      () => Attendance.find({ student: studentId }).lean(),
+      []
+    );
+    let presented = 0;
+    let total = 0;
+    const attMonthly = {};
+    for (const rec of attRecs) {
+      total += 1;
+      if (rec.status !== "Absent") presented += 1;
+      if (rec.date) {
+        const mkey = studMonthKey(new Date(rec.date));
+        attMonthly[mkey] = attMonthly[mkey] || { present: 0, total: 0 };
+        attMonthly[mkey].total += 1;
+        if (rec.status !== "Absent") attMonthly[mkey].present += 1;
+      }
+    }
+    const attendance = total ? Math.round((presented / total) * 100) : 0;
+    const monthlyAttendance = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const agg = attMonthly[studMonthKey(d)];
+      monthlyAttendance.push({
+        month: STUDENT_MONTH_NAMES[d.getMonth()],
+        value: agg && agg.total ? Math.round((agg.present / agg.total) * 100) : 0,
       });
     }
 
-    let student = await Student.findById(id);
-    if (!student) {
-      student = await AdmissionApplication.findById(id);
+    // ---- Gradebook → subject performance ----
+    const gradeRecs = await studSafe(
+      () => Gradebook.find({ student: studentId }).populate("subject", "name").lean(),
+      []
+    );
+    const subjectAgg = {};
+    for (const g of gradeRecs) {
+      const subjName =
+        g.subject && g.subject.name ? g.subject.name : "Subject";
+      const agg = (subjectAgg[subjName] = subjectAgg[subjName] || {
+        total: 0,
+        count: 0,
+      });
+      for (const m of g.marks || []) {
+        agg.total += (Number(m.theory) || 0) + (Number(m.practical) || 0);
+        agg.count += 100;
+      }
     }
-    
-    if (!student) {
-      return res.status(404).json({ success: false, message: "Student not found [LOC_DASH_STATS]" });
-    }
+    const subjectProgress = Object.keys(subjectAgg).map((name) => ({
+      name,
+      value: subjectAgg[name].count
+        ? Math.round((subjectAgg[name].total / subjectAgg[name].count) * 100)
+        : 0,
+    }));
 
-    // These would be real counts in a full system
+    // ---- Assignments for this class + section ----
+    let assignments = [];
+    if (classId && sectionId) {
+      assignments = await studSafe(
+        () =>
+          Assignment.find({ class: classId, section: sectionId, status: "Active" })
+            .populate("subject", "name")
+            .lean(),
+        []
+      );
+    }
+    const pendingAssignments = assignments
+      .filter(
+        (a) =>
+          !(a.submissions || []).some(
+            (s) =>
+              s &&
+              String(s.student) === String(studentId) &&
+              (s.status === "Submitted" || s.status === "Late")
+          )
+      )
+      .map((a) => ({
+        id: String(a._id),
+        title: a.title || "Assignment",
+        subject: a.subject && a.subject.name ? a.subject.name : "—",
+        dueDate: a.dueDate || null,
+      }))
+      .sort(
+        (x, y) => new Date(x.dueDate || 0) - new Date(y.dueDate || 0)
+      );
+
+    // ---- Today's classes ----
+    const todayName = [
+      "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    ][now.getDay()];
+    let todayClasses = [];
+    if (classId && sectionId) {
+      todayClasses = await studSafe(
+        () =>
+          Timetable.find({ class: classId, section: sectionId, day: todayName })
+            .populate("subject", "name")
+            .populate("teacher", "name")
+            .lean(),
+        []
+      );
+    }
+    todayClasses = todayClasses.map((t) => ({
+      id: String(t._id),
+      title: t.subject && t.subject.name ? t.subject.name : "Class",
+      time: `${t.timeFrom || ""} – ${t.timeTo || ""}`.trim(),
+      meta: t.teacher && t.teacher.name ? t.teacher.name : t.roomNo || "",
+    }));
+
+    // ---- Upcoming events / exams ----
+    const upcomingEventsRaw = await studSafe(
+      () =>
+        CalendarEvent.find({
+          startDate: { $gte: now },
+          status: "Scheduled",
+          visibility: "Student",
+        })
+          .sort({ startDate: 1 })
+          .limit(8)
+          .lean(),
+      []
+    );
+    const upcomingEvents = upcomingEventsRaw.map((e) => ({
+      id: String(e._id),
+      title: e.title || "Event",
+      type: e.type || "Event",
+      date: e.startDate || null,
+    }));
+    const exams = upcomingEvents.filter(
+      (e) => String(e.type).toLowerCase() === "exam"
+    ).length;
+    const nextExamEvent = upcomingEvents.find(
+      (e) => String(e.type).toLowerCase() === "exam"
+    );
+
+    // ---- Published notices for students ----
+    const notices = await studSafe(
+      () =>
+        Notice.find({
+          status: "published",
+          publishDate: { $lte: now },
+          $or: [{ expiryDate: null }, { expiryDate: { $gte: now } }],
+          targetAudience: { $in: ["all", "students"] },
+        })
+          .sort({ publishDate: -1 })
+          .limit(5)
+          .lean(),
+      []
+    );
+    const noticesList = notices.map((n) => ({
+      id: String(n._id),
+      title: n.title || "Notice",
+      category: n.category || "general",
+      date: n.publishDate || null,
+    }));
+
     res.status(200).json({
       success: true,
       stats: {
-        assignments: 12, // Placeholder
-        attendance: 92, // Placeholder
-        exams: 2, // Placeholder
-        activities: 4, // Placeholder
-      }
+        assignments: assignments.length,
+        pendingAssignments,
+        attendance,
+        exams,
+        nextExam: nextExamEvent ? nextExamEvent.date : null,
+        notices: noticesList,
+        activities: 0, // retained for compatibility
+        subjectsCount: subjectProgress.length,
+        monthlyAttendance,
+        subjectProgress,
+        todayClasses,
+        upcomingEvents,
+      },
     });
   } catch (error) {
     console.error("Error fetching student dashboard stats:", error);
