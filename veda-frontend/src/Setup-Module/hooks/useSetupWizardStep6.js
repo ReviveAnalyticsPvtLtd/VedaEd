@@ -140,6 +140,11 @@ function validateForm(form) {
     errors.maxStudentsPerSection = "Enter a valid max students per section";
   }
 
+  const sections = Number(form.sections);
+  if (!Number.isFinite(sections) || sections < 1 || sections > 26) {
+    errors.sections = "Sections must be between 1 and 26";
+  }
+
   return errors;
 }
 
@@ -227,7 +232,7 @@ export function useSetupWizardStep6() {
 
   const updateField = useCallback((name, value) => {
     if (name === "gradeFrom" || name === "gradeTo") return;
-    const numericFields = ["expectedStudents", "maxStudentsPerSection"];
+    const numericFields = ["expectedStudents", "maxStudentsPerSection", "sections"];
     let nextValue = numericFields.includes(name) ? Number(value) : value;
     if (name === "academicYear") {
       nextValue = normalizeAcademicYearInput(value);
@@ -278,6 +283,7 @@ export function useSetupWizardStep6() {
       gradeTo: lockedGradeRange.gradeTo,
       expectedStudents: Number(form.expectedStudents),
       maxStudentsPerSection: Number(form.maxStudentsPerSection),
+      sections: Number(form.sections),
       sectionMode: form.sectionMode,
       streams: showStreams ? form.streams : [],
       subjectFramework: form.subjectFramework,

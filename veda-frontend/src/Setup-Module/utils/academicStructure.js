@@ -89,6 +89,7 @@ export function mapWizardDataToAcademicForm(data) {
       data.expectedStudents != null ? data.expectedStudents : 1200,
     maxStudentsPerSection:
       data.maxStudentsPerSection != null ? data.maxStudentsPerSection : 40,
+    sections: data.sections != null ? data.sections : 3,
     sectionMode: data.sectionMode || "auto",
     subjectFramework: data.subjectFramework || "recommended_template",
     streams: Array.isArray(data.streams) ? data.streams : [],

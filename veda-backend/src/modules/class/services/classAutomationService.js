@@ -194,8 +194,23 @@ function resolveGradeList({ gradeFrom, gradeTo, institutionType } = {}) {
 
 /**
  * Determine default section names from setup configuration.
+ * An explicit `sections` count (per class) takes precedence over the
+ * auto-calculated estimate derived from expectedStudents/maxStudentsPerSection.
  */
-function resolveSectionNames({ sectionMode, expectedStudents, maxStudentsPerSection } = {}) {
+function resolveSectionNames({
+  sectionMode,
+  expectedStudents,
+  maxStudentsPerSection,
+  sections,
+} = {}) {
+  const explicitCount = Number(sections);
+  if (Number.isFinite(explicitCount) && explicitCount >= 1) {
+    const razorCount = Math.min(26, Math.floor(explicitCount));
+    return Array.from({ length: razorCount }, (_, i) =>
+      String.fromCharCode(65 + i)
+    );
+  }
+
   const mode = String(sectionMode || "auto").trim().toLowerCase();
   const expected = Number(expectedStudents);
   const max = Number(maxStudentsPerSection);
@@ -354,6 +369,15 @@ async function syncClassesAndSections(academicConfig = {}) {
         if (!existing.sections || existing.sections.length === 0) {
           existing.sections = sectionIds;
           changed = true;
+        } else {
+          // Reconcile count increases: append any section that is missing.
+          // Never removes existing sections to avoid orphaning students/data.
+          const currentIds = new Set(existing.sections.map((s) => String(s)));
+          const missing = sectionIds.filter((id) => !currentIds.has(String(id)));
+          if (missing.length > 0) {
+            existing.sections = [...existing.sections, ...missing];
+            changed = true;
+          }
         }
 
         if (changed) {

@@ -5,6 +5,8 @@ export default function SetupProfileSummary({ form }) {
     { label: "School Code", value: form.schoolCode || "—" },
     { label: "Curriculum Board", value: form.curriculumBoard || "—" },
     { label: "Grade Range", value: form.gradeFrom && form.gradeTo ? `${form.gradeFrom} – ${form.gradeTo}` : "—" },
+    { label: "Capacity", value: form.maxStudentsPerSection || "—" },
+    { label: "Sections", value: form.sections || "—" },
     { label: "Country", value: form.country || "—" },
     {
       label: "Enabled Modules",
