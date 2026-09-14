@@ -41,7 +41,7 @@ export default function SuperAdminSettingsContactSupport() {
           Contact Support
         </h1>
 
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-900 mt-1">
           Get help from our support team.
         </p>
       </div>

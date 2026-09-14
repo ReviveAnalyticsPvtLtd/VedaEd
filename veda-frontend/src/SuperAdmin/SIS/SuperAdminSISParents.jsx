@@ -8,6 +8,7 @@ import HelpInfo from "../../components/HelpInfo";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 import api from "../../services/apiClient";
 import ProfileAvatar from "../../components/ProfileAvatar";
+import Pagination from "../../components/common/Pagination";
 
 function formatDateTime(value) {
   if (value == null || value === "") return "N/A";
@@ -676,27 +677,7 @@ Sections:
 
             </table>
           </div>
-          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Page {currentPage} of {totalPages}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
 
       )}
@@ -873,27 +854,7 @@ Sections:
               </table>
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                Page {loginPage} of {loginTotalPages}
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  disabled={loginPage === 1}
-                  onClick={() => setLoginPage(loginPage - 1)}
-                  className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={loginPage === loginTotalPages}
-                  onClick={() => setLoginPage(loginPage + 1)}
-                  className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <Pagination currentPage={loginPage} totalPages={loginTotalPages} onPageChange={setLoginPage} />
           </div>
         );
       })()}

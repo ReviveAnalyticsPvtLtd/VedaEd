@@ -19,7 +19,7 @@ const AdminSettingsPassword = () => {
 
       <div>
         <h1 className="text-3xl font-bold">Password Management</h1>
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-900 mt-1">
           Update and secure your account password.
         </p>
       </div>

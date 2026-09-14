@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { FiPlus, FiFolder, FiKey, FiSearch, FiTrash2, FiEdit3 } from "react-icons/fi";
 import api from "../services/apiClient";
 import HelpInfo from "../components/HelpInfo";
+import Pagination from "../components/common/Pagination";
 
 export default function Classes() {
   const [students, setStudents] = useState([]);
@@ -436,25 +437,7 @@ Tools available inside every class:
         )}
 
         {/* Pagination */}
-        <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-          <p>Page {currentPage} of {totalPages}</p>
-          <div className="space-x-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
         {/* Add Manually Form */}
         {showForm && (

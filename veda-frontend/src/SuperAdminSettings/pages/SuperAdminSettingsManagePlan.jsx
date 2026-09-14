@@ -52,7 +52,7 @@ export default function SuperAdminSettingsManagePlan() {
         <h2 className="text-2xl font-bold text-slate-900">
           Plan & Usage
         </h2>
-        <p className="text-slate-500 mt-1 text-sm">
+        <p className="text-slate-900 mt-1 text-sm">
           Monitor your school ERP subscription quotas and limits.
         </p>
       </div>

@@ -11,6 +11,7 @@ import HelpInfo from "../../components/HelpInfo";
 
 
 import { isToastErrorMessage, toastBannerClassName } from "../../utils/toastMessageStyle";
+import Pagination from "../../components/common/Pagination";
 function generateUsernameFromNameDob(name, dob) {
   const firstName = String(name || "").trim().split(/\s+/)[0] || "";
   const firstPart = firstName.toLowerCase().replace(/[^a-z]/g, "").slice(0, 4).padEnd(4, "x");
@@ -710,27 +711,7 @@ Sections:
           </div>
           </div>
 
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-            <p>
-              Page {currentPage} of {totalPages}
-            </p>
-            <div className="space-x-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       )}
 
@@ -930,27 +911,7 @@ Sections:
             </div>
             </div>
 
-            <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-              <p>
-                Page {loginPage} of {loginTotalPages}
-              </p>
-              <div className="space-x-2">
-                <button
-                  disabled={loginPage === 1}
-                  onClick={() => setLoginPage(loginPage - 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={loginPage === loginTotalPages}
-                  onClick={() => setLoginPage(loginPage + 1)}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <Pagination currentPage={loginPage} totalPages={loginTotalPages} onPageChange={setLoginPage} />
           </div>
         );
       })()}

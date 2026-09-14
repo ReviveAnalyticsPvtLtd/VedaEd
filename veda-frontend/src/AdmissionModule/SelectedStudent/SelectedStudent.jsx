@@ -12,6 +12,7 @@ import HelpInfo from "../../components/HelpInfo";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import config from "../../config";
+import Pagination from "../../components/common/Pagination";
 
 export default function SelectedStudent() {
   const navigate = useNavigate();
@@ -393,27 +394,7 @@ You can search by name or parent, filter by class, add students manually, import
         </table>
       </div>
 
-      <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-        <p>Page {currentPage} of {totalPages}</p>
-
-        <div className="space-x-2">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => p - 1)}
-            className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => p + 1)}
-            className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
 
     {/* ADD MODAL */}

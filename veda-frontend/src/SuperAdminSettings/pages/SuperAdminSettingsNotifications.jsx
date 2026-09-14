@@ -119,7 +119,7 @@ export default function SuperAdminSettingsNotifications() {
           Notifications
         </h2>
 
-        <p className="text-slate-500">
+        <p className="text-slate-900">
           Manage how you receive updates and alerts.
         </p>
       </div>

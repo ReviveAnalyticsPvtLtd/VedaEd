@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FiX, FiDownload, FiChevronLeft, FiChevronRight, FiEye, FiEdit2 } from "react-icons/fi";
+import { FiX, FiDownload, FiEye, FiEdit2 } from "react-icons/fi";
 import * as XLSX from "xlsx";
 import HelpInfo from "../../components/HelpInfo";
 import api from "../../services/apiClient";
+import Pagination from "../../components/common/Pagination";
 
 const numberOr = (v, fallback) => {
   const n = Number(v);
@@ -575,31 +576,7 @@ export default function ApproveLeave() {
                 </tbody>
               </table>
             </div>
-            {filteredData.length > 0 && (
-              <div className="flex items-center justify-end gap-2 mt-4 pt-3  border-gray-200 text-sm text-gray-700">
-                <button
-                  type="button"
-                  onClick={() => setLeavePage((p) => Math.max(1, p - 1))}
-                  disabled={leavePage <= 1}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <FiChevronLeft className="text-lg" />
-                  Previous
-                </button>
-                <span className="tabular-nums px-2 text-gray-600">
-                  Page {leavePage} / {totalLeavePages}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setLeavePage((p) => Math.min(totalLeavePages, p + 1))}
-                  disabled={leavePage >= totalLeavePages}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next
-                  <FiChevronRight className="text-lg" />
-                </button>
-              </div>
-            )}
+            <Pagination currentPage={leavePage} totalPages={totalLeavePages} onPageChange={setLeavePage} />
             {filteredData.length === 0 && (
               <p className="text-center text-gray-500 py-4">No records found</p>
             )}

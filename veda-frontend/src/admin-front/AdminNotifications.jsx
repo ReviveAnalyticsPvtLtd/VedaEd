@@ -119,7 +119,7 @@ export default function AdminNotifications() {
           Notifications
         </h2>
 
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-900 mt-1">
           Manage how you receive updates and alerts.
         </p>
       </div>

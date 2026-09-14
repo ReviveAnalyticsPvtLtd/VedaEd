@@ -5,6 +5,7 @@ import HelpInfo from "../../components/HelpInfo";
 import { getEnquiries, createEnquiry, deleteEnquiry, updateEnquiry } from "../../services/admissionEnquiryAPI";
 import classAPI from "../../services/classAPI";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/common/Pagination";
 export default function AdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
@@ -484,31 +485,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
           </table>
           </div>
           {/* PAGINATION */}
-{filteredData.length > 0 && (
-  <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-    <span>
-      Page {currentPage} of {totalPages}
-    </span>
-
-    <div className="flex gap-2">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => setCurrentPage(p => p - 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Previous
-      </button>
-
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => setCurrentPage(p => p + 1)}
-        className="px-3 py-1 border rounded disabled:opacity-50"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+<Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
           {filteredData.length === 0 && (
             <p className="text-center text-gray-500 py-4">No records found</p>
