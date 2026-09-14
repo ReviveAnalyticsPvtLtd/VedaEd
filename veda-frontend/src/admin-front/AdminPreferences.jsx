@@ -26,30 +26,6 @@ export default function AdminPreferences() {
     fetchPreferences();
   }, []);
 
-  useEffect(() => {
-    applyTheme(preferences.theme);
-  }, [preferences.theme]);
-
-  const applyTheme = (theme) => {
-    const root = document.documentElement;
-
-    root.classList.remove("dark");
-
-    if (theme === "dark") {
-      root.classList.add("dark");
-    }
-
-    if (theme === "system") {
-      const isDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-
-      if (isDark) {
-        root.classList.add("dark");
-      }
-    }
-  };
-
   const fetchPreferences = async () => {
     try {
       setLoading(true);
@@ -105,8 +81,8 @@ export default function AdminPreferences() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 dark:text-white rounded-xl p-10 text-center">
-        Loading Preferences...
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
+        Loading preferences...
       </div>
     );
   }
@@ -115,11 +91,11 @@ export default function AdminPreferences() {
     <div className="space-y-6">
 
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+        <h2 className="text-2xl font-bold text-slate-900">
           Preferences
         </h2>
 
-        <p className="text-slate-500  mt-1 dark:text-slate-400">
+        <p className="text-slate-900 mt-1">
           Customize your experience on the platform.
         </p>
       </div>
@@ -136,16 +112,16 @@ export default function AdminPreferences() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 space-y-8">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8 space-y-8">
 
         {/* Appearance */}
 
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-slate-900">
             Appearance
           </h3>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-slate-900">
             Choose your preferred theme.
           </p>
 
@@ -160,7 +136,7 @@ export default function AdminPreferences() {
                 className={`px-4 py-3 rounded-xl border-2 font-medium capitalize transition-all ${
                   preferences.theme === theme
                     ? "border-blue-600 bg-blue-50 text-blue-600"
-                    : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 {theme}
@@ -172,19 +148,19 @@ export default function AdminPreferences() {
 
         {/* Language */}
 
-        <div className="border-t border-slate-200 dark:border-slate-700 pt-8">
-          <h3 className="text-lg font-semibold mb-2 text-slate-900 dark:text-white">
+        <div className="border-t border-slate-200 pt-8">
+          <h3 className="text-lg font-semibold mb-2 text-slate-900">
             Language & Region
           </h3>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+          <p className="text-sm text-slate-900 mb-5">
             Set your preferred language and region.
           </p>
 
           <div className="grid md:grid-cols-2 gap-5">
 
             <div>
-              <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="block mb-2 text-sm font-medium text-slate-700">
                 Language
               </label>
 
@@ -193,7 +169,7 @@ export default function AdminPreferences() {
                 onChange={(e) =>
                   handleChange("language", e.target.value)
                 }
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-900"
               >
                 <option value="en">English (US)</option>
                 <option value="hi">Hindi</option>
@@ -203,7 +179,7 @@ export default function AdminPreferences() {
             </div>
 
             <div>
-              <label className="block mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="block mb-2 text-sm font-medium text-slate-700">
                 Timezone
               </label>
 
@@ -212,7 +188,7 @@ export default function AdminPreferences() {
                 onChange={(e) =>
                   handleChange("timezone", e.target.value)
                 }
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-900"
               >
                 <option value="Asia/Kolkata">
                   India (GMT+5:30)
@@ -233,7 +209,7 @@ export default function AdminPreferences() {
 
         {/* Footer */}
 
-        <div className="border-t border-slate-200 dark:border-slate-700 pt-6 flex justify-end">
+        <div className="border-t border-slate-200 pt-6 flex justify-end">
           <button
             onClick={savePreferences}
             disabled={saving}

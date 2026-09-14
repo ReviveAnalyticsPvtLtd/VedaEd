@@ -178,7 +178,7 @@ const handleAccountControl = () => {
           Security
         </h2>
 
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-900 mt-1">
           Manage your account security,
           sessions and data privacy.
         </p>

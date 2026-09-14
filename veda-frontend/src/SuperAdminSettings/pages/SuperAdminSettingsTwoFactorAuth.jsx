@@ -22,7 +22,7 @@ const SuperAdminSettingsTwoFactor = () => {
           Two Factor Authentication
         </h1>
 
-        <p className="text-slate-500">
+        <p className="text-slate-900">
           Add an extra layer of security.
         </p>
       </div>

@@ -10,6 +10,7 @@ import { FiChevronDown, FiUser, FiDownload } from "react-icons/fi";
 
 import config from "../../config";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
+import Pagination from "../../components/common/Pagination";
 const token = localStorage.getItem("token");
 
 const authHeader = {
@@ -740,25 +741,7 @@ Sections:
           </table>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-            <p>Page {currentPage} of {totalPages}</p>
-            <div className="space-x-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       )}
 
@@ -915,25 +898,7 @@ Sections:
           </table>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center text-sm text-gray-500 mt-3">
-            <p>Page {loginPage} of {totalLoginPages}</p>
-            <div className="space-x-2">
-              <button
-                disabled={loginPage === 1}
-                onClick={() => setLoginPage(loginPage - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={loginPage === totalLoginPages}
-                onClick={() => setLoginPage(loginPage + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={loginPage} totalPages={totalLoginPages} onPageChange={setLoginPage} />
 
         </div>
       )}

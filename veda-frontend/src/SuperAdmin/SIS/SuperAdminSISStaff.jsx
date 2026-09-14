@@ -11,6 +11,7 @@ import ProfileAvatar, { resolveProfileImage } from "../../components/ProfileAvat
 import { getLatestPassportPhotoUrlFromDocs } from "../../utils/studentProfileMedia";
 
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
+import Pagination from "../../components/common/Pagination";
 
 export default function SuperAdminSISStaff() {
   const [selectedStudents, setSelectedStudents] = useState([]);
@@ -807,6 +808,7 @@ Sections:
                     </td>
 
                     <td className="p-2 border">
+                      <div className="flex items-center justify-center gap-1">
                       <button
                         className="text-blue-500"
                         onClick={() => setSelectedStaff(s)}
@@ -814,11 +816,12 @@ Sections:
                         <FiSearch />
                       </button>
                       <button
-                        className="text-red-500 ml-2"
+                        className="text-red-500"
                         onClick={() => handleDelete(s._id)}
                       >
                         <FiTrash2 />
                       </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -834,26 +837,7 @@ Sections:
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>Page {currentPage} of {totalPages}</p>
-            <div className="flex justify-end gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       )}
 
@@ -979,6 +963,7 @@ Sections:
                     </td>
 
                     <td className="p-2 border">
+                      <div className="flex items-center justify-center gap-1">
                       <button
                         className="text-blue-500"
                         onClick={() => {
@@ -989,11 +974,12 @@ Sections:
                         <FiEdit />
                       </button>
                       <button
-                        className="text-red-500 ml-2"
+                        className="text-red-500"
                         onClick={() => handleDelete(s._id)}
                       >
                         <FiTrash2 />
                       </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1009,26 +995,7 @@ Sections:
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="mt-3 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>Page {loginPage} of {totalLoginPages}</p>
-            <div className="flex justify-end gap-2">
-              <button
-                disabled={loginPage === 1}
-                onClick={() => setLoginPage(loginPage - 1)}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={loginPage === totalLoginPages}
-                onClick={() => setLoginPage(loginPage + 1)}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination currentPage={loginPage} totalPages={totalLoginPages} onPageChange={setLoginPage} />
 
         </div>
       )}

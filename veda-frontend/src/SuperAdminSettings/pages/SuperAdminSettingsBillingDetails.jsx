@@ -8,7 +8,7 @@ export default function SuperAdminSettingsBillingDetails() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Billing Details</h2>
-        <p className="text-slate-500 mt-1 text-sm">
+        <p className="text-slate-900 mt-1 text-sm">
           Manage your Billing details
         </p>
       </div>
