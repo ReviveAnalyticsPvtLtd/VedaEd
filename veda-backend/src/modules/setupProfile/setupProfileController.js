@@ -63,6 +63,12 @@ exports.updateSetupProfile = async (req, res) => {
     for (const key of EDITABLE_FIELDS) {
       if (req.body[key] !== undefined) filtered[key] = req.body[key];
     }
+    if (req.body.capacity !== undefined && filtered.maxStudentsPerSection === undefined) {
+      const parsedCap = Number(req.body.capacity);
+      if (Number.isFinite(parsedCap) && parsedCap > 0) {
+        filtered.maxStudentsPerSection = parsedCap;
+      }
+    }
     if (Object.keys(filtered).length === 0) {
       return res.status(400).json({
         success: false,
@@ -90,7 +96,10 @@ exports.updateSetupProfile = async (req, res) => {
         gradeTo: doc.gradeTo,
         institutionType: doc.institutionType,
         maxStudentsPerSection: doc.maxStudentsPerSection,
+        capacity: doc.maxStudentsPerSection,
         sections: doc.sections,
+        sectionMode: doc.sectionMode,
+        expectedStudents: doc.expectedStudents,
       });
     } catch (syncErr) {
       console.error("Automatic class synchronization error:", syncErr);

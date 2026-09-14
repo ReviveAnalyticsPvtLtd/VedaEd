@@ -510,6 +510,7 @@ exports.saveSetupWizard = async (req, res) => {
           institutionType: doc.institutionType,
           expectedStudents: doc.expectedStudents,
           maxStudentsPerSection: doc.maxStudentsPerSection,
+          capacity: doc.maxStudentsPerSection,
           sections: doc.sections,
           sectionMode: doc.sectionMode,
         });
@@ -915,6 +916,11 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
         gradeFrom: trimmedGradeFrom,
         gradeTo: trimmedGradeTo,
         institutionType: trimmedInstitution,
+        maxStudentsPerSection: doc?.maxStudentsPerSection,
+        capacity: doc?.maxStudentsPerSection,
+        sections: doc?.sections,
+        sectionMode: doc?.sectionMode,
+        expectedStudents: doc?.expectedStudents,
       });
     } catch (syncErr) {
       console.error("Step 4 class sync error:", syncErr);
@@ -1092,7 +1098,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
     ).trim();
 
     const parsedExpected = Number(expectedStudents);
-    const parsedMaxPerSection = Number(maxStudentsPerSection);
+    const parsedMaxPerSection = Number(maxStudentsPerSection ?? req.body.capacity);
     const parsedSections = Number(sections);
 
     if (!isDraft) {
@@ -1217,6 +1223,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
         institutionType: doc?.institutionType,
         expectedStudents: parsedExpected,
         maxStudentsPerSection: parsedMaxPerSection,
+        capacity: parsedMaxPerSection,
         sections: Number.isFinite(parsedSections) ? parsedSections : undefined,
         sectionMode: trimmedSectionMode,
       });
@@ -2367,6 +2374,7 @@ exports.launchSchoolSetup = async (req, res) => {
         institutionType: doc?.institutionType || snapshot?.institutionType,
         expectedStudents: doc?.expectedStudents || snapshot?.expectedStudents,
         maxStudentsPerSection: doc?.maxStudentsPerSection || snapshot?.maxStudentsPerSection,
+        capacity: doc?.maxStudentsPerSection || snapshot?.maxStudentsPerSection,
         sections: doc?.sections || snapshot?.sections,
         sectionMode: doc?.sectionMode || snapshot?.sectionMode,
       });

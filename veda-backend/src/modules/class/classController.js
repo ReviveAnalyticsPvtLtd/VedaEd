@@ -1,8 +1,10 @@
 
 
- const Class = require("./classSchema");
+const Class = require("./classSchema");
 const Section = require("../section/sectionSchema");
 const Student = require('../student/studentModels');
+const Teacher = require("../teacher/teacherModel");
+const Staff = require("../staff/staffModels");
 const Timetable = require("../Timetable/timeTableSchema");
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const Assignment = require("../assignment/assignment");
@@ -113,7 +115,7 @@ exports.createClass = async (req, res) => {
 exports.getClasses = async (req, res) => {
   try {
     const classes = await Class.find({})
-      .populate("sections", "name");
+      .populate("sections", "name capacity");
 
     const assignedTeachers = await AssignTeacher.find()
       .populate("classTeacher", "personalInfo.name");
@@ -130,8 +132,12 @@ exports.getClasses = async (req, res) => {
             item.section.toString() === sec._id.toString()
         );
 
+        const secObj = typeof sec?.toObject === "function" ? sec.toObject() : sec;
+        const resolvedCapacity = secObj?.capacity || (cls.capacity ? Number(cls.capacity) : 40);
+
         return {
-          ...(typeof sec?.toObject === "function" ? sec.toObject() : sec),
+          ...secObj,
+          capacity: resolvedCapacity,
           classTeacher:
             teacherData?.classTeacher?.personalInfo?.name || "N/A",
         };
@@ -139,6 +145,7 @@ exports.getClasses = async (req, res) => {
 
       return {
         ...cls.toObject(),
+        capacity: cls.capacity || "40",
         sections: sectionsWithTeachers,
       };
     });
@@ -168,13 +175,14 @@ exports.getClassById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Invalid not found" });
     }
 
-    const classData = await Class.findById(id).select("name");
+    const classData = await Class.findById(id).select("name capacity");
     const assignTeacherDocs = await AssignTeacher.find({class:id})
         .populate("classTeacher", "personalInfo.name")
-        .populate("section", "name"); 
+        .populate("section", "name capacity"); 
 
     const details = assignTeacherDocs.map(item=>({
-      section: item.section?.name, 
+      section: item.section?.name,
+      capacity: item.section?.capacity || (classData?.capacity ? Number(classData.capacity) : 40),
       classTeacher:item.classTeacher?.personalInfo?.name
     }))
     const data = {
@@ -199,8 +207,8 @@ exports.getClassByIdAndSection = async (req, res) => {
     }
 
     // Get class info
-    const classname = await Class.findById(classId).select("name");
-    const sectionName = await Section.findById(sectionId).select("name");
+    const classname = await Class.findById(classId).select("name capacity");
+    const sectionName = await Section.findById(sectionId).select("name capacity");
     // Students of this class + section
     const students = await Student.find({
       "personalInfo.class": classId,

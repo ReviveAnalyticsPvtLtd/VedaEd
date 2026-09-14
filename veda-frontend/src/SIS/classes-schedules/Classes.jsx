@@ -186,7 +186,7 @@ const Classes = () => {
                       </p>
 
                       <p>
-                        Capacity: {cls.capacity || "N/A"}
+                        Capacity: {sec.capacity || cls.capacity || "N/A"}
                       </p>
 
                       <p>

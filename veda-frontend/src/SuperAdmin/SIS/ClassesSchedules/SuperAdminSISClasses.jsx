@@ -134,7 +134,7 @@ const SuperAdminSISClasses = () => {
                         Section {sec.name}
                       </p>
                       <p className="">
-                        Capacity: {cls.capacity || "N/A"}
+                        Capacity: {sec.capacity || cls.capacity || "N/A"}
                       </p>
                      <p>
   Class Teacher: {sec.classTeacher || "N/A"}

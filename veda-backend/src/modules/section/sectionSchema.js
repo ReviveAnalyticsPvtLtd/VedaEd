@@ -5,8 +5,11 @@ const sectionSchema = new Schema({
     name:{
         type: String,
         required:true
+    },
+    capacity:{
+        type: Number,
+        default: 40
     }
-
 }, {timestamps:true});
 
 const Section = mongoose.model('Section', sectionSchema);

@@ -70,7 +70,8 @@ const SuperAdminSISClassDetailPage = () => {
           <strong>Room:</strong> N/A
         </p>
         <p>
-          <strong>Capacity:</strong> N/A
+          <strong>Capacity:</strong>{" "}
+          {classInfo.sectionName?.capacity || classInfo.classname?.capacity || "N/A"}
         </p>
        <p>
   <strong>Class Teacher:</strong>{" "}

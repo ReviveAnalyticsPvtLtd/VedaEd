@@ -228,10 +228,15 @@ function resolveSectionNames({
 }
 
 /**
- * Fetch or create Section documents for the given section names.
+ * Fetch or create Section documents for the given section names and capacity.
+ * Updates capacity for existing sections if a new valid capacity is specified.
  */
-async function getOrCreateSections(sectionNames = ["A"]) {
+async function getOrCreateSections(sectionNames = ["A"], capacity = 40) {
   const sectionIds = [];
+  const parsedCap = Number.isFinite(Number(capacity)) && Number(capacity) > 0
+    ? Number(capacity)
+    : 40;
+
   for (const name of sectionNames) {
     const trimmed = String(name || "").trim();
     if (!trimmed) continue;
@@ -241,7 +246,12 @@ async function getOrCreateSections(sectionNames = ["A"]) {
     });
 
     if (!secDoc) {
-      secDoc = await Section.create({ name: trimmed });
+      secDoc = await Section.create({ name: trimmed, capacity: parsedCap });
+    } else {
+      if (secDoc.capacity !== parsedCap) {
+        secDoc.capacity = parsedCap;
+        await secDoc.save();
+      }
     }
     sectionIds.push(secDoc._id);
   }
@@ -323,8 +333,9 @@ async function normalizeExistingClassesInDb() {
  * Automate Class and Section creation/fetching based on academic configuration.
  * Idempotent: Never creates duplicates. Reuses existing classes and sections.
  * Normalizes existing class names in-place to the canonical Grade standard.
+ * Updates section and class capacity safely.
  *
- * @param {Object} academicConfig - { gradeFrom, gradeTo, institutionType, expectedStudents, maxStudentsPerSection, sectionMode }
+ * @param {Object} academicConfig - { gradeFrom, gradeTo, institutionType, expectedStudents, maxStudentsPerSection, capacity, sections, sectionMode }
  * @returns {Promise<Object>} Automation summary
  */
 async function syncClassesAndSections(academicConfig = {}) {
@@ -339,16 +350,18 @@ async function syncClassesAndSections(academicConfig = {}) {
       };
     }
 
+    const rawCap = academicConfig.capacity ?? academicConfig.maxStudentsPerSection;
+    const targetCapacity = Number.isFinite(Number(rawCap)) && Number(rawCap) > 0
+      ? Number(rawCap)
+      : 40;
+    const targetCapacityStr = String(targetCapacity);
+
     const sectionNames = resolveSectionNames(academicConfig);
-    const sectionIds = await getOrCreateSections(sectionNames);
+    const sectionIds = await getOrCreateSections(sectionNames, targetCapacity);
 
     const existingClasses = await Class.find({});
     const createdClasses = [];
     const reusedClasses = [];
-
-    const defaultCapacity = academicConfig.maxStudentsPerSection
-      ? String(academicConfig.maxStudentsPerSection)
-      : "60";
 
     for (const rawGradeName of gradeList) {
       const canonicalGradeName = normalizeClassName(rawGradeName);
@@ -362,6 +375,12 @@ async function syncClassesAndSections(academicConfig = {}) {
         // In-place normalize name if legacy (e.g. "Class 1 " -> "Grade 1")
         if (existing.name !== canonicalGradeName) {
           existing.name = canonicalGradeName;
+          changed = true;
+        }
+
+        // Update class capacity if different
+        if (existing.capacity !== targetCapacityStr) {
+          existing.capacity = targetCapacityStr;
           changed = true;
         }
 
@@ -387,17 +406,19 @@ async function syncClassesAndSections(academicConfig = {}) {
         reusedClasses.push({
           _id: existing._id,
           name: existing.name,
+          capacity: existing.capacity,
           sections: existing.sections,
         });
       } else {
         const newClass = await Class.create({
           name: canonicalGradeName,
           sections: sectionIds,
-          capacity: defaultCapacity,
+          capacity: targetCapacityStr,
         });
         createdClasses.push({
           _id: newClass._id,
           name: newClass.name,
+          capacity: newClass.capacity,
           sections: newClass.sections,
         });
         existingClasses.push(newClass);
@@ -408,10 +429,11 @@ async function syncClassesAndSections(academicConfig = {}) {
       success: true,
       gradeList,
       sectionNames,
+      capacity: targetCapacity,
       classesCreated: createdClasses,
       classesReused: reusedClasses,
       totalClasses: createdClasses.length + reusedClasses.length,
-      message: `Successfully synchronized ${createdClasses.length} new and ${reusedClasses.length} existing classes.`,
+      message: `Successfully synchronized ${createdClasses.length} new and ${reusedClasses.length} existing classes with ${sectionNames.length} sections (Capacity: ${targetCapacity}).`,
     };
   } catch (error) {
     console.error("syncClassesAndSections error:", error);
