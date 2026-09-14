@@ -363,6 +363,32 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
               ))}
             </Select>
           </div>
+          <div>
+            <Label>Capacity</Label>
+            <Input
+              type="number"
+              value={form.maxStudentsPerSection || ""}
+              onChange={(e) => set("maxStudentsPerSection", e.target.value)}
+              placeholder="40"
+              disabled={readOnly}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Max students per section across classes.
+            </p>
+          </div>
+          <div>
+            <Label>Sections</Label>
+            <Input
+              type="number"
+              value={form.sections || ""}
+              onChange={(e) => set("sections", e.target.value)}
+              placeholder="3"
+              disabled={readOnly}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Number of sections (A, B, C…) per class.
+            </p>
+          </div>
         </div>
       </section>
 

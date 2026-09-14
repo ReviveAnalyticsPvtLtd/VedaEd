@@ -6,7 +6,7 @@ const PROFILE_FIELDS =
   "logoFrameShape primaryThemeColor address country institutionType " +
   "curriculumCountry curriculumBoard gradeFrom gradeTo languagePreference " +
   "recommendationType recommendationConfidence recommendationRules " +
-  "enabledModules disabledModules";
+  "enabledModules disabledModules maxStudentsPerSection sections";
 
 const EDITABLE_FIELDS = [
   "organizationType",
@@ -26,6 +26,8 @@ const EDITABLE_FIELDS = [
   "languagePreference",
   "enabledModules",
   "disabledModules",
+  "maxStudentsPerSection",
+  "sections",
 ];
 
 /** GET /api/setup-profile — fetch the logged-in superadmin's own setup data */
@@ -87,6 +89,8 @@ exports.updateSetupProfile = async (req, res) => {
         gradeFrom: doc.gradeFrom,
         gradeTo: doc.gradeTo,
         institutionType: doc.institutionType,
+        maxStudentsPerSection: doc.maxStudentsPerSection,
+        sections: doc.sections,
       });
     } catch (syncErr) {
       console.error("Automatic class synchronization error:", syncErr);

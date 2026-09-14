@@ -218,6 +218,7 @@ const setupWizardSchema = new mongoose.Schema(
     termStructure: { type: String, default: "2 Terms" },
     expectedStudents: { type: Number, default: null },
     maxStudentsPerSection: { type: Number, default: 40 },
+    sections: { type: Number, min: 1, max: 26, default: 3 },
     sectionMode: {
       type: String,
       enum: ["auto", "manual"],

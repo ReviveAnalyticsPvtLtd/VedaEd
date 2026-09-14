@@ -510,6 +510,7 @@ exports.saveSetupWizard = async (req, res) => {
           institutionType: doc.institutionType,
           expectedStudents: doc.expectedStudents,
           maxStudentsPerSection: doc.maxStudentsPerSection,
+          sections: doc.sections,
           sectionMode: doc.sectionMode,
         });
       }
@@ -1065,6 +1066,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
       gradeTo,
       expectedStudents,
       maxStudentsPerSection,
+      sections,
       sectionMode,
       streams,
       subjectFramework,
@@ -1091,6 +1093,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
 
     const parsedExpected = Number(expectedStudents);
     const parsedMaxPerSection = Number(maxStudentsPerSection);
+    const parsedSections = Number(sections);
 
     if (!isDraft) {
       if (!trimmedYear) {
@@ -1125,6 +1128,13 @@ exports.saveStep6AcademicStructure = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "maxStudentsPerSection must be a positive number",
+        });
+      }
+
+      if (!Number.isFinite(parsedSections) || parsedSections < 1 || parsedSections > 26) {
+        return res.status(400).json({
+          success: false,
+          message: "sections must be between 1 and 26",
         });
       }
     }
@@ -1188,6 +1198,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
       maxStudentsPerSection: Number.isFinite(parsedMaxPerSection)
         ? parsedMaxPerSection
         : 40,
+      sections: Number.isFinite(parsedSections) ? parsedSections : 3,
       sectionMode: trimmedSectionMode || "auto",
       streams: sanitizedStreams,
       subjectFramework: trimmedSubjectFramework || "recommended_template",
@@ -1206,6 +1217,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
         institutionType: doc?.institutionType,
         expectedStudents: parsedExpected,
         maxStudentsPerSection: parsedMaxPerSection,
+        sections: Number.isFinite(parsedSections) ? parsedSections : undefined,
         sectionMode: trimmedSectionMode,
       });
     } catch (syncErr) {
@@ -2355,6 +2367,7 @@ exports.launchSchoolSetup = async (req, res) => {
         institutionType: doc?.institutionType || snapshot?.institutionType,
         expectedStudents: doc?.expectedStudents || snapshot?.expectedStudents,
         maxStudentsPerSection: doc?.maxStudentsPerSection || snapshot?.maxStudentsPerSection,
+        sections: doc?.sections || snapshot?.sections,
         sectionMode: doc?.sectionMode || snapshot?.sectionMode,
       });
     } catch (syncErr) {

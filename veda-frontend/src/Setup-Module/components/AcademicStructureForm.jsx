@@ -155,8 +155,18 @@ const AcademicStructureForm = ({
             onChange={(e) =>
               onFieldChange("maxStudentsPerSection", e.target.value)
             }
-            hint={`Estimated total sections: ${estimatedSections} across selected grades.`}
+            hint={`Estimated total sections: ${estimatedSections} across selected grades (auto).`}
             error={errors.maxStudentsPerSection}
+            required
+          />
+          <SetupFormField
+            label="Sections per Class"
+            name="sections"
+            type="number"
+            value={form.sections}
+            onChange={(e) => onFieldChange("sections", e.target.value)}
+            hint="Number of sections (A, B, C…) per class. Overrides the auto estimate."
+            error={errors.sections}
             required
           />
         </div>

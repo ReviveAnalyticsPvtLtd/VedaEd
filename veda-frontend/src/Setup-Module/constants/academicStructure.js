@@ -80,6 +80,7 @@ export const DEFAULT_ACADEMIC_FORM = {
   gradeTo: "Grade 12",
   expectedStudents: 1200,
   maxStudentsPerSection: 40,
+  sections: 3,
   sectionMode: "auto",
   subjectFramework: "recommended_template",
   streams: ["Science", "Commerce", "Arts / Humanities"],
