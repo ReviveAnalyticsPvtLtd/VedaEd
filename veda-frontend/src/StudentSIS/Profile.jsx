@@ -83,7 +83,7 @@ export default function StudentProfile() {
         </button>
       </div>
     );
-  }
+  } 
 
   const studentName = student?.name || "Student";
   const studentImage = resolveProfileImage(student, student?.personalInfo?.profileImage);

@@ -3,6 +3,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { isPast, parseISO } from "date-fns";
 import config from "../config";
+import { useNavigate } from "react-router-dom";
 import { assignmentAPI } from "../services/assignmentAPI";
 import {
   PieChart,
@@ -19,6 +20,7 @@ import {
 export default function StudentDashboard() {
   const [timetable, setTimetable] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     assignments: 0,
@@ -241,33 +243,80 @@ export default function StudentDashboard() {
           </div>
 
           {/* Quick Tasks */}
-          <div className="bg-white p-5 rounded-xl border shadow-sm">
-             <h3 className="font-semibold mb-4">Action Items</h3>
-             <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-100">
-                   <input type="checkbox" className="rounded text-red-600" />
-                   <div className="flex-1">
-                      <div className="text-sm font-medium text-red-800">Submit Physics Lab Manual</div>
-                      <div className="text-xs text-red-600 font-medium">Due Today, 04:00 PM</div>
-                   </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100">
-                   <input type="checkbox" className="rounded text-orange-600" />
-                   <div className="flex-1">
-                      <div className="text-sm font-medium text-orange-800">Complete Math Quiz 2</div>
-                      <div className="text-xs text-orange-600 font-medium">Due Tomorrow</div>
-                   </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 opacity-60">
-                   <input type="checkbox" checked className="rounded text-blue-600" readOnly />
-                   <div className="flex-1">
-                      <div className="text-sm font-medium text-blue-800 line-through">Pay Registration Fee</div>
-                      <div className="text-xs text-blue-600 font-medium italic">Completed</div>
-                   </div>
-                </div>
-             </div>
+         <div className="bg-white p-5 rounded-xl border shadow-sm">
+  <h3 className="font-semibold mb-4">Quick Actions</h3>
+
+  <div className="space-y-3">
+
+    {/* Assignments */}
+    <button
+      onClick={() => navigate("/student/assignments")}
+      className="w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-100 text-left hover:bg-red-100 transition cursor-pointer"
+    >
+    
+
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-800">
+          Pending Assignments
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          View and complete your assignments
+        </p>
+      </div>
+
+      <span className="text-xs font-medium text-red-600">
+        View
+      </span>
+    </button>
+
+
+    {/* Exams */}
+    <button
+      onClick={() => navigate("/student/exams")}
+      className="w-full flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100 text-left hover:bg-orange-100 transition cursor-pointer"
+    >
+      
+
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-800">
+          Upcoming Exams
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Check your upcoming examinations
+        </p>
+      </div>
+
+      <span className="text-xs font-medium text-orange-600">
+        View
+      </span>
+    </button>
+
+
+    {/* Attendance */}
+    <button
+      onClick={() => navigate("/student/attendance")}
+      className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 text-left hover:bg-blue-100 transition cursor-pointer"
+    >
+      
+
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-800">
+          Attendance
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Check your attendance record
+        </p>
+      </div>
+
+      <span className="text-xs font-medium text-blue-600">
+        View
+      </span>
+    </button>
+
+  </div>
+</div>
           </div>
-       </div>
+       
     </div>
   );
 }

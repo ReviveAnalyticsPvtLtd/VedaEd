@@ -56,7 +56,7 @@ export default function ViewSetupProfile() {
   }
 
   return (
-    <div className="min-h-full bg-gray-100 p-4 md:p-6">
+    <div className="min-h-full bg-gray-100 p-0">
       <PageHeader
         breadcrumbs={[
           { label: "Dashboard", to: "/superadmin-front/dashboard" },
@@ -75,7 +75,7 @@ export default function ViewSetupProfile() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2">
           <SetupProfileForm form={profile} onChange={() => {}} readOnly />
         </div>

@@ -18,9 +18,9 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* ===== Organization Details ===== */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
         <h3 className="text-base font-semibold text-indigo-900 mb-4">
           Organization Details
         </h3>
@@ -84,7 +84,7 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
       </section>
 
       {/* ===== Branding ===== */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
         <h3 className="text-base font-semibold text-indigo-900 mb-4">Branding</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
