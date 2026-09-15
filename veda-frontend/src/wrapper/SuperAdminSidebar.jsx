@@ -83,9 +83,9 @@ const MODULES = [
     subs: [
 
       { label: "Staff Directory", path: "/superadmin/hr/staff-directory" },
-      { label: "Attendance", path: "/superadmin/hr/attendance" },
-      { label: "Payroll", path: "/superadmin/hr/payroll" },
-      { label: "Leave Approval", path: "/superadmin/hr/leave-approval" },
+     // { label: "Attendance", path: "/superadmin/hr/attendance" },
+     // { label: "Payroll", path: "/superadmin/hr/payroll" },
+     // { label: "Leave Approval", path: "/superadmin/hr/leave-approval" },
     ],
   },
   {

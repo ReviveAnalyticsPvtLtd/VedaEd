@@ -64,76 +64,7 @@ const openNotice = (notice) => {
 };
   // Dummy data for received notices (fallback)
   const dummyNotices = [
-    {
-      id: 1,
-      title: "Holiday Notice - Diwali Break",
-      message:
-        "School will remain closed from 12th to 16th November for Diwali celebrations. Classes will resume on 17th November.",
-      sender: "Principal Office",
-      sentDate: "2024-01-15",
-      publishDate: "2024-01-15",
-      roles: ["Student", "Parent"],
-      channels: ["Email", "SMS"],
-      attachment: "holiday_schedule.pdf",
-      isRead: false,
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Parent-Teacher Meeting Schedule",
-      message:
-        "Parent-Teacher meetings are scheduled for next week. Please check the attached schedule for your class timing.",
-      sender: "Class Teacher - Grade 8A",
-      sentDate: "2024-01-14",
-      publishDate: "2024-01-14",
-      roles: ["Student", "Parent"],
-      channels: ["Email"],
-      attachment: "ptm_schedule.pdf",
-      isRead: true,
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Library Book Return Reminder",
-      message:
-        "Please return your overdue library books by the end of this week to avoid late fees.",
-      sender: "Library Department",
-      sentDate: "2024-01-13",
-      publishDate: "2024-01-13",
-      roles: ["Student"],
-      channels: ["SMS"],
-      attachment: null,
-      isRead: false,
-      priority: "low",
-    },
-    {
-      id: 4,
-      title: "Sports Day Preparation",
-      message:
-        "Sports day is coming up next month. Students interested in participating should register with their class teachers.",
-      sender: "Sports Department",
-      sentDate: "2024-01-12",
-      publishDate: "2024-01-12",
-      roles: ["Student", "Parent"],
-      channels: ["Email", "SMS"],
-      attachment: "sports_day_info.pdf",
-      isRead: true,
-      priority: "medium",
-    },
-    {
-      id: 5,
-      title: "Exam Schedule - Mid Term",
-      message:
-        "Mid-term examination schedule has been published. Please check the attached timetable and prepare accordingly.",
-      sender: "Examination Department",
-      sentDate: "2024-01-11",
-      publishDate: "2024-01-11",
-      roles: ["Student", "Parent"],
-      channels: ["Email"],
-      attachment: "exam_schedule.pdf",
-      isRead: false,
-      priority: "high",
-    },
+  
   ];
 
   // Use real notices from API, fallback to dummy data if needed

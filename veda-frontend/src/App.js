@@ -834,7 +834,7 @@ function App() {
       {/* ===== HR ===== */}
       <Route path="/superadmin/hr" element={<SuperAdminHRDashboardLayout />}>
         <Route index element={<SuperAdminHRDashboard />} />
-        <Route path="staff" element={<SuperAdminHRStaffDirectory />} />
+        <Route path="staff-directory" element={<SuperAdminHRStaffDirectory />} />
         <Route path="staff/:id" element={<SuperAdminHRStaffProfile />} />
         <Route path="attendance" element={<SuperAdminHRAttendance />} />
         <Route path="payroll" element={<SuperAdminHRPayroll />} />

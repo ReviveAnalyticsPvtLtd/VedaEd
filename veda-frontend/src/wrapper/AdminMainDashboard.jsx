@@ -71,7 +71,7 @@ export default function AdminMasterDashboard() {
   ];
 
   return (
-    <div className="p-4 space-y-6 bg-gray-100 min-h-screen">
+    <div className="p-0 space-y-2 bg-gray-100 min-h-screen">
 
       {/* ===== TOP MAJOR MODULES ===== */}
       <div className="grid grid-cols-6 gap-3">
