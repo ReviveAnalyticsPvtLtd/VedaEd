@@ -264,14 +264,15 @@ function formatParentProfileApiData(parentDoc) {
 exports.createParents = async (req, res) => {
   const { name, email, phone, parentId, linkedStudentId = [], status, password, role } = req.body;
 
-  let finalParentId = parentId;
-  if (!finalParentId) {
-    try {
-      finalParentId = await generateNextParentId();
-    } catch (err) {
-      console.error("Error generating parent ID:", err);
-      return res.status(500).json({ success: false, message: "Error generating Parent ID" });
-    }
+  // Always assign a fresh, unique ID server-side. The ID pre-filled in the
+  // form is display-only (peeked); ignoring the client value guarantees
+  // no two parents can ever be created with the same ID.
+  let finalParentId;
+  try {
+    finalParentId = await generateNextParentId();
+  } catch (err) {
+    console.error("Error generating parent ID:", err);
+    return res.status(500).json({ success: false, message: "Error generating Parent ID" });
   }
 
   try {
@@ -1547,6 +1548,8 @@ exports.getParentDashboardStats = async (req, res) => {
 
 exports.getNextParentId = async (req, res) => {
   try {
+    // Just preview the next upcoming ID without consuming it. The unique ID is
+    // actually assigned server-side inside createParents.
     const nextParentId = await peekNextParentId();
     return res.status(200).json({
       success: true,

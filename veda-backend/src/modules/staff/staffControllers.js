@@ -7,6 +7,9 @@ const LeavePolicy = require("./leavePolicyModel");
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const Assignment = require("../assignment/assignment");
 const Timetable = require("../Timetable/timeTableSchema");
+const Student = require("../student/studentModels");
+const Message = require("../communication/messageModel");
+const CalendarEvent = require("../calendar/calendarModel");
 const {
   getLeaveCycleRange,
   leaveFullyInsideCycle,
@@ -1238,6 +1241,35 @@ exports.getTeacherDashboardStats = async (req, res) => {
       classTeacher: String(a.classTeacher) === String(teacherId),
     }));
 
+    const classSectionPairs = assignedClasses
+      .filter((a) => a.class && a.section)
+      .map((a) => ({
+        class: a.class._id,
+        section: a.section._id,
+      }));
+
+    const [studentsCount, examsCount, messagesCount, eventsCount] =
+      await Promise.all([
+        Student.countDocuments(
+          classSectionPairs.length
+            ? {
+                $or: classSectionPairs.map((p) => ({
+                  "personalInfo.class": p.class,
+                  "personalInfo.section": p.section,
+                })),
+              }
+            : { _id: null }
+        ),
+        CalendarEvent.countDocuments({
+          type: { $in: ["Exam", "exam"] },
+          status: "Scheduled",
+        }),
+        Message.countDocuments({
+          $or: [{ sender: teacherId }, { receiver: teacherId }],
+        }),
+        CalendarEvent.countDocuments({ visibility: "Teacher" }),
+      ]);
+
     const assignmentStatus = {
       pending: assignments.filter((a) => a.status === "Active").length,
       submitted: assignments.filter((a) => a.status === "Late Submission").length,
@@ -1299,10 +1331,14 @@ exports.getTeacherDashboardStats = async (req, res) => {
       stats: {
         classes: classList.length,
         classList,
+        students: studentsCount,
         assignments: assignments.length,
         assignmentStatus,
         attendance,
         weeklyAttendance,
+        exams: examsCount,
+        messages: messagesCount,
+        events: eventsCount,
         lecturesToday: todaySchedule.length,
         todaySchedule,
       },

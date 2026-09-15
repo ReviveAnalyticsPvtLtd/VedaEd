@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiMessageCircle,
   FiCalendar,
@@ -7,146 +7,99 @@ import {
   FiInbox,
   FiReply,
 } from "react-icons/fi";
+import CommunicationAPI from "../communicationAPI";
 
 export default function MessagesOverview() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterDirection, setFilterDirection] = useState("all");
 
-  // Dummy data for teacher messages (sent and received)
-  const dummyMessages = [
-    {
-      id: 1,
-      title: "Student Progress Update Request",
-      message:
-        "Dear Mrs. Sunita Verma, could you please provide an update on my child's progress in mathematics? I would like to schedule a meeting to discuss improvement strategies.",
-      sender: "Mrs. Priya Sharma",
-      senderRole: "Parent",
-      recipient: "Mrs. Sunita Verma",
-      recipientRole: "Teacher",
-      sentDate: "2024-01-15",
-      messageType: "Individual",
-      channel: "Email",
-      isRead: false,
-      priority: "high",
-      class: "Grade 8A",
-      direction: "received",
-      student: "Rahul Sharma",
-    },
-    {
-      id: 2,
-      title: "Assignment Submission Reminder",
-      message:
-        "Dear students, please submit your mathematics assignment by tomorrow. Late submissions will not be accepted. Contact me if you have any questions.",
-      sender: "Mrs. Sunita Verma",
-      senderRole: "Teacher",
-      recipient: "Grade 8A Students",
-      recipientRole: "Student",
-      sentDate: "2024-01-14",
-      messageType: "Class",
-      channel: "SMS",
-      isRead: true,
-      priority: "medium",
-      class: "Grade 8A",
-      direction: "sent",
-    },
-    {
-      id: 3,
-      title: "Class Test Schedule Confirmation",
-      message:
-        "Hi Anil, could you confirm the science test schedule for Grade 8A? I need to coordinate with the lab assistant for practical sessions.",
-      sender: "Mrs. Sunita Verma",
-      senderRole: "Teacher",
-      recipient: "Mr. Anil Kumar",
-      recipientRole: "Teacher",
-      sentDate: "2024-01-13",
-      messageType: "Individual",
-      channel: "Email",
-      isRead: true,
-      priority: "medium",
-      class: "Grade 8A",
-      direction: "sent",
-    },
-    {
-      id: 4,
-      title: "Parent Meeting Confirmation",
-      message:
-        "Thank you for the update. I would like to schedule the meeting for this Friday at 3:00 PM. Please let me know if this time works for you.",
-      sender: "Mrs. Sunita Verma",
-      senderRole: "Teacher",
-      recipient: "Mrs. Priya Sharma",
-      recipientRole: "Parent",
-      sentDate: "2024-01-12",
-      messageType: "Individual",
-      channel: "Email",
-      isRead: true,
-      priority: "high",
-      class: "Grade 8A",
-      direction: "sent",
-      student: "Rahul Sharma",
-    },
-    {
-      id: 5,
-      title: "Library Book Return Notice",
-      message:
-        "Dear students, please return your overdue library books by the end of this week. Late returns will result in fine charges.",
-      sender: "Mrs. Sunita Verma",
-      senderRole: "Teacher",
-      recipient: "Grade 8A Students",
-      recipientRole: "Student",
-      sentDate: "2024-01-11",
-      messageType: "Class",
-      channel: "SMS",
-      isRead: true,
-      priority: "low",
-      class: "Grade 8A",
-      direction: "sent",
-    },
-    {
-      id: 6,
-      title: "Staff Meeting Reminder",
-      message:
-        "Reminder: Staff meeting is scheduled for tomorrow at 2:00 PM in the conference room. Please bring your monthly reports.",
-      sender: "Principal Office",
-      senderRole: "Admin",
-      recipient: "All Teachers",
-      recipientRole: "Teacher",
-      sentDate: "2024-01-10",
-      messageType: "Group",
-      channel: "Email",
-      isRead: false,
-      priority: "high",
-      class: "All Classes",
-      direction: "received",
-    },
-    {
-      id: 7,
-      title: "Student Absence Inquiry",
-      message:
-        "Hi Mrs. Verma, my daughter has been absent for the past two days due to illness. Could you please share the notes and assignments she missed?",
-      sender: "Mr. Rajesh Gupta",
-      senderRole: "Parent",
-      recipient: "Mrs. Sunita Verma",
-      recipientRole: "Teacher",
-      sentDate: "2024-01-09",
-      messageType: "Individual",
-      channel: "SMS",
-      isRead: false,
-      priority: "medium",
-      class: "Grade 8A",
-      direction: "received",
-      student: "Priya Gupta",
-    },
-  ];
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        setCurrentUser({
+          id: u.refId || u._id,
+          model: (u.role || "Teacher").toLowerCase() === "teacher" ? "Staff" : (u.role || "Teacher"),
+        });
+      } catch (e) {
+        console.error("Failed to parse user", e);
+      }
+    }
+  }, []);
 
-  const filteredMessages = dummyMessages.filter((message) => {
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+
+    const fetchMessages = async () => {
+      setLoading(true);
+      try {
+        const [inboxRes, sentRes] = await Promise.all([
+          CommunicationAPI.getMessages(currentUser.id, currentUser.model),
+          CommunicationAPI.getSentMessages(currentUser.id, currentUser.model),
+        ]);
+
+        if (!active) return;
+
+        const inbox = (inboxRes?.data || []).map((m) => ({
+          id: m._id,
+          title: m.subject,
+          message: m.content,
+          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel,
+          senderRole: m.senderModel,
+          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiverModel,
+          recipientRole: m.receiverModel,
+          sentDate: m.createdAt,
+          messageType: "Individual",
+          channel: "App",
+          isRead: m.status === "read" || m.status === "archived",
+          priority: m.priority,
+          class: "",
+          direction: "received",
+          student: "",
+        }));
+
+        const sent = (sentRes?.data || []).map((m) => ({
+          id: m._id,
+          title: m.subject,
+          message: m.content,
+          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel,
+          senderRole: m.senderModel,
+          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiverModel,
+          recipientRole: m.receiverModel,
+          sentDate: m.createdAt,
+          messageType: "Individual",
+          channel: "App",
+          isRead: m.status === "read" || m.status === "archived",
+          priority: m.priority,
+          class: "",
+          direction: "sent",
+          student: "",
+        }));
+
+        setMessages([...sent, ...inbox]);
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchMessages();
+    return () => { active = false; };
+  }, [currentUser]);
+
+  const filteredMessages = messages.filter((message) => {
     const matchesSearch =
       message.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       message.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (message.student &&
-        message.student.toLowerCase().includes(searchQuery.toLowerCase()));
+      message.sender.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesType =
       filterType === "all" || message.messageType === filterType;
@@ -158,11 +111,11 @@ export default function MessagesOverview() {
     return matchesSearch && matchesType && matchesChannel && matchesDirection;
   });
 
-  const unreadCount = dummyMessages.filter((message) => !message.isRead).length;
-  const sentCount = dummyMessages.filter(
+  const unreadCount = messages.filter((message) => !message.isRead).length;
+  const sentCount = messages.filter(
     (message) => message.direction === "sent"
   ).length;
-  const receivedCount = dummyMessages.filter(
+  const receivedCount = messages.filter(
     (message) => message.direction === "received"
   ).length;
 
@@ -265,6 +218,7 @@ export default function MessagesOverview() {
             <option value="all">All Channels</option>
             <option value="SMS">SMS</option>
             <option value="Email">Email</option>
+            <option value="App">App</option>
           </select>
           <select
             value={filterDirection}
@@ -280,16 +234,20 @@ export default function MessagesOverview() {
 
       {/* Messages List */}
       <div className="space-y-4">
-        {filteredMessages.length > 0 ? (
+        {loading ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+            <p className="text-gray-500">Loading messages...</p>
+          </div>
+        ) : filteredMessages.length > 0 ? (
           filteredMessages.map((message) => (
             <div
-  key={message.id}
-  className={`p-4 rounded-lg border transition-colors duration-200 ${
-    message.isRead
-      ? "bg-gray-100 border-gray-200"
-      : "bg-white border-gray-300"
-  }`}
->
+              key={message.id}
+              className={`p-4 rounded-lg border transition-colors duration-200 ${
+                message.isRead
+                  ? "bg-gray-100 border-gray-200"
+                  : "bg-white border-gray-300"
+              }`}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -349,15 +307,6 @@ export default function MessagesOverview() {
                       <FiSend />
                       <span>{message.channel}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <FiMessageCircle />
-                      <span>Class: {message.class}</span>
-                    </div>
-                    {message.student && (
-                      <div className="flex items-center gap-1">
-                        <span>Student: {message.student}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -368,11 +317,6 @@ export default function MessagesOverview() {
                   {message.direction === "received" && (
                     <button className="text-green-600 hover:text-green-800 ">
                       Reply
-                    </button>
-                  )}
-                  {message.direction === "sent" && (
-                    <button className="text-gray-600 hover:text-gray-800 ">
-                      Forward
                     </button>
                   )}
                 </div>

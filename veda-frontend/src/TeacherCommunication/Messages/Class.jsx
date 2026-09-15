@@ -16,26 +16,9 @@ export default function Class({ templates = [] }) {
     if (template) setMessage(template.content);
   };
 
-  // Mock class data
-  const classes = [
-    { id: "1", name: "Class 1" },
-    { id: "2", name: "Class 2" },
-    { id: "3", name: "Class 3" },
-    { id: "4", name: "Class 4" },
-    { id: "5", name: "Class 5" },
-    { id: "6", name: "Class 6" },
-    { id: "7", name: "Class 7" },
-    { id: "8", name: "Class 8" },
-    { id: "9", name: "Class 9" },
-    { id: "10", name: "Class 10" },
-  ];
+  const classes = [];
 
-  const sections = [
-    { id: "A", name: "Section A" },
-    { id: "B", name: "Section B" },
-    { id: "C", name: "Section C" },
-    { id: "D", name: "Section D" },
-  ];
+  const sections = [];
 
   return (
     <div>

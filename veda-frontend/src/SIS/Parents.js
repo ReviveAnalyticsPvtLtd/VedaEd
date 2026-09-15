@@ -185,7 +185,7 @@ export default function Parents() {
     e.preventDefault();
     const form = e.target;
     const newParent = {
-      parentId: form.parentId.value,
+      parentId: nextParentId,
       name: form.name.value,
       email: form.email.value,
       phone: form.phone.value,
@@ -204,6 +204,7 @@ export default function Parents() {
       console.log("Backend response:", JSON.stringify(res.data, null, 2));
       setParents([res.data.parent, ...parents]); // changed-----------------------
       setShowForm(false);
+      setNextParentId("");
       setSuccessMsg("Parent added successfully ");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
@@ -871,8 +872,10 @@ Sections:
               <input
                 name="parentId"
                 placeholder="Parent ID"
-                defaultValue={nextParentId}
-                className="border px-3 py-2 w-full rounded bg-gray-50"
+                value={nextParentId}
+                onChange={(e) => setNextParentId(e.target.value)}
+                readOnly
+                className="border px-3 py-2 w-full rounded bg-gray-100 text-gray-600 cursor-not-allowed"
               />
               <input
                 name="name"
@@ -921,7 +924,10 @@ Sections:
               <div className="flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setNextParentId("");
+                  }}
                   className="px-4 py-2 border rounded"
                 >
                   Cancel

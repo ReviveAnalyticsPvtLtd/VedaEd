@@ -5,11 +5,10 @@ import Individual from "./Individual";
 import Class from "./Class";
 import Templates from "./Templates";
 import HelpInfo from "../../components/HelpInfo";
-import { initialTemplates } from "./templateData";
 
 export default function Messages() {
   const [activeTab, setActiveTab] = useState("group"); // default tab
-  const [templates, setTemplates] = useState(initialTemplates);
+  const [templates, setTemplates] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 

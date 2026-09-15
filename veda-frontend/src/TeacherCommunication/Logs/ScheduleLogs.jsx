@@ -1,46 +1,53 @@
 import React, { useState, useEffect } from "react";
 import { FiCheck, FiTrash2, FiMoreVertical } from "react-icons/fi";
+import CommunicationAPI from "../communicationAPI";
 
 export default function ScheduleLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const dummyLogs = [
-    {
-      id: 1,
-      title: "Math Homework",
-      message: "Complete exercise 5",
-      sendedTo: "Students",
-      className: "6A",
-      studentId: "ST1234",
-      channels: ["In-app", "Email"],
-      sentAt: new Date(),
-      publishOn: new Date(new Date().getTime() + 3600 * 1000),
-      roles: ["Teacher"],
-    },
-    {
-      id: 2,
-      title: "PTM Notice",
-      message: "Parent Teacher Meeting scheduled",
-      sendedTo: "Parents",
-      className: "6A",
-      studentId: "-",
-      channels: ["Email"],
-      sentAt: new Date(),
-      publishOn: new Date(new Date().getTime() + 7200 * 1000),
-      roles: ["Teacher"],
-    },
-  ];
-
   useEffect(() => {
-    setTimeout(() => {
-      setLogs(dummyLogs);
-      setLoading(false);
-    }, 500);
+    let active = true;
+
+    const loadDraftNotices = async () => {
+      try {
+        const res = await CommunicationAPI.getNotices({ status: "draft", limit: 100 });
+        if (!active) return;
+        const data = res?.data || [];
+        const mapped = data.map((n) => ({
+          id: n._id,
+          title: n.title,
+          message: n.content,
+          sendedTo: n.targetAudience || "All",
+          className: n.specificTargets?.length ? "Specific" : "All Classes",
+          studentId: "-",
+          channels: n.targetChannels || ["In-app"],
+          sentAt: n.createdAt,
+          publishOn: n.publishDate,
+          roles: n.tags || [],
+        }));
+        setLogs(mapped);
+      } catch (error) {
+        console.error("Failed to load draft notices:", error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadDraftNotices();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const deleteLog = (id) => {
-    setLogs((prev) => prev.filter((log) => log.id !== id));
+  const deleteLog = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this draft notice?")) return;
+    try {
+      await CommunicationAPI.deleteNotice(id);
+      setLogs((prev) => prev.filter((log) => log.id !== id));
+    } catch (error) {
+      console.error("Failed to delete draft notice:", error);
+    }
   };
 
   return (
@@ -51,7 +58,7 @@ export default function ScheduleLogs() {
         </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
-          No scheduled logs available.
+          No draft notices available.
         </div>
       ) : (
         <table className="w-full border text-sm">

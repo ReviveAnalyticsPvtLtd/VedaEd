@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import api from "../../services/apiClient";
 
 import {
   FiPlus,
@@ -91,20 +92,45 @@ export default function SuperAdminSISStudents() {
   const navigate = useNavigate();
 
   /* =========================
-     DATA LOADERS (API REMOVED)
+     DATA LOADERS
   ========================= */
   const loadStudents = useCallback(async () => {
-    // 🔴 API REMOVED FOR SUPERADMIN
-    // Placeholder static data (can be empty)
-    const dummy = [];
-    setStudents(dummy.map((s, i) => normalizeStudentRow(s, i)));
+    try {
+      const res = await api.get(`/students`);
+      if (res.data.success && Array.isArray(res.data.students)) {
+        setStudents(res.data.students.map((s, idx) => normalizeStudentRow(s, idx)));
+      }
+    } catch (err) {
+      console.error("Error fetching students:", err.response?.data || err.message);
+    }
   }, []);
 
   useEffect(() => {
-    // 🔴 API REMOVED
-    setClasses([]);
-    setSections([]);
+    const fetchClasses = async () => {
+      try {
+        const res = await api.get(`/classes`);
+        if (res.data.success && Array.isArray(res.data.data)) {
+          setClasses(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching classes:", err.response?.data || err.message);
+      }
+    };
+
+    const fetchSections = async () => {
+      try {
+        const res = await api.get(`/sections`);
+        if (res.data.success && Array.isArray(res.data.data)) {
+          setSections(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching sections:", err.response?.data || err.message);
+      }
+    };
+
     loadStudents();
+    fetchClasses();
+    fetchSections();
   }, [loadStudents]);
 
   useEffect(() => {

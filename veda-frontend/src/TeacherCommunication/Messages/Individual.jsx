@@ -25,25 +25,6 @@ export default function Individual({ templates = [] }) {
   const [filteredAdded, setFilteredAdded] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
 
-  // --- Mock Data (excluding Admin and Super Admin) ---
-  const mockData = {
-    Parent: [
-      { id: "P101", name: "Raj Sharma", extra: "Parent of Class 5A" },
-      { id: "P102", name: "Meena Gupta", extra: "Parent of Class 7B" },
-      { id: "P103", name: "Amit Lal", extra: "Parent of Class 9C" },
-    ],
-    Teacher: [
-      { id: "T201", name: "Sunita Verma", extra: "Math" },
-      { id: "T202", name: "Anil Kumar", extra: "Science" },
-      { id: "T203", name: "Ravi Das", extra: "English" },
-    ],
-    Student: [
-      { id: "S301", name: "Amit Sharma", extra: "Class 8A" },
-      { id: "S302", name: "Priya Mehta", extra: "Class 7B" },
-      { id: "S303", name: "Rohit Patel", extra: "Class 6C" },
-    ],
-  };
-
   // --- Handle search & suggestion filtering ---
   const handleSearch = (value) => {
     setSearch(value);
@@ -51,22 +32,13 @@ export default function Individual({ templates = [] }) {
       setSuggestions([]);
       return;
     }
-    const filtered = mockData[role].filter((person) =>
-      person.name.toLowerCase().includes(value.toLowerCase())
-    );
-    setSuggestions(filtered);
+    setSuggestions([]);
   };
 
   // --- Add selected person ---
   const handleAdd = () => {
     if (!role || !search.trim()) return;
 
-    const found = mockData[role].find(
-      (p) => p.name.toLowerCase() === search.toLowerCase()
-    );
-    if (found && !addedList.some((a) => a.id === found.id)) {
-      setAddedList([...addedList, { ...found, role }]);
-    }
     setSearch("");
     setSuggestions([]);
   };
@@ -179,19 +151,9 @@ export default function Individual({ templates = [] }) {
             Character Count: {message.length}
           </div>
         </div>
-
-        {/* Submit Button */}
-        <div className="pt-2">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
-          >
-            Send {selectedType}
-          </button>
-        </div>
       </form>
 
-      {/* ✅ MESSAGE TO SECTION */}
+      {/* MESSAGE TO SECTION */}
       <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto mt-3">
         <label className="block  font-medium text-gray-700 mb-2">
           Message To <span className="text-red-500">*</span>
@@ -212,7 +174,6 @@ export default function Individual({ templates = [] }) {
             <option value="Parent">Parent</option>
             <option value="Teacher">Teacher</option>
             <option value="Student">Student</option>
-            {/* Admin options are excluded for teachers */}
           </select>
 
           <input

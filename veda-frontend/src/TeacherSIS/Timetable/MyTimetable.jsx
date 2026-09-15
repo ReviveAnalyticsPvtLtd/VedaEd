@@ -1,32 +1,59 @@
-
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import { FiBookOpen, FiBell, FiCalendar, FiClock } from "react-icons/fi";
+import { FiBookOpen, FiClock, FiUser } from "react-icons/fi";
+import api from "../../services/apiClient";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const TIMES = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
-
-// Dummy timetable data
-const timetableData = {
-  Monday: [{ time: "9:00 AM", subject: "Math", room: "101" }],
-  Tuesday: [{ time: "10:00 AM", subject: "Science", room: "Lab 1" }],
-  Wednesday: [{ time: "11:00 AM", subject: "English", room: "102" }],
-  Thursday: [{ time: "8:00 AM", subject: "History", room: "103" }],
-  Friday: [{ time: "12:00 PM", subject: "Computer", room: "Lab 2" }],
-  Saturday: [{ time: "9:00 AM", subject: "Sports", room: "Ground" }],
-  Sunday: [], // Holiday
-};
 
 export default function MyTimetable() {
-  const [view, setView] = useState("Week"); 
+  const [view, setView] = useState("Week");
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [timetableData, setTimetableData] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  
-  let selectedDay = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][
-    calendarDate.getDay()
-  ];
+  useEffect(() => {
+    const fetchTimetable = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const teacherId = user?.refId || user?._id;
+        if (!teacherId) return;
+
+        const res = await api.get("/timetables", { params: { teacherId } });
+        if (res.data?.success) {
+          const mapped = {};
+          DAYS.forEach((d) => (mapped[d] = []));
+          res.data.data.forEach((entry) => {
+            if (mapped[entry.day]) {
+              mapped[entry.day].push({
+                time: entry.timeFrom,
+                displayTime: `${entry.timeFrom} - ${entry.timeTo}`,
+                subject: entry.subject?.subjectName || "Unknown",
+                room: entry.roomNo || "N/A",
+                teacher: entry.teacher?.personalInfo?.name || "Unknown",
+              });
+            }
+          });
+          setTimetableData(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching timetable:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTimetable();
+  }, []);
+
+  const TIMES = [...new Set(Object.values(timetableData).flat().map((c) => c.time))].sort();
+
+  const jsDayIndex = calendarDate.getDay();
+  const selectedDay = DAYS[jsDayIndex === 0 ? 6 : jsDayIndex - 1];
+  const currentClass = (timetableData[selectedDay] || [])[0] || null;
+
+  if (loading) {
+    return <div className="p-6 text-center text-gray-500">Loading Timetable...</div>;
+  }
 
   return (
     <div className="p-0 grid grid-cols-4 gap-3">
@@ -34,22 +61,20 @@ export default function MyTimetable() {
       <div className="col-span-3 border rounded-lg p-4 bg-white shadow flex flex-col">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold flex items-center gap-2">
-           
             {view === "Day" ? `Timetable (${selectedDay})` : "Weekly Timetable"}
           </h2>
           <select
             value={view}
             onChange={(e) => setView(e.target.value)}
-            className="border  px-2 py-1 rounded"
+            className="border px-2 py-1 rounded"
           >
             <option value="Day">Day</option>
             <option value="Week">Week</option>
           </select>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto flex-1">
-          <table className="w-full  border-collapse border h-full">
+          <table className="w-full border-collapse border h-full">
             <thead>
               <tr>
                 <th className="border px-2 py-1">Time</th>
@@ -57,56 +82,36 @@ export default function MyTimetable() {
                   <th className="border px-2 py-1">{selectedDay}</th>
                 ) : (
                   DAYS.map((day) => (
-                    <th key={day} className="border px-2 py-1">
-                      {day}
-                    </th>
+                    <th key={day} className="border px-2 py-1">{day}</th>
                   ))
                 )}
               </tr>
             </thead>
-            <tbody className="h-full">
-              {TIMES.map((time) => (
+            <tbody>
+              {TIMES.length > 0 ? TIMES.map((time) => (
                 <tr key={time} className="h-[80px]">
                   <td className="border px-2 py-1 flex items-center gap-1">
                     <FiClock /> {time}
                   </td>
-
                   {view === "Day" ? (
                     <td className="border px-2 py-1 text-center">
                       {selectedDay === "Sunday" ? (
-                        <div className="bg-red-200 text-red-800 font-medium rounded p-1">
-                          Holiday
-                        </div>
-                      ) : timetableData[selectedDay]?.find((c) => c.time === time) ? (
-                        <div className="bg-blue-200 rounded p-1">
-                          <div className="font-medium flex items-center gap-1">
-                            <FiBookOpen />{" "}
-                            {timetableData[selectedDay].find((c) => c.time === time).subject}
-                          </div>
-                          <div className="text-xs">
-                            Room {timetableData[selectedDay].find((c) => c.time === time).room}
-                          </div>
-                        </div>
+                        <div className="bg-red-200 text-red-800 font-medium rounded p-1">Holiday</div>
+                      ) : (timetableData[selectedDay] || []).find((c) => c.time === time) ? (
+                        <Cell data={(timetableData[selectedDay] || []).find((c) => c.time === time)} />
                       ) : (
                         "-"
                       )}
                     </td>
                   ) : (
                     DAYS.map((day) => {
-                      const classData = timetableData[day]?.find((c) => c.time === time);
+                      const classData = (timetableData[day] || []).find((c) => c.time === time);
                       return (
                         <td key={day} className="border px-2 py-1 text-center">
                           {day === "Sunday" ? (
-                            <div className="bg-red-200 text-red-800 font-medium rounded p-1">
-                              Holiday
-                            </div>
+                            <div className="bg-red-200 text-red-800 font-medium rounded p-1">Holiday</div>
                           ) : classData ? (
-                            <div className="bg-blue-200 rounded p-1">
-                              <div className="font-medium flex items-center gap-1">
-                                <FiBookOpen /> {classData.subject}
-                              </div>
-                              <div className="text-xs">Room {classData.room}</div>
-                            </div>
+                            <Cell data={classData} />
                           ) : (
                             "-"
                           )}
@@ -115,46 +120,59 @@ export default function MyTimetable() {
                     })
                   )}
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={view === "Day" ? 2 : 8} className="border px-2 py-4 text-center text-gray-400">
+                    No timetable entries found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Right: Calendar + Upcoming + Notifications */}
+      {/* Right: Calendar + Current Class Detail */}
       <div className="flex flex-col gap-3">
-        {/* Calendar */}
         <div className="border rounded-lg p-3 bg-gray-50 shadow w-full overflow-visible">
-          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">
-            Calendar
-          </h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">Calendar</h3>
           <Calendar
             value={calendarDate}
             onChange={(date) => {
               setCalendarDate(date);
-              setView("Day"); 
+              setView("Day");
             }}
             className="rounded-lg w-full"
           />
         </div>
 
-        <div className="border rounded-lg p-3 bg-gray-50 shadow">
-          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">
-            <FiBookOpen /> Upcoming Class
-          </h3>
-          <p className="">Math - Room 101 at 9:00 AM</p>
-        </div>
-
-        <div className="border rounded-lg p-3 bg-gray-50 shadow">
-          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">
-            <FiBell /> Notifications
-          </h3>
-          <ul className=" list-disc ml-4">
-            <li>Substitution period in class 7 A at 12:00 PM</li>
-            
-          </ul>
+        <div className="border rounded-lg p-3 bg-gray-50 shadow flex-1">
+          <h3 className="text-lg font-semibold mb-2">Current Class Detail</h3>
+          {selectedDay === "Sunday" ? (
+            <p className="text-sm text-red-600">Holiday</p>
+          ) : currentClass ? (
+            <>
+              <p>Subject: {currentClass.subject}</p>
+              <p>Room: {currentClass.room}</p>
+              <p>Teacher: {currentClass.teacher}</p>
+            </>
+          ) : (
+            <p className="text-gray-500">No class scheduled</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+const Cell = ({ data }) => (
+  <div className="bg-blue-100 rounded p-1">
+    <div className="font-medium flex items-center gap-1">
+      <FiBookOpen /> {data.subject}
+    </div>
+    <div className="text-xs">Room {data.room}</div>
+    <div className="text-xs flex items-center gap-1 text-gray-600">
+      <FiUser /> {data.teacher}
+    </div>
+  </div>
+);

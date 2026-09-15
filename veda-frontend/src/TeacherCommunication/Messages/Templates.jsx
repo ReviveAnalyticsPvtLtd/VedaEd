@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { initialTemplates } from "./templateData";
 
 export default function Templates({ templates, setTemplates }) {
-  const [localTemplates, setLocalTemplates] = useState(initialTemplates);
+  const [localTemplates, setLocalTemplates] = useState([]);
 
   const templateList = templates ?? localTemplates;
   const updateTemplates = setTemplates ?? setLocalTemplates;
