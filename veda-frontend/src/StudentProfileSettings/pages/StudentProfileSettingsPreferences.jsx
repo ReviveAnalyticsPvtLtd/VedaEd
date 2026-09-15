@@ -1,109 +1,77 @@
 
-  import { useEffect, useState } from "react";
-  import axios from "axios";
-  // import config from "../config";
-  
+import { useEffect, useState } from "react";
+import { userSettingsAPI } from "../../services/userSettingsAPI";
+import { useTheme } from "../../context/ThemeContext";
+
 export default function StudentProfileSettingsPreferences() {
+    const { theme: currentTheme, setTheme } = useTheme();
     const [loading, setLoading] = useState(true);
-  
+
     const [preferences, setPreferences] = useState({
-      theme: "light",
+      theme: currentTheme || "light",
       language: "en",
       timezone: "Asia/Kolkata",
     });
-  
+
     useEffect(() => {
       const savedTheme = localStorage.getItem("theme");
-  
+
       if (savedTheme) {
         setPreferences((prev) => ({
           ...prev,
           theme: savedTheme,
         }));
       }
-  
+
       fetchPreferences();
     }, []);
-  
-    useEffect(() => {
-      applyTheme(preferences.theme);
-    }, [preferences.theme]);
-  
-    const applyTheme = (theme) => {
-      const root = document.documentElement;
-  
-      root.classList.remove("dark");
-  
-      if (theme === "dark") {
-        root.classList.add("dark");
-      }
-  
-      if (theme === "system") {
-        const isDark = window.matchMedia(
-          "(prefers-color-scheme: dark)"
-        ).matches;
-  
-        if (isDark) {
-          root.classList.add("dark");
-        }
-      }
-    };
-  
+
     const fetchPreferences = async () => {
       try {
         setLoading(true);
-  
-        /*
-        const res = await axios.get(
-          `${config.API_BASE_URL}/settings/preferences`
-        );
-  
-        setPreferences(res.data);
-        */
-  
-        const savedPrefs = localStorage.getItem("preferences");
-  
-        if (savedPrefs) {
-          setPreferences(JSON.parse(savedPrefs));
-        } else {
-          setPreferences({
-            theme: "light",
-            language: "en",
-            timezone: "Asia/Kolkata",
-          });
+        const settings = await userSettingsAPI.getSettings();
+        if (settings && settings.preferences) {
+          setPreferences(settings.preferences);
+          if (settings.preferences.theme) {
+            setTheme(settings.preferences.theme);
+          }
         }
       } catch (error) {
         console.error(error);
+        const savedPrefs = localStorage.getItem("preferences");
+
+        if (savedPrefs) {
+          try {
+            const parsed = JSON.parse(savedPrefs);
+            setPreferences(parsed);
+            if (parsed.theme) {
+              setTheme(parsed.theme);
+            }
+          } catch (e) {}
+        }
       } finally {
         setLoading(false);
       }
     };
-  
+
     const handleChange = (field, value) => {
       setPreferences((prev) => ({
         ...prev,
         [field]: value,
       }));
-  
+
       if (field === "theme") {
-        localStorage.setItem("theme", value);
+        setTheme(value);
       }
     };
-  
+
     const savePreferences = async () => {
       try {
-        /*
-        await axios.put(
-          `${config.API_BASE_URL}/settings/preferences`,
-          preferences
-        );
-        */
-  
+        await userSettingsAPI.updatePreferences(preferences);
         localStorage.setItem(
           "preferences",
           JSON.stringify(preferences)
         );
-  
         alert("Preferences Saved Successfully");
       } catch (error) {
         console.error(error);

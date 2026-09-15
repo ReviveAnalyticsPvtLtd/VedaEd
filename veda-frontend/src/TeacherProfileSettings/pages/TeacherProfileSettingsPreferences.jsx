@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { userSettingsAPI } from "../../services/userSettingsAPI";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function TeacherProfileSettingsPreferences() {
+  const { theme: currentTheme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [preferences, setPreferences] = useState({
-    theme: "light",
+    theme: currentTheme || "light",
     language: "en",
     timezone: "Asia/Kolkata",
   });
@@ -26,30 +28,6 @@ export default function TeacherProfileSettingsPreferences() {
     fetchPreferences();
   }, []);
 
-  useEffect(() => {
-    applyTheme(preferences.theme);
-  }, [preferences.theme]);
-
-  const applyTheme = (theme) => {
-    const root = document.documentElement;
-
-    root.classList.remove("dark");
-
-    if (theme === "dark") {
-      root.classList.add("dark");
-    }
-
-    if (theme === "system") {
-      const isDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-
-      if (isDark) {
-        root.classList.add("dark");
-      }
-    }
-  };
-
   const fetchPreferences = async () => {
     try {
       setLoading(true);
@@ -57,13 +35,22 @@ export default function TeacherProfileSettingsPreferences() {
       
       if (settings && settings.preferences) {
         setPreferences(settings.preferences);
+        if (settings.preferences.theme) {
+          setTheme(settings.preferences.theme);
+        }
       }
     } catch (error) {
       console.error(error);
       // Fallback to localStorage if API fails
       const savedPrefs = localStorage.getItem("preferences");
       if (savedPrefs) {
-        setPreferences(JSON.parse(savedPrefs));
+        try {
+          const parsed = JSON.parse(savedPrefs);
+          setPreferences(parsed);
+          if (parsed.theme) {
+            setTheme(parsed.theme);
+          }
+        } catch (e) {}
       }
     } finally {
       setLoading(false);
@@ -77,7 +64,7 @@ export default function TeacherProfileSettingsPreferences() {
     }));
 
     if (field === "theme") {
-      localStorage.setItem("theme", value);
+      setTheme(value);
     }
   };
 
