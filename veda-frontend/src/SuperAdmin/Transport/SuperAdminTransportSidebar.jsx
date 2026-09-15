@@ -31,7 +31,7 @@ export default function SuperAdminTransportSidebar({
   const menuItems = [
     {
       name: "Dashboard",
-      path: "/superadmin/transport/dashboard",
+      path: "/superadmin/transport",
       icon: <FiHome size={18} />,
       isDashboard: true,
     },
@@ -60,11 +60,7 @@ export default function SuperAdminTransportSidebar({
       path: "/superadmin/transport/assign-vehicle",
       icon: <FiClipboard size={18} />,
     },
-    {
-      name: "Student Transport Fees",
-      path: "/superadmin/transport/student-fees",
-      icon: <FiUsers size={18} />,
-    },
+    
   ];
 
   const filteredItems = menuItems.filter((item) =>

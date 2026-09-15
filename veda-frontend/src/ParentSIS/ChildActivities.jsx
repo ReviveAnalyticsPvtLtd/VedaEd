@@ -15,36 +15,7 @@ export default function ChildActivities() {
   const [activeTab, setActiveTab] = useState("all");
 
   const activities = [
-    {
-      id: 1,
-      type: "Sports",
-      title: "Inter Class Football Tournament",
-      class: ["8", "9"],
-      section: "All",
-      date: "2026-02-05",
-      time: "10:00 AM",
-      venue: "School Ground",
-      participants: [],
-      status: "Completed",
-      winner: {
-        First: { name: "Rahul Kumar", class: "9", section: "A" },
-        Second: { name: "Aman Singh", class: "8", section: "B" },
-        Third: { name: "Rohit Verma", class: "9", section: "C" },
-      },
-    },
-    {
-      id: 2,
-      type: "Academic",
-      title: "Science Quiz Competition",
-      class: ["7"],
-      section: "A",
-      date: "2026-02-12",
-      time: "11:30 AM",
-      venue: "Auditorium",
-      participants: [],
-      status: "Upcoming",
-      winner: {},
-    },
+  
   ];
 
   const sections = ["A", "B", "C"];
