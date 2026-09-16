@@ -107,7 +107,52 @@ export default function CommunicationSidebar({
       {/* SETTINGS + USER INFO */}
       <div className="absolute bottom-4 w-full px-2">
        
+{/* SETTINGS */}
+<div>
+  <button
+    onClick={() => setSettingsOpen(!settingsOpen)}
+    className="flex items-center h-10 w-full rounded-lg
+    px-2 gap-3 text-gray-700 hover:bg-gray-100
+    transition-colors"
+  >
+    <span className="flex w-6 justify-center">
+      <FiSettings size={18} />
+    </span>
 
+    {isSidebarOpen && <span>Settings</span>}
+  </button>
+
+  {/* SETTINGS SUBMENU */}
+  {settingsOpen && isSidebarOpen && (
+    <div className="ml-10 mt-2 space-y-2 text-sm text-gray-700">
+      <NavLink
+        to="/admin-front/settings/profile"
+        className={({ isActive }) =>
+          `block ${
+            isActive
+              ? "text-blue-600 font-medium"
+              : "hover:text-blue-600"
+          }`
+        }
+      >
+        Profile Settings
+      </NavLink>
+
+      <NavLink
+        to="/admin-front/settings/account"
+        className={({ isActive }) =>
+          `block ${
+            isActive
+              ? "text-blue-600 font-medium"
+              : "hover:text-blue-600"
+          }`
+        }
+      >
+        Account Settings
+      </NavLink>
+    </div>
+  )}
+</div>
         {/* USER INFO */}
         <div className="mt-4">
           {isSidebarOpen ? (

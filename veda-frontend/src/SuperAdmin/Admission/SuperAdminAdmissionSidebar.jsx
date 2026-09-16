@@ -1,10 +1,7 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiHome,
   FiHelpCircle,
-  FiList,
-  FiUsers,
-  FiFileText,
   FiCheckCircle,
   FiSettings,
   FiMenu,
@@ -12,6 +9,9 @@ import {
   FiChevronUp,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import ProfileAvatar, {
+  resolveProfileImage,
+} from "../../components/ProfileAvatar";
 
 export default function SuperAdminAdmissionSidebar({
   searchQuery = "",
@@ -19,7 +19,16 @@ export default function SuperAdminAdmissionSidebar({
   setIsSidebarOpen,
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Current user
+  const currentUser = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
+
+  const userName = currentUser?.name || "Super Admin";
+  const userImage = resolveProfileImage(currentUser);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -29,45 +38,53 @@ export default function SuperAdminAdmissionSidebar({
   }, [isSidebarOpen]);
 
   const menuItems = [
-   {
-  name: "Dashboard",
-  path: "/superadmin/admission",
-  icon: <FiHome />,
-  end: true
-},
-    { name: "Enquiry", path: "/superadmin/admission/enquiry", icon: <FiHelpCircle /> },
-    
-    { name: "Status Tracking", path: "/superadmin/admission/status-tracking", icon: <FiSettings /> },
-    { name: "Final Students", path: "/superadmin/admission/final-students", icon: <FiCheckCircle /> },
+    {
+      name: "Dashboard",
+      path: "/superadmin/admission",
+      icon: <FiHome size={18} />,
+      end: true,
+    },
+    {
+      name: "Enquiry",
+      path: "/superadmin/admission/enquiry",
+      icon: <FiHelpCircle size={18} />,
+    },
+    {
+      name: "Status Tracking",
+      path: "/superadmin/admission/status-tracking",
+      icon: <FiSettings size={18} />,
+    },
+    {
+      name: "Final Students",
+      path: "/superadmin/admission/final-students",
+      icon: <FiCheckCircle size={18} />,
+    },
   ];
 
-  const settingsItems = [
-    { name: "Admission Settings", path: "/superadmin/admission/settings/general" },
-    { name: "Form Configuration", path: "/superadmin/admission/settings/forms" },
-    { name: "Workflow Setup", path: "/superadmin/admission/settings/workflow" },
-  ];
+  const filteredItems = menuItems.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div
-      className={`fixed top-16 left-0 z-40 h-[calc(100vh-64px)]
-      bg-white border-r shadow-sm transition-all
+      className={`fixed top-16 left-0 h-[calc(100vh-64px)]
+      bg-white border-r shadow-sm transition-all duration-300
+      z-40 overflow-hidden flex flex-col
       ${isSidebarOpen ? "w-64" : "w-14"}`}
     >
-      {/* Toggle */}
+      {/* TOGGLE */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="absolute top-3 left-3 p-2 hover:bg-gray-200 rounded"
+        className="absolute top-3 left-3 p-2 rounded-md
+        hover:bg-gray-200 transition z-10"
       >
-        <FiMenu />
+        <FiMenu size={20} />
       </button>
 
-      {/* Main Menu */}
-      <ul className="mt-14 space-y-1 px-3">
-        {menuItems
-          .filter(i =>
-            i.name.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-          .map(item => {
+      {/* MENU */}
+      <div className="flex-1 overflow-y-auto mt-14 px-3">
+        <ul className="space-y-1">
+          {filteredItems.map((item) => {
             const active = item.end
               ? location.pathname === item.path
               : location.pathname.startsWith(item.path);
@@ -76,57 +93,148 @@ export default function SuperAdminAdmissionSidebar({
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`flex h-10 items-center rounded-lg transition
-                ${isSidebarOpen ? "px-3 gap-3" : "justify-center"}
-                ${active ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"}`}
+                end={item.end}
+                className={`flex items-center h-10 rounded-lg
+                transition-all
+                ${
+                  isSidebarOpen
+                    ? "px-3 gap-3"
+                    : "px-0 justify-center"
+                }
+                ${
+                  active
+                    ? "bg-blue-100 text-blue-700 font-medium"
+                    : "hover:bg-gray-100 text-gray-700"
+                }`}
               >
-                <span className="w-6 flex justify-center">{item.icon}</span>
-                {isSidebarOpen && item.name}
+                <span className="flex w-6 justify-center">
+                  {item.icon}
+                </span>
+
+                {isSidebarOpen && (
+                  <span className="whitespace-nowrap">
+                    {item.name}
+                  </span>
+                )}
               </NavLink>
             );
           })}
-      </ul>
+        </ul>
+      </div>
 
-      {/* ===== SETTINGS (REFERENCE STYLE) ===== */}
-      <div className="absolute bottom-6 w-full px-2">
+      {/* BOTTOM SECTION */}
+      <div className="shrink-0 border-t bg-white p-3">
+
+        {/* SETTINGS */}
         <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className={`flex h-10 w-full items-center rounded-lg transition
-          ${isSidebarOpen ? "px-3 gap-3" : "justify-center"}
+          onClick={() => {
+            if (!isSidebarOpen) {
+              setIsSidebarOpen(true);
+              setSettingsOpen(true);
+            } else {
+              setSettingsOpen(!settingsOpen);
+            }
+          }}
+          className={`flex items-center w-full h-10 rounded-lg
+          transition-all
           ${
-            location.pathname.includes("/admission/settings")
-              ? "bg-blue-100 text-blue-700"
-              : "hover:bg-gray-100"
+            isSidebarOpen
+              ? "px-3 gap-3"
+              : "px-0 justify-center"
+          }
+          ${
+            location.pathname.startsWith("/superadmin/settings")
+              ? "bg-blue-100 text-blue-700 font-medium"
+              : "hover:bg-gray-100 text-gray-700"
           }`}
         >
-          <FiSettings />
+          <span className="flex w-6 justify-center">
+            <FiSettings size={18} />
+          </span>
+
           {isSidebarOpen && (
             <>
-              <span className="flex-1 text-left">Settings</span>
-              {settingsOpen ? <FiChevronUp /> : <FiChevronDown />}
+              <span className="flex-1 text-left whitespace-nowrap">
+                Settings
+              </span>
+
+              
             </>
           )}
         </button>
 
-        {/* Settings Submenu */}
+        {/* SETTINGS SUBMENU */}
         {settingsOpen && isSidebarOpen && (
-          <div className="mt-1 ml-6 space-y-1">
-            {settingsItems.map(s => {
-              const active = location.pathname === s.path;
-              return (
-                <NavLink
-                  key={s.path}
-                  to={s.path}
-                  className={`block rounded-md px-3 py-2 text-sm transition
-                  ${active ? "bg-blue-50 text-blue-700" : "hover:bg-gray-100"}`}
-                >
-                  {s.name}
-                </NavLink>
-              );
-            })}
+          <div className="ml-9 mt-1 space-y-1">
+            <button
+              onClick={() =>
+                navigate("/superadmin/settings/profile")
+              }
+              className={`block w-full text-left rounded-md
+              px-2 py-2 text-sm transition
+              ${
+                location.pathname ===
+                "/superadmin/settings/profile"
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Profile Settings
+            </button>
+
+            <button
+              onClick={() =>
+                navigate("/superadmin/settings/account")
+              }
+              className={`block w-full text-left rounded-md
+              px-2 py-2 text-sm transition
+              ${
+                location.pathname ===
+                "/superadmin/settings/account"
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Account Settings
+            </button>
           </div>
         )}
-      </div>
-    </div>
+
+        {/* SUPER ADMIN BLOCK */}
+               <div className="mt-3">
+                 {isSidebarOpen ? (
+                   <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                     <ProfileAvatar
+                       name={userName}
+                       imageSrc={userImage}
+                       sizeClassName="w-8 h-8"
+                       textClassName="text-xs"
+                       className="ring-0"
+                     />
+       
+                     <div>
+                       <div className="text-sm font-medium">
+                         {userName}
+                       </div>
+       
+                       <div className="text-xs text-gray-500">
+                         Super Admin
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="flex justify-center py-2">
+                     <ProfileAvatar
+                       name={userName}
+                       imageSrc={userImage}
+                       sizeClassName="w-8 h-8"
+                       textClassName="text-xs"
+                       className="ring-0"
+                     />
+                   </div>
+                 )}
+               </div>
+             </div>
+           </div>
   );
 }

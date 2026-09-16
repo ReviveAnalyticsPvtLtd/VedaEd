@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiFileText,
   FiMail,
@@ -8,6 +8,9 @@ import {
   FiMenu,
   FiUser,
 } from "react-icons/fi";
+import ProfileAvatar, {
+  resolveProfileImage,
+} from "../../../components/ProfileAvatar";
 import { useEffect, useState } from "react";
 
 export default function CommunicationSidebar({
@@ -16,8 +19,19 @@ export default function CommunicationSidebar({
   setIsSidebarOpen,
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const currentUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || {};
+    } catch {
+      return {};
+    }
+  })();
+ const userName = currentUser?.name || "Super Admin";
+  const userImage = resolveProfileImage(currentUser);
 
+ 
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--sidebar-width",
@@ -27,11 +41,11 @@ export default function CommunicationSidebar({
 
   const menuItems = [
     {
-    name: "Dashboard",
-    path: "/communication",
-    icon: <FiUser size={18} />,
-    end: true,
-  },
+      name: "Dashboard",
+      path: "/communication",
+      icon: <FiUser size={18} />,
+      end: true,
+    },
     {
       name: "Logs",
       path: "/communication/logs",
@@ -63,8 +77,7 @@ export default function CommunicationSidebar({
     <div
       className={`fixed top-16 left-0 h-[calc(100vh-64px)] bg-white border-r shadow-sm
       transition-all duration-300 z-30 overflow-hidden
-      ${isSidebarOpen ? "w-64" : "w-14"}
-    `}
+      ${isSidebarOpen ? "w-64" : "w-14"}`}
     >
       {/* TOGGLE */}
       <button
@@ -92,10 +105,10 @@ export default function CommunicationSidebar({
                   isActive
                     ? "bg-blue-100 text-blue-700 font-medium"
                     : "hover:bg-gray-100 text-gray-700"
-                }
-              `}
+                }`}
             >
               <span className="flex w-6 justify-center">{item.icon}</span>
+
               {isSidebarOpen && (
                 <span className="whitespace-nowrap">{item.name}</span>
               )}
@@ -106,22 +119,90 @@ export default function CommunicationSidebar({
 
       {/* SETTINGS + USER INFO */}
       <div className="absolute bottom-4 w-full px-2">
-        
+        {/* SETTINGS */}
+        {isSidebarOpen ? (
+          <div className="mb-2">
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`flex items-center w-full h-10 px-3 gap-3 rounded-lg transition-all
+                ${
+                  location.pathname.startsWith("/communication/settings")
+                    ? "bg-blue-100 text-blue-700 font-medium"
+                    : "hover:bg-gray-100 text-gray-700"
+                }`}
+            >
+              <span className="flex w-6 justify-center">
+                <FiSettings size={18} />
+              </span>
+              <span className="whitespace-nowrap">Settings</span>
+            </button>
 
-        {/* USER INFO */}
-        <div className="mt-4">
-          {isSidebarOpen ? (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Communication User</div>
-              <div className="text-xs text-gray-500">Admin</div>
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <FiUser size={20} className="text-gray-600" />
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            {settingsOpen && (
+              <div className="ml-9 mt-1 space-y-1 text-sm">
+                <button
+                  onClick={() =>
+                    navigate("/superadmin/settings/profile")
+                  }
+                  className="block w-full text-left px-2 py-1.5 rounded hover:bg-gray-100"
+                >
+                  Profile Settings
+                </button>
+
+                <button
+                  onClick={() =>
+                    navigate("/superadmin/settings/account")
+                  }
+                  className="block w-full text-left px-2 py-1.5 rounded hover:bg-gray-100"
+                >
+                  Account Settings
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate("/superadmin/settings/account")}
+            className="flex justify-center w-full py-2 rounded-lg hover:bg-gray-100"
+          >
+            <FiSettings size={20} className="text-gray-600" />
+          </button>
+        )}
+
+        {/* SUPER ADMIN BLOCK */}
+               <div className="mt-3">
+                 {isSidebarOpen ? (
+                   <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                     <ProfileAvatar
+                       name={userName}
+                       imageSrc={userImage}
+                       sizeClassName="w-8 h-8"
+                       textClassName="text-xs"
+                       className="ring-0"
+                     />
+       
+                     <div>
+                       <div className="text-sm font-medium">
+                         {userName}
+                       </div>
+       
+                       <div className="text-xs text-gray-500">
+                         Super Admin
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="flex justify-center py-2">
+                     <ProfileAvatar
+                       name={userName}
+                       imageSrc={userImage}
+                       sizeClassName="w-8 h-8"
+                       textClassName="text-xs"
+                       className="ring-0"
+                     />
+                   </div>
+                 )}
+               </div>
+             </div>
+           </div>
   );
 }

@@ -83,8 +83,10 @@ export default function Sidebar({
 
 
           return (
+
             <NavLink
-              key={item.path}
+
+              key={item.path} 
               to={item.path}
               className={`flex items-center h-10 rounded-lg transition-all
   ${isSidebarOpen ? "px-3 gap-3" : "px-0 justify-center"}
@@ -104,18 +106,69 @@ export default function Sidebar({
       </div>
 
       {/* SETTINGS + ADMIN */}
-      
+      {/* SETTINGS */}
+<div>
+  <button
+    onClick={() => setSettingsOpen(!settingsOpen)}
+    className="flex items-center h-10 w-full rounded-lg
+    px-2 gap-3 text-gray-700 hover:bg-gray-100
+    transition-colors"
+  >
+    <span className="flex w-6 justify-center">
+      <FiSettings size={18} />
+    </span>
+
+    {isSidebarOpen && <span>Settings</span>}
+  </button>
+
+  {/* SETTINGS SUBMENU */}
+  {settingsOpen && isSidebarOpen && (
+    <div className="ml-10 mt-2 space-y-2 text-sm text-gray-700">
+      <NavLink
+        to="/admin-front/settings/profile"
+        className={({ isActive }) =>
+          `block ${
+            isActive
+              ? "text-blue-600 font-medium"
+              : "hover:text-blue-600"
+          }`
+        }
+      >
+        Profile Settings
+      </NavLink>
+
+      <NavLink
+        to="/admin-front/settings/account"
+        className={({ isActive }) =>
+          `block ${
+            isActive
+              ? "text-blue-600 font-medium"
+              : "hover:text-blue-600"
+          }`
+        }
+      >
+        Account Settings
+      </NavLink>
+    </div>
+  )}
+</div>
 
         {/* ADMIN BLOCK ALWAYS VISIBLE */}
        <div className="shrink-0 border-t bg-white p-3">
+
           {isSidebarOpen ? (
+
             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+
               <ProfileAvatar name={userName} imageSrc={userImage} sizeClassName="w-8 h-8" textClassName="text-xs" className="ring-0" />
               <div>
               <div className="text-sm font-medium">{userName}</div>
+
               <div className="text-xs text-gray-500">Administrator</div>
               </div>
+
             </div>
+
           ) : (
             <div className="flex justify-center py-2">
               <ProfileAvatar name={userName} imageSrc={userImage} sizeClassName="w-8 h-8" textClassName="text-xs" className="ring-0" />
@@ -126,4 +179,4 @@ export default function Sidebar({
    
   );
 }
-{/* Maine Sarey Changes isi routes se related mai kiya hai jisme sirf admin sis ke routes change hue hai sarey ke sarey */}
+{/*   */}

@@ -263,18 +263,36 @@ export default function HRSidebar({
         </button>
 
         {/* SETTINGS SUBMENU */}
-        {settingsOpen && isSidebarOpen && (
-          <div className="ml-10 mt-2 space-y-2 text-sm text-gray-700">
-            <NavLink className="hover:text-blue-600 block">
-              Profile Settings
-            </NavLink>
+      {/* SETTINGS SUBMENU */}
+{settingsOpen && isSidebarOpen && (
+  <div className="ml-10 mt-2 space-y-2 text-sm text-gray-700">
+    <NavLink
+      to="admin-front/settings/profile"
+      className={({ isActive }) =>
+        `block transition-colors ${
+          isActive
+            ? "text-blue-600 font-medium"
+            : "hover:text-blue-600"
+        }`
+      }
+    >
+      Profile Settings
+    </NavLink>
 
-            <NavLink className="hover:text-blue-600 block">
-              Account Settings
-            </NavLink>
-          </div>
-        )}
-
+    <NavLink
+      to="/admin-front/settings/account"
+      className={({ isActive }) =>
+        `block transition-colors ${
+          isActive
+            ? "text-blue-600 font-medium"
+            : "hover:text-blue-600"
+        }`
+      }
+    >
+      Account Settings
+    </NavLink>
+  </div>
+)}
         {/* USER INFO */}
         <div className="mt-3">
           {isSidebarOpen ? (
