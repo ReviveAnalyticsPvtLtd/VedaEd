@@ -1,54 +1,171 @@
 import React, { useState } from "react";
 
+const emptyForm = { name: "", type: "SMS", category: "Academic", content: "" };
+
 export default function Templates({ templates, setTemplates }) {
-  const [localTemplates, setLocalTemplates] = useState([]);
-
-  const templateList = templates ?? localTemplates;
-  const updateTemplates = setTemplates ?? setLocalTemplates;
-
   const [selectedType, setSelectedType] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const filteredTemplates = templateList.filter((template) => {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+
+  const filteredTemplates = templates.filter((template) => {
     const typeMatch = selectedType === "All" || template.type === selectedType;
     const categoryMatch =
       selectedCategory === "All" || template.category === selectedCategory;
     return typeMatch && categoryMatch;
   });
 
-  const handleEditTemplate = (templateId) => {
-    // TODO: Implement edit functionality
-    console.log("Edit template:", templateId);
+  const handleFormChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  };
+
+  const openEdit = (template) => {
+    setEditingId(template.id);
+    setForm({
+      name: template.name,
+      type: template.type,
+      category: template.category,
+      content: template.content,
+    });
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim() || !form.content.trim()) return;
+
+    if (editingId !== null) {
+      setTemplates(
+        templates.map((t) =>
+          t.id === editingId ? { ...t, ...form } : t
+        )
+      );
+    } else {
+      const newTemplate = { id: Date.now(), ...form };
+      setTemplates([newTemplate, ...templates]);
+    }
+
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
   };
 
   const handleDeleteTemplate = (templateId) => {
-    updateTemplates(templateList.filter((t) => t.id !== templateId));
-  };
-
-  const handleUseTemplate = (template) => {
-    // TODO: Navigate to message form with template content
-    console.log("Use template:", template);
+    if (window.confirm("Are you sure you want to delete this template?")) {
+      setTemplates(templates.filter((t) => t.id !== templateId));
+    }
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Message Templates (Teacher)</h3>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
-           + Create New Template
+        <button
+          onClick={openCreate}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+        >
+          + Create New Template
         </button>
       </div>
+
+      {/* Inline Form */}
+      {showForm && (
+        <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-4 space-y-3">
+          <h4 className="font-medium text-gray-900">
+            {editingId !== null ? "Edit Template" : "New Template"}
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => handleFormChange("name", e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Template name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type
+              </label>
+              <select
+                value={form.type}
+                onChange={(e) => handleFormChange("type", e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="SMS">SMS</option>
+                <option value="Email">Email</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={form.category}
+                onChange={(e) => handleFormChange("category", e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="Academic">Academic</option>
+                <option value="Communication">Communication</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Content <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={4}
+              value={form.content}
+              onChange={(e) => handleFormChange("content", e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+              placeholder="Template message content..."
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+            >
+              {editingId !== null ? "Update" : "Save"}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setEditingId(null);
+                setForm(emptyForm);
+              }}
+              className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-3">
         <div>
-          <label className="block  font-medium text-gray-700 mb-1">
-            Type
-          </label>
+          <label className="block font-medium text-gray-700 mb-1">Type</label>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2  focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="All">All Types</option>
             <option value="SMS">SMS</option>
@@ -62,7 +179,7 @@ export default function Templates({ templates, setTemplates }) {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2  focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="All">All Categories</option>
             <option value="Academic">Academic</option>
@@ -87,7 +204,7 @@ export default function Templates({ templates, setTemplates }) {
                       {template.name}
                     </h4>
                     <span
-                      className={`px-2 py-1  rounded ${
+                      className={`px-2 py-1 rounded ${
                         template.type === "SMS"
                           ? "bg-blue-100 text-blue-800"
                           : "bg-green-100 text-green-800"
@@ -95,30 +212,28 @@ export default function Templates({ templates, setTemplates }) {
                     >
                       {template.type}
                     </span>
-                    <span className="px-2 py-1  rounded bg-gray-100 text-gray-800">
+                    <span className="px-2 py-1 rounded bg-gray-100 text-gray-800">
                       {template.category}
                     </span>
                   </div>
-                  <p className=" text-gray-600 mb-3">
-                    {template.content}
-                  </p>
+                  <p className="text-gray-600 mb-3">{template.content}</p>
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => handleUseTemplate(template)}
-                    className="bg-blue-600 text-white px-3 py-1 rounded  hover:bg-blue-700 transition"
+                    onClick={() => console.log("Use template:", template)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
                   >
                     Use
                   </button>
                   <button
-                    onClick={() => handleEditTemplate(template.id)}
-                    className="bg-gray-600 text-white px-3 py-1 rounded  hover:bg-gray-700 transition"
+                    onClick={() => openEdit(template)}
+                    className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteTemplate(template.id)}
-                    className="bg-red-600 text-white px-3 py-1 rounded  hover:bg-red-700 transition"
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
                   >
                     Delete
                   </button>

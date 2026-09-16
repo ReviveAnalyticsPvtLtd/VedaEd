@@ -33,7 +33,7 @@ export default function MessagesOverview() {
       setLoading(false);
       return;
     }
-    const userModel = user.role || "Parent";
+    const userModel = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : "Parent";
 
     const load = async () => {
       try {
@@ -87,7 +87,7 @@ export default function MessagesOverview() {
   const openMessage = (msg) => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const userId = user?.refId || user?._id;
-    const userModel = user.role || "Parent";
+    const userModel = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : "Parent";
     const updated = messages.map((m) =>
       m.id === msg.id ? { ...m, isRead: true } : m
     );

@@ -17,6 +17,7 @@ export default function MessagesOverview() {
   const [filterType, setFilterType] = useState("all");
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterDirection, setFilterDirection] = useState("all");
+  const [selectedMessage, setSelectedMessage] = useState(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -25,7 +26,7 @@ export default function MessagesOverview() {
         const u = JSON.parse(stored);
         setCurrentUser({
           id: u.refId || u._id,
-          model: (u.role || "Teacher").toLowerCase() === "teacher" ? "Staff" : (u.role || "Teacher"),
+          model: (u.role || "Teacher").toLowerCase() === "teacher" ? "Teacher" : (u.role || "Teacher"),
         });
       } catch (e) {
         console.error("Failed to parse user", e);
@@ -311,9 +312,12 @@ export default function MessagesOverview() {
                 </div>
 
                 <div className="ml-4 flex flex-col gap-2">
-                  <button className="text-blue-600 hover:text-blue-800  font-medium">
-                    View Details
-                  </button>
+                  <button
+                  onClick={() => setSelectedMessage(message)}
+                  className="text-blue-600 hover:text-blue-800  font-medium"
+                >
+                  View Details
+                </button>
                   {message.direction === "received" && (
                     <button className="text-green-600 hover:text-green-800 ">
                       Reply
@@ -340,6 +344,51 @@ export default function MessagesOverview() {
           </div>
         )}
       </div>
+
+      {selectedMessage && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-lg rounded-lg shadow-lg flex flex-col h-[80vh]">
+            {/* Header */}
+            <div className="p-4 border-b flex justify-between items-center">
+              <div>
+                <h2 className="font-semibold">
+                  {selectedMessage.direction === "sent"
+                    ? `To: ${selectedMessage.recipient}`
+                    : `From: ${selectedMessage.sender}`}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {selectedMessage.direction === "sent"
+                    ? `${selectedMessage.recipientRole} • ${selectedMessage.channel}`
+                    : `${selectedMessage.senderRole} • ${selectedMessage.channel}`}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setSelectedMessage(null)}
+                className="text-gray-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-3">
+              <div className="bg-white p-3 rounded-lg shadow max-w-[80%]">
+                <p className="font-medium">{selectedMessage.title}</p>
+                <p>{selectedMessage.message}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {formatDate(selectedMessage.sentDate)}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 border-t text-sm text-gray-600">
+              Priority: {selectedMessage.priority}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

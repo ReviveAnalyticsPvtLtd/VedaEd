@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { FiSearch, FiTrash2, FiUser } from "react-icons/fi";
+import CommunicationAPI from "../communicationAPI";
+import { studentAPI } from "../../services/studentAPI";
+import staffAPI from "../../services/staffAPI";
+import { parentAPI } from "../../services/parentAPI";
 
 export default function Individual({ templates = [] }) {
   const [selectedType, setSelectedType] = useState("SMS");
+  const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [sendOption, setSendOption] = useState("now");
   const [scheduleDate, setScheduleDate] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const availableTemplates = templates.filter((t) => t.type === selectedType);
 
@@ -24,6 +31,46 @@ export default function Individual({ templates = [] }) {
   const [displaySearch, setDisplaySearch] = useState("");
   const [filteredAdded, setFilteredAdded] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [parents, setParents] = useState([]);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setCurrentUser(user);
+  }, []);
+
+  // Load user list depending on chosen role
+  useEffect(() => {
+    setSearch("");
+    setSuggestions([]);
+
+    const loadRoleData = async () => {
+      try {
+        if (role === "Student" && students.length === 0) {
+          const res = await studentAPI.getAllStudents();
+          setStudents(res?.students || res?.data || res || []);
+        } else if (role === "Teacher" && teachers.length === 0) {
+          const res = await staffAPI.getAllStaff();
+          const list = res?.staff || res?.data || res || [];
+          setTeachers(
+            list.filter((s) => {
+              const r = s.personalInfo?.role || "";
+              const d = s.personalInfo?.designation || "";
+              return r.toLowerCase() === "teacher" || d.toLowerCase().includes("teacher");
+            })
+          );
+        } else if (role === "Parent" && parents.length === 0) {
+          const res = await parentAPI.getAllParents();
+          setParents(res?.parents || res?.data || res || []);
+        }
+      } catch (err) {
+        console.error("Failed to load users for selection:", err);
+      }
+    };
+
+    if (role) loadRoleData();
+  }, [role, students.length, teachers.length, parents.length]);
 
   // --- Handle search & suggestion filtering ---
   const handleSearch = (value) => {
@@ -32,13 +79,48 @@ export default function Individual({ templates = [] }) {
       setSuggestions([]);
       return;
     }
-    setSuggestions([]);
+
+    const term = value.toLowerCase();
+    let source = [];
+    if (role === "Student") source = students;
+    else if (role === "Teacher") source = teachers;
+    else if (role === "Parent") source = parents;
+
+    const model = role === "Parent" ? "Parent" : role === "Teacher" ? "Teacher" : "Student";
+
+    const filtered = source
+      .map((item) => {
+        let id = item._id;
+        let name = "";
+        let extra = "";
+
+        if (role === "Student") {
+          name = item.personalInfo?.fullName || item.personalInfo?.name || "N/A";
+          extra = `Class: ${item.academicInfo?.class || "N/A"}`;
+        } else if (role === "Teacher") {
+          name = item.personalInfo?.name || item.personalInfo?.fullName || "N/A";
+          extra = `Role: ${item.personalInfo?.role || "Teacher"}`;
+        } else if (role === "Parent") {
+          name = item.fatherInfo?.fatherName || item.motherInfo?.motherName || item.name || "N/A";
+          extra = `Parent ID: ${item.parentId || "N/A"}`;
+        }
+
+        return { id, name, extra, model };
+      })
+      .filter((p) => p.name && p.name.toLowerCase().includes(term));
+
+    setSuggestions(filtered.slice(0, 10));
   };
 
   // --- Add selected person ---
-  const handleAdd = () => {
-    if (!role || !search.trim()) return;
-
+  const handleAdd = (person) => {
+    if (!person) return;
+    if (!addedList.some((a) => a.id === person.id)) {
+      setAddedList([
+        ...addedList,
+        { id: person.id, name: person.name, extra: person.extra, model: person.model },
+      ]);
+    }
     setSearch("");
     setSuggestions([]);
   };
@@ -64,6 +146,47 @@ export default function Individual({ templates = [] }) {
     setFilteredAdded(addedList);
   }, [addedList]);
 
+  // --- Send Message ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim() || addedList.length === 0 || isLoading)
+      return;
+
+    const senderId = currentUser?.refId || currentUser?._id;
+    if (!senderId) {
+      alert("Sender not found. Please log in again.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await Promise.all(
+        addedList.map((p) =>
+          CommunicationAPI.createMessage({
+            sender: senderId,
+            senderModel: "Teacher",
+            receiver: p.id,
+            receiverModel: p.model,
+            subject: title.trim(),
+            content: message.trim(),
+            messageType: "text",
+          })
+        )
+      );
+
+      alert(`Message sent successfully to ${addedList.length} recipient(s).`);
+      setAddedList([]);
+      setTitle("");
+      setMessage("");
+      setSelectedTemplateId("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert(`Failed to send message: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -71,7 +194,10 @@ export default function Individual({ templates = [] }) {
         <h3 className="text-lg font-semibold">Send {selectedType} (Teacher)</h3>
         <select
           value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
+          onChange={(e) => {
+            setSelectedType(e.target.value);
+            setSelectedTemplateId("");
+          }}
           className="border border-gray-300 rounded-md px-3 py-1  focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="SMS">SMS</option>
@@ -80,7 +206,11 @@ export default function Individual({ templates = [] }) {
       </div>
 
       {/* Form Section */}
-      <form className="space-y-4">
+      <form
+        id="individual-message-form"
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         {/* Template Dropdown */}
         <div>
           <label className="block  font-medium text-gray-700 mb-1">
@@ -107,6 +237,8 @@ export default function Individual({ templates = [] }) {
           </label>
           <input
             type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Enter title"
           />
@@ -185,7 +317,7 @@ export default function Individual({ templates = [] }) {
           />
 
           <button
-            onClick={handleAdd}
+            onClick={() => handleAdd(suggestions[0])}
             type="button"
             className="bg-blue-700 text-white px-5 py-2 rounded-md hover:bg-blue-800 transition"
           >
@@ -199,10 +331,7 @@ export default function Individual({ templates = [] }) {
             {suggestions.map((s) => (
               <div
                 key={s.id}
-                onClick={() => {
-                  setSearch(s.name);
-                  setSuggestions([]);
-                }}
+                onClick={() => handleAdd(s)}
                 className="px-3 py-2  text-gray-700 cursor-pointer hover:bg-blue-50"
               >
                 {s.name} ({s.extra}) - {s.id}
@@ -294,10 +423,12 @@ export default function Individual({ templates = [] }) {
         )}
 
         <button
-          type="button"
+          type="submit"
+          form="individual-message-form"
+          disabled={isLoading || !title.trim() || !message.trim() || addedList.length === 0}
           className="bg-blue-700 text-white flex items-center gap-2 px-5 py-2 rounded-md hover:bg-blue-800 transition ml-auto"
         >
-          Submit
+          {isLoading ? "Sending..." : "Submit"}
         </button>
       </div>
     </div>

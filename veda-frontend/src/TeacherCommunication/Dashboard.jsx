@@ -5,8 +5,6 @@ import {
   FiAlertCircle,
   FiBell,
   FiUsers,
-  FiTrendingUp,
-  FiTrendingDown,
 } from "react-icons/fi";
 import CommunicationAPI from "./communicationAPI";
 
@@ -25,9 +23,6 @@ import {
   Cell,
   Legend,
 } from "recharts";
-
-const TEACHER_ID = "6a99120596f5dd52a7cbf930";
-
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
   "Jan",
@@ -53,10 +48,10 @@ export default function TeacherCommunicationDashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("week");
   const [stats, setStats] = useState([
-    { title: "Total Messages", value: 0, growth: 0 },
-    { title: "Complaints", value: 0, growth: 0 },
-    { title: "Notices", value: 0, growth: 0 },
-    { title: "Parents Contacted", value: 0, growth: 0 },
+    { title: "Total Messages", value: 0 },
+    { title: "Complaints", value: 0 },
+    { title: "Notices", value: 0 },
+    { title: "Parents Contacted", value: 0 },
   ]);
   const [weeklyData, setWeeklyData] = useState(emptyWeeklyData());
   const [monthlyTrend, setMonthlyTrend] = useState(emptyMonthlyTrend());
@@ -69,8 +64,17 @@ export default function TeacherCommunicationDashboard() {
   useEffect(() => {
     let active = true;
 
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const teacherId = user?.refId || user?._id;
+
     const loadDashboard = async () => {
       try {
+        if (!teacherId) {
+          console.error("No teacher user found. Please log in again.");
+          if (active) setLoading(false);
+          return;
+        }
+
         const [
           messagesRes,
           sentRes,
@@ -78,11 +82,11 @@ export default function TeacherCommunicationDashboard() {
           noticesRes,
           logsRes,
         ] = await Promise.all([
-          CommunicationAPI.getMessages(TEACHER_ID, "Staff"),
-          CommunicationAPI.getSentMessages(TEACHER_ID, "Staff"),
-          CommunicationAPI.getUserComplaints(TEACHER_ID, "Staff"),
+          CommunicationAPI.getMessages(teacherId, "Teacher"),
+          CommunicationAPI.getSentMessages(teacherId, "Teacher"),
+          CommunicationAPI.getUserComplaints(teacherId, "Teacher"),
           CommunicationAPI.getNotices(),
-          CommunicationAPI.getUserLogs(TEACHER_ID, "Staff"),
+          CommunicationAPI.getUserLogs(teacherId, "Teacher"),
         ]);
 
         if (!active) return;
@@ -97,29 +101,27 @@ export default function TeacherCommunicationDashboard() {
         const totalComplaints = complaints.length;
         const totalNotices = notices.length;
         const parentsContacted = logs.filter(
-          (log) => log.targetAudience === "Parents"
+          (log) =>
+            (log.details?.receiverModel || "") === "Parent" ||
+            (log.targetAudience || "") === "Parents"
         ).length;
 
         setStats([
           {
             title: "Total Messages",
             value: totalMessages,
-            growth: totalMessages > 0 ? 12 : 0,
           },
           {
             title: "Complaints",
             value: totalComplaints,
-            growth: totalComplaints > 0 ? 8 : 0,
           },
           {
             title: "Notices",
             value: totalNotices,
-            growth: totalNotices > 0 ? 5 : 0,
           },
           {
             title: "Parents Contacted",
             value: parentsContacted,
-            growth: parentsContacted > 0 ? 15 : 0,
           },
         ]);
 
@@ -267,20 +269,6 @@ export default function TeacherCommunicationDashboard() {
                       <h2 className="text-2xl font-bold text-gray-800 mt-1">
                         {item.value}
                       </h2>
-                      <div
-                        className={`flex items-center text-sm mt-2 ${
-                          item.growth > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {item.growth > 0 ? (
-                          <FiTrendingUp className="mr-1" />
-                        ) : (
-                          <FiTrendingDown className="mr-1" />
-                        )}
-                        {item.growth}%
-                      </div>
                     </div>
                     <div className="text-gray-400">{item.icon}</div>
                   </div>

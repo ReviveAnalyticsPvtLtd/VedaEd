@@ -37,7 +37,7 @@ export default function CommunicationParentDashboard() {
       setLoading(false);
       return;
     }
-    const userModel = user.role || "Parent";
+    const userModel = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : "Parent";
 
     const load = async () => {
       try {
