@@ -9,6 +9,20 @@ export default function SetupProfileSummary({ form }) {
     { label: "Sections", value: form.sections || "—" },
     { label: "Country", value: form.country || "—" },
     {
+      label: "Theme Color",
+      value: (
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="w-3.5 h-3.5 rounded-full inline-block border border-black/10 shrink-0"
+            style={{ backgroundColor: form.primaryThemeColor || "#2563EB" }}
+          />
+          <span className="font-mono text-xs text-gray-800">
+            {form.primaryThemeColor || "#2563EB"}
+          </span>
+        </span>
+      ),
+    },
+    {
       label: "Enabled Modules",
       value: `${(form.enabledModules || []).length} / ${(form.enabledModules || []).length + (form.disabledModules || []).length}`,
     },

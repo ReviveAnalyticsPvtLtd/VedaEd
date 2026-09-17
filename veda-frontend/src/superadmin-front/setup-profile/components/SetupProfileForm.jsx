@@ -1,5 +1,5 @@
 import { Label, Input, Select } from "../../identity-access/components/FormField";
-import { ALL_MODULES } from "../constants";
+import { ALL_MODULES, THEME_COLOR_PRESETS, DEFAULT_PRIMARY_THEME_COLOR } from "../constants";
 
 export default function SetupProfileForm({ form, onChange, readOnly = false }) {
   const set = (field, value) => onChange({ ...form, [field]: value });
@@ -164,23 +164,82 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
               <option value="flexible">Flexible</option>
             </Select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <Label>Primary Theme Color</Label>
-            <div className="flex items-center gap-3">
+            {/* Predefined Color Swatches */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+              {THEME_COLOR_PRESETS.map((preset) => {
+                const currentColor = (form.primaryThemeColor || DEFAULT_PRIMARY_THEME_COLOR).toUpperCase();
+                const isSelected = currentColor === preset.value.toUpperCase();
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => set("primaryThemeColor", preset.value)}
+                    className={`group relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                      isSelected
+                        ? "border-gray-900 bg-gray-50 shadow-sm ring-2 ring-offset-1 ring-gray-900"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                    } ${readOnly ? "cursor-default opacity-85" : "cursor-pointer"}`}
+                    title={preset.label}
+                    aria-label={`Select ${preset.label} theme color (${preset.value})`}
+                    aria-pressed={isSelected}
+                  >
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center shadow-inner border border-black/10 shrink-0"
+                      style={{ backgroundColor: preset.value }}
+                    >
+                      {isSelected && (
+                        <svg
+                          className="w-2.5 h-2.5 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3.5"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="text-gray-800 font-semibold">{preset.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Color Input & Hex Value */}
+            <div className="mt-3 flex items-center gap-3">
               <input
                 type="color"
-                value={form.primaryThemeColor || "#2563EB"}
-                onChange={(e) => set("primaryThemeColor", e.target.value)}
+                value={form.primaryThemeColor || DEFAULT_PRIMARY_THEME_COLOR}
+                onChange={(e) => set("primaryThemeColor", e.target.value.toUpperCase())}
                 disabled={readOnly}
-                className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer disabled:cursor-not-allowed"
+                aria-label="Theme color picker"
+                className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer disabled:cursor-not-allowed p-0.5 bg-white shrink-0"
               />
-              <Input
-                value={(form.primaryThemeColor || "").toUpperCase()}
-                onChange={(e) => set("primaryThemeColor", e.target.value)}
-                placeholder="#2563EB"
-                disabled={readOnly}
-                className="uppercase"
-              />
+              <div className="w-36">
+                <Input
+                  value={(form.primaryThemeColor || DEFAULT_PRIMARY_THEME_COLOR).toUpperCase()}
+                  onChange={(e) => set("primaryThemeColor", e.target.value.toUpperCase())}
+                  placeholder="#2563EB"
+                  disabled={readOnly}
+                  className="uppercase font-mono text-sm"
+                />
+              </div>
+              {!THEME_COLOR_PRESETS.some(
+                (p) =>
+                  p.value.toUpperCase() ===
+                  (form.primaryThemeColor || DEFAULT_PRIMARY_THEME_COLOR).toUpperCase()
+              ) && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                  Custom Color
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -5,19 +5,26 @@ import PageHeader from "../identity-access/components/PageHeader";
 import SetupProfileForm from "./components/SetupProfileForm";
 import SetupProfileSummary from "./components/SetupProfileSummary";
 import { getSetupProfile } from "../../services/setupWizardAPI";
+import { useTheme } from "../../context/ThemeContext";
 
 const BASE = "/superadmin-front/setup-profile";
 
 export default function ViewSetupProfile() {
   const navigate = useNavigate();
+  const { setPrimaryColor } = useTheme();
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     getSetupProfile()
-      .then((res) => setProfile(res.data))
+      .then((res) => {
+        setProfile(res.data);
+        if (res.data?.primaryThemeColor) {
+          setPrimaryColor(res.data.primaryThemeColor);
+        }
+      })
       .catch((err) => setError(err.message));
-  }, []);
+  }, [setPrimaryColor]);
 
   if (!profile && !error) {
     return (

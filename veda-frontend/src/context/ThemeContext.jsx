@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { userSettingsAPI } from "../services/userSettingsAPI";
+import { getSetupProfile } from "../services/setupWizardAPI";
+import {
+  applyPrimaryColorToDOM,
+  normalizeHex,
+  DEFAULT_PRIMARY_THEME_COLOR,
+  THEME_COLOR_PRESETS,
+} from "../utils/themeColorUtils";
 
 const ThemeContext = createContext();
 
@@ -20,6 +27,18 @@ export const ThemeProvider = ({ children }) => {
       console.error("Failed to read theme from localStorage", e);
     }
     return THEME_MODES.LIGHT;
+  });
+
+  const [primaryColor, setPrimaryColorState] = useState(() => {
+    try {
+      const savedColor = localStorage.getItem("primaryThemeColor");
+      if (savedColor) {
+        return normalizeHex(savedColor);
+      }
+    } catch (e) {
+      console.error("Failed to read primaryThemeColor from localStorage", e);
+    }
+    return DEFAULT_PRIMARY_THEME_COLOR;
   });
 
   const getSystemTheme = useCallback(() => {
@@ -68,7 +87,7 @@ export const ThemeProvider = ({ children }) => {
     setResolvedTheme(effective);
   }, [getSystemTheme]);
 
-  // Set and persist theme
+  // Set and persist theme mode (light/dark/system)
   const setTheme = useCallback((newTheme) => {
     if (!["light", "dark", "system"].includes(newTheme)) return;
 
@@ -92,10 +111,27 @@ export const ThemeProvider = ({ children }) => {
     applyThemeToDOM(newTheme);
   }, [applyThemeToDOM]);
 
-  // Apply theme on mount and when theme state changes
+  // Set and persist primary theme color
+  const setPrimaryColor = useCallback((newColor) => {
+    const normalized = normalizeHex(newColor);
+    setPrimaryColorState(normalized);
+    try {
+      localStorage.setItem("primaryThemeColor", normalized);
+    } catch (e) {
+      console.error("Failed to save primaryThemeColor to localStorage", e);
+    }
+    applyPrimaryColorToDOM(normalized);
+  }, []);
+
+  // Apply theme mode on mount and when theme state changes
   useEffect(() => {
     applyThemeToDOM(theme);
   }, [theme, applyThemeToDOM]);
+
+  // Apply primary color on mount and when primaryColor state changes
+  useEffect(() => {
+    applyPrimaryColorToDOM(primaryColor);
+  }, [primaryColor]);
 
   // Listen for OS system theme changes
   useEffect(() => {
@@ -135,12 +171,14 @@ export const ThemeProvider = ({ children }) => {
     };
   }, [theme]);
 
-  // Sync with user settings on initial load if logged in
+  // Sync with user settings and organization setup profile on initial load if logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     let isMounted = true;
+
+    // 1. Fetch user theme preference
     userSettingsAPI
       .getSettings()
       .then((settings) => {
@@ -148,7 +186,7 @@ export const ThemeProvider = ({ children }) => {
         if (settings?.preferences?.theme) {
           const apiTheme = settings.preferences.theme;
           if (["light", "dark", "system"].includes(apiTheme)) {
-            setThemeState(apiTheme);
+            setThemeState((prev) => (prev === apiTheme ? prev : apiTheme));
             localStorage.setItem("theme", apiTheme);
             applyThemeToDOM(apiTheme);
           }
@@ -156,6 +194,21 @@ export const ThemeProvider = ({ children }) => {
       })
       .catch(() => {
         // Silently catch to not disrupt unauthenticated or offline states
+      });
+
+    // 2. Fetch organization setup profile for saved primaryThemeColor
+    getSetupProfile()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.data?.primaryThemeColor) {
+          const color = normalizeHex(res.data.primaryThemeColor);
+          setPrimaryColorState((prev) => (prev === color ? prev : color));
+          localStorage.setItem("primaryThemeColor", color);
+          applyPrimaryColorToDOM(color);
+        }
+      })
+      .catch(() => {
+        // Silently catch for non-superadmin or unauthenticated
       });
 
     return () => {
@@ -171,6 +224,10 @@ export const ThemeProvider = ({ children }) => {
         setTheme,
         applyTheme: applyThemeToDOM,
         isDark: resolvedTheme === "dark",
+        primaryColor,
+        setPrimaryColor,
+        applyPrimaryColor: applyPrimaryColorToDOM,
+        colorPresets: THEME_COLOR_PRESETS,
       }}
     >
       {children}
