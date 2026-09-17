@@ -49,8 +49,8 @@ export default function Class({ templates = [] }) {
   const handleTemplateChange = (e) => {
     const id = e.target.value;
     setSelectedTemplateId(id);
-    const template = templates.find((t) => String(t.id) === id);
-    if (template) setMessage(template.content);
+    const template = templates.find((t) => String(t._id) === id);
+    if (template) setMessage(template.message);
   };
 
   const toggleMessageTo = (key) => {
@@ -240,8 +240,8 @@ export default function Class({ templates = [] }) {
           >
             <option value="">Select</option>
             {availableTemplates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
+              <option key={template._id} value={template._id}>
+                {template.title}
               </option>
             ))}
           </select>

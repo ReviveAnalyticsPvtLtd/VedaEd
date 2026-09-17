@@ -3,6 +3,7 @@ const router = express.Router();
 const messageController = require('./messageController');
 const noticeController = require('./noticeController');
 const noticeTemplateController = require('./noticeTemplateController');
+const messageTemplateController = require('./messageTemplateController');
 const complaintController = require('./complaintController');
 const communicationLogController = require('./communicationLogController');
 const notificationController = require('./notificationController');
@@ -42,6 +43,12 @@ router.post('/notice-templates', noticeTemplateController.createNoticeTemplate);
 router.get('/notice-templates', noticeTemplateController.getNoticeTemplates);
 router.put('/notice-templates/:templateId', noticeTemplateController.updateNoticeTemplate);
 router.delete('/notice-templates/:templateId', noticeTemplateController.deleteNoticeTemplate);
+
+// Message Template Routes
+router.post('/message-templates', messageTemplateController.createMessageTemplate);
+router.get('/message-templates', messageTemplateController.getMessageTemplates);
+router.put('/message-templates/:templateId', messageTemplateController.updateMessageTemplate);
+router.delete('/message-templates/:templateId', messageTemplateController.deleteMessageTemplate);
 
 // Complaint Routes
 router.post('/complaints', complaintController.createComplaint);

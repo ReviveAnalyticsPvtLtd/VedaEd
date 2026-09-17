@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import CommunicationAPI from "./communicationAPI";
+import CommunicationAPI from "../services/communicationAPI";
 import HelpInfo from "../components/HelpInfo";
 
 export default function Logs() {
@@ -16,14 +16,16 @@ export default function Logs() {
       setLoading(true);
       setError(null);
 
-      const response = await CommunicationAPI.getPublishedNotices(
-        uId,
-        uModel
-      );
+      const [noticeRes, messageRes] = await Promise.allSettled([
+        CommunicationAPI.getPublishedNotices(uId, uModel),
+        CommunicationAPI.getMessages(uId, uModel, { limit: 100 }),
+      ]);
 
-      if (response.success) {
+      if (noticeRes.status === "rejected" && messageRes.status === "rejected") {
+        setError("Failed to fetch logs");
+      } else {
         // Transform notices data to match logs format
-        const transformedLogs = response.data.map((notice) => ({
+        const noticeLogs = (noticeRes.value?.data || []).map((notice) => ({
           id: notice._id,
           title: notice.title,
           sender: notice.authorModel === "Staff" ? "Admin" : notice.authorModel,
@@ -31,9 +33,23 @@ export default function Logs() {
           sentAt: notice.createdAt || notice.publishDate,
         }));
 
-        setLogs(transformedLogs);
-      } else {
-        setError("Failed to fetch logs");
+        // Transform messages data to match logs format
+        const messageLogs = (messageRes.value?.data || []).map((msg) => ({
+          id: msg._id,
+          title: msg.subject,
+          sender:
+            msg.sender?.personalInfo?.name ||
+            msg.senderModel ||
+            "School",
+          channels: ["In-app"],
+          sentAt: msg.createdAt,
+        }));
+
+        const combined = [...noticeLogs, ...messageLogs].sort(
+          (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
+        );
+
+        setLogs(combined);
       }
     } catch (err) {
       setError("Failed to fetch logs");

@@ -19,28 +19,28 @@ const CommunicationAdminDashboard = () => {
       value: "1,248",
       icon: <FiMail size={26} />,
       color: "from-blue-500 to-blue-600",
-      route: "/communication/messages",
+      route: "/superadmin/communication/messages",
     },
     {
       title: "Notices Sent",
       value: "86",
       icon: <FiBell size={26} />,
       color: "from-green-500 to-green-600",
-      route: "/communication/notices",
+      route: "/superadmin/communication/notices",
     },
     {
       title: "Complaints",
       value: "34",
       icon: <FiAlertCircle size={26} />,
       color: "from-red-500 to-red-600",
-      route: "/communication/complaints",
+      route: "/superadmin/communication/complaints",
     },
     {
       title: "Pending Logs",
       value: "12",
       icon: <FiFileText size={26} />,
       color: "from-purple-500 to-purple-600",
-      route: "/communication/logs",
+      route: "/superadmin/communication/logs",
     },
   ];
 
@@ -75,21 +75,21 @@ const CommunicationAdminDashboard = () => {
         </h3>
         <div className="flex gap-4 flex-wrap">
           <button
-            onClick={() => navigate("/communication/send-message")}
+            onClick={() => navigate("/superadmin/communication/send-message")}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
           >
             <FiSend /> Send Message
           </button>
 
           <button
-            onClick={() => navigate("/communication/create-notice")}
+            onClick={() => navigate("/superadmin/communication/create-notice")}
             className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition"
           >
             <FiPlusCircle /> Create Notice
           </button>
 
           <button
-            onClick={() => navigate("/communication/logs")}
+            onClick={() => navigate("/superadmin/communication/logs")}
             className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition"
           >
             <FiFileText /> View Logs

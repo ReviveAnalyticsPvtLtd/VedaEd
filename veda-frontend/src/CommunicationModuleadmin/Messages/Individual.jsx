@@ -27,11 +27,32 @@ export default function Individual() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setCurrentUser(user);
   }, []);
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await CommunicationAPI.getMessageTemplates();
+        setTemplates(response?.data || []);
+      } catch (error) {
+        console.error("Error fetching message templates:", error);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  const handleTemplateChange = (e) => {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    const template = templates.find((t) => String(t._id) === id);
+    if (template) setMessage(template.message);
+  };
 
   // Fetch users depending on chosen role
   useEffect(() => {
@@ -230,6 +251,25 @@ export default function Individual() {
                 <option value="whatsapp">WhatsApp Notification</option>
               </select>
             </div>
+          </div>
+
+          {/* Message Template */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-1">
+              Message Template
+            </label>
+            <select
+              value={selectedTemplateId}
+              onChange={handleTemplateChange}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="">Select Template</option>
+              {templates.map((template) => (
+                <option key={template._id} value={template._id}>
+                  {template.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Message Content */}

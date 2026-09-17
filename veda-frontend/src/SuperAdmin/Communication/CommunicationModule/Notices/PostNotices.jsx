@@ -30,6 +30,10 @@ export default function PostNotices() {
     try {
       const selectedRoles = Object.keys(roles).filter((r) => roles[r]);
 
+      const currentUser = JSON.parse(localStorage.getItem("user")) || {};
+      const authorId = currentUser?._id || "";
+      const authorModel = "Admin";
+
       // Determine target audience based on selected roles
       let targetAudience = "all";
       if (selectedRoles.length === 1) {
@@ -47,8 +51,8 @@ export default function PostNotices() {
       const noticeData = {
         title: title.trim(),
         content: message.trim(),
-        author: "68c1b2977fa6e0a4c8af3242", // Using real admin ID from database
-        authorModel: "Staff",
+        author: authorId,
+        authorModel: authorModel,
         category: "general",
         priority: "medium",
         targetAudience: targetAudience,
@@ -92,13 +96,13 @@ export default function PostNotices() {
       if (sendOption === "now") {
         await CommunicationAPI.publishNotice(
           response.data._id,
-          "68c1b2977fa6e0a4c8af3242",
-          "Staff"
+          authorId,
+          authorModel
         );
       }
 
       alert("Notice created successfully!");
-      navigate("/communication/logs");
+      navigate("/superadmin/communication/logs");
     } catch (error) {
       console.error("Error creating notice:", error);
       alert(`Failed to create notice: ${error.message}`);
@@ -218,7 +222,7 @@ export default function PostNotices() {
               <button
                 type="button"
                 className="px-4 py-2 rounded border"
-                onClick={() => navigate("/communication/logs")}
+                onClick={() => navigate("/superadmin/communication/logs")}
               >
                 View Logs
               </button>
