@@ -257,7 +257,7 @@ Sections:
           </div>
         </div>
 
-        <table className="w-full  text-left border-collapse">
+        <table className="w-full text-sm text-left border-collapse">
           <thead className="bg-gray-100 border-b">
             <tr>
               <th className="p-2 border text-center">S.No.</th>

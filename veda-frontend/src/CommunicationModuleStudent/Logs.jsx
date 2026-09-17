@@ -130,48 +130,49 @@ Sections:
             <p className="text-gray-500">No logs available.</p>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left  font-medium text-gray-500 uppercase tracking-wider">
-                  Title
-                </th>
-                <th className="px-4 py-2 text-left  font-medium text-gray-500 uppercase tracking-wider">
-                  Sender
-                </th>
-                <th className="px-4 py-2 text-left  font-medium text-gray-500 uppercase tracking-wider">
-                  Channels
-                </th>
-                <th className="px-4 py-2 text-left  font-medium text-gray-500 uppercase tracking-wider">
-                  Sent At
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
-              {logs.map((log, idx) => (
-                <tr key={idx}>
-                  <td className="px-4 py-2 whitespace-nowrap">{log.title}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <span
-                      className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                        log.sender === "Teacher"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {log.sender}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    {log.channels.join(", ")}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    {new Date(log.sentAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <table className="w-full border text-sm">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="p-2 border">Title</th>
+      <th className="p-2 border">Sender</th>
+      <th className="p-2 border">Channels</th>
+      <th className="p-2 border">Sent At</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {logs.map((log, idx) => (
+      <tr
+        key={idx}
+        className="text-center hover:bg-gray-50"
+      >
+        <td className="p-2 border text-left">
+          {log.title}
+        </td>
+
+        <td className="p-2 border">
+          <span
+            className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+              log.sender === "Teacher"
+                ? "bg-green-100 text-green-800"
+                : "bg-blue-100 text-blue-800"
+            }`}
+          >
+            {log.sender}
+          </span>
+        </td>
+
+        <td className="p-2 border">
+          {log.channels.join(", ")}
+        </td>
+
+        <td className="p-2 border">
+          {new Date(log.sentAt).toLocaleString()}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
         )}
       </div>
     </div>

@@ -2,8 +2,9 @@ export const DEFAULT_PRIMARY_THEME_COLOR = "#2563EB";
 
 export const THEME_COLOR_PRESETS = [
   { id: "blue", label: "Blue", value: "#2563EB" },
-  { id: "green", label: "Green", value: "#16A34A" },
   { id: "purple", label: "Purple", value: "#7C3AED" },
+  { id: "green", label: "Green", value: "#16A34A" },
+  { id: "orange", label: "Orange", value: "#EA580C" },
 ];
 
 export const LOGO_FRAME_SHAPES = [

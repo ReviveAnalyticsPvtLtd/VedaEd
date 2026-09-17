@@ -119,78 +119,107 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
         </div>
       </div>
 
-      <div className="bg-white p-3 rounded-lg shadow-sm border">
-        <div className="overflow-x-auto">
-          <table className="w-full border ">
-            <thead className="bg-gray-100 text-gray-700">
-              <tr>
-                <th className="p-2 border text-left">Name</th>
-                <th className="p-2 border text-left">Grade</th>
-                <th className="p-2 border text-left">Status</th>
-                <th className="p-2 border text-left">Time</th>
-                <th className="p-2 border text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentStudents.map((student) => (
+   {/* 📋 TABLE */}
+<div className="bg-white p-3 rounded-lg shadow-sm border">
+  <div className="overflow-x-auto">
+    <table className="w-full border text-sm">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="p-2 border">Name</th>
+          <th className="p-2 border">Grade</th>
+          <th className="p-2 border">Status</th>
+          <th className="p-2 border">Time</th>
+          <th className="p-2 border">Actions</th>
+        </tr>
+      </thead>
 
-                <tr key={student.id} className="hover:bg-gray-50 transition">
-                  <td className="p-2 border text-left">{student.name}</td>
-                  <td className="p-2 border text-left">{student.grade}</td>
-                  <td
-                    className={`p-2 border text-left font-semibold ${
-                      student.status === "Present"
-                        ? "text-green-600"
-                        : student.status === "Absent"
-                        ? "text-red-600"
-                        : "text-orange-500"
-                    }`}
-                  >
-                    {student.status}
-                  </td>
-                  <td className="p-2 border text-left">{student.time}</td>
-                  <td className="p-2 border text-left space-x-2">
-                    <button
-                      onClick={() => markAttendance(student.id, "Present")}
-                      className="bg-green-500 text-white px-2 py-1 rounded-md  hover:bg-green-600"
-                    >
-                      Present
-                    </button>
-                    <button
-                      onClick={() => markAttendance(student.id, "Absent")}
-                      className="bg-red-500 text-white px-2 py-1 rounded-md  hover:bg-red-600"
-                    >
-                      Absent
-                    </button>
-                    <button
-                      onClick={() => markAttendance(student.id, "Late")}
-                      className="bg-orange-500 text-white px-2 py-1 rounded-md  hover:bg-orange-600"
-                    >
-                      Late
-                    </button>
-                    <button
-                      onClick={() =>
-                        navigate(`/admin/attendance/by-student/${student.id}`)
-                      }
-                      className="text-blue-600 hover:text-blue-800 "
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan="5"
-                    className="text-center py-4 text-gray-500 italic"
-                  >
-                    No students found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <tbody>
+        {currentStudents.map((student) => (
+          <tr
+            key={student.id}
+            className="text-center hover:bg-gray-50"
+          >
+            <td className="p-2 border text-left">
+              {student.name}
+            </td>
+
+            <td className="p-2 border">
+              {student.grade}
+            </td>
+
+            <td
+              className={`p-2 border font-semibold ${
+                student.status === "Present"
+                  ? "text-green-600"
+                  : student.status === "Absent"
+                  ? "text-red-600"
+                  : "text-orange-500"
+              }`}
+            >
+              {student.status}
+            </td>
+
+            <td className="p-2 border">
+              {student.time}
+            </td>
+
+            <td className="p-2 border">
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Present")
+                  }
+                  className="bg-green-500 text-white px-2 py-1 rounded-md hover:bg-green-600"
+                >
+                  Present
+                </button>
+
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Absent")
+                  }
+                  className="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600"
+                >
+                  Absent
+                </button>
+
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Late")
+                  }
+                  className="bg-orange-500 text-white px-2 py-1 rounded-md hover:bg-orange-600"
+                >
+                  Late
+                </button>
+
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/admin/attendance/by-student/${student.id}`
+                    )
+                  }
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  View Details
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+
+        {filtered.length === 0 && (
+          <tr>
+            <td
+              colSpan="5"
+              className="p-2 border text-center text-gray-500 italic"
+            >
+              No students found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+ 
           {/* Pagination */}
 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>

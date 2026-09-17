@@ -386,7 +386,7 @@ Tools available inside every class:
             <div className="text-gray-500">Loading students...</div>
           </div>
         ) : (
-          <table className="w-full border ">
+          <table className="w-full text-sm border ">
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">S. no.</th>

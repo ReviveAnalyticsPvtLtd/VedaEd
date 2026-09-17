@@ -16,6 +16,7 @@ import {
   FiUser,
   FiHome,
   FiLayers,
+  FiDollarSign,
 } from "react-icons/fi";
 
 const MODULES = [
@@ -58,6 +59,16 @@ const MODULES = [
       },
     ],
   },
+  {
+  name: "Admin Fees",
+  icon: <FiDollarSign size={18} />,
+  subs: [
+    {
+      label: "Fees",
+      path: "/admin/fees",
+    },
+  ],
+},
   {
     name: "HR Module",
     icon: <FiBriefcase size={18} />,

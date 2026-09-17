@@ -5,11 +5,13 @@ import SetupProfileForm from "./components/SetupProfileForm";
 import SetupProfileSummary from "./components/SetupProfileSummary";
 import { getSetupProfile, updateSetupProfile } from "../../services/setupWizardAPI";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
+import { useTheme } from "../../context/ThemeContext";
 
 const BASE = "/superadmin-front/setup-profile";
 
 export default function EditSetupProfile() {
   const navigate = useNavigate();
+  const { setPrimaryColor } = useTheme();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
@@ -17,9 +19,14 @@ export default function EditSetupProfile() {
 
   useEffect(() => {
     getSetupProfile()
-      .then((res) => setForm(res.data))
+      .then((res) => {
+        setForm(res.data);
+        if (res.data?.primaryThemeColor) {
+          setPrimaryColor(res.data.primaryThemeColor);
+        }
+      })
       .catch((err) => setError(err.message));
-  }, []);
+  }, [setPrimaryColor]);
 
   const save = () => {
     if (!form) return;
@@ -28,6 +35,9 @@ export default function EditSetupProfile() {
     setToast("");
     updateSetupProfile({ ...form, schoolCode: undefined })
       .then(() => {
+        if (form.primaryThemeColor) {
+          setPrimaryColor(form.primaryThemeColor);
+        }
         setToast("Setup profile updated successfully.");
         setTimeout(() => navigate(BASE), 1500);
       })

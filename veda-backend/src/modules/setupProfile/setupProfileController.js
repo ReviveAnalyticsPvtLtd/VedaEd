@@ -56,12 +56,24 @@ exports.getSetupProfile = async (req, res) => {
   }
 };
 
+const HEX_COLOR_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+
 /** PUT /api/setup-profile — update only the logged-in superadmin's own data, whitelist-only fields */
 exports.updateSetupProfile = async (req, res) => {
   try {
     const filtered = {};
     for (const key of EDITABLE_FIELDS) {
       if (req.body[key] !== undefined) filtered[key] = req.body[key];
+    }
+    if (filtered.primaryThemeColor !== undefined) {
+      const themeColor = String(filtered.primaryThemeColor).trim();
+      if (themeColor && !HEX_COLOR_REGEX.test(themeColor)) {
+        return res.status(400).json({
+          success: false,
+          message: "primaryThemeColor must be a valid hex color",
+        });
+      }
+      filtered.primaryThemeColor = themeColor;
     }
     if (req.body.capacity !== undefined && filtered.maxStudentsPerSection === undefined) {
       const parsedCap = Number(req.body.capacity);

@@ -422,7 +422,7 @@ Tools available inside the assignments dashboard:
               </button>
             </div>
           ) : (
-            <table className="w-full border ">
+            <table className="w-full text-sm border ">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="p-2 border">S.No</th>
