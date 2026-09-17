@@ -1,112 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiMail, FiCalendar, FiUser, FiDownload, FiSend } from "react-icons/fi";
+import CommunicationAPI from "../communicationAPI";
+
+const TEACHER_ID = "6a99120596f5dd52a7cbf930";
 
 export default function NoticesOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dummy data for teacher notices (sent and received)
-  const dummyNotices = [
-    {
-      id: 1,
-      title: "Class Schedule Change Notice",
-      message:
-        "Due to teacher training, Class 8A schedule will be modified for next week. Please inform students and parents accordingly.",
-      sender: "Academic Coordinator",
-      sentDate: "2024-01-15",
-      publishDate: "2024-01-15",
-      roles: ["Teacher", "Student", "Parent"],
-      channels: ["Email", "SMS"],
-      attachment: "schedule_change.pdf",
-      isRead: false,
-      priority: "high",
-      status: "published",
-      type: "received",
-    },
-    {
-      id: 2,
-      title: "Parent-Teacher Meeting Reminder",
-      message:
-        "Reminder: Parent-teacher meeting for Grade 8A is scheduled for tomorrow at 2:00 PM. Please prepare student progress reports.",
-      sender: "Principal Office",
-      sentDate: "2024-01-14",
-      publishDate: "2024-01-14",
-      roles: ["Teacher"],
-      channels: ["Email"],
-      attachment: "ptm_agenda.pdf",
-      isRead: true,
-      priority: "high",
-      status: "published",
-      type: "received",
-    },
-    {
-      id: 3,
-      title: "Exam Paper Submission Deadline",
-      message:
-        "All teachers are requested to submit their exam papers for review by end of this week. Late submissions will not be accepted.",
-      sender: "Examination Department",
-      sentDate: "2024-01-13",
-      publishDate: "2024-01-13",
-      roles: ["Teacher"],
-      channels: ["Email", "SMS"],
-      attachment: null,
-      isRead: false,
-      priority: "medium",
-      status: "published",
-      type: "received",
-    },
-    {
-      id: 4,
-      title: "Student Assignment Submission Notice",
-      message:
-        "Dear students of Grade 8A, please submit your mathematics assignment by Friday. Late submissions will result in grade deduction.",
-      sender: "Mrs. Sunita Verma",
-      sentDate: "2024-01-12",
-      publishDate: "2024-01-12",
-      roles: ["Student", "Parent"],
-      channels: ["Email", "SMS"],
-      attachment: "assignment_guidelines.pdf",
-      isRead: true,
-      priority: "medium",
-      status: "published",
-      type: "sent",
-    },
-    {
-      id: 5,
-      title: "Class Test Schedule Announcement",
-      message:
-        "Science class test for Grade 8A is scheduled for next Monday. Please prepare chapters 5-8 thoroughly.",
-      sender: "Mr. Anil Kumar",
-      sentDate: "2024-01-11",
-      publishDate: "2024-01-11",
-      roles: ["Student", "Parent"],
-      channels: ["Email"],
-      attachment: "test_syllabus.pdf",
-      isRead: true,
-      priority: "medium",
-      status: "published",
-      type: "sent",
-    },
-    {
-      id: 6,
-      title: "Library Book Return Notice",
-      message:
-        "Students who have borrowed library books are requested to return them by the end of this month to avoid late fees.",
-      sender: "Mrs. Sunita Verma",
-      sentDate: "2024-01-10",
-      publishDate: "2024-01-10",
-      roles: ["Student"],
-      channels: ["SMS"],
-      attachment: null,
-      isRead: true,
-      priority: "low",
-      status: "draft",
-      type: "sent",
-    },
-  ];
+  useEffect(() => {
+    let active = true;
+    const loadNotices = async () => {
+      try {
+        const res = await CommunicationAPI.getNotices({ limit: 100 });
+        if (!active) return;
+        const data = res?.data || [];
+        const mapped = data.map((n) => ({
+          id: n._id,
+          title: n.title,
+          message: n.content,
+          sender: n.authorName || "Unknown",
+          sentDate: n.createdAt,
+          publishDate: n.publishDate || n.createdAt,
+          roles: n.tags || n.targetRoles || [],
+          channels: n.targetChannels || ["In-app"],
+          attachment: n.attachment?.filename || null,
+          isRead: n.viewedBy?.some(
+            (v) => v?.userId === TEACHER_ID || v?.clerkId === TEACHER_ID
+          ) || false,
+          priority: n.priority || "medium",
+          status: n.status,
+          type: n.authorId === TEACHER_ID ? "sent" : "received",
+        }));
+        setNotices(mapped);
+      } catch (error) {
+        console.error("Notices load failed:", error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadNotices();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const filteredNotices = dummyNotices.filter((notice) => {
+  const filteredNotices = notices.filter((notice) => {
     const matchesSearch =
       notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       notice.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -121,11 +63,9 @@ export default function NoticesOverview() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const unreadCount = dummyNotices.filter((notice) => !notice.isRead).length;
-  const sentCount = dummyNotices.filter(
-    (notice) => notice.type === "sent"
-  ).length;
-  const receivedCount = dummyNotices.filter(
+  const unreadCount = notices.filter((notice) => !notice.isRead).length;
+  const sentCount = notices.filter((notice) => notice.type === "sent").length;
+  const receivedCount = notices.filter(
     (notice) => notice.type === "received"
   ).length;
 
@@ -167,6 +107,7 @@ export default function NoticesOverview() {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -192,9 +133,7 @@ export default function NoticesOverview() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-gray-600">
-                {unreadCount} unread
-              </span>
+              <span className="text-gray-600">{unreadCount} unread</span>
             </div>
           </div>
         </div>
@@ -235,16 +174,20 @@ export default function NoticesOverview() {
 
       {/* Notices List */}
       <div className="space-y-4">
-        {filteredNotices.length > 0 ? (
+        {loading ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+            <p className="text-gray-500">Loading notices...</p>
+          </div>
+        ) : filteredNotices.length > 0 ? (
           filteredNotices.map((notice) => (
-           <div
-  key={notice.id}
-  className={`p-4 rounded-lg border transition-colors duration-200 ${
-    notice.isRead
-      ? "bg-gray-100 border-gray-200"
-      : "bg-white border-gray-300"
-  }`}
->
+            <div
+              key={notice.id}
+              className={`p-4 rounded-lg border transition-colors duration-200 ${
+                notice.isRead
+                  ? "bg-gray-100 border-gray-200"
+                  : "bg-white border-gray-300"
+              }`}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">

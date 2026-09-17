@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import config from "../config";
 import {
   FiSearch,
   FiEdit,
@@ -31,37 +33,60 @@ export default function StudentTransportFees() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [amount, setAmount] = useState("");
 
-  /* ---------------- DUMMY DATA ---------------- */
-  const [students, setStudents] = useState([
-    {
-      admissionNo: "10024",
-      name: "Steven Taylor",
-      class: "Class 1",
-      section: "A",
-      father: "Jason Taylor",
-      route: "Brooklyn South",
-      vehicle: "VH5645",
-      pickup: "Brooklyn North",
-      fees: {
-        Jan: { amount: 800, status: "Paid" },
-        Feb: { amount: 800, status: "Paid" },
-        Mar: { amount: 800, status: "Unpaid" },
-      },
-    },
-    {
-      admissionNo: "120020",
-      name: "Ashwani Kumar",
-      class: "Class 1",
-      section: "A",
-      father: "Arjun Kumar",
-      route: "Brooklyn Central",
-      vehicle: "VH1001",
-      pickup: "Brooklyn North",
-      fees: {
-        Jan: { amount: 900, status: "Paid" },
-      },
-    },
-  ]);
+  /* ---------------- DATA ---------------- */
+  const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dataError, setDataError] = useState("");
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  /* ---------------- FETCH CLASSES ---------------- */
+  const fetchClasses = async () => {
+    try {
+      const res = await axios.get(`${config.API_BASE_URL}/classes`);
+      if (res.data.success) {
+        setClasses(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch classes", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedClass) {
+      setSections([]);
+      setSelectedSection("");
+      return;
+    }
+    const selected = classes.find((c) => c.name === selectedClass);
+    setSections(selected?.sections || []);
+    setSelectedSection("");
+  }, [selectedClass, classes]);
+
+  /* ---------------- FETCH STUDENTS ---------------- */
+  const fetchStudentTransports = async () => {
+    try {
+      setLoading(true);
+      setDataError("");
+      const params = new URLSearchParams();
+      if (selectedClass) params.set("class", selectedClass);
+      if (selectedSection) params.set("section", selectedSection);
+      const res = await axios.get(
+        `${config.API_BASE_URL}/transport/student-transports?${params.toString()}`
+      );
+      setStudents(res.data);
+      setPage(1);
+    } catch (err) {
+      console.error("Failed to fetch student transports", err);
+      setDataError("Failed to load student transport fees.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* ---------------- SEARCH ---------------- */
   const handleSearch = () => {
@@ -72,16 +97,11 @@ export default function StudentTransportFees() {
     }
     setError("");
     setShowTable(true);
-    setPage(1);
+    fetchStudentTransports();
   };
 
-  const filtered = students.filter(
-    (s) =>
-      s.class === selectedClass &&
-      (!selectedSection || s.section === selectedSection)
-  );
-
   /* ---------------- PAGINATION LOGIC ---------------- */
+  const filtered = students;
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginatedData = filtered.slice(
     (page - 1) * pageSize,
@@ -96,29 +116,24 @@ export default function StudentTransportFees() {
     setShowModal(true);
   };
 
-  const assignFee = () => {
+  const assignFee = async () => {
     if (!selectedMonth || !amount) return;
 
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.admissionNo === activeStudent.admissionNo
-          ? {
-              ...s,
-              fees: {
-                ...s.fees,
-                [selectedMonth]: {
-                  amount,
-                  status: "Paid",
-                },
-              },
-            }
-          : s
-      )
-    );
-    setShowModal(false);
+    try {
+      await axios.post(`${config.API_BASE_URL}/transport/student-transports/pay`, {
+        studentId: activeStudent.studentId,
+        month: selectedMonth,
+        amount: Number(amount),
+      });
+      fetchStudentTransports();
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to assign transport fee", err);
+      alert("Failed to assign transport fee");
+    }
   };
 
-  /* ---------------- EXPORT DUMMY ---------------- */
+  /* ---------------- EXPORT ---------------- */
   const exportExcel = () => alert("Excel export");
   const exportPDF = () => alert("PDF export");
   const printTable = () => window.print();
@@ -153,8 +168,11 @@ export default function StudentTransportFees() {
               onChange={(e) => setSelectedClass(e.target.value)}
             >
               <option value="">Select</option>
-              <option>Class 1</option>
-              <option>Class 2</option>
+              {classes.map((c) => (
+                <option key={c._id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
             </select>
             {error && (
               <p className="text-red-500 text-sm mt-1">{error}</p>
@@ -169,8 +187,11 @@ export default function StudentTransportFees() {
               onChange={(e) => setSelectedSection(e.target.value)}
             >
               <option value="">Select</option>
-              <option>A</option>
-              <option>B</option>
+              {sections.map((s) => (
+                <option key={s._id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -224,8 +245,21 @@ export default function StudentTransportFees() {
               </tr>
             </thead>
             <tbody>
-              {paginatedData.map((s) => (
-                <tr key={s.admissionNo} className="border-t">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-gray-500">
+                    Loading student transport fees...
+                  </td>
+                </tr>
+              ) : paginatedData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-gray-400">
+                    {dataError || "No transport students found"}
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((s) => (
+                <tr key={s.studentId || s._id} className="border-t">
                   <td className="p-2">{s.admissionNo}</td>
                   <td className="text-indigo-600">{s.name}</td>
                   <td>{s.father}</td>
@@ -241,7 +275,8 @@ export default function StudentTransportFees() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
 
@@ -305,10 +340,9 @@ export default function StudentTransportFees() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(activeStudent.fees).map(
-                  ([month, f]) => (
-                    <tr key={month} className="border-t">
-                      <td className="p-2">{month}</td>
+                {(activeStudent.fees || []).map((f, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2">{f.month}</td>
                       <td>{f.amount}</td>
                       <td className={
                         f.status === "Paid"
@@ -318,8 +352,7 @@ export default function StudentTransportFees() {
                         {f.status}
                       </td>
                     </tr>
-                  )
-                )}
+                  ))}
               </tbody>
             </table>
           </div>

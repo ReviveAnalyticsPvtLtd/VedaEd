@@ -140,8 +140,27 @@ exports.getUserComplaints = async (req, res) => {
     const { userId, userModel } = req.params;
     const { page = 1, limit = 10, status } = req.query;
 
-    const query = { complainant: userId, complainantModel: userModel };
-    if (status) query.status = status;
+    let query;
+
+    if (String(userModel).toLowerCase() === "parent") {
+      const parent = await Parent.findById(userId).select("children");
+      const childStudentIds = parent && parent.children ? parent.children : [];
+
+      const conditions = [{ complainant: userId, complainantModel: userModel }];
+      if (childStudentIds.length > 0) {
+        conditions.push({
+          targetUser: { $in: childStudentIds },
+          targetUserModel: "Student"
+        });
+      }
+      if (status) {
+        conditions.forEach((c) => { c.status = status; });
+      }
+      query = { $or: conditions };
+    } else {
+      query = { complainant: userId, complainantModel: userModel };
+      if (status) query.status = status;
+    }
 
     const complaints = await Complaint.find(query)
       .populate('complainant', 'personalInfo.name personalInfo.email personalInfo.fullName')

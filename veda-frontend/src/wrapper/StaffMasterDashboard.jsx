@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import config from "../config";
+import api from "../services/apiClient";
 import {
   FiUsers,
   FiBookOpen,
@@ -13,26 +12,55 @@ import { Link } from "react-router-dom";
 
 export default function StaffMasterDashboard() {
   const [stats, setStats] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboard = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user"));
         const staffId = user?.refId || user?._id;
+
+        const requests = [];
         if (staffId) {
-          const res = await axios.get(`${config.API_BASE_URL}/staff/${staffId}/dashboard-stats`);
-          if (res.data.success) {
-            setStats(res.data.stats);
-          }
+          requests.push(
+            api.get(`/staff/${staffId}/dashboard-stats`)
+          );
+        }
+        requests.push(api.get("/assignments"));
+        requests.push(
+          api.get("/communication/notices?status=published&limit=3")
+        );
+
+        const results = await Promise.allSettled(requests);
+
+        const statsRes = results[0];
+        if (statsRes.status === "fulfilled" && statsRes.value.data.success) {
+          setStats(statsRes.value.data.stats);
+        }
+
+        const assignmentsIndex = staffId ? 1 : 0;
+        const assignmentsRes = results[assignmentsIndex];
+        if (assignmentsRes.status === "fulfilled" && Array.isArray(assignmentsRes.value.data)) {
+          setAssignments(assignmentsRes.value.data.slice(0, 3));
+        }
+
+        const noticesRes = results[staffId ? 2 : 1];
+        if (
+          noticesRes.status === "fulfilled" &&
+          noticesRes.value.data.success &&
+          Array.isArray(noticesRes.value.data.data)
+        ) {
+          setAnnouncements(noticesRes.value.data.data.slice(0, 3));
         }
       } catch (err) {
-        console.error("Error fetching staff master stats:", err);
+        console.error("Error fetching staff master dashboard:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchDashboard();
   }, []);
 
   if (loading) {
@@ -55,11 +83,11 @@ export default function StaffMasterDashboard() {
       {/* ===== STATS CARDS ===== */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard title="Classes" value={stats?.classes || 0} icon={<FiUsers />} />
-        <StatCard title="Students" value="180" icon={<FiBookOpen />} />
+        <StatCard title="Students" value={stats?.students || 0} icon={<FiBookOpen />} />
         <StatCard title="Assignments" value={stats?.assignments || 0} icon={<FiClipboard />} />
-        <StatCard title="Exams" value="3" icon={<FiAward />} />
-        <StatCard title="Messages" value="9" icon={<FiMessageCircle />} />
-        <StatCard title="Events" value="4" icon={<FiCalendar />} />
+        <StatCard title="Exams" value={stats?.exams || 0} icon={<FiAward />} />
+        <StatCard title="Messages" value={stats?.messages || 0} icon={<FiMessageCircle />} />
+        <StatCard title="Events" value={stats?.events || 0} icon={<FiCalendar />} />
       </div>
 
       {/* ===== QUICK ACTIONS ===== */}
@@ -76,32 +104,56 @@ export default function StaffMasterDashboard() {
         {/* ===== TODAY TIMETABLE ===== */}
         <div className="bg-white rounded-xl shadow p-4">
           <h2 className="font-semibold mb-3">Today's Timetable</h2>
-          <ul className="space-y-3 text-sm">
-            <TimetableRow time="09:00 - 09:45" subject="Maths" className="8-A" />
-            <TimetableRow time="10:00 - 10:45" subject="Science" className="8-B" />
-            <TimetableRow time="11:00 - 11:45" subject="Maths" className="9-A" />
-            <TimetableRow time="12:30 - 01:15" subject="Science" className="9-B" />
-          </ul>
+          {stats?.todaySchedule?.length ? (
+            <ul className="space-y-3 text-sm">
+              {stats.todaySchedule.map((slot) => (
+                <TimetableRow
+                  key={slot.lectureId}
+                  time={`${slot.timeFrom} - ${slot.timeTo}`}
+                  subject={slot.subject}
+                  className={slot.className}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-400">No classes scheduled today.</p>
+          )}
         </div>
 
         {/* ===== RECENT ASSIGNMENTS ===== */}
         <div className="bg-white rounded-xl shadow p-4">
           <h2 className="font-semibold mb-3">Recent Assignments</h2>
-          <ul className="space-y-3 text-sm">
-            <ListRow title="Algebra Worksheet" meta="Class 8-A • Due Tomorrow" />
-            <ListRow title="Physics Lab Report" meta="Class 9-B • Due in 2 days" />
-            <ListRow title="Chapter Test Prep" meta="Class 8-B • Due Friday" />
-          </ul>
+          {assignments.length ? (
+            <ul className="space-y-3 text-sm">
+              {assignments.map((a) => (
+                <ListRow
+                  key={a._id}
+                  title={a.title}
+                  meta={`${a.subject?.subjectName || "N/A"} • ${formatDue(a.dueDate)}`}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-400">No assignments yet.</p>
+          )}
         </div>
 
         {/* ===== ANNOUNCEMENTS ===== */}
         <div className="bg-white rounded-xl shadow p-4">
           <h2 className="font-semibold mb-3">Announcements</h2>
-          <ul className="space-y-3 text-sm">
-            <ListRow title="Staff Meeting" meta="Tomorrow at 2 PM" />
-            <ListRow title="Exam Schedule Released" meta="Check exam module" />
-            <ListRow title="Annual Day Practice" meta="Starts Monday" />
-          </ul>
+          {announcements.length ? (
+            <ul className="space-y-3 text-sm">
+              {announcements.map((n) => (
+                <ListRow
+                  key={n._id}
+                  title={n.title}
+                  meta={`${n.content || "General"} • ${formatDate(n.publishDate)}`}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-400">No announcements yet.</p>
+          )}
         </div>
       </div>
 
@@ -160,6 +212,25 @@ const ListRow = ({ title, meta }) => (
     <div className="text-xs text-gray-400">{meta}</div>
   </li>
 );
+
+const formatDue = (iso) => {
+  if (!iso) return "No due date";
+  const due = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days} days`;
+};
+
+const formatDate = (iso) => {
+  if (!iso) return "Recently";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
 
 const DashboardLink = ({ title, desc, to }) => (
   <Link

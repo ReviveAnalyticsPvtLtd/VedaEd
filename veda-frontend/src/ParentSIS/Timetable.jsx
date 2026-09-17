@@ -49,21 +49,28 @@ export default function ParentTimetable() {
         const token = localStorage.getItem("token");
         const authHeaders = { Authorization: `Bearer ${token}` };
 
-        // 1. Get Child Info
-        const studentRes = await axios.get(`${config.API_BASE_URL}/students/${selectedChildId}`, { headers: authHeaders });
-        if (studentRes.data && studentRes.data.success) {
-          const student = studentRes.data.student;
-          setStudentInfo({
-            name: student.personalInfo?.name || "Unknown",
-            className: student.grade || "N/A",
-            section: student.section || "N/A"
-          });
+        // Set child name from parent profile children
+        const childEntry = children.find(c => c._id === selectedChildId);
+        if (childEntry) {
+          setStudentInfo(prev => ({
+            ...prev,
+            name: childEntry.name || "Unknown"
+          }));
         }
 
-        // 2. Get Timetable
+        // Get Timetable (parent RBAC scopes by studentId)
         const timetableRes = await axios.get(`${config.API_BASE_URL}/timetables?studentId=${selectedChildId}`, { headers: authHeaders });
         if (timetableRes.data && timetableRes.data.success) {
           const rawData = timetableRes.data.data;
+          if (rawData.length > 0) {
+            const first = rawData[0];
+            setStudentInfo(prev => ({
+              ...prev,
+              name: childEntry?.name || "Unknown",
+              className: first.class?.name || prev.className,
+              section: first.section?.name || prev.section
+            }));
+          }
           const mapped = {};
           DAYS.forEach(day => mapped[day] = []);
           rawData.forEach(entry => {
@@ -85,7 +92,7 @@ export default function ParentTimetable() {
       }
     };
     fetchTimetable();
-  }, [selectedChildId]);
+  }, [selectedChildId, children]);
 
   const TIMES = [...new Set(Object.values(timetableData).flat().map(c => c.time))].sort();
   const displayTimes = TIMES.length > 0 ? TIMES : ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
@@ -142,7 +149,7 @@ Sections:
                 >
                   {children.map((child) => (
                     <option key={child._id} value={child._id}>
-                      {child.personalInfo?.name || child.name}
+                      {child.name}
                     </option>
                   ))}
                 </select>

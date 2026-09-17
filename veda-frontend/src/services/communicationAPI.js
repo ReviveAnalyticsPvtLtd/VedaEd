@@ -195,6 +195,28 @@ class CommunicationAPI {
     }
   }
 
+  static async updateMessageStatus(messageId, status, userId, userModel) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, userId, userModel })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update message status');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating message status:', error);
+      throw error;
+    }
+  }
+
   // Complaint API methods
   static async createComplaint(complaintData) {
     try {
@@ -286,6 +308,22 @@ class CommunicationAPI {
       return await response.json();
     } catch (error) {
       console.error('Error fetching communication logs:', error);
+      throw error;
+    }
+  }
+
+  static async getReceivedNotifications(userId, userModel, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/notifications/received/${userId}/${userModel}?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch received notifications');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching received notifications:', error);
       throw error;
     }
   }

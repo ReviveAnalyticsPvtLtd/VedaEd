@@ -1,68 +1,121 @@
 import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import { FiCalendar, FiClock, FiBookOpen, FiUser } from "react-icons/fi";
-import axios from "axios";
+import { FiClock, FiBookOpen, FiUser } from "react-icons/fi";
+import api from "../../services/apiClient";
 
-// Full 7 din
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const TIMES = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
-
-// Dummy timetable data
-const timetableData = {
-  Monday: [{ time: "9:00 AM", subject: "Math", room: "101", teacher: "Mr. Sharma" }],
-  Tuesday: [{ time: "10:00 AM", subject: "Science", room: "Lab 1", teacher: "Ms. Gupta" }],
-  Wednesday: [{ time: "11:00 AM", subject: "English", room: "102", teacher: "Mr. Khan" }],
-  Thursday: [{ time: "8:00 AM", subject: "History", room: "103", teacher: "Mr. Verma" }],
-  Friday: [{ time: "12:00 PM", subject: "Computer", room: "Lab 2", teacher: "Ms. Mehta" }],
-  Saturday: [{ time: "9:00 AM", subject: "Sports", room: "Ground", teacher: "Coach Arjun" }],
-  Sunday: [], // holiday
-};
 
 export default function TClassTimetable() {
   const [view, setView] = useState("Week");
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [assignedClasses, setAssignedClasses] = useState([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [timetableData, setTimetableData] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  // State for Class & Section info (from backend)
-  const [classInfo, setClassInfo] = useState({ className: "10", section: "A" });
-
-  // Example: fetch from backend (dummy simulation)
   useEffect(() => {
-    // Replace with actual API
-    // axios.get("/api/class-info/10A").then((res) => setClassInfo(res.data));
+    const fetchAssigned = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const teacherId = user?.refId || user?._id;
+        if (!teacherId) return;
 
-    setTimeout(() => {
-      setClassInfo({ className: "12", section: "B" }); // 🔄 Dummy update
-    }, 2000);
+        const res = await api.get("/assignTeachers");
+        if (res.data?.success) {
+          const filtered = res.data.data.filter((a) =>
+            a.teachers?.some((t) => (t._id || t) === teacherId)
+          );
+          setAssignedClasses(filtered);
+        }
+      } catch (err) {
+        console.error("Error fetching assigned classes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAssigned();
   }, []);
 
-  // Convert JS date → custom weekday
-  const jsDayIndex = calendarDate.getDay(); // 0=Sunday, 6=Saturday
-  const selectedDay = DAYS[jsDayIndex === 0 ? 6 : jsDayIndex - 1];
+  useEffect(() => {
+    const fetchTimetable = async () => {
+      const entry = assignedClasses[selectedIdx];
+      if (!entry) return;
 
-  // Current class detail (first class of selected day)
-  const currentClass = timetableData[selectedDay]?.[0] || null;
+      try {
+        const res = await api.get("/timetables", {
+          params: { classId: entry.class?._id || entry.class, sectionId: entry.section?._id || entry.section },
+        });
+        if (res.data?.success) {
+          const mapped = {};
+          DAYS.forEach((d) => (mapped[d] = []));
+          res.data.data.forEach((e) => {
+            if (mapped[e.day]) {
+              mapped[e.day].push({
+                time: e.timeFrom,
+                displayTime: `${e.timeFrom} - ${e.timeTo}`,
+                subject: e.subject?.subjectName || "Unknown",
+                room: e.roomNo || "N/A",
+                teacher: e.teacher?.personalInfo?.name || "Unknown",
+              });
+            }
+          });
+          setTimetableData(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching timetable:", err);
+      }
+    };
+    if (assignedClasses.length > 0) fetchTimetable();
+  }, [assignedClasses, selectedIdx]);
+
+  const TIMES = [...new Set(Object.values(timetableData).flat().map((c) => c.time))].sort();
+
+  const jsDayIndex = calendarDate.getDay();
+  const selectedDay = DAYS[jsDayIndex === 0 ? 6 : jsDayIndex - 1];
+  const currentClass = (timetableData[selectedDay] || [])[0] || null;
+
+  const currentEntry = assignedClasses[selectedIdx];
+  const className = currentEntry?.class?.name || "...";
+  const sectionName = currentEntry?.section?.name || "...";
+
+  if (loading) {
+    return <div className="p-6 text-center text-gray-500">Loading...</div>;
+  }
 
   return (
     <div className="p-0 grid grid-cols-4 gap-3">
       {/* Left: Timetable */}
       <div className="col-span-3 border rounded-lg p-4 bg-white shadow flex flex-col">
-        {/* Title with dynamic class info */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">
-            Class Timetable (Class {classInfo.className} - {classInfo.section})
+            Class Timetable (Class {className} - {sectionName})
           </h2>
-          <select
-            value={view}
-            onChange={(e) => setView(e.target.value)}
-            className="border  px-2 py-1 rounded"
-          >
-            <option value="Day">Day</option>
-            <option value="Week">Week</option>
-          </select>
+          <div className="flex items-center gap-2">
+            {assignedClasses.length > 1 && (
+              <select
+                value={selectedIdx}
+                onChange={(e) => setSelectedIdx(Number(e.target.value))}
+                className="border px-2 py-1 rounded"
+              >
+                {assignedClasses.map((a, i) => (
+                  <option key={a._id} value={i}>
+                    {a.class?.name} - {a.section?.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              value={view}
+              onChange={(e) => setView(e.target.value)}
+              className="border px-2 py-1 rounded"
+            >
+              <option value="Day">Day</option>
+              <option value="Week">Week</option>
+            </select>
+          </div>
         </div>
 
-        {/* Timetable Table */}
         <div className="overflow-x-auto flex-1">
           <table className="w-full border-collapse border h-full">
             <thead>
@@ -72,15 +125,13 @@ export default function TClassTimetable() {
                   <th className="border px-2 py-1">{selectedDay}</th>
                 ) : (
                   DAYS.map((day) => (
-                    <th key={day} className="border px-2 py-1">
-                      {day}
-                    </th>
+                    <th key={day} className="border px-2 py-1">{day}</th>
                   ))
                 )}
               </tr>
             </thead>
             <tbody>
-              {TIMES.map((time) => (
+              {TIMES.length > 0 ? TIMES.map((time) => (
                 <tr key={time} className="h-[80px]">
                   <td className="border px-2 py-1 flex items-center gap-1">
                     <FiClock /> {time}
@@ -88,46 +139,22 @@ export default function TClassTimetable() {
                   {view === "Day" ? (
                     <td className="border px-2 py-1 text-center">
                       {selectedDay === "Sunday" ? (
-                        <div className="bg-red-200 text-red-800 font-medium rounded p-1">
-                          Holiday
-                        </div>
-                      ) : timetableData[selectedDay]?.find((c) => c.time === time) ? (
-                        <div className="bg-blue-100 rounded p-1">
-                          <div className="font-medium flex items-center gap-1">
-                            <FiBookOpen />{" "}
-                            {timetableData[selectedDay].find((c) => c.time === time).subject}
-                          </div>
-                          <div className="text-xs">
-                            Room {timetableData[selectedDay].find((c) => c.time === time).room}
-                          </div>
-                          <div className="text-xs flex items-center gap-1 text-gray-600">
-                            <FiUser />
-                            {timetableData[selectedDay].find((c) => c.time === time).teacher}
-                          </div>
-                        </div>
+                        <div className="bg-red-200 text-red-800 font-medium rounded p-1">Holiday</div>
+                      ) : (timetableData[selectedDay] || []).find((c) => c.time === time) ? (
+                        <Cell data={(timetableData[selectedDay] || []).find((c) => c.time === time)} />
                       ) : (
                         "-"
                       )}
                     </td>
                   ) : (
                     DAYS.map((day) => {
-                      const classData = timetableData[day]?.find((c) => c.time === time);
+                      const classData = (timetableData[day] || []).find((c) => c.time === time);
                       return (
                         <td key={day} className="border px-2 py-1 text-center">
                           {day === "Sunday" ? (
-                            <div className="bg-red-200 text-red-800 font-medium rounded p-1">
-                              Holiday
-                            </div>
+                            <div className="bg-red-200 text-red-800 font-medium rounded p-1">Holiday</div>
                           ) : classData ? (
-                            <div className="bg-blue-100 rounded p-1">
-                              <div className="font-medium flex items-center gap-1">
-                                <FiBookOpen /> {classData.subject}
-                              </div>
-                              <div className="text-xs">Room {classData.room}</div>
-                              <div className="text-xs flex items-center gap-1 text-gray-600">
-                                <FiUser /> {classData.teacher}
-                              </div>
-                            </div>
+                            <Cell data={classData} />
                           ) : (
                             "-"
                           )}
@@ -136,7 +163,13 @@ export default function TClassTimetable() {
                     })
                   )}
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={view === "Day" ? 2 : 8} className="border px-2 py-4 text-center text-gray-400">
+                    No timetable entries for this class.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -144,34 +177,30 @@ export default function TClassTimetable() {
 
       {/* Right: Calendar + Current Class Detail */}
       <div className="flex flex-col gap-3">
-        {/* Calendar */}
         <div className="border rounded-lg p-3 bg-gray-50 shadow">
-          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">
-             Calendar
-          </h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-1">Calendar</h3>
           <Calendar
             value={calendarDate}
             onChange={(date) => {
               setCalendarDate(date);
-              setView("Day"); // ✅ calendar click hone par Day view dikhe
+              setView("Day");
             }}
             className="rounded-lg w-full"
           />
         </div>
 
-        {/* Current Class Detail */}
         <div className="border rounded-lg p-3 bg-gray-50 shadow flex-1">
           <h3 className="text-lg font-semibold mb-2">Current Class Detail</h3>
           {selectedDay === "Sunday" ? (
             <p className="text-sm text-red-600">Holiday</p>
           ) : currentClass ? (
             <>
-              <p className="text-">Subject: {currentClass.subject}</p>
-              <p className="text-">Room: {currentClass.room}</p>
-              <p className="text-">Teacher: {currentClass.teacher}</p>
+              <p>Subject: {currentClass.subject}</p>
+              <p>Room: {currentClass.room}</p>
+              <p>Teacher: {currentClass.teacher}</p>
             </>
           ) : (
-            <p className="text- text-gray-500">No class scheduled</p>
+            <p className="text-gray-500">No class scheduled</p>
           )}
         </div>
       </div>
@@ -179,3 +208,14 @@ export default function TClassTimetable() {
   );
 }
 
+const Cell = ({ data }) => (
+  <div className="bg-blue-100 rounded p-1">
+    <div className="font-medium flex items-center gap-1">
+      <FiBookOpen /> {data.subject}
+    </div>
+    <div className="text-xs">Room {data.room}</div>
+    <div className="text-xs flex items-center gap-1 text-gray-600">
+      <FiUser /> {data.teacher}
+    </div>
+  </div>
+);

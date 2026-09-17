@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiInfo, FiCalendar, FiDollarSign, FiFileText } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
 import { studentAPI } from "../services/studentAPI";
+import api from "../services/apiClient";
 import ProfileAvatar, { resolveProfileImage } from "../components/ProfileAvatar";
 
 // Card Component
@@ -27,6 +28,118 @@ const InfoDetail = ({ label, value }) => (
   </div>
 );
 
+const firstNonEmpty = (...values) => {
+  for (const value of values) {
+    if (value === 0) return value;
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return "";
+};
+
+const formatDocSize = (size) => {
+  if (size == null || Number.isNaN(Number(size)) || Number(size) <= 0) return "N/A";
+  const bytes = Number(size);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const formatDocDate = (value) => {
+  if (!value) return "N/A";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString();
+};
+
+// Map the nested backend response (personalInfo/parent) to the flat fields
+// this component renders. Works for both SIS and Admission-sourced students.
+const mapStudentProfile = (studentData = {}) => {
+  const personal = studentData.personalInfo || {};
+  const contactDetails = personal.contactDetails || studentData.contactInfo || {};
+  const parent = studentData.parent || {};
+  const parentContact = parent.contactDetails || {};
+  const admissionParents = studentData.parents || {};
+  const parentRole = String(parent.role || "").toLowerCase();
+  const imageSource = personal.image;
+
+  const imageValue =
+    typeof imageSource === "object" && imageSource !== null
+      ? imageSource.url || imageSource.path || ""
+      : imageSource || "";
+
+  return {
+    _id: studentData._id,
+    name: firstNonEmpty(personal.name, studentData.name),
+    grade: firstNonEmpty(
+      personal.class?.name,
+      personal.class,
+      personal.classApplied,
+      studentData.grade
+    ),
+    section: firstNonEmpty(
+      personal.section?.name,
+      personal.section,
+      studentData.section,
+      "-"
+    ),
+    stdId: firstNonEmpty(personal.stdId, studentData.stdId),
+    rollNo: firstNonEmpty(personal.rollNo, studentData.rollNo, "-"),
+    gender: firstNonEmpty(personal.gender, studentData.gender),
+    dob: firstNonEmpty(personal.DOB, personal.dateOfBirth, studentData.dob),
+    age: firstNonEmpty(personal.age, studentData.age),
+    bloodGroup: firstNonEmpty(personal.bloodGroup, studentData.bloodGroup),
+    address: firstNonEmpty(
+      personal.address,
+      studentData.address,
+      studentData.contactInfo?.address
+    ),
+    contact: firstNonEmpty(
+      contactDetails.mobileNumber,
+      contactDetails.phone,
+      studentData.contact,
+      studentData.contactInfo?.phone,
+      parentContact.phone
+    ),
+    email: firstNonEmpty(
+      contactDetails.email,
+      studentData.email,
+      studentData.contactInfo?.email,
+      parentContact.email
+    ),
+    fatherName: firstNonEmpty(
+      parent.fatherName,
+      parentRole.includes("father") ? parent.name : "",
+      admissionParents.father?.name,
+      studentData.fatherName
+    ),
+    motherName: firstNonEmpty(
+      parent.motherName,
+      parentRole.includes("mother") ? parent.name : "",
+      admissionParents.mother?.name,
+      studentData.motherName
+    ),
+    parentContact: firstNonEmpty(
+      parentContact.phone,
+      parent.phone,
+      admissionParents.father?.phone,
+      admissionParents.mother?.phone,
+      studentData.parentContact
+    ),
+    attendance: firstNonEmpty(studentData.attendance, ""),
+    fee: firstNonEmpty(personal.fees, studentData.fee, "Paid"),
+    photo: imageValue,
+    documents: (Array.isArray(studentData.documents)
+      ? studentData.documents.filter((d) => d && !d.parentProfileUpload)
+      : []
+    ).map((doc) => ({
+      name: doc.name || "Untitled",
+      date: formatDocDate(doc.uploadedAt || doc.date),
+      size: formatDocSize(doc.size),
+    })),
+  };
+};
+
 
 export default function StudentProfile() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -41,7 +154,17 @@ export default function StudentProfile() {
         if (user && user.refId) {
           const res = await studentAPI.getStudent(user.refId);
           if (res.success) {
-            setStudent(res.student);
+            const mapped = res.student ? mapStudentProfile(res.student) : null;
+            let attendance = mapped ? mapped.attendance : "";
+            try {
+              const dashRes = await api.get(`/students/${user.refId}/dashboard-stats`);
+              if (dashRes.data && dashRes.data.success && dashRes.data.stats) {
+                attendance = `${dashRes.data.stats.attendance || 0}%`;
+              }
+            } catch (statErr) {
+              // Dashboard stats unavailable — attendance falls back to profile field / blank.
+            }
+            setStudent(mapped ? { ...mapped, attendance } : null);
           } else {
             setError(res.message || "Failed to fetch student profile");
           }
@@ -86,7 +209,7 @@ export default function StudentProfile() {
   } 
 
   const studentName = student?.name || "Student";
-  const studentImage = resolveProfileImage(student, student?.personalInfo?.profileImage);
+  const studentImage = resolveProfileImage(student, student?.photo);
 
   return (
     <div className="p-0 m-0 min-h-screen">

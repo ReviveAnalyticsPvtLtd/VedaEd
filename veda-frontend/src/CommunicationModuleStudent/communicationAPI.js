@@ -195,6 +195,28 @@ class CommunicationAPI {
     }
   }
 
+  static async updateMessageStatus(messageId, status, userId, userModel) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, userId, userModel })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update message status');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating message status:', error);
+      throw error;
+    }
+  }
+
   // Complaint API methods
   static async createComplaint(complaintData) {
     try {
