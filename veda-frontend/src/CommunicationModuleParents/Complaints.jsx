@@ -8,7 +8,7 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import complaintAPI from "../services/complaintAPI";
-
+import HelpInfo from "../components/HelpInfo";
 const statusPillClasses = {
   submitted: "bg-blue-100 text-blue-700",
   Pending: "bg-yellow-100 text-yellow-700",
@@ -41,7 +41,7 @@ export default function ParentComplaints() {
     { label: "Resolved", value: 0, trend: "Closed" },
     { label: "Escalated", value: 0, trend: "High Priority" },
   ]);
-
+ const [activeTab, setActiveTab] = useState("overview"); // default Overview
   // Form State
   const [formData, setFormData] = useState({
     studentName: "",
@@ -161,29 +161,44 @@ export default function ParentComplaints() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              Parent Complaints & Support
-            </h2>
-            <p className="text-gray-600">
-              Track responses and raise concerns directly with the admin team.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
-              <FiDownload size={16} />
-              Download Summary
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
-              <FiPhoneCall size={16} />
-              Talk To Support
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-4">
+     <div className="flex justify-between items-center mb-4">
+             <h2 className="text-2xl font-bold">Parents Complaints</h2>
+             <HelpInfo
+               title="Parent Messages Help"
+               description={`Page Description: View message summaries delivered to you as a parent. Track which teacher/admin sent the update and read message content inside the overview.
+     
+     
+     9.1 Parent Messaging Overview
+     
+     Single-tab layout that highlights the latest communications for your children.
+     
+     Sections:
+     - Breadcrumb & Header: Confirms you are viewing the Messages overview
+     - Overview Tab: Cards/lists showing message subject, sender, channel, and time
+     - Detail Drawer/Preview: Click entries to read the full message content (component driven)
+     - Status Pills: Visual indicators for unread/read or important notices
+     - Search/Filter Controls: Located inside the overview to narrow messages by child or category`}
+             />
+           </div>
+     
+           {/* Tabs */}
+           <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
+             {["overview"].map((tab) => (
+               <button
+                 key={tab}
+                 onClick={() => setActiveTab(tab)}
+                 className={`capitalize pb-2 ${
+                   activeTab === tab
+                     ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+                     : "text-gray-500 hover:text-gray-700"
+                 }`}
+               >
+                 {tab === "overview" ? "Overview" : tab}
+               </button>
+             ))}
+           </div>
+           
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (

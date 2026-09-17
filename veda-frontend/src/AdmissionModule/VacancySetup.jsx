@@ -388,68 +388,89 @@ useEffect(() => {
       
 
       {/* TABLE */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-3">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3 text-left">Academic Year</th>
-              <th className="p-3 text-left">Class</th>
-              <th className="p-3 text-left">Total Seats</th>
-              <th className="p-3 text-left">Reserved</th>
-              <th className="p-3 text-left">Available</th>
-              <th className="p-3 text-left">Duration</th>
-              <th className="p-3 text-center">Action</th>
+<div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-3">
+  <div className="overflow-x-auto">
+    <table className="w-full border text-sm">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="p-2 border">Academic Year</th>
+          <th className="p-2 border">Class</th>
+          <th className="p-2 border">Total Seats</th>
+          <th className="p-2 border">Reserved</th>
+          <th className="p-2 border">Available</th>
+          <th className="p-2 border">Duration</th>
+          <th className="p-2 border">Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {loading ? (
+          <tr>
+            <td
+              colSpan="7"
+              className="p-2 border text-center text-gray-500"
+            >
+              Loading...
+            </td>
+          </tr>
+        ) : filteredVacancies.length === 0 ? (
+          <tr>
+            <td
+              colSpan="7"
+              className="p-2 border text-center text-gray-500"
+            >
+              No vacancy defined
+            </td>
+          </tr>
+        ) : (
+          currentVacancies.map((v) => (
+            <tr
+              key={v._id}
+              className="text-center hover:bg-gray-50"
+            >
+              <td className="p-2 border">
+                {v.academicYear}
+              </td>
+
+              <td className="p-2 border">
+                {v.className}
+              </td>
+
+              <td className="p-2 border">
+                {v.totalSeats}
+              </td>
+
+              <td className="p-2 border">
+                {v.reservedSeats || 0}
+              </td>
+
+              <td className="p-2 border font-medium">
+                {v.availableSeats}
+              </td>
+
+              <td className="p-2 border">
+                {v.startDate} → {v.endDate}
+              </td>
+
+              <td className="p-2 border">
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    onClick={() =>
+                      handleDeleteVacancy(v._id)
+                    }
+                    className="text-red-500"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-                 <tr>
-                 <td
-                   colSpan="7"
-                   className="p-6 text-center text-gray-500"
-                 >
-                   Loading...
-                 </td>
-               </tr>
-            ) : filteredVacancies.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="7"
-                  className="p-6 text-center text-gray-500"
-                >
-                  No vacancy defined
-                </td>
-              </tr>
-            ) : (
-            currentVacancies.map((v) => (
-                <tr
-                  key={v._id}
-                  className="border-t"
-                >
-                  <td className="p-3">
-                    {v.academicYear}
-                  </td>
-                  <td className="p-3">{v.className}</td>
-                  <td className="p-3">{v.totalSeats}</td>
-                  <td className="p-3">
-                    {v.reservedSeats || 0}
-                  </td>
-                  <td className="p-3 font-medium">
-                    {v.availableSeats}
-                  </td>
-                  <td className="p-3">
-                    {v.startDate} → {v.endDate}
-                  </td>
-                  <td className="p-3 text-center">
-                    <button onClick={() => handleDeleteVacancy(v._id)} className="text-red-500 hover:text-red-700">
-                        <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+
         
       </div>
       {/* PAGINATION */}

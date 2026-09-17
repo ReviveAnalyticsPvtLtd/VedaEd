@@ -229,83 +229,111 @@ export default function AllLogs() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-left divide-y divide-gray-100">
-              <thead className="bg-gray-50/75">
-                <tr className="text-gray-500 font-semibold text-xs border-b">
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Log Type</th>
-                  <th className="px-4 py-3">Sub-Type</th>
-                  <th className="px-4 py-3">Audience</th>
-                  <th className="px-4 py-3">Author</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredLogs.map((log) => (
-                  <tr key={log._id} className="hover:bg-gray-50/50 transition">
-                    <td className="px-4 py-3.5 font-medium text-gray-800 max-w-[200px] truncate">{log.title}</td>
-                    <td className="px-4 py-3.5 capitalize">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                        log.logType === 'announcement' 
-                          ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                      }`}>
-                        {log.logType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 capitalize text-xs text-gray-500">{log.displayType}</td>
-                    <td className="px-4 py-3.5 capitalize text-xs text-gray-600">{log.targetAudience || log.audience || "Everyone"}</td>
-                    <td className="px-4 py-3.5 text-xs text-gray-500">{log.authorName}</td>
-                    <td className="px-4 py-3.5 text-xs text-gray-400">
-                      {log.date ? new Date(log.date).toLocaleString() : "-"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        log.status === 'published' || log.status === 'sent'
-                          ? 'bg-green-100 text-green-700'
-                          : log.status === 'scheduled'
-                          ? 'bg-purple-100 text-purple-700'
-                          : log.status === 'draft'
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => setSelectedItem(log)}
-                          className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-blue-600 transition"
-                          title="View Notice Details"
-                        >
-                          <FiEye size={15} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedItem(log);
-                            handleEditClick(log);
-                          }}
-                          className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-amber-600 transition"
-                          title="Edit Log"
-                        >
-                          <FiEdit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(log)}
-                          className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-red-600 transition"
-                          title="Delete Log"
-                        >
-                          <FiTrash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <table className="w-full border text-sm">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="p-2 border">Title</th>
+      <th className="p-2 border">Log Type</th>
+      <th className="p-2 border">Sub-Type</th>
+      <th className="p-2 border">Audience</th>
+      <th className="p-2 border">Author</th>
+      <th className="p-2 border">Date</th>
+      <th className="p-2 border">Status</th>
+      <th className="p-2 border">Actions</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {filteredLogs.map((log) => (
+      <tr
+        key={log._id}
+        className="text-center hover:bg-gray-50"
+      >
+        <td className="p-2 border text-left font-medium text-gray-800 max-w-[200px] truncate">
+          {log.title}
+        </td>
+
+        <td className="p-2 border capitalize">
+          <span
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+              log.logType === "announcement"
+                ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                : "bg-emerald-50 text-emerald-700 border-emerald-100"
+            }`}
+          >
+            {log.logType}
+          </span>
+        </td>
+
+        <td className="p-2 border capitalize text-xs text-gray-500">
+          {log.displayType}
+        </td>
+
+        <td className="p-2 border capitalize text-xs text-gray-600">
+          {log.targetAudience || log.audience || "Everyone"}
+        </td>
+
+        <td className="p-2 border text-xs text-gray-500">
+          {log.authorName}
+        </td>
+
+        <td className="p-2 border text-xs text-gray-400">
+          {log.date
+            ? new Date(log.date).toLocaleString()
+            : "-"}
+        </td>
+
+        <td className="p-2 border">
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              log.status === "published" ||
+              log.status === "sent"
+                ? "bg-green-100 text-green-700"
+                : log.status === "scheduled"
+                ? "bg-purple-100 text-purple-700"
+                : log.status === "draft"
+                ? "bg-gray-100 text-gray-600"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {log.status}
+          </span>
+        </td>
+
+        <td className="p-2 border">
+          <div className="flex items-center justify-center gap-1">
+            <button
+              onClick={() => setSelectedItem(log)}
+              className="text-gray-500 hover:text-blue-600"
+              title="View Notice Details"
+            >
+              <FiEye size={15} />
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedItem(log);
+                handleEditClick(log);
+              }}
+              className="text-gray-500 hover:text-amber-600"
+              title="Edit Log"
+            >
+              <FiEdit2 size={15} />
+            </button>
+
+            <button
+              onClick={() => handleDelete(log)}
+              className="text-gray-500 hover:text-red-600"
+              title="Delete Log"
+            >
+              <FiTrash2 size={15} />
+            </button>
+          </div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
           </div>
         )}
       </div>

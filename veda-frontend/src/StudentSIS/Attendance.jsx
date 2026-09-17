@@ -114,7 +114,7 @@ Sections:
             )}
           </div>
 
-          <table className="w-full border ">
+          <table className="w-full border text-sm ">
             <thead className="bg-gray-100 ">
               <tr>
                 <th className="p-2 border">Date</th>
