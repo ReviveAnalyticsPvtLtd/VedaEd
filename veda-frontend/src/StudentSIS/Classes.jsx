@@ -58,7 +58,6 @@ export default function MyClasses() {
               overview: `${subjectName} class covers dynamic curriculum topics, homework assignments and scheduled tasks.`,
               materials: [],
               assignments: [],
-              attendance: { present: 42, absent: 3 },
               announcements: [],
             };
           }
@@ -87,7 +86,6 @@ export default function MyClasses() {
               overview: `${subjectName} class covers dynamic curriculum topics, homework assignments and scheduled tasks.`,
               materials: [],
               assignments: [mappedAssignment],
-              attendance: { present: 40, absent: 2 },
               announcements: [],
             };
           }
@@ -204,15 +202,6 @@ export default function MyClasses() {
             <p className="text-gray-700">Marks: {a.marks}</p>
           </div>
         ))}
-      </div>
-
-      {/* ATTENDANCE */}
-      <div className="mt-6 bg-gray-50 rounded-xl border p-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <FiCheckCircle /> Attendance
-        </h3>
-        <p>Present: {cls.attendance.present}</p>
-        <p>Absent: {cls.attendance.absent}</p>
       </div>
 
       {/* ANNOUNCEMENTS */}

@@ -42,29 +42,29 @@ export default function CommunicationSidebar({
   const menuItems = [
     {
       name: "Dashboard",
-      path: "/communication",
+      path: "/superadmin/communication",
       icon: <FiUser size={18} />,
       end: true,
     },
     {
       name: "Logs",
-      path: "/communication/logs",
+      path: "/superadmin/communication/logs",
       icon: <FiFileText size={18} />,
       end: true,
     },
     {
       name: "Notices",
-      path: "/communication/notices",
+      path: "/superadmin/communication/notices",
       icon: <FiMail size={18} />,
     },
     {
       name: "Messages",
-      path: "/communication/messages",
+      path: "/superadmin/communication/messages",
       icon: <FiSend size={18} />,
     },
     {
       name: "Complaints",
-      path: "/communication/complaints",
+      path: "/superadmin/communication/complaints",
       icon: <FiMessageCircle size={18} />,
     },
   ];
@@ -126,7 +126,7 @@ export default function CommunicationSidebar({
               onClick={() => setSettingsOpen(!settingsOpen)}
               className={`flex items-center w-full h-10 px-3 gap-3 rounded-lg transition-all
                 ${
-                  location.pathname.startsWith("/communication/settings")
+                  location.pathname.startsWith("/superadmin/communication/")
                     ? "bg-blue-100 text-blue-700 font-medium"
                     : "hover:bg-gray-100 text-gray-700"
                 }`}

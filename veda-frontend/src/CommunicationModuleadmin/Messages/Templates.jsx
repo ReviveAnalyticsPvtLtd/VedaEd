@@ -1,31 +1,43 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FiPlus, FiEdit, FiTrash2 } from "react-icons/fi";
 import TemplateModal from "../components/TemplateModal";
+import CommunicationAPI from "../communicationAPI";
 
 export default function Templates() {
-  const [templates, setTemplates] = useState([
-    {
-      id: 1,
-      title: "Exam Reminder",
-      message:
-        "Dear student, please note that your exam is scheduled for tomorrow. Please bring your admit card and arrive 30 minutes early.",
-    },
-    {
-      id: 2,
-      title: "Fee Payment",
-      message:
-        "This is a reminder that your monthly fee payment is due. Please make the payment at your earliest convenience.",
-    },
-  ]);
+  const [templates, setTemplates] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
 
-  const handleCreateTemplate = (templateData) => {
-    const newTemplate = {
-      id: Date.now(),
-      ...templateData,
-    };
-    setTemplates([...templates, newTemplate]);
+  const fetchTemplates = async () => {
+    setIsLoading(true);
+    try {
+      const response = await CommunicationAPI.getMessageTemplates();
+      setTemplates(response?.data || []);
+      setError("");
+    } catch (err) {
+      console.error("Error fetching message templates:", err);
+      setError("Failed to load templates. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const handleCreateTemplate = async (templateData) => {
+    try {
+      const response = await CommunicationAPI.createMessageTemplate(templateData);
+      setTemplates((prev) => [response.data, ...prev]);
+      setError("");
+    } catch (err) {
+      console.error("Error creating message template:", err);
+      setError("Failed to create template. Please try again.");
+      throw err;
+    }
   };
 
   const handleEditTemplate = (template) => {
@@ -33,20 +45,38 @@ export default function Templates() {
     setIsModalOpen(true);
   };
 
-  const handleUpdateTemplate = (templateData) => {
-    setTemplates(
-      templates.map((template) =>
-        template.id === editingTemplate.id
-          ? { ...template, ...templateData }
-          : template
-      )
-    );
-    setEditingTemplate(null);
+  const handleUpdateTemplate = async (templateData) => {
+    try {
+      const response = await CommunicationAPI.updateMessageTemplate(
+        editingTemplate._id,
+        templateData
+      );
+      setTemplates((prev) =>
+        prev.map((template) =>
+          template._id === editingTemplate._id
+            ? { ...template, ...response.data }
+            : template
+        )
+      );
+      setEditingTemplate(null);
+      setError("");
+    } catch (err) {
+      console.error("Error updating message template:", err);
+      setError("Failed to update template. Please try again.");
+      throw err;
+    }
   };
 
-  const handleDeleteTemplate = (templateId) => {
+  const handleDeleteTemplate = async (templateId) => {
     if (window.confirm("Are you sure you want to delete this template?")) {
-      setTemplates(templates.filter((template) => template.id !== templateId));
+      try {
+        await CommunicationAPI.deleteMessageTemplate(templateId);
+        setTemplates(templates.filter((template) => template._id !== templateId));
+        setError("");
+      } catch (err) {
+        console.error("Error deleting message template:", err);
+        setError("Failed to delete template. Please try again.");
+      }
     }
   };
 
@@ -69,9 +99,17 @@ export default function Templates() {
         </button>
       </div>
 
+      {error && (
+        <div className="mx-4 mb-4 px-4 py-2 bg-red-50 text-red-600 text-sm rounded-md">
+          {error}
+        </div>
+      )}
+
       {/* Templates List */}
       <div className="">
-        {templates.length === 0 ? (
+        {isLoading ? (
+          <div className="p-8 text-center text-gray-500">Loading templates...</div>
+        ) : templates.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <p>No templates created yet.</p>
             <p className="">
@@ -81,7 +119,7 @@ export default function Templates() {
         ) : (
           <div className="divide-y divide-gray-200">
             {templates.map((template) => (
-              <div key={template.id} className="p-4">
+              <div key={template._id} className="p-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900 mb-2">
@@ -100,7 +138,7 @@ export default function Templates() {
                       <FiEdit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteTemplate(template.id)}
+                      onClick={() => handleDeleteTemplate(template._id)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
                       title="Delete template"
                     >

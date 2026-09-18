@@ -140,6 +140,84 @@ class CommunicationAPI {
     }
   }
 
+  // Message template API methods
+  static async createMessageTemplate(templateData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/message-templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create message template');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating message template:', error);
+      throw error;
+    }
+  }
+
+  static async getMessageTemplates() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/message-templates`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch message templates');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching message templates:', error);
+      throw error;
+    }
+  }
+
+  static async updateMessageTemplate(templateId, updateData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/message-templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update message template');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating message template:', error);
+      throw error;
+    }
+  }
+
+  static async deleteMessageTemplate(templateId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/message-templates/${templateId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete message template');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting message template:', error);
+      throw error;
+    }
+  }
+
   // Message API methods
   static async createMessage(messageData) {
     try {

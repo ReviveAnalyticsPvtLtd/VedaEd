@@ -1,10 +1,12 @@
 import React, { useState } from "react";
+import CommunicationAPI from "../communicationAPI";
 
 const emptyForm = { name: "", type: "SMS", category: "Academic", content: "" };
 
 export default function Templates({ templates, setTemplates }) {
   const [selectedType, setSelectedType] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -28,39 +30,68 @@ export default function Templates({ templates, setTemplates }) {
   };
 
   const openEdit = (template) => {
-    setEditingId(template.id);
+    setEditingId(template._id);
     setForm({
-      name: template.name,
+      name: template.title,
       type: template.type,
       category: template.category,
-      content: template.content,
+      content: template.message,
     });
     setShowForm(true);
   };
 
-  const handleSave = () => {
-    if (!form.name.trim() || !form.content.trim()) return;
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.content.trim() || isSaving) return;
 
-    if (editingId !== null) {
-      setTemplates(
-        templates.map((t) =>
-          t.id === editingId ? { ...t, ...form } : t
-        )
-      );
-    } else {
-      const newTemplate = { id: Date.now(), ...form };
-      setTemplates([newTemplate, ...templates]);
+    setIsSaving(true);
+    try {
+      if (editingId !== null) {
+        const response = await CommunicationAPI.updateMessageTemplate(editingId, {
+          title: form.name.trim(),
+          message: form.content.trim(),
+          type: form.type,
+          category: form.category,
+        });
+        setTemplates(
+          templates.map((t) =>
+            t._id === editingId ? { ...t, ...response.data } : t
+          )
+        );
+      } else {
+        const response = await CommunicationAPI.createMessageTemplate({
+          title: form.name.trim(),
+          message: form.content.trim(),
+          type: form.type,
+          category: form.category,
+        });
+        setTemplates([response.data, ...templates]);
+      }
+
+      setShowForm(false);
+      setEditingId(null);
+      setForm(emptyForm);
+    } catch (error) {
+      console.error("Error saving message template:", error);
+      alert(`Failed to save template: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyForm);
   };
 
-  const handleDeleteTemplate = (templateId) => {
+  const handleDeleteTemplate = async (templateId) => {
     if (window.confirm("Are you sure you want to delete this template?")) {
-      setTemplates(templates.filter((t) => t.id !== templateId));
+      try {
+        await CommunicationAPI.deleteMessageTemplate(templateId);
+        setTemplates(templates.filter((t) => t._id !== templateId));
+      } catch (error) {
+        console.error("Error deleting message template:", error);
+        alert(`Failed to delete template: ${error.message}`);
+      }
     }
+  };
+
+  const handleUseTemplate = (template) => {
+    alert(`Template "${template.title}" selected.\n\n${template.message}`);
   };
 
   return (
@@ -140,9 +171,10 @@ export default function Templates({ templates, setTemplates }) {
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+              disabled={isSaving}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition disabled:opacity-50"
             >
-              {editingId !== null ? "Update" : "Save"}
+              {isSaving ? "Saving..." : editingId !== null ? "Update" : "Save"}
             </button>
             <button
               onClick={() => {
@@ -194,14 +226,14 @@ export default function Templates({ templates, setTemplates }) {
         {filteredTemplates.length > 0 ? (
           filteredTemplates.map((template) => (
             <div
-              key={template.id}
+              key={template._id}
               className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h4 className="font-medium text-gray-900">
-                      {template.name}
+                      {template.title}
                     </h4>
                     <span
                       className={`px-2 py-1 rounded ${
@@ -216,11 +248,11 @@ export default function Templates({ templates, setTemplates }) {
                       {template.category}
                     </span>
                   </div>
-                  <p className="text-gray-600 mb-3">{template.content}</p>
+                  <p className="text-gray-600 mb-3">{template.message}</p>
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => console.log("Use template:", template)}
+                    onClick={() => handleUseTemplate(template)}
                     className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
                   >
                     Use
@@ -232,7 +264,7 @@ export default function Templates({ templates, setTemplates }) {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeleteTemplate(template.id)}
+                    onClick={() => handleDeleteTemplate(template._id)}
                     className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
                   >
                     Delete

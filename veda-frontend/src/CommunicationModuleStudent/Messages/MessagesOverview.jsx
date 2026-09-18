@@ -6,7 +6,7 @@ import {
   FiSend,
   FiInbox,
 } from "react-icons/fi";
-import CommunicationAPI from "../communicationAPI";
+import CommunicationAPI from "../../services/communicationAPI";
 
 const TYPE_LABELS = {
   text: "Message",
@@ -38,25 +38,42 @@ export default function MessagesOverview() {
 
     const load = async () => {
       try {
-        const res = await CommunicationAPI.getMessages(userId, userModel, {
-          limit: 100,
-        });
+        const [msgRes, notifRes] = await Promise.allSettled([
+          CommunicationAPI.getMessages(userId, userModel, { limit: 100 }),
+          CommunicationAPI.getReceivedNotifications(userId, userModel, { limit: 100 }),
+        ]);
         if (!active) return;
-        const msgList = Array.isArray(res?.data) ? res.data : [];
-        const list = msgList.map((m) => ({
-          id: m._id,
-          title: m.subject,
-          message: m.content,
-          sender:
-            m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel || "School",
-          senderRole: m.senderModel || "",
-          priority: m.priority || "medium",
-          messageType: m.messageType || "text",
-          channel: "Portal",
-          isRead: m.status === "read",
-          sentDate: m.createdAt,
-          class: m.receiver?.academicInfo?.class || "",
-        }));
+        const msgList = Array.isArray(msgRes.value?.data) ? msgRes.value.data : [];
+        const notifList = Array.isArray(notifRes.value?.data) ? notifRes.value.data : [];
+        const list = [
+          ...msgList.map((m) => ({
+            id: m._id,
+            title: m.subject,
+            message: m.content,
+            sender:
+              m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel || "School",
+            senderRole: m.senderModel || "",
+            priority: m.priority || "medium",
+            messageType: m.messageType || "text",
+            channel: "Portal",
+            isRead: m.status === "read",
+            sentDate: m.createdAt,
+            class: m.receiver?.academicInfo?.class || "",
+          })),
+          ...notifList.map((n) => ({
+            id: n._id,
+            isNotification: true,
+            title: n.title,
+            message: n.description,
+            sender: n.createdBy?.personalInfo?.name || n.createdByModel || "School",
+            senderRole: n.createdByModel || "Admin",
+            priority: n.type === "Urgent" ? "high" : "medium",
+            messageType: "announcement",
+            channel: "Portal",
+            isRead: false,
+            sentDate: n.publishDate || n.createdAt,
+          })),
+        ].sort((a, b) => new Date(b.sentDate) - new Date(a.sentDate));
         setMessages(list);
       } catch (e) {
         if (active) setError(e.message || "Failed to load messages");
@@ -83,7 +100,7 @@ export default function MessagesOverview() {
     setMessages(updated);
     setSelectedMessage({ ...msg, isRead: true });
 
-    if (!msg.isRead) {
+    if (!msg.isRead && !msg.isNotification) {
       CommunicationAPI.updateMessageStatus(msg.id, "read", userId, userModel).catch(
         () => {}
       );

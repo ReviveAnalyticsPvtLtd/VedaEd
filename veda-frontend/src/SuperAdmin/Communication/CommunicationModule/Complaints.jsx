@@ -320,11 +320,6 @@ const updateStatus = async (status) => {
   /* ===================== UI ===================== */
   return (
     <div className="p-0 m-0 min-h-screen">
-         <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Communication</span>
-        <span>&gt;</span>
-        <span>Complaints</span>
-      </div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Complaints</h2>
         <HelpInfo
