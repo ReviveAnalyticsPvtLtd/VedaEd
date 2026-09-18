@@ -82,7 +82,7 @@ const NoticeSchema = new Schema(
         default: Date.now
       }
     }],
-    tags: [String]
+    tags: { type: [String], default: [] }
   },
   { timestamps: true }
 );

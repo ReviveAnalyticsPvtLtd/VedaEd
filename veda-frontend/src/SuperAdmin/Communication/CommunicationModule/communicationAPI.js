@@ -406,6 +406,24 @@ class CommunicationAPI {
     }
   }
 
+  static async deleteNotification(notificationId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      throw error;
+    }
+  }
+
   // Complaint API methods
   static async createComplaint(complaintData) {
     try {

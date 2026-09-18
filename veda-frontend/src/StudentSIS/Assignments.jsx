@@ -18,6 +18,7 @@ const FILE_BASE_URL = config.SERVER_URL;
 export default function StudentAssignments() {
   const [assignments, setAssignments] = useState([]);
   const [files, setFiles] = useState({});
+  const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
@@ -53,32 +54,28 @@ export default function StudentAssignments() {
     }
 
     try {
-      // TODO: Implement actual submission API call
-      // For now, update local state
-      setAssignments((prev) =>
-        prev.map((a) =>
-          a._id === assignmentId
-            ? { ...a, submitted: true, studentFile: file.name }
-            : a
-        )
-      );
-      setFiles({ ...files, [assignmentId]: null });
-      alert("✅ Assignment submitted successfully!");
+      setUploading((prev) => ({ ...prev, [assignmentId]: true }));
+      await assignmentAPI.submitAssignment(assignmentId, file);
+      setFiles((prev) => ({ ...prev, [assignmentId]: null }));
+      alert("Assignment submitted successfully!");
+      fetchAssignments();
     } catch (error) {
       console.error("Error submitting assignment:", error);
-      alert("Failed to submit assignment. Please try again.");
+      alert(`Failed to submit assignment: ${error.message || ""}`);
+    } finally {
+      setUploading((prev) => ({ ...prev, [assignmentId]: false }));
     }
   };
 
-  const handleDelete = (assignmentId) => {
+  const handleDelete = async (assignmentId) => {
     if (window.confirm("Are you sure you want to delete this submission?")) {
-      setAssignments((prev) =>
-        prev.map((a) =>
-          a._id === assignmentId
-            ? { ...a, submitted: false, studentFile: null }
-            : a
-        )
-      );
+      try {
+        await assignmentAPI.deleteSubmission(assignmentId);
+        fetchAssignments();
+      } catch (error) {
+        console.error("Error deleting submission:", error);
+        alert("Failed to delete submission. Please try again.");
+      }
     }
   };
 
@@ -250,24 +247,24 @@ Sections:
                             handleFileChange(a._id, e.target.files[0])
                           }
                           className="border px-2 py-1 rounded flex-1"
-                          disabled={isLate}
+                          disabled={isLate || uploading[a._id]}
                         />
                         <button
                           onClick={() => handleSubmit(a._id)}
-                          disabled={isLate || !files[a._id]}
+                          disabled={isLate || !files[a._id] || uploading[a._id]}
                           className={`flex items-center justify-center gap-2 px-4 py-2 rounded text-white font-medium ${
-                            isLate || !files[a._id]
+                            isLate || !files[a._id] || uploading[a._id]
                               ? "bg-gray-400 cursor-not-allowed"
                               : "bg-blue-600 hover:bg-blue-700"
                           }`}
                         >
-                          <FiUpload /> Submit
+                          <FiUpload /> {uploading[a._id] ? "Uploading…" : "Submit"}
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between bg-gray-100 border px-3 py-2 rounded-md">
                         <span className="text-gray-700">
-                          📂 {a.submissions[0]?.document?.split("/").pop() || "Submitted"}
+                          📂 {a.submissions[0]?.file?.split("/").pop() || "Submitted"}
                         </span>
                         <button
                           onClick={() => handleDelete(a._id)}

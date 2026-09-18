@@ -57,6 +57,10 @@ const AssignmentDashboardUI = () => {
   // State for preview modal
   const [previewFile, setPreviewFile] = useState(null);
 
+  // State for submission review modal
+  const [reviewAssignment, setReviewAssignment] = useState(null);
+  const [gradeInputs, setGradeInputs] = useState({}); // keyed by submission._id
+
   // State for assignments and loading
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +213,68 @@ const AssignmentDashboardUI = () => {
         alert("Failed to delete assignment. Please try again.");
         console.error("Error deleting assignment:", error);
       }
+    }
+  };
+
+  const handleViewSubmissions = (assignment) => {
+    setReviewAssignment(assignment);
+    setGradeInputs({});
+  };
+
+  const handleGradeInput = (submissionId, field, value) => {
+    setGradeInputs((prev) => ({
+      ...prev,
+      [submissionId]: { ...prev[submissionId], [field]: value },
+    }));
+  };
+
+  const handleGradeSave = async (submissionId, enteredValues) => {
+    const updated = enteredValues || gradeInputs[submissionId];
+    if (!updated || Object.keys(updated).length === 0) {
+      alert("Enter marks, grade, or feedback first.");
+      return;
+    }
+    try {
+      await assignmentAPI.gradeSubmission(
+        reviewAssignment._id,
+        submissionId,
+        updated
+      );
+      setReviewAssignment((prev) =>
+        prev
+          ? {
+              ...prev,
+              submissions: (prev.submissions || []).map((s) =>
+                s._id === submissionId
+                  ? {
+                      ...s,
+                      marks:
+                        updated.marks !== undefined ? updated.marks : s.marks,
+                      grade:
+                        updated.grade !== undefined ? updated.grade : s.grade,
+                      feedback:
+                        updated.feedback !== undefined
+                          ? updated.feedback
+                          : s.feedback,
+                    }
+                  : s
+              ),
+            }
+          : prev
+      );
+      setGradeInputs((prev) => ({ ...prev, [submissionId]: {} }));
+      alert("Grade saved successfully!");
+      try {
+        const data = await assignmentAPI.getAssignments();
+        setAssignments(data);
+        const match = data.find((a) => a._id === reviewAssignment._id);
+        if (match) setReviewAssignment(match);
+      } catch (e) {
+        console.error("Error refreshing assignments:", e);
+      }
+    } catch (error) {
+      alert(`Failed to save grade: ${error.message || ""}`);
+      console.error("Error saving grade:", error);
     }
   };
 
@@ -485,7 +551,14 @@ Tools available inside the assignments dashboard:
 
                     {/* Submissions */}
                     <td className="p-2 border">
-                      {assignment.submissions?.length || 0}
+                      <button
+                        onClick={() => handleViewSubmissions(assignment)}
+                        className="flex items-center justify-center gap-1 mx-auto px-2 py-1 text-sm rounded hover:bg-blue-50 text-blue-600"
+                        title="Review submissions"
+                      >
+                        <FiEye className="w-4 h-4" />
+                        {assignment.submissions?.length || 0}
+                      </button>
                     </td>
 
                     {/* Actions */}
@@ -577,6 +650,122 @@ Tools available inside the assignments dashboard:
                   >
                     Download File
                   </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    {/* Submission Review Modal */}
+      {reviewAssignment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div>
+                <h3 className="text-lg font-semibold">Submissions</h3>
+                <p className="text-sm text-gray-500">
+                  {reviewAssignment.title} •{" "}
+                  {reviewAssignment.class?.name || "N/A"} –{" "}
+                  {reviewAssignment.section?.name || "N/A"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewAssignment(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold px-2"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {(!reviewAssignment.submissions ||
+                reviewAssignment.submissions.length === 0) ? (
+                <p className="text-gray-500 text-center py-10">
+                  No submissions yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {reviewAssignment.submissions.map((sub, idx) => {
+                    const draft = gradeInputs[sub._id] || {};
+                    return (
+                      <div
+                        key={sub._id || idx}
+                        className="border rounded-lg p-3 flex flex-col gap-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">
+                              {sub.student?.personalInfo?.name || "Student"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(sub.submittedAt).toLocaleString()} •{" "}
+                              {sub.status}
+                            </p>
+                          </div>
+                          {sub.file && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewFile(`${FILE_BASE_URL}${sub.file}`)
+                              }
+                              className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
+                            >
+                              <FiEye className="w-4 h-4" />
+                              {sub.file.split("/").pop()}
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                          <input
+                            placeholder="Marks"
+                            type="number"
+                            value={draft.marks ?? (sub.marks ?? "")}
+                            onChange={(e) =>
+                              handleGradeInput(
+                                sub._id,
+                                "marks",
+                                e.target.value
+                              )
+                            }
+                            className="border rounded px-2 py-1 w-28 text-sm"
+                          />
+                          <input
+                            placeholder="Grade (A+ / 9)"
+                            value={draft.grade ?? (sub.grade ?? "")}
+                            onChange={(e) =>
+                              handleGradeInput(
+                                sub._id,
+                                "grade",
+                                e.target.value
+                              )
+                            }
+                            className="border rounded px-2 py-1 w-40 text-sm"
+                          />
+                          <input
+                            placeholder="Feedback"
+                            value={draft.feedback ?? (sub.feedback ?? "")}
+                            onChange={(e) =>
+                              handleGradeInput(
+                                sub._id,
+                                "feedback",
+                                e.target.value
+                              )
+                            }
+                            className="border rounded px-2 py-1 flex-1 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleGradeSave(sub._id, draft)}
+                            className="px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
