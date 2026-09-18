@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+ import { useNavigate } from "react-router-dom";
 import useParentFeeData from "./useParentFeeData";
 
 const formatCurrency = (value) =>

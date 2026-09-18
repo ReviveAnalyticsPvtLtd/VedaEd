@@ -23,9 +23,22 @@ export const registerWithEmail = async ({ email, password }) => {
   return data;
 };
 
-export const loginWithEmail = async ({ email, password }) => {
-  const { data } = await axios.post(`${API_URL}/login`, { email, password });
+export const loginWithEmail = async ({ email, password, role }) => {
+  const payload = { email, password };
+  if (role) payload.role = role;
+  const { data } = await axios.post(`${API_URL}/login`, payload);
   return data;
+};
+
+export const logout = async () => {
+  const token = getAuthToken();
+  if (token) {
+    try {
+      await axios.post(`${API_URL}/logout`, {}, { headers: authHeaders() });
+    } catch (e) {
+      // ignore
+    }
+  }
 };
 
 export const authAPI = {

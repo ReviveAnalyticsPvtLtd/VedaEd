@@ -16,15 +16,22 @@ const authMiddleware = async (req, res, next) => {
       userId: decoded.userId,
       role: decoded.role ? decoded.role.toLowerCase() : decoded.role,
       refId: decoded.refId,
+      sessionId: decoded.sessionId,
     };
 
-    const user = await User.findById(req.user.userId).select("status email").lean();
+    const user = await User.findById(req.user.userId).select("status email activeSession").lean();
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
     if (user.status === "inactive") {
       return res.status(403).json({
         message: "Your account is inactive. Contact your administrator.",
+      });
+    }
+
+    if (decoded.sessionId && user.activeSession?.sessionId && user.activeSession.sessionId !== decoded.sessionId) {
+      return res.status(401).json({
+        message: "Your session has ended or you have logged in from another device.",
       });
     }
 
