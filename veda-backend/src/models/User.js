@@ -17,6 +17,14 @@ const userSchema = new mongoose.Schema({
   department: { type: String },
   employeeId: { type: String },
   lastLogin: { type: Date },
+  activeSession: {
+    sessionId: { type: String, default: null },
+    token: { type: String, default: null },
+    createdAt: { type: Date, default: null },
+    expiresAt: { type: Date, default: null },
+    device: { type: String, default: null },
+    ip: { type: String, default: null },
+  },
   authProvider: {
     type: String,
     enum: ['email', 'local', 'google'],

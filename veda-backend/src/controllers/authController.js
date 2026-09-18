@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
@@ -19,7 +20,7 @@ const PASSWORD_MIN_LENGTH = 8;
 exports.login = async (req, res) => {
   try {
 
-    const { email, password, employeeId } = req.body;
+    const { email, password, employeeId, role } = req.body;
     const loginId = String(email || employeeId || "").trim();
 
     console.log("LOGIN BODY:", req.body);
@@ -32,7 +33,15 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 2️⃣ Find user
+    // 2️⃣ Check role is provided
+    if (!role || typeof role !== "string" || !role.trim()) {
+      console.log("ROLE IS MISSING");
+      return res.status(400).json({
+        message: "Please select your role before logging in.",
+      });
+    }
+
+    // 3️⃣ Find user
     let user = await User.findOne({ email: loginId }).populate("roleId");
     if (!user && loginId.includes("@")) {
       user = await User.findOne({ email: loginId.toLowerCase() }).populate("roleId");
@@ -225,9 +234,18 @@ exports.login = async (req, res) => {
       });
     }
 
-    const roleId = user.roleId._id;
-    const roleName = user.roleId.name;
-    const normalizedRole = roleName?.toLowerCase();
+    const roleId = user.roleId?._id;
+    const roleName = user.roleId?.name || "";
+    const normalizedRole = roleName.toLowerCase();
+    const normalizedSelectedRole = String(role).trim().toLowerCase();
+
+    // 4️⃣ Verify selected role matches the user's role
+    if (normalizedRole !== normalizedSelectedRole) {
+      console.log(`ROLE MISMATCH: account role=${normalizedRole}, selected role=${normalizedSelectedRole}`);
+      return res.status(401).json({
+        message: "The selected role does not match this account.",
+      });
+    }
 
     let adminCheck = null;
 
@@ -240,6 +258,24 @@ exports.login = async (req, res) => {
       return res.status(403).json({
         message: "Your account is inactive. Contact your administrator.",
       });
+    }
+
+    // 5️⃣ Check whether this account already has an active session
+    if (user.activeSession && user.activeSession.token && user.activeSession.sessionId) {
+      const sessionExpiresAt = user.activeSession.expiresAt ? new Date(user.activeSession.expiresAt) : null;
+      const isNotExpired = sessionExpiresAt ? (sessionExpiresAt.getTime() > Date.now()) : false;
+
+      if (isNotExpired) {
+        try {
+          jwt.verify(user.activeSession.token, process.env.JWT_SECRET || "fallback_secret_key");
+          // Existing session is valid and active -> reject new login
+          return res.status(409).json({
+            message: "This account is already logged in on another device or browser. Please log out from the existing session before logging in here.",
+          });
+        } catch (jwtErr) {
+          console.log("Previous active session token is no longer valid:", jwtErr.message);
+        }
+      }
     }
 
     console.log("ROLE:", roleName);
@@ -268,21 +304,55 @@ exports.login = async (req, res) => {
 
     console.log("PERMISSIONS:", permissions);
 
+    const sessionId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
     const token = jwt.sign(
       {
         userId: user._id,
         role: roleName,
         refId: user.refId,
+        sessionId,
       },
       process.env.JWT_SECRET || "fallback_secret_key",
       { expiresIn: "7d" }
     );
 
-    // Update last login timestamp
-    try {
-      await User.updateOne({ _id: user._id }, { $set: { lastLogin: new Date() } });
-    } catch (lastLoginErr) {
-      console.error("Failed to update lastLogin:", lastLoginErr);
+    const newSession = {
+      sessionId,
+      token,
+      createdAt: new Date(),
+      expiresAt,
+      device: req.headers["user-agent"] || "Unknown",
+      ip: req.ip || req.connection?.remoteAddress || null,
+    };
+
+    // Atomic update to prevent race conditions during concurrent logins
+    const currentSessionId = user.activeSession?.sessionId || null;
+    const sessionAcquired = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        $or: [
+          { activeSession: null },
+          { "activeSession.token": null },
+          { "activeSession.sessionId": null },
+          { "activeSession.expiresAt": { $lte: new Date() } },
+          { "activeSession.sessionId": currentSessionId },
+        ],
+      },
+      {
+        $set: {
+          lastLogin: new Date(),
+          activeSession: newSession,
+        },
+      },
+      { new: true }
+    );
+
+    if (!sessionAcquired) {
+      return res.status(409).json({
+        message: "This account is already logged in on another device or browser. Please log out from the existing session before logging in here.",
+      });
     }
 
     const response = {
@@ -319,6 +389,50 @@ exports.login = async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error"
+    });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    let userId = req.user?.userId;
+    let sessionId = req.user?.sessionId;
+
+    if (!userId && req.headers.authorization?.startsWith("Bearer ")) {
+      try {
+        const token = req.headers.authorization.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key");
+        userId = decoded?.userId;
+        sessionId = decoded?.sessionId;
+      } catch (e) {
+        // Token might already be expired or invalid
+      }
+    }
+
+    if (userId) {
+      if (sessionId) {
+        // Only clear if the session being logged out matches the active session
+        await User.updateOne(
+          { _id: userId, "activeSession.sessionId": sessionId },
+          { $set: { activeSession: null } }
+        );
+      } else {
+        // Legacy fallback
+        await User.updateOne(
+          { _id: userId },
+          { $set: { activeSession: null } }
+        );
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout Error:", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
     });
   }
 };

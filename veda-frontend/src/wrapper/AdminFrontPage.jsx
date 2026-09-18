@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { FiUsers, FiMessageCircle, FiCalendar, FiBriefcase, FiClipboard, FiBookOpen, FiArrowLeft } from "react-icons/fi";
 import { filterModulesByPermission } from "../utils/adminPermissions";
+import { clearAuthSession } from "../utils/authSession";
 
 const MODULES = [
   { name: "Admin SIS", path: "/admin", icon: <FiUsers /> },
@@ -16,12 +17,8 @@ export default function AdminFrontPage() {
   const navigate = useNavigate();
   const visibleModules = MODULES;
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("permissions");
-    localStorage.removeItem("platformPermissions");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await clearAuthSession();
     navigate("/");
   };
 

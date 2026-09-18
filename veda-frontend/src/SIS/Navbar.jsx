@@ -1,6 +1,7 @@
 import { FiBell, FiSettings, FiHome, FiLogOut } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { clearAuthSession } from "../utils/authSession";
 
 export default function Navbar({ searchQuery, setSearchQuery }) {
   const navigate = useNavigate();
@@ -28,11 +29,9 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
     else navigate("/");
   };
 
-  const handleLogout = () => {
-    // Clear every auth key set by Login.jsx / apiClient.js
-    ["token", "role", "permissions", "platformPermissions", "user", "veda_role"].forEach((k) =>
-      localStorage.removeItem(k)
-    );
+  const handleLogout = async () => {
+    await clearAuthSession();
+    localStorage.removeItem("veda_role");
     navigate("/");
   };
 

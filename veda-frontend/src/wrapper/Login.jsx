@@ -101,12 +101,17 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (!selectedRole || !String(selectedRole).trim()) {
+      setError("Please select your role before logging in.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const body = { email, password };
-      if (selectedRole) body.role = selectedRole;
+      const body = { email, password, role: selectedRole };
 
       const response = await axios.post(`${config.API_BASE_URL}/auth/login`, body);
 

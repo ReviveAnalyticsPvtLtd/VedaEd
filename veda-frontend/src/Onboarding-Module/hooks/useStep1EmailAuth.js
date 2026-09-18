@@ -97,6 +97,7 @@ export function useStep1EmailAuth() {
         const data = await loginWithEmail({
           email: normalizedEmail,
           password,
+          role: "admin",
         });
         if (!data?.token) {
           throw new Error(data?.message || "Sign in failed");

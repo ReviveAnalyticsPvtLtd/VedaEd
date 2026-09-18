@@ -13,12 +13,13 @@ const ACCESS_TOKEN_EXPIRY = "7d";
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 const REFRESH_BCRYPT_ROUNDS = 10;
 
-const buildAccessToken = (user) =>
+const buildAccessToken = (user, sessionId) =>
   jwt.sign(
     {
       userId: user._id,
       role: user.roleId?.name || user.roleId,
       refId: user.refId,
+      ...(sessionId ? { sessionId } : {}),
     },
     process.env.JWT_SECRET || "fallback_secret_key",
     { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -51,7 +52,29 @@ const buildAuthResponse = async (user) => {
     permissions = flattenPlatformPermissions(platformPermissions);
   }
 
-  const token = buildAccessToken(user);
+  const sessionId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+  const token = buildAccessToken(user, sessionId);
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  try {
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          lastLogin: new Date(),
+          activeSession: {
+            sessionId,
+            token,
+            createdAt: new Date(),
+            expiresAt,
+          },
+        },
+      }
+    );
+  } catch (err) {
+    console.error("Failed to update activeSession in buildAuthResponse:", err);
+  }
 
   return {
     token,

@@ -1,3 +1,5 @@
+import config from "../config";
+
 /**
  * Persists auth session consistently with the main Login page.
  */
@@ -25,7 +27,21 @@ export function saveAuthSession({
   }
 }
 
-export function clearAuthSession() {
+export async function clearAuthSession() {
+  const token = localStorage.getItem("token");
+  if (token) {
+    try {
+      await fetch(`${config.API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }).catch(() => {});
+    } catch (e) {
+      // Best-effort logout notification
+    }
+  }
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("role");
