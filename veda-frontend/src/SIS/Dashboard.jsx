@@ -301,7 +301,10 @@ export default function Dashboard() {
 
     
 
-        <div className="bg-white border rounded-2xl p-5 shadow-sm">
+        <Link
+          to="/admin/students"
+          className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+        >
           <p className="text-sm text-gray-500 font-medium">
             Active Students
           </p>
@@ -315,7 +318,7 @@ export default function Dashboard() {
           <p className="text-xs text-gray-400 mt-2">
             Current active records
           </p>
-        </div>
+        </Link>
             <div className="bg-white border rounded-2xl p-5 shadow-sm">
           <p className="text-sm text-gray-500 font-medium">
             Others
@@ -599,7 +602,7 @@ export default function Dashboard() {
         {/* REPORT CARD */}
 
         <Link
-          to="/reports"
+          to="/admin/reports"
           className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <h2 className="text-lg font-semibold">

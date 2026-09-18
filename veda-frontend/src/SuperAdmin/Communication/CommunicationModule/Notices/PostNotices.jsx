@@ -21,6 +21,7 @@ export default function PostNotices() {
     Receptionist: false,
     "Super Admin": false,
   });
+  const [everyone, setEveryone] = useState(false);
   const [channels, setChannels] = useState({ Email: false, SMS: false });
 
   const handleSubmit = async (e) => {
@@ -28,7 +29,7 @@ export default function PostNotices() {
     setIsLoading(true);
 
     try {
-      const selectedRoles = Object.keys(roles).filter((r) => roles[r]);
+      const selectedRoles = everyone ? [] : Object.keys(roles).filter((r) => roles[r]);
 
       const currentUser = JSON.parse(localStorage.getItem("user")) || {};
       const authorId = currentUser?._id || "";
@@ -36,7 +37,7 @@ export default function PostNotices() {
 
       // Determine target audience based on selected roles
       let targetAudience = "all";
-      if (selectedRoles.length === 1) {
+      if (!everyone && selectedRoles.length === 1) {
         if (selectedRoles.includes("Student")) targetAudience = "students";
         else if (selectedRoles.includes("Teacher")) targetAudience = "teachers";
         else if (selectedRoles.includes("Parent")) targetAudience = "parents";
@@ -114,7 +115,8 @@ export default function PostNotices() {
   const canSubmit =
     title.trim().length > 0 &&
     message.trim().length > 0 &&
-    (roles.Student ||
+    (everyone ||
+      roles.Student ||
       roles.Parent ||
       roles.Admin ||
       roles.Teacher ||
@@ -123,8 +125,28 @@ export default function PostNotices() {
       roles.Receptionist ||
       roles["Super Admin"]);
 
-  const toggleRole = (role) =>
+  const toggleRole = (role) => {
+    setEveryone(false);
     setRoles((prev) => ({ ...prev, [role]: !prev[role] }));
+  };
+
+  const toggleEveryone = () => {
+    const next = !everyone;
+    setEveryone(next);
+    if (next) {
+      setRoles({
+        Student: false,
+        Parent: false,
+        Admin: false,
+        Teacher: false,
+        Accountant: false,
+        Librarian: false,
+        Receptionist: false,
+        "Super Admin": false,
+      });
+    }
+  };
+
   const toggleChannel = (ch) =>
     setChannels((prev) => ({ ...prev, [ch]: !prev[ch] }));
 
@@ -235,6 +257,15 @@ export default function PostNotices() {
           <h3 className="text-lg font-semibold mb-4">Message To</h3>
 
           <div className="space-y-3">
+            <label className="flex items-center gap-2 text-gray-700 font-semibold cursor-pointer">
+              <input
+                type="checkbox"
+                checked={everyone}
+                onChange={toggleEveryone}
+                className="w-4 h-4"
+              />
+              Everyone (All Roles)
+            </label>
             <div className="grid grid-cols-2 gap-4">
               {Object.keys(roles).map((role) => (
                 <label
@@ -245,6 +276,7 @@ export default function PostNotices() {
                     type="checkbox"
                     checked={roles[role]}
                     onChange={() => toggleRole(role)}
+                    disabled={everyone}
                     className="w-4 h-4"
                   />
                   {role}

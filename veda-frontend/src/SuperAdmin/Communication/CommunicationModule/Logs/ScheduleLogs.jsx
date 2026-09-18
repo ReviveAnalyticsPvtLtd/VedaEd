@@ -1,37 +1,64 @@
 import React, { useState, useEffect } from "react";
 import { FiMoreVertical, FiCheck, FiTrash2 } from "react-icons/fi";
-
-// API Endpoints for future backend integration
-const API_ENDPOINTS = {
-  GET_SCHEDULED_NOTICES: "/api/notices/scheduled",
-  DELETE_NOTICE: "/api/notices/:id",
-  GET_ALL_NOTICES: "/api/notices",
-};
+import CommunicationAPI from "../communicationAPI";
 
 export default function ScheduleLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Future API integration function
   const fetchScheduledNotices = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(API_ENDPOINTS.GET_SCHEDULED_NOTICES);
-      // const data = await response.json();
-      // setLogs(data);
+      // 1. Fetch notices (future-dated notices, usually saved as draft)
+      const noticesRes = await CommunicationAPI.getNotices({ limit: 50 });
+      let scheduledNotices = [];
+      if (noticesRes?.success) {
+        scheduledNotices = noticesRes.data
+          .filter((n) => new Date(n.publishDate) > new Date())
+          .map((n) => ({
+            ...n,
+            id: n._id,
+            logType: "notice",
+            message: n.content,
+            publishOn: n.publishDate,
+            sentAt: null,
+            channels: [],
+            roles: n.tags && n.tags.length ? n.tags : n.targetAudience ? [n.targetAudience] : [],
+          }));
+      }
 
-      // Clear localStorage for fresh start
-      localStorage.removeItem("sent_notices_logs");
+      // 2. Fetch notifications (scheduled ones have a future publishDate)
+      const notificationsRes = await CommunicationAPI.getNotifications({ limit: 50 });
+      let scheduledNotifications = [];
+      if (notificationsRes?.success) {
+        scheduledNotifications = notificationsRes.data
+          .filter((n) => new Date(n.publishDate) > new Date())
+          .map((n) => ({
+            ...n,
+            id: n._id,
+            logType: "notification",
+            message: n.description,
+            publishOn: n.publishDate,
+            sentAt: null,
+            channels: (n.channels || []).map(
+              (c) => c.charAt(0).toUpperCase() + c.slice(1)
+            ),
+            roles: n.audience ? [n.audience] : [],
+          }));
+      }
 
-      // For now, return empty array (will be replaced with API call)
-      setLogs([]);
+      // Merge and sort by upcoming publish date
+      const combined = [...scheduledNotices, ...scheduledNotifications].sort(
+        (a, b) => new Date(a.publishOn) - new Date(b.publishOn)
+      );
+
+      setLogs(combined);
     } catch (err) {
       setError("Failed to fetch scheduled notices");
-      console.error("Error fetching notices:", err);
+      console.error("Error fetching scheduled notices:", err);
     } finally {
       setLoading(false);
     }
@@ -41,18 +68,19 @@ export default function ScheduleLogs() {
     fetchScheduledNotices();
   }, []);
 
-  const deleteLog = async (noticeId) => {
-    try {
-      // TODO: Replace with actual API call
-      // await fetch(`${API_ENDPOINTS.DELETE_NOTICE.replace(':id', noticeId)}`, {
-      //   method: 'DELETE'
-      // });
+  const deleteLog = async (logId, logType) => {
+    if (!window.confirm("Cancel and delete this scheduled item?")) return;
 
-      // For now, remove from local state (will be replaced with API call)
-      setLogs((prevLogs) => prevLogs.filter((log) => log.id !== noticeId));
+    try {
+      if (logType === "notice") {
+        await CommunicationAPI.deleteNotice(logId);
+      } else if (logType === "notification") {
+        await CommunicationAPI.deleteNotification(logId);
+      }
+      setLogs((prevLogs) => prevLogs.filter((log) => log.id !== logId));
     } catch (error) {
-      console.error("Error deleting notice:", error);
-      setError("Failed to delete notice");
+      console.error("Error deleting log:", error);
+      setError("Failed to delete log");
     }
   };
 
@@ -157,7 +185,7 @@ export default function ScheduleLogs() {
                         </button>
                         <button
                           className="p-1 rounded hover:bg-red-100 text-red-600"
-                          onClick={() => deleteLog(log.id || idx)}
+                          onClick={() => deleteLog(log.id || idx, log.logType)}
                           title="Delete notice"
                         >
                           <FiTrash2 />

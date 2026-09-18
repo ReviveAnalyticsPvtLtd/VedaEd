@@ -110,6 +110,72 @@ export const assignmentAPI = {
     }
   },
 
+  // Submit assignment file (student)
+  submitAssignment: async (id, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await authFetch(`/assignments/${id}/submit`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error submitting assignment:', error);
+      throw error;
+    }
+  },
+
+  // Delete student's own submission
+  deleteSubmission: async (id) => {
+    try {
+      const response = await authFetch(`/assignments/${id}/submission`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      throw error;
+    }
+  },
+
+  // Grade a submission (teacher)
+  gradeSubmission: async (assignmentId, submissionId, payload) => {
+    try {
+      const response = await authFetch(`/assignments/${assignmentId}/submissions/${submissionId}/grade`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error grading submission:', error);
+      throw error;
+    }
+  },
+
   // Delete assignment
   deleteAssignment: async (id) => {
     try {

@@ -2,6 +2,9 @@ const Assignment = require("./assignment.js");
 const Student = require("../student/studentModels");
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const Parent = require("../parents/parentModel");
+const fs = require("fs");
+const path = require("path");
+const { uploadsDir } = require("../../middleware/upload");
 
 exports.createAssignment = async (req, res) => {
   try {
@@ -166,7 +169,26 @@ exports.getAssignments = async (req, res) => {
       .populate({ path: "section", select: "name" })
       .populate({ path: "subject", select: "subjectName subjectCode" })
       .populate({ path: "teacher", select: "personalInfo.name name" })
+      .populate({ path: "submissions.student", select: "personalInfo.name" })
       .sort({ createdAt: -1 });
+
+    // Scope submissions so students/parents only see their own (child's) submissions
+    if (req.user?.role === "student") {
+      const studentId = String(req.user.refId || "");
+      assignments.forEach((a) => {
+        a.submissions = (a.submissions || []).filter(
+          (s) => String(s.student?._id || s.student) === studentId
+        );
+      });
+    } else if (req.user?.role === "parent") {
+      const parent = await Parent.findById(req.user.refId).populate("children");
+      const childIds = (parent?.children || []).map((c) => String(c._id));
+      assignments.forEach((a) => {
+        a.submissions = (a.submissions || []).filter((s) =>
+          childIds.includes(String(s.student?._id || s.student))
+        );
+      });
+    }
 
     res.json(assignments);
   } catch (err) {
@@ -180,9 +202,18 @@ exports.getAssignmentById = async (req, res) => {
       .populate({ path: "class", select: "name" })
       .populate({ path: "section", select: "name" })
       .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" });
+      .populate({ path: "teacher", select: "personalInfo.name name" })
+      .populate({ path: "submissions.student", select: "personalInfo.name" });
 
     if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+
+    // Students should only ever see their own submission for an assignment
+    if (req.user?.role === "student") {
+      const studentId = String(req.user.refId || "");
+      assignment.submissions = (assignment.submissions || []).filter(
+        (s) => String(s.student?._id || s.student) === studentId
+      );
+    }
 
     res.json(assignment);
   } catch (err) {
@@ -266,21 +297,97 @@ exports.getStudentAssignments = async (req, res) => {
 
 exports.submitAssignment = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== "student") {
+      return res.status(403).json({ message: "Only students can submit assignments" });
+    }
+
     const assignment = await Assignment.findById(req.params.id);
     if (!assignment) return res.status(404).json({ message: "Assignment not found" });
 
+    const studentId = req.user.refId;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const fileUrl = `/uploads/${req.file.filename}`;
     const submission = {
-      student: req.user._id,
-      file: req.file ? req.file.path : null,
+      student: studentId,
+      file: fileUrl,
       submittedAt: new Date(),
       status: new Date() > assignment.dueDate ? "Late" : "Submitted",
     };
 
-    assignment.submissions.push(submission);
+    // Replacing an earlier submission by the same student (resubmit)
+    const existingIndex = assignment.submissions.findIndex(
+      (s) => String(s.student) === String(studentId)
+    );
+    if (existingIndex >= 0) {
+      const old = assignment.submissions[existingIndex];
+      if (old && old.file) {
+        try { fs.unlinkSync(path.join(uploadsDir, path.basename(old.file))); } catch (e) { console.warn("Could not delete old file:", e.message); }
+      }
+      assignment.submissions[existingIndex] = submission;
+    } else {
+      assignment.submissions.push(submission);
+    }
+
     await assignment.save();
 
-    res.json({ message: "Assignment submitted successfully", assignment });
+    const populated = await Assignment.findById(assignment._id).populate({
+      path: "submissions.student",
+      select: "personalInfo.name",
+    });
+
+    res.json({ message: "Assignment submitted successfully", assignment: populated });
   } catch (err) {
     res.status(500).json({ message: "Error submitting assignment", error: err.message });
+  }
+};
+
+exports.deleteSubmission = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== "student") {
+      return res.status(403).json({ message: "Only students can delete their submission" });
+    }
+
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+
+    const studentId = req.user.refId;
+    const before = assignment.submissions.length;
+    assignment.submissions = assignment.submissions.filter(
+      (s) => String(s.student) !== String(studentId)
+    );
+
+    if (assignment.submissions.length === before) {
+      return res.status(404).json({ message: "No submission found for this student" });
+    }
+
+    await assignment.save();
+    res.json({ message: "Submission deleted", assignment });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting submission", error: err.message });
+  }
+};
+
+exports.gradeSubmission = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== "teacher") {
+      return res.status(403).json({ message: "Only teachers can grade submissions" });
+    }
+
+    const { marks, grade, feedback } = req.body;
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+
+    const submission = assignment.submissions.id(req.params.submissionId);
+    if (!submission) return res.status(404).json({ message: "Submission not found" });
+
+    if (marks !== undefined) submission.marks = (marks === "" || marks === null) ? null : Number(marks);
+    if (grade !== undefined) submission.grade = (grade === "" || grade === null) ? null : grade;
+    if (feedback !== undefined) submission.feedback = (feedback === "" || feedback === null) ? null : feedback;
+
+    await assignment.save();
+    res.json({ message: "Submission graded", assignment });
+  } catch (err) {
+    res.status(500).json({ message: "Error grading submission", error: err.message });
   }
 };
