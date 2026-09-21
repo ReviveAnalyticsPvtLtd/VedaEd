@@ -112,6 +112,7 @@ import OthersLogs from "./CommunicationModuleadmin/Logs/Others";
 import Notices from "./CommunicationModuleadmin/Notices/Notices";
 import PostNotices from "./CommunicationModuleadmin/Notices/PostNotices";
 import NoticeTemplates from "./CommunicationModuleadmin/Notices/NoticeTemplates";
+import DraftAnnouncements from "./CommunicationModuleadmin/Notices/DraftAnnouncements";
 import OthersNotices from "./CommunicationModuleadmin/Notices/OthersNotices";
 import Messages from "./CommunicationModuleadmin/Messages/Messages";
 import Group from "./CommunicationModuleadmin/Messages/Group";
@@ -1090,6 +1091,7 @@ function App() {
           <Route path="templates" element={<NoticeTemplates />} />
           <Route path="others" element={<OthersNotices />} />
         </Route>
+        <Route path="drafts" element={<DraftAnnouncements />} />
         <Route path="messages" element={<Messages />}>
           <Route index element={<Group />} />
           <Route path="individual" element={<Individual />} />
