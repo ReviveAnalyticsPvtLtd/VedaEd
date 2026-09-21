@@ -142,7 +142,7 @@ const CommunicationAdminDashboard = () => {
       value: stats.draftCount,
       icon: <FiFileText size={26} />,
       color: "from-amber-500 to-amber-600",
-      route: "/communication/notices",
+      route: "/communication/drafts",
     },
   ];
 

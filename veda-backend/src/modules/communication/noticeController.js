@@ -149,12 +149,37 @@ exports.getPublishedNotices = async (req, res) => {
     
     if (category) query.category = category;
 
-    // Filter by target audience
+    // Map the requesting user's model/role to the role tags used when posting
+    const roleToTag = (model) => {
+      const normalized = model.toLowerCase().trim();
+      if (normalized === 'staff' || normalized === 'receptionist' || normalized === 'librarian' || normalized === 'accountant') {
+        return ['Staff', 'Receptionist', 'Librarian', 'Accountant'];
+      }
+      const tagMap = {
+        student: ['Student'],
+        teacher: ['Teacher'],
+        parent: ['Parent'],
+        admin: ['Admin'],
+        'super admin': ['Super Admin'],
+      };
+      return tagMap[normalized] || [];
+    };
+
+    // Filter by target audience: 'all' only matches real broadcasts (no role tags),
+    // role-restricted notices are matched via their tags for the requesting role.
+    const singularTargetAudience = userModel.toLowerCase() === 'staff' ? 'staff' : userModel.toLowerCase() + 's';
     const audienceQuery = {
       $or: [
-        { targetAudience: 'all' },
-        { targetAudience: userModel.toLowerCase() + 's' },
-        { specificTargets: userId }
+        {
+          targetAudience: 'all',
+          $or: [
+            { tags: { $size: 0 } },
+            { tags: { $exists: false } },
+          ],
+        },
+        { targetAudience: singularTargetAudience },
+        { specificTargets: userId },
+        { tags: { $in: roleToTag(userModel) } }
       ]
     };
 

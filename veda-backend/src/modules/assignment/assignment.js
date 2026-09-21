@@ -58,6 +58,9 @@ const assignmentSchema = new mongoose.Schema({
         enum: ["Submitted", "Late", "Pending"],
         default: "Pending",
       },
+      marks: Number,
+      grade: String,
+      feedback: String,
     },
   ],
 }, { timestamps: true });

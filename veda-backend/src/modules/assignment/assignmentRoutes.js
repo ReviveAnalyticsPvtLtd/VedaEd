@@ -13,10 +13,10 @@ router.put("/:id", authMiddleware, teacherOnly, upload.single("document"), assig
 router.delete("/:id", authMiddleware, assignmentControllers.deleteAssignment);
 
 // Student routes
-// Student routes
+router.post("/:id/submit", authMiddleware, upload.single("file"), assignmentControllers.submitAssignment);
+router.delete("/:id/submission", authMiddleware, assignmentControllers.deleteSubmission);
 
-
-// router.get("/student/list", protect, studentOnly, getStudentAssignments);
-// router.post("/:id/submit", protect, studentOnly, upload.single("file"), submitAssignment);
+// Teacher grading route
+router.put("/:id/submissions/:submissionId/grade", authMiddleware, teacherOnly, assignmentControllers.gradeSubmission);
 
 module.exports = router;

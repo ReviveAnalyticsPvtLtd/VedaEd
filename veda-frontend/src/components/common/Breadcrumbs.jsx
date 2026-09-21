@@ -54,6 +54,7 @@ const breadcrumbLabels = {
   communication: "Communication",
   logs: "Logs",
   notices: "Notices",
+  drafts: "Draft Announcements",
   messages: "Messages",
   complaints: "Complaints",
 };
