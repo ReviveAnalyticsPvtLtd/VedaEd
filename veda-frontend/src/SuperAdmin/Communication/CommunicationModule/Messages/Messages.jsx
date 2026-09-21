@@ -3,33 +3,47 @@ import Group from "./Group";
 import Individual from "./Individual";
 import Class from "./Class";
 import Templates from "./Templates";
+import MessagesOverview from "./MessagesOverview";
 import HelpInfo from "../../../../components/HelpInfo";
 
 export default function Messages() {
-  const [activeTab, setActiveTab] = useState("group"); // default tab
+  const [activeTab, setActiveTab] = useState("overview");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
         setDropdownOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const renderTab = () => {
     switch (activeTab) {
+      case "overview":
+        return <MessagesOverview />;
+
       case "group":
         return <Group />;
+
       case "individual":
         return <Individual />;
+
       case "class":
         return <Class />;
+
       case "templates":
         return <Templates />;
+
       default:
         return null;
     }
@@ -37,6 +51,7 @@ export default function Messages() {
 
   return (
     <div className="p-0">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Messages</h2>
 
@@ -44,66 +59,79 @@ export default function Messages() {
           title="Admin Messages Help"
           description={`Page Description: Manage all outgoing messages from the admin portal. Switch between recipient types, craft announcements, and reuse saved templates to keep communication consistent.
 
-
 7.1 Page Overview
 
 Compose and send announcements from a single workspace.
-Use the tab bar to jump between recipient modes and template management.
+
+Use the tab bar to jump between the message overview, recipient modes, and template management.
 
 Sections:
-- Breadcrumb & Header: Shows which sub-tab (Group, Individual, Class, Templates) is active above the page title
-- Tab Bar: Four buttons that render the correct compose interface for each workflow
-- Content Area: Displays the component (Group, Individual, Class, Templates) matching the active tab
+- Header: Shows the Messages page title and help information
+- Tab Bar: Overview, Group, Individual, Class, and Templates
+- Content Area: Displays the component matching the selected tab
 
+7.2 Overview Tab
 
-7.2 Group Tab
-
-Broadcast a message to predefined audience groups (e.g., all parents, all staff).
+View sent and received messages in one place.
 
 Sections:
-- Audience Selector: Pick the group or segment you want to notify
-- Message Composer: Subject/body inputs with rich formatting and attachment support
-- Channel Options: Choose SMS, Email, or App push before sending
-- Send/Schedule Controls: Send immediately or schedule for later
+- Message Summary: Shows sent, received, and unread message counts
+- Search: Search messages by subject, content, or sender
+- Filters: Filter by message type, channel, and direction
+- Message List: Displays message details, priority, type, direction, sender/recipient, date, and channel
+- View Details: Opens the selected message details
 
+7.3 Group Tab
 
-7.3 Individual Tab
+Broadcast a message to predefined audience groups.
+
+Sections:
+- Audience Selector
+- Message Composer
+- Channel Options
+- Send/Schedule Controls
+
+7.4 Individual Tab
 
 Send personalized 1:1 messages to a specific recipient.
 
 Sections:
-- Recipient Search: Look up parent/student/staff by name or ID
-- Personal Message Box: Tailor the message body for that recipient
-- Channel Toggle: Decide whether to ping via SMS, Email, or App
-- Delivery Confirmation: Preview summary before sending
+- Recipient Search
+- Personal Message Box
+- Channel Toggle
+- Delivery Confirmation
 
-
-7.4 Class Tab
+7.5 Class Tab
 
 Notify entire classes or sections in one action.
 
 Sections:
-- Class & Section Picker: Select class, section, academic year
-- Recipient Preview: See how many recipients will receive the notice
-- Compose Panel: Subject/body fields plus attachment uploader
-- Channel + Send Controls: Choose delivery channels and send or schedule
+- Class & Section Picker
+- Recipient Preview
+- Compose Panel
+- Channel + Send Controls
 
+7.6 Templates Tab
 
-7.5 Templates Tab
-
-Manage reusable message templates for faster communication.
+Manage reusable message templates.
 
 Sections:
-- Template List: Shows saved templates with name, category, and last updated date
-- Actions Dropdown: Edit, duplicate, or delete templates
-- Create Template: Button to add a new template with merge fields
-- Preview Pane: View template content before using it`}
+- Template List
+- Actions Dropdown
+- Create Template
+- Preview Pane`}
         />
       </div>
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-300">
-        {["group", "individual", "class", "templates"].map((tab) => (
+        {[
+          "overview",
+          "group",
+          "individual",
+          "class",
+          "templates",
+        ].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -113,7 +141,9 @@ Sections:
                 : "text-gray-500 hover:text-blue-600"
             }`}
           >
-            {tab === "group"
+            {tab === "overview"
+              ? "Overview"
+              : tab === "group"
               ? "Group"
               : tab === "individual"
               ? "Individual"

@@ -388,7 +388,8 @@ import NoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/No
 import PostNoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/PostNotices";
 import NoticeTemplatesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/NoticeTemplates";
 import OthersNoticesSA from "./SuperAdmin/Communication/CommunicationModule/Notices/OthersNotices";
-
+import MessagesOverview from "./SuperAdmin/Communication/CommunicationModule/Messages/MessagesOverview";
+import NoticesOverview from "./SuperAdmin/Communication/CommunicationModule/Notices/NoticesOverview";
 import MessagesSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Messages";
 import GroupSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Group";
 import IndividualSA from "./SuperAdmin/Communication/CommunicationModule/Messages/Individual";
@@ -880,12 +881,20 @@ function App() {
   </Route>
 
   <Route path="notices" element={<NoticesSA />}>
+  <Route
+  path="/superadmin/communication/notices/overview"
+  element={<NoticesOverview />}
+/>
     <Route index element={<PostNoticesSA />} />
     <Route path="templates" element={<NoticeTemplatesSA />} />
     <Route path="others" element={<OthersNoticesSA />} />
   </Route>
 
   <Route path="messages" element={<MessagesSA />}>
+  <Route
+  path="/superadmin/communication/messages/overview"
+  element={<MessagesOverview />}
+/>
     <Route index element={<GroupSA />} />
     <Route path="individual" element={<IndividualSA />} />
     <Route path="class" element={<ClassMsgSA />} />
