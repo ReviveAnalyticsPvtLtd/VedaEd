@@ -260,24 +260,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 5️⃣ Check whether this account already has an active session
-    if (user.activeSession && user.activeSession.token && user.activeSession.sessionId) {
-      const sessionExpiresAt = user.activeSession.expiresAt ? new Date(user.activeSession.expiresAt) : null;
-      const isNotExpired = sessionExpiresAt ? (sessionExpiresAt.getTime() > Date.now()) : false;
-
-      if (isNotExpired) {
-        try {
-          jwt.verify(user.activeSession.token, process.env.JWT_SECRET || "fallback_secret_key");
-          // Existing session is valid and active -> reject new login
-          return res.status(409).json({
-            message: "This account is already logged in on another device or browser. Please log out from the existing session before logging in here.",
-          });
-        } catch (jwtErr) {
-          console.log("Previous active session token is no longer valid:", jwtErr.message);
-        }
-      }
-    }
-
     console.log("ROLE:", roleName);
 
     let permissions = [];
@@ -327,19 +309,9 @@ exports.login = async (req, res) => {
       ip: req.ip || req.connection?.remoteAddress || null,
     };
 
-    // Atomic update to prevent race conditions during concurrent logins
-    const currentSessionId = user.activeSession?.sessionId || null;
-    const sessionAcquired = await User.findOneAndUpdate(
-      {
-        _id: user._id,
-        $or: [
-          { activeSession: null },
-          { "activeSession.token": null },
-          { "activeSession.sessionId": null },
-          { "activeSession.expiresAt": { $lte: new Date() } },
-          { "activeSession.sessionId": currentSessionId },
-        ],
-      },
+    // Replace the previous active session with the new session
+    await User.findByIdAndUpdate(
+      user._id,
       {
         $set: {
           lastLogin: new Date(),
@@ -348,12 +320,6 @@ exports.login = async (req, res) => {
       },
       { new: true }
     );
-
-    if (!sessionAcquired) {
-      return res.status(409).json({
-        message: "This account is already logged in on another device or browser. Please log out from the existing session before logging in here.",
-      });
-    }
 
     const response = {
       success: true,

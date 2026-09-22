@@ -84,6 +84,14 @@ export default function Login() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const flashMessage = sessionStorage.getItem("auth_flash_message");
+    if (flashMessage) {
+      setError(flashMessage);
+      sessionStorage.removeItem("auth_flash_message");
+    }
+  }, []);
+
   const handleLoginTypeSwitch = (type) => {
     if (type === loginType) return;
     setLoginType(type);
