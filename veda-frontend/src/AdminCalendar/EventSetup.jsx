@@ -258,7 +258,7 @@ const EventSetup = () => {
                     setModalOpen(true);
                   }}
                   title="Edit"
-                  className="p-2 text-yellow-600 hover:bg-yellow-50 rounded transition"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
                 >
                   <FiEdit2 size={16} />
                 </button>
@@ -266,7 +266,7 @@ const EventSetup = () => {
                 <button
                   onClick={() => handleDelete(e._id)}
                   title="Delete"
-                  className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
                 >
                   <FiTrash2 size={16} />
                 </button>
