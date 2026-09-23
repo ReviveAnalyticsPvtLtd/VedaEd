@@ -20,6 +20,7 @@ const dummyData = [
     desc: "Core academic instruction charges",
     frequency: "Annual",
     applicability: "All Grades",
+    amount: 1000,
     optional: false,
     partial: true,
     taxable: false,
@@ -33,6 +34,7 @@ const dummyData = [
     desc: "Monthly school bus transportation",
     frequency: "Monthly",
     applicability: "All Grades",
+    amount: 500,
     optional: true,
     partial: false,
     taxable: false,
@@ -50,14 +52,15 @@ export default function FeeCategories({ selectedYear }) {
   const [form, setForm] = useState({
     name: "",
     code: "",
-    desc: "",
-    frequency: "Annual",
-    applicability: "All Grades",
-    optional: false,
-    partial: false,
-    taxable: false,
-    taxPercent: 0,
-  });
+      desc: "",
+      frequency: "Annual",
+      applicability: "All Grades",
+      optional: false,
+      partial: false,
+      taxable: false,
+      taxPercent: 0,
+      amount: 0,
+    });
 
   const fetchData = async () => {
     if (!selectedYear) return;
@@ -97,9 +100,10 @@ export default function FeeCategories({ selectedYear }) {
       applicability: "All Grades",
       optional: false,
       partial: false,
-      taxable: false,
-      taxPercent: 0,
-    });
+    taxable: false,
+    taxPercent: 0,
+    amount: 0,
+  });
   };
 
   // ================= SAVE =================
@@ -281,6 +285,17 @@ export default function FeeCategories({ selectedYear }) {
                 value={form.desc}
                 onChange={(e) =>
                   setForm({ ...form, desc: e.target.value })
+                }
+              />
+
+              <input
+                type="number"
+                placeholder="Amount (₹) per year"
+                min="0"
+                className="border p-2 rounded-lg col-span-2"
+                value={form.amount}
+                onChange={(e) =>
+                  setForm({ ...form, amount: e.target.value })
                 }
               />
 
