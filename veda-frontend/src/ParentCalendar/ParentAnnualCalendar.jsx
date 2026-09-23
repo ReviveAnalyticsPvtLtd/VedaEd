@@ -317,14 +317,7 @@ export default function ParentAnnualCalendar() {
     <div className="flex h-full bg-gray-50">
       {/* MAIN CONTENT */}
       <div className="flex-1 p-6 overflow-auto">
-        {/* PAGE TITLE */}
-        <div className="mb-6">
-         
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Academic Calendar
-          </h1>
-        </div>
+       
 
         <div className="bg-white rounded-2xl border shadow-sm p-6">
           <Header />

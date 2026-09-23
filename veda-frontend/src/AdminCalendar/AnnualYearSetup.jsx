@@ -110,18 +110,21 @@ const AnnualYearSetup = () => {
 
   return (
     <div className="p-0 min-h-screen">
+       <div className="mb-4">
+      <h2 className="text-2xl font-bold text-gray-800">
+        Annual Year Setup
+      </h2>
+     
+    </div>
        {/* Tabs */}
       <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
         <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
           Overview
         </button>
       </div>
-      <div className="bg-white rounded-lg p-6">
+      <div className="bg-white rounded-lg p-4">
 
-        {/* HEADER */}
-        <h2 className="text-lg font-semibold mb-6">
-          Academic Year Setup
-        </h2>
+       
 
         {/* YEAR INPUT */}
 <div className="mb-6 p-4 border rounded-lg bg-gray-50">
@@ -188,26 +191,32 @@ const AnnualYearSetup = () => {
         )}
 </div>
         {/* TABLE */}
-        <table className="w-full border mt-4">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-3">From</th>
-              <th className="p-3">To</th>
-              <th className="p-3">Name</th>
-              <th className="p-3">Type</th>
-              <th className="p-3">Action</th>
-            </tr>
-          </thead>
+        <table className="w-full border text-sm mt-4">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="p-2 border">From</th>
+      <th className="p-2 border">To</th>
+      <th className="p-2 border">Name</th>
+      <th className="p-2 border">Type</th>
+      <th className="p-2 border">Action</th>
+    </tr>
+  </thead>
 
-          <tbody>
-            {holidays.map((h) => (
-              <tr key={h._id} className="border-t">
-                <td className="p-3">{h.from}</td>
-                <td className="p-3">{h.to}</td>
-                <td className="p-3">{h.name}</td>
-                <td className="p-3">{h.type || h.description}</td>
+  <tbody>
+    {holidays.map((h) => (
+      <tr
+        key={h._id}
+        className="text-center hover:bg-gray-50"
+      >
+               <td className="p-2 border">{h.from}</td>
+<td className="p-2 border">{h.to}</td>
+<td className="p-2 border">{h.name}</td>
+<td className="p-2 border">
+  {h.type || h.description}
+</td>
 
-                <td className="p-3 flex gap-2">
+<td className="p-2 border">
+  <div className="flex justify-center gap-2">
                   <button
                     onClick={() => {
                       setForm(h);
@@ -224,6 +233,7 @@ const AnnualYearSetup = () => {
                   >
                     Delete
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import * as calendarAPI from "../services/calendarAPI";
-
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 const classMap = {
   Primary: ["1", "2", "3", "4", "5"],
   Secondary: ["6", "7", "8", "9", "10"],
@@ -164,17 +164,23 @@ const EventSetup = () => {
 
   return (
     <div className="p-0 min-h-screen">
+      <div className="mb-4">
+      <h2 className="text-2xl font-bold text-gray-800">
+        Event Setup
+      </h2>
+     
+    </div>
        {/* Tabs */}
       <div className="flex gap-6 text-sm mb-3 text-gray-600 border-b">
         <button className="capitalize pb-2 text-blue-600 font-semibold border-b-2 border-blue-600">
           Overview
         </button>
       </div>
-      <div className="bg-white p-6 rounded-lg">
+      <div className="bg-white p-4 rounded-lg">
 
         {/* HEADER */}
         <div className="flex justify-between mb-6">
-          <h2 className="text-lg font-semibold">Event Setup</h2>
+      
           <button
             onClick={() => { resetForm(); setModalOpen(true); }}
             className="bg-blue-600 text-white px-4 py-2 rounded"
@@ -191,52 +197,87 @@ const EventSetup = () => {
             No events created
           </div>
         ) : (
-          <table className="w-full border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-3">Title</th>
-                <th className="p-3">Classes</th>
-                <th className="p-3">Sections</th>
-                <th className="p-3">Date</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Action</th>
-              </tr>
-            </thead>
+        <div className="overflow-x-auto">
+  <table className="w-full border text-sm">
+    <thead className="bg-gray-100">
+      <tr>
+        <th className="p-2 border">Title</th>
+        <th className="p-2 border">Classes</th>
+        <th className="p-2 border">Sections</th>
+        <th className="p-2 border">Date</th>
+        <th className="p-2 border">Status</th>
+        <th className="p-2 border">Action</th>
+      </tr>
+    </thead>
 
-            <tbody>
-              {events.map((e) => (
-                <tr key={e._id} className="border-t">
-                  <td className="p-3 flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full ${e.color}`} />
-                    {e.title}
-                  </td>
-                  <td className="p-3">{e.classes?.join(", ") || "All"}</td>
-                  <td className="p-3">{e.sections?.join(", ") || "All"}</td>
-                  <td className="p-3">{e.from} → {e.to}</td>
-                  <td className="p-3">{e.status}</td>
+    <tbody>
+      {loading ? (
+        <tr>
+          <td colSpan="6" className="p-4 border text-center">
+            Loading...
+          </td>
+        </tr>
+      ) : events.length === 0 ? (
+        <tr>
+          <td colSpan="6" className="p-4 border text-center">
+            No events found.
+          </td>
+        </tr>
+      ) : (
+        events.map((e) => (
+          <tr
+            key={e._id}
+            className="text-center hover:bg-gray-50"
+          >
+            <td className="p-2 border text-left">
+              {e.title}
+            </td>
 
-                  <td className="p-3 flex gap-2">
-                    <button
-                      onClick={() => {
-                        setForm(e);
-                        setModalOpen(true);
-                      }}
-                      className="px-3 py-1 bg-yellow-400 rounded"
-                    >
-                      Edit
-                    </button>
+            <td className="p-2 border">
+              {e.classes?.join(", ") || "-"}
+            </td>
 
-                    <button
-                      onClick={() => handleDelete(e._id)}
-                      className="px-3 py-1 bg-red-500 text-white rounded"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <td className="p-2 border">
+              {e.sections?.join(", ") || "-"}
+            </td>
+
+            <td className="p-2 border">
+              {e.from}
+              {e.to && e.to !== e.from ? ` - ${e.to}` : ""}
+            </td>
+
+            <td className="p-2 border">
+              {e.status || "-"}
+            </td>
+
+            <td className="p-2 border">
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    setForm(e);
+                    setModalOpen(true);
+                  }}
+                  title="Edit"
+                  className="p-2 text-yellow-600 hover:bg-yellow-50 rounded transition"
+                >
+                  <FiEdit2 size={16} />
+                </button>
+
+                <button
+                  onClick={() => handleDelete(e._id)}
+                  title="Delete"
+                  className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                >
+                  <FiTrash2 size={16} />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
         )}
 
         {/* MODAL */}

@@ -43,7 +43,7 @@ const navigate = useNavigate();
   const menuItems = [
     {
       name: "Dashboard",
-      path: "/superadmin/sis/dashboard",
+      path: "/superadmin/sis",
       icon: <FiHome size={18} />,
     },
     {
@@ -105,12 +105,9 @@ const navigate = useNavigate();
         <ul className="space-y-1">
           {filteredItems.map((item) => {
             const isActive =
-              item.path === "/superadmin/sis/dashboard"
-                ? location.pathname === "/superadmin/sis" ||
-                  location.pathname.startsWith(
-                    "/superadmin/sis/dashboard"
-                  )
-                : location.pathname.startsWith(item.path);
+  item.path === "/superadmin/sis"
+    ? location.pathname === "/superadmin/sis"
+    : location.pathname.startsWith(item.path);
 
             return (
               <NavLink
