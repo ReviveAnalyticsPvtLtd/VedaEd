@@ -13,6 +13,43 @@ const {
 } = require("./feeModels");
 const Student = require("../student/studentModels");
 
+// Match a FeeCategory's `applicability` (grade range like "All", "All Grades",
+// "Grade 1-5", "Grade 6-10") against a student's grade. Also keeps a legacy
+// fallback where applicability was stored as an admission category ("General",
+// "RTE", "EWS").
+function isFeeApplicable(category, student) {
+  const app = (category?.applicability || "").trim();
+  if (!app || /^all$/i.test(app) || /^all grades$/i.test(app)) return true;
+
+  const gradeName = student.personalInfo?.class?.name || student.personalInfo?.class || student.curriculum?.admissionType?.class || "";
+
+  // Parse range like "Grade 1-5" or "Grade 1 - 5"
+  const rangeMatch = app.match(/(\d+)\s*[-/–]\s*(\d+)/);
+  const gradeMatch = String(gradeName).match(/(\d+)/);
+  if (rangeMatch && gradeMatch) {
+    const lo = Number(rangeMatch[1]);
+    const hi = Number(rangeMatch[2]);
+    const g = Number(gradeMatch[1]);
+    if (g >= lo && g <= hi) return true;
+  }
+
+  // Single grade like "Grade 5"
+  if (gradeMatch && /(Grade|Class|Std|Year|Class)\s*\d+\s*$/i.test(app)) {
+    const target = Number(app.match(/(\d+)/)[1]);
+    if (Number(gradeMatch[1]) === target) return true;
+  }
+
+  // Legacy: applicability was stored as an admission category
+  const studentCategory =
+    student.personalInfo?.category ||
+    student.curriculum?.admissionType ||
+    student.curriculum?.admissionType?.name ||
+    "General";
+  if (String(studentCategory).toLowerCase() === app.toLowerCase()) return true;
+
+  return false;
+}
+
 // --- Academic Year Controllers ---
 
 exports.getAcademicYears = async (req, res) => {
@@ -488,14 +525,7 @@ async function calculateStudentFees(student, year) {
             dynamicFees.set(catName, Number(amt) || 0);
           }
         } else {
-          let applicable = true;
-          if (category.applicability && category.applicability !== "All") {
-            const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
-            if (category.applicability.toLowerCase() !== studentCategory.toLowerCase()) {
-              applicable = false;
-            }
-          }
-          if (applicable) {
+          if (isFeeApplicable(category, student)) {
             dynamicFees.set(catName, Number(amt) || 0);
           }
         }
@@ -809,14 +839,7 @@ async function initializeLedgerDebits(studentId, year) {
             });
           }
         } else {
-          let applicable = true;
-          if (category.applicability && category.applicability !== "All") {
-            const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
-            if (category.applicability.toLowerCase() !== studentCategory.toLowerCase()) {
-              applicable = false;
-            }
-          }
-          if (applicable) {
+          if (isFeeApplicable(category, student)) {
             await FeeLedger.create({
               studentId,
               year,
@@ -917,14 +940,7 @@ exports.getStudentFeeProfile = async (req, res) => {
               dynamicFees.set(catName, Number(amt) || 0);
             }
           } else {
-            let applicable = true;
-            if (category.applicability && category.applicability !== "All") {
-              const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
-              if (category.applicability.toLowerCase() !== studentCategory.toLowerCase()) {
-                applicable = false;
-              }
-            }
-            if (applicable) {
+            if (isFeeApplicable(category, student)) {
               dynamicFees.set(catName, Number(amt) || 0);
             }
           }

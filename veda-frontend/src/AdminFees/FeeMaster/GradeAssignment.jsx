@@ -13,6 +13,7 @@ const format = (val) =>
 
 const GradeFeeAssignment = ({ selectedYear }) => {
   const [fields, setFields] = useState([]);
+  const [catAmounts, setCatAmounts] = useState({});
   const [data, setData] = useState([]);
   const [editing, setEditing] = useState(null);
   const [tempValue, setTempValue] = useState("");
@@ -21,7 +22,12 @@ const GradeFeeAssignment = ({ selectedYear }) => {
     try {
       const catRes = await axios.get(`${config.API_BASE_URL}/fee-categories?year=${selectedYear}`);
       const catsData = catRes.data || [];
-      setFields(catsData.map(c => c.name));
+      setFields(catsData.map((c) => c.name));
+      const amounts = {};
+      catsData.forEach((c) => {
+        amounts[c.name] = Number(c.amount) || 0;
+      });
+      setCatAmounts(amounts);
     } catch (error) {
       console.log("Error fetching initial data", error);
     }
@@ -95,10 +101,22 @@ const GradeFeeAssignment = ({ selectedYear }) => {
     setTempValue("");
   };
 
+  const cellValue = (row, field) => {
+    const cur =
+      row.fees instanceof Map ? row.fees.get(field) : row.fees?.[field];
+    if (cur === undefined || cur === null || cur === "") {
+      return catAmounts[field] ?? "";
+    }
+    return cur;
+  };
+
   const getTotal = (row) => {
     if (!row.fees) return 0;
     return fields.reduce((sum, key) => {
-      const val = row.fees instanceof Map ? row.fees.get(key) : row.fees[key];
+      let val = row.fees instanceof Map ? row.fees.get(key) : row.fees?.[key];
+      if (val === undefined || val === null || val === "") {
+        val = catAmounts[key] || 0;
+      }
       return sum + (Number(val) || 0);
     }, 0);
   };
@@ -148,7 +166,8 @@ const GradeFeeAssignment = ({ selectedYear }) => {
                       className="p-3 cursor-pointer"
                       onClick={() => {
                         const currentVal = row.fees instanceof Map ? row.fees.get(field) : row.fees?.[field];
-                        !isEditing && handleEdit(rowIndex, field, currentVal);
+                        const fallbackVal = currentVal ?? catAmounts[field] ?? "";
+                        !isEditing && handleEdit(rowIndex, field, fallbackVal);
                       }}
                     >
                       {isEditing ? (
@@ -182,7 +201,7 @@ const GradeFeeAssignment = ({ selectedYear }) => {
                         </div>
                       ) : (
                         <span className="text-blue-600 font-medium">
-                          {format(row.fees instanceof Map ? row.fees.get(field) : row.fees?.[field])}
+                          {format(cellValue(row, field))}
                         </span>
                       )}
                     </td>
