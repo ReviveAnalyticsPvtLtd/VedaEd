@@ -27,6 +27,7 @@ const feeCategorySchema = new mongoose.Schema({
   partial: { type: Boolean, default: false },
   taxable: { type: Boolean, default: false },
   taxPercent: { type: Number, default: 0 },
+  amount: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   year: { type: String, required: true },
 }, { timestamps: true });

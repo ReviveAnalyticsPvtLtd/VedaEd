@@ -82,11 +82,6 @@ export default function AdminFeesSidebar({
       icon: <FiTag size={18} />,
     },
     {
-      name: "Fee Discount",
-      path: "/admin/fees/fee-discount",
-      icon: <FiTag size={18} />,
-    },
-    {
       name: "Carry Forward",
       path: "/admin/fees/carry-forward",
       icon: <FiLayers size={18} />,
