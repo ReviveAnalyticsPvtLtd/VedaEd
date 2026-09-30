@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams , useNavigate } from "react-router-dom";
-import config from "../../config";
+import api from "../../services/apiClient";
 
 const ClassDetailPage = () => {
   const navigate = useNavigate();
@@ -12,10 +12,10 @@ const ClassDetailPage = () => {
   useEffect(() => {
     const fetchClassDetails = async () => {
       try {
-        const response = await fetch(
-          `${config.API_BASE_URL}/classes/${classId}/sections/${sectionId}`
+        const response = await api.get(
+          `/classes/${classId}/sections/${sectionId}`
         );
-        const data = await response.json();
+        const data = response.data;
         if (data.success) {
           setClassInfo(data.data);
         }

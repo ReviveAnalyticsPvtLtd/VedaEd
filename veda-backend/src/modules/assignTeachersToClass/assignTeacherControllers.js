@@ -4,7 +4,30 @@ const Section = require("../section/sectionSchema");
 const Staff = require("../staff/staffModels");
 const mongoose = require("mongoose");
 
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// AssignTeacher has no schoolId of its own, so every lookup is anchored to
+// Class/Section/Staff documents that do.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const findOwnedSection = (sectionId, schoolId) => Section.findOne({ _id: sectionId, schoolId }).select("_id");
+const getSchoolClassIds = async (schoolId) => (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+const getSchoolSectionIds = async (schoolId) => (await Section.find({ schoolId }).select("_id")).map((s) => s._id);
+
 exports.assignTeachers = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { classId, sectionId, teachers, classTeacher } = req.body;
   console.log("AssignTeachers request body:", req.body);
   try {
@@ -22,9 +45,18 @@ exports.assignTeachers = async (req, res) => {
       });
     }
 
+    if (!(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (!(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+
     console.log("Looking for staff with IDs:", teachers);
     const staffFound = await Staff.find({
       _id: { $in: teachers },
+      schoolId,
       "personalInfo.role": "Teacher",
     });
     console.log("Found staff:", staffFound.length, "out of", teachers.length);
@@ -65,10 +97,10 @@ exports.assignTeachers = async (req, res) => {
       classTeacher,
     });
     const response = await AssignTeacher.findById(newAssignment._id)
-      .populate("class", "name")
-      .populate("section", "name")
-      .populate("teachers", "personalInfo.name personalInfo.staffId")
-      .populate("classTeacher", "personalInfo.name personalInfo.staffId");
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "teachers", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" })
+      .populate({ path: "classTeacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" });
 
     res.status(201).json({
       success: true,
@@ -87,12 +119,21 @@ exports.assignTeachers = async (req, res) => {
 
 exports.getAllAssignedTeachers = async (req, res) => {
   try {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     console.log("Getting all assigned teachers...");
-    const assigned = await AssignTeacher.find()
-      .populate("class", "name")
-      .populate("section", "name")
-      .populate("teachers", "personalInfo.name personalInfo.staffId")
-      .populate("classTeacher", "personalInfo.name personalInfo.staffId");
+    const [classIds, sectionIds] = await Promise.all([
+      getSchoolClassIds(schoolId),
+      getSchoolSectionIds(schoolId),
+    ]);
+    const assigned = await AssignTeacher.find({
+      class: { $in: classIds },
+      section: { $in: sectionIds },
+    })
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "teachers", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" })
+      .populate({ path: "classTeacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" });
 
     console.log("Found assigned teachers:", assigned.length);
     console.log("Assigned teachers data:", assigned);
@@ -114,6 +155,8 @@ exports.getAllAssignedTeachers = async (req, res) => {
 };
 
 exports.updateAssignTeacher = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { classId, sectionId, teachers, classTeacher } = req.body;
   
   try {
@@ -125,9 +168,27 @@ exports.updateAssignTeacher = async (req, res) => {
       });
     }
 
+    const target = await AssignTeacher.findById(req.params.id);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "Assigned Teacher not found" });
+    }
+
+    if (!(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({ success: false, message: "Assigned Teacher not found" });
+    }
+
+    if (!(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (!(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+
     // Validate teachers are actual teachers
     const staffFound = await Staff.find({
       _id: { $in: teachers },
+      schoolId,
       "personalInfo.role": "Teacher",
     });
     
@@ -172,10 +233,10 @@ exports.updateAssignTeacher = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    ).populate("class", "name")
-     .populate("section", "name")
-     .populate("teachers", "personalInfo.name personalInfo.staffId")
-     .populate("classTeacher", "personalInfo.name personalInfo.staffId");
+    ).populate({ path: "class", match: { schoolId }, select: "name" })
+     .populate({ path: "section", match: { schoolId }, select: "name" })
+     .populate({ path: "teachers", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" })
+     .populate({ path: "classTeacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId" });
 
     if (!updateassignTeacher) {
       return res.status(404).json({ success: false, message: "Assigned Teacher not found" });
@@ -192,6 +253,8 @@ exports.updateAssignTeacher = async (req, res) => {
 };
 
 exports.deleteAssignTeachers = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log("Delete request received for ID:", req.params.id);
     console.log("ID type:", typeof req.params.id);
@@ -202,6 +265,11 @@ exports.deleteAssignTeachers = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid ID format" });
     }
     
+    const target = await AssignTeacher.findById(req.params.id);
+    if (!target || !(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({ success: false, message: "Assigned Teacher not found" });
+    }
+
     const deleteassignTeachers = await AssignTeacher.findByIdAndDelete(req.params.id);
     console.log("Delete result:", deleteassignTeachers);
 

@@ -5,8 +5,6 @@ import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import api from "../../services/apiClient";
-import axios from "axios";
-import config from "../../config";
 import Pagination from "../../components/common/Pagination";
 
 
@@ -29,7 +27,7 @@ const AddSubject = () => {
 const navigate = useNavigate();
   const fetchSubjects = async () => {
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/subjects`); // GET endpoint
+      const res = await api.get(`/subjects`); // GET endpoint
       console.log("fetch subj:", res);
       if (res.data.success) {
         setSubjects(res.data.data);
@@ -81,8 +79,8 @@ const navigate = useNavigate();
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this subject?")) {
       try {
-        const res = await axios.delete(
-          `${config.API_BASE_URL}/subjects/${id}`
+        const res = await api.delete(
+          `/subjects/${id}`
         );
         if (res.data.success) {
           alert(res.data.message || "Subject deleted successfully!");

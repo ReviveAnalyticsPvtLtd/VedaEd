@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   FiMessageSquare,
   FiBell,
@@ -12,45 +13,132 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import CommunicationAPI from "../services/communicationAPI";
+import complaintAPI from "../services/complaintAPI";
+
+const COLORS = ["#22c55e", "#ef4444"];
 
 export default function CommunicationStudentDashboard() {
-  const stats = [
-    {
-      title: "My Messages",
-      value: 24,
-      icon: <FiMessageSquare size={22} />,
-      color: "border-blue-500",
-      link: "/student/communication/messages",
-    },
-    {
-      title: "Notices",
-      value: 12,
-      icon: <FiBell size={22} />,
-      color: "border-green-500",
-      link: "/student/communication/notices",
-    },
-    {
-      title: "Complaints",
-      value: 3,
-      icon: <FiAlertCircle size={22} />,
-      color: "border-red-500",
-      link: "/student/communication/complaints",
-    },
-    {
-      title: "Pending Replies",
-      value: 5,
-      icon: <FiClock size={22} />,
-      color: "border-yellow-500",
-      link: "/student/communication/logs",
-    },
-  ];
+  const [stats, setStats] = useState([
+    { title: "My Messages", value: 0, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/student/communication/messages" },
+    { title: "Notices", value: 0, icon: <FiBell size={22} />, color: "border-green-500", link: "/student/communication/notices" },
+    { title: "Complaints", value: 0, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/student/communication/complaints" },
+    { title: "Pending Replies", value: 0, icon: <FiClock size={22} />, color: "border-yellow-500", link: "/student/communication/logs" },
+  ]);
+  const [complaintData, setComplaintData] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const complaintData = [
-    { name: "Resolved", value: 2 },
-    { name: "Pending", value: 1 },
-  ];
+  useEffect(() => {
+    let active = true;
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.refId || user?._id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    const userModel = user.role
+      ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
+      : "Student";
 
-  const COLORS = ["#22c55e", "#ef4444"];
+    const load = async () => {
+      try {
+        // Every call below is tenant-scoped server-side: the school comes from
+        // the authenticated user and the party is the caller's own, so no
+        // schoolId is ever sent or trusted from the browser.
+        const [messagesRes, notificationsRes, noticesRes, complaintsRes, logsRes] =
+          await Promise.allSettled([
+            CommunicationAPI.getMessages(userId, userModel),
+            CommunicationAPI.getReceivedNotifications(userId, userModel),
+            CommunicationAPI.getPublishedNotices(userId, userModel),
+            complaintAPI.getUserComplaints(userId, userModel),
+            CommunicationAPI.getUserLogs(userId, userModel),
+          ]);
+
+        if (!active) return;
+
+        const unwrap = (r) =>
+          r.status === "fulfilled" ? r.value?.data || r.value || [] : [];
+
+        const messages = unwrap(messagesRes);
+        const notifications = unwrap(notificationsRes);
+        const notices = unwrap(noticesRes);
+        const complaints = unwrap(complaintsRes);
+        const logs = unwrap(logsRes);
+
+        const asArray = (v) => (Array.isArray(v) ? v : []);
+
+        const msgCount =
+          asArray(messages).length + asArray(notifications).length;
+        const noticeCount = asArray(notices).length;
+        const complaintList = asArray(complaints);
+        const resolvedCount = complaintList.filter((c) =>
+          ["resolved", "closed"].includes(String(c.status || "").toLowerCase())
+        ).length;
+        const pendingCount = complaintList.filter((c) =>
+          ["submitted", "under_review", "Pending"].includes(String(c.status || "").toLowerCase())
+        ).length;
+
+        setStats([
+          { title: "My Messages", value: msgCount, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/student/communication/messages" },
+          { title: "Notices", value: noticeCount, icon: <FiBell size={22} />, color: "border-green-500", link: "/student/communication/notices" },
+          { title: "Complaints", value: complaintList.length, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/student/communication/complaints" },
+          { title: "Pending Replies", value: pendingCount, icon: <FiClock size={22} />, color: "border-yellow-500", link: "/student/communication/logs" },
+        ]);
+
+        const chartData = [];
+        if (resolvedCount > 0) chartData.push({ name: "Resolved", value: resolvedCount });
+        if (pendingCount > 0) chartData.push({ name: "Pending", value: pendingCount });
+        setComplaintData(chartData);
+
+        const activity = [];
+        const logMeta = {
+          complaint_submitted: { icon: "⚠", label: "Complaint submitted" },
+          complaint_viewed: { icon: "👁", label: "Complaint viewed" },
+          complaint_responded: { icon: "💬", label: "Complaint responded" },
+          complaint_resolved: { icon: "✅", label: "Complaint resolved" },
+          notice_viewed: { icon: "📢", label: "Notice viewed" },
+          notice_created: { icon: "📝", label: "Notice created" },
+          notice_published: { icon: "📢", label: "Notice published" },
+          message_sent: { icon: "📩", label: "Message sent" },
+          message_received: { icon: "📩", label: "Message received" },
+          message_read: { icon: "📖", label: "Message read" },
+          file_uploaded: { icon: "📎", label: "File uploaded" },
+          file_downloaded: { icon: "📥", label: "File downloaded" },
+          login: { icon: "🔑", label: "Login" },
+          logout: { icon: "👋", label: "Logout" },
+        };
+        asArray(logs).slice(0, 5).forEach((log) => {
+          const meta = logMeta[log.action] || { icon: "📋", label: "Communication activity" };
+          const detail =
+            typeof log.details === "object" && log.details
+              ? log.details.subject || log.details.title || ""
+              : "";
+          activity.push({
+            icon: meta.icon,
+            text: detail ? `${meta.label}: ${detail}` : meta.label,
+          });
+        });
+        if (activity.length === 0) {
+          asArray(notices).slice(0, 3).forEach((n) => {
+            activity.push({ icon: "📢", text: `Notice: ${n.title || "New notice"}` });
+          });
+          [...asArray(messages), ...asArray(notifications)].slice(0, 2).forEach((m) => {
+            activity.push({ icon: "📩", text: m.title || m.subject || "New message" });
+          });
+        }
+        setRecentActivity(activity);
+      } catch {
+        /* silently handle */
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -76,7 +164,9 @@ export default function CommunicationStudentDashboard() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-500">{item.title}</p>
-                  <h2 className="text-2xl font-semibold">{item.value}</h2>
+                  <h2 className="text-2xl font-semibold">
+                    {loading ? "..." : item.value}
+                  </h2>
                 </div>
                 <div className="text-gray-600">{item.icon}</div>
               </div>
@@ -94,23 +184,31 @@ export default function CommunicationStudentDashboard() {
             Complaint Status Overview
           </h3>
 
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={complaintData}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="value"
-                label
-              >
-                {complaintData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <p className="text-gray-400 text-sm text-center py-4">Loading...</p>
+          ) : complaintData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={complaintData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="value"
+                  label
+                >
+                  {complaintData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-4">
+              You have not raised any complaints yet.
+            </p>
+          )}
         </div>
 
         {/* Recent Activity */}
@@ -119,13 +217,21 @@ export default function CommunicationStudentDashboard() {
             Recent Activity
           </h3>
 
-          <ul className="space-y-3 text-sm text-gray-600">
-            <li>📩 You received a message from Class Teacher</li>
-            <li>📢 New notice posted (Exam Schedule)</li>
-            <li>⚠ Complaint submitted (Library issue)</li>
-            <li>✅ Complaint resolved</li>
-            <li>📩 Reminder about assignment submission</li>
-          </ul>
+          {loading ? (
+            <p className="text-gray-400 text-sm text-center py-4">Loading...</p>
+          ) : recentActivity.length > 0 ? (
+            <ul className="space-y-3 text-sm text-gray-600">
+              {recentActivity.map((item, index) => (
+                <li key={index}>
+                  {item.icon} {item.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-4">
+              No recent activity.
+            </p>
+          )}
         </div>
 
       </div>

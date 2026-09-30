@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { FiPlus, FiEdit, FiTrash2 } from "react-icons/fi";
 
@@ -31,10 +31,10 @@ export default function DriverAllocation() {
     try {
       setLoading(true);
       const [allRes, routeRes, vehRes, driverRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/allocations`),
-        axios.get(`${config.API_BASE_URL}/transport/routes`),
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/drivers`),
+        api.get(`${config.API_BASE_URL}/transport/allocations`),
+        api.get(`${config.API_BASE_URL}/transport/routes`),
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/drivers`),
       ]);
       setAllocations(allRes.data);
       setRoutes(routeRes.data);
@@ -72,12 +72,12 @@ export default function DriverAllocation() {
 
     try {
       if (editId) {
-        await axios.put(`${config.API_BASE_URL}/transport/allocations/${editId}`, {
+        await api.put(`${config.API_BASE_URL}/transport/allocations/${editId}`, {
           ...form,
           vehicleId: vehicleId // Backend requirement
         });
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/allocations`, {
+        await api.post(`${config.API_BASE_URL}/transport/allocations`, {
           ...form,
           vehicleId: vehicleId // Backend requirement
         });
@@ -99,7 +99,7 @@ export default function DriverAllocation() {
   const deleteAllocation = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      await axios.delete(`${config.API_BASE_URL}/transport/allocations/${id}`);
+      await api.delete(`${config.API_BASE_URL}/transport/allocations/${id}`);
       fetchData();
     } catch (error) {
       console.error("Error deleting allocation:", error);

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 
 export default function FleetMaintenance() {
@@ -15,7 +15,7 @@ export default function FleetMaintenance() {
   const fetchMaintenance = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${config.API_BASE_URL}/transport/maintenance`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/maintenance`);
       
       const adaptedData = (res.data || []).map(m => ({
         id: m._id,

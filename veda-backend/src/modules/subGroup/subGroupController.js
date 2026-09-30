@@ -2,8 +2,30 @@ const SubjectGroup = require("./subGroupSchema");
 const Class = require("../class/classSchema");
 const Section = require("../section/sectionSchema");
 const Subject = require("../subject/subjectSchema");
+const mongoose = require("mongoose");
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// SubjectGroup has no schoolId of its own, so every lookup is anchored to the
+// Class/Section/Subject documents it references.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const getSchoolClassIds = async (schoolId) => (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
 
 exports.createSubjectGroup = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { name, classes, sections, subjects } = req.body;
 
   try {
@@ -16,13 +38,13 @@ exports.createSubjectGroup = async (req, res) => {
     }
 
     // Validate Class
-    const classDoc = await Class.findById(classes);
+    const classDoc = await findOwnedClass(classes, schoolId);
     if (!classDoc) {
       return res.status(404).json({ success: false, message: "Class not found" });
     }
 
     // Validate Sections
-    const sectionDocs = await Section.find({ _id: { $in: sections } });
+    const sectionDocs = await Section.find({ _id: { $in: sections }, schoolId });
     if (sectionDocs.length !== sections.length) {
       return res.status(404).json({
         success: false,
@@ -31,7 +53,7 @@ exports.createSubjectGroup = async (req, res) => {
     }
 
     // Validate Subjects
-    const subjectDocs = await Subject.find({ _id: { $in: subjects } });
+    const subjectDocs = await Subject.find({ _id: { $in: subjects }, schoolId });
     if (subjectDocs.length !== subjects.length) {
       return res.status(404).json({
         success: false,
@@ -62,9 +84,9 @@ exports.createSubjectGroup = async (req, res) => {
 
     // Re-fetch with populated details
     const data = await SubjectGroup.findById(newSubGroup._id)
-      .populate("classes", "name")        // get class name
-      .populate("sections", "name")       // get section names
-      .populate("subjects", "subjectName subjectCode"); // get subject details
+      .populate({ path: "classes", match: { schoolId }, select: "name" })        // get class name
+      .populate({ path: "sections", match: { schoolId }, select: "name" })       // get section names
+      .populate({ path: "subjects", match: { schoolId }, select: "subjectName subjectCode" }); // get subject details
 
     res.status(201).json({
       success: true,
@@ -82,19 +104,14 @@ exports.createSubjectGroup = async (req, res) => {
 };
 
 exports.getAllSubjectGroups = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const subjectGroups = await SubjectGroup.find()
-      .populate("classes", "name")       // only return class name
-      .populate("sections", "name")      // only return section name
-      .populate("subjects", "subjectName subjectCode type") // return subject details
+    const subjectGroups = await SubjectGroup.find({ classes: { $in: await getSchoolClassIds(schoolId) } })
+      .populate({ path: "classes", match: { schoolId }, select: "name" })       // only return class name
+      .populate({ path: "sections", match: { schoolId }, select: "name" })      // only return section name
+      .populate({ path: "subjects", match: { schoolId }, select: "subjectName subjectCode type" }) // return subject details
       .sort({ createdAt: -1 });
-
-    if (!subjectGroups || subjectGroups.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No subject groups found",
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -111,6 +128,8 @@ exports.getAllSubjectGroups = async (req, res) => {
 };
 
 exports.updateSubjectGroup = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { name, classes, sections, subjects } = req.body;
 
   try {
@@ -122,14 +141,19 @@ exports.updateSubjectGroup = async (req, res) => {
       });
     }
 
+    const target = await SubjectGroup.findById(req.params.id);
+    if (!target || !(await findOwnedClass(target.classes, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject Group not found" });
+    }
+
     // Validate Class
-    const classDoc = await Class.findById(classes);
+    const classDoc = await findOwnedClass(classes, schoolId);
     if (!classDoc) {
       return res.status(404).json({ success: false, message: "Class not found" });
     }
 
     // Validate Sections
-    const sectionDocs = await Section.find({ _id: { $in: sections } });
+    const sectionDocs = await Section.find({ _id: { $in: sections }, schoolId });
     if (sectionDocs.length !== sections.length) {
       return res.status(404).json({
         success: false,
@@ -138,7 +162,7 @@ exports.updateSubjectGroup = async (req, res) => {
     }
 
     // Validate Subjects
-    const subjectDocs = await Subject.find({ _id: { $in: subjects } });
+    const subjectDocs = await Subject.find({ _id: { $in: subjects }, schoolId });
     if (subjectDocs.length !== subjects.length) {
       return res.status(404).json({
         success: false,
@@ -153,9 +177,9 @@ exports.updateSubjectGroup = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    ).populate("classes", "name")
-     .populate("sections", "name")
-     .populate("subjects", "subjectName subjectCode");
+    ).populate({ path: "classes", match: { schoolId }, select: "name" })
+     .populate({ path: "sections", match: { schoolId }, select: "name" })
+     .populate({ path: "subjects", match: { schoolId }, select: "subjectName subjectCode" });
 
     if (!updatedSubjectGroup) {
       return res.status(404).json({ success: false, message: "Subject Group not found" });
@@ -172,11 +196,13 @@ exports.updateSubjectGroup = async (req, res) => {
 };
 // GET subject group by ID (with subjects)
 exports.getSubjectGroupById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const group = await SubjectGroup.findById(req.params.id)
-      .populate("subjects", "subjectName subjectCode");
+      .populate({ path: "subjects", match: { schoolId }, select: "subjectName subjectCode" });
 
-    if (!group) {
+    if (!group || !(await findOwnedClass(group.classes, schoolId))) {
       return res.status(404).json({
         success: false,
         message: "Subject group not found",
@@ -196,6 +222,8 @@ exports.getSubjectGroupById = async (req, res) => {
   }
 };
 exports.deleteSubjectGroup = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     // Validate ObjectId format
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -203,6 +231,11 @@ exports.deleteSubjectGroup = async (req, res) => {
         success: false, 
         message: "Invalid ID format" 
       });
+    }
+
+    const target = await SubjectGroup.findById(req.params.id);
+    if (!target || !(await findOwnedClass(target.classes, schoolId))) {
+      return res.status(404).json({ success: false, message: "SubjectGroup not found" });
     }
     
     const deleteSubjectGroup = await SubjectGroup.findByIdAndDelete(req.params.id);

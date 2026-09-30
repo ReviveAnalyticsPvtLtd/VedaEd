@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 
@@ -23,7 +23,7 @@ export default function Routes() {
   const fetchRoutes = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${config.API_BASE_URL}/transport/routes`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/routes`);
       setRoutes(res.data);
     } catch (error) {
       console.error("Error fetching routes:", error);
@@ -72,9 +72,9 @@ export default function Routes() {
 
     try {
       if (editId) {
-        await axios.put(`${config.API_BASE_URL}/transport/routes/${editId}`, { title: routeTitle });
+        await api.put(`${config.API_BASE_URL}/transport/routes/${editId}`, { title: routeTitle });
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/routes`, { title: routeTitle });
+        await api.post(`${config.API_BASE_URL}/transport/routes`, { title: routeTitle });
       }
       fetchRoutes();
       setRouteTitle("");
@@ -93,7 +93,7 @@ export default function Routes() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/routes/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/routes/${id}`);
         fetchRoutes();
       } catch (error) {
         console.error("Error deleting route:", error);

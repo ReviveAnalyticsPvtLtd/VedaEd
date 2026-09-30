@@ -1,11 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { FiTrash2, FiEdit, FiSearch } from "react-icons/fi";
-import axios from "axios";
 import api from "../../../services/apiClient";
 
-import config from "../../../config";
-
-const API_BASE = config.API_BASE_URL;
 const DAYS = [
   "Monday",
   "Tuesday",
@@ -153,7 +149,7 @@ export default function SuperAdminSISClassTimetable() {
       return;
     }
 
-    const res = await axios.get(`${API_BASE}/assignTeachers`);
+    const res = await api.get(`/assignTeachers`);
 
     const assignments = res.data?.data || [];
 
@@ -177,9 +173,9 @@ export default function SuperAdminSISClassTimetable() {
   // ---------- Fetch base dropdowns ----------
   useEffect(() => {
     // fetch classes
-    fetch(`${API_BASE}/classes`)
-      .then((res) => res.json())
-      .then((data) => {
+    api.get(`/classes`)
+      .then((res) => {
+        const data = res.data;
         if (data && data.success && Array.isArray(data.data))
           setClasses(data.data);
         else if (data && data.success && Array.isArray(data.classes))
@@ -205,9 +201,9 @@ export default function SuperAdminSISClassTimetable() {
       setCriteriaSection("");
       return;
     }
-    fetch(`${API_BASE}/sections?classId=${criteriaClass}`)
-      .then((res) => res.json())
-      .then((data) => {
+    api.get(`/sections?classId=${criteriaClass}`)
+      .then((res) => {
+        const data = res.data;
         if (data && data.success && Array.isArray(data.data))
           setSections(data.data);
         else if (data && data.success && Array.isArray(data.sections))
@@ -219,9 +215,9 @@ export default function SuperAdminSISClassTimetable() {
   // Modal: fetch sections for modalClass
   useEffect(() => {
     if (!modalClass) return;
-    fetch(`${API_BASE}/sections?classId=${modalClass}`)
-      .then((res) => res.json())
-      .then((data) => {
+    api.get(`/sections?classId=${modalClass}`)
+      .then((res) => {
+        const data = res.data;
         if (data && data.success && Array.isArray(data.data))
           setSections(data.data);
         else if (data && data.success && Array.isArray(data.sections))
@@ -237,11 +233,10 @@ export default function SuperAdminSISClassTimetable() {
       setModalGroup("");
       return;
     }
-    fetch(
-      `${API_BASE}/subGroups?classId=${modalClass}&sectionId=${modalSection}`
-    )
-      .then((res) => res.json())
-      .then((data) => {
+    api
+      .get(`/subGroups?classId=${modalClass}&sectionId=${modalSection}`)
+      .then((res) => {
+        const data = res.data;
         if (data && data.success && Array.isArray(data.data))
           setGroups(data.data);
         else if (data && data.success && Array.isArray(data.groups))
@@ -258,8 +253,8 @@ useEffect(() => {
     return;
   }
 
-  axios
-    .get(`${API_BASE}/subGroups/${modalGroup}`)
+  api
+    .get(`/subGroups/${modalGroup}`)
     .then((res) => {
       const groupSubjects = res.data?.data?.subjects || [];
       setSubjects(groupSubjects);
@@ -330,7 +325,7 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
   const groupId =
     timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId;
 
-  const res = await axios.get(`${API_BASE}/subGroups/${groupId}`);
+  const res = await api.get(`/subGroups/${groupId}`);
   setSubjects(res.data?.data?.subjects || []);
 }
 
@@ -378,9 +373,8 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
 
     try {
       console.log("Attempting to delete timetable with ID:", timetableId);
-      console.log("Delete URL:", `${API_BASE}/timetables/${timetableId}`);
 
-      const res = await axios.delete(`${API_BASE}/timetables/${timetableId}`);
+      const res = await api.delete(`/timetables/${timetableId}`);
       console.log("Delete response:", res.data);
 
       if (res.data.success) {
@@ -413,7 +407,7 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
       });
 
       // Check if assignment exists
-      const checkRes = await axios.get(`${API_BASE}/assignTeachers`);
+      const checkRes = await api.get(`/assignTeachers`);
       console.log("Existing assignments response:", checkRes.data);
       const existingAssignments = checkRes.data?.data || [];
 
@@ -435,8 +429,8 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
         };
 
         console.log("Creating assignment with data:", assignmentData);
-        const createRes = await axios.post(
-          `${API_BASE}/assignTeachers`,
+        const createRes = await api.post(
+          `/assignTeachers`,
           assignmentData
         );
         console.log("Assignment creation response:", createRes.data);
@@ -504,12 +498,12 @@ const isMongoId = (id) => /^[a-fA-F0-9]{24}$/.test(id);
 if (isEditMode && row.mongoId && isMongoId(row.mongoId)) {
   // ✅ UPDATE existing timetable
   requests.push(
-    axios.put(`${API_BASE}/timetables/${row.mongoId}`, payload)
+    api.put(`/timetables/${row.mongoId}`, payload)
   );
 } else {
   // ✅ CREATE new timetable
   requests.push(
-    axios.post(`${API_BASE}/timetables`, payload)
+    api.post(`/timetables`, payload)
   );
 }
           metas.push({ day, ...payload });

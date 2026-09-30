@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 
 
@@ -179,7 +179,7 @@ export default function FinalStudentList() {
 
   const loadStudents = useCallback(async () => {
     try {
-      const res = await axios.get(
+      const res = await api.get(
         `${config.API_BASE_URL}/admission/application/selected`
       );
 

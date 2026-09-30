@@ -1,19 +1,85 @@
+const mongoose = require('mongoose');
 const Subject = require('./subjectSchema');
 const Student = require("../student/studentModels");
 const Parent = require("../parents/parentModel");
+const Class = require("../class/classSchema");
+const Section = require("../section/sectionSchema");
 const Curriculum = require("../curriculum/curriculumModel");
 
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// SubjectGroup and Curriculum carry no schoolId of their own, so the only safe
+// way to reach them is through a Class/Section that is proven to be in-school.
+const findOwnedClass = (classId, schoolId) =>
+  Class.findOne({ _id: classId, schoolId }).select("_id");
+
+const findOwnedSection = (sectionId, schoolId) =>
+  Section.findOne({ _id: sectionId, schoolId }).select("_id");
+
+// Mongoose and MongoDB bury the real cause inside err.message (for example an
+// E11000 blob naming an index). Those helpers turn the failures a caller can
+// actually act on into a specific message, so a rejected save is never reported
+// as a bare "Invalid data".
+// Only the discriminating field is named. `schoolId` is deliberately absent: it
+// leads the compound index, so matching on it would shadow subjectCode and blame
+// the school for what is always a code collision.
+const DUPLICATE_MESSAGES = {
+  subjectCode:
+    "Another subject in your school already uses this subject code. Please use a different subject name.",
+};
+
+const describeDuplicate = (err) => {
+  // The unique index is compound, so keyPattern lists every field in it. Later
+  // fields are the narrower scope, so they are checked first.
+  const fields = Object.keys(err.keyPattern || err.keyValue || {}).reverse();
+  for (const field of fields) {
+    if (DUPLICATE_MESSAGES[field]) return DUPLICATE_MESSAGES[field];
+  }
+  return "A subject with these details already exists in your school.";
+};
+
+const describeValidation = (err) => {
+  const first = Object.values(err.errors || {})[0];
+  if (first?.message) return first.message;
+  if (err.name === "CastError") return `Invalid value for ${err.path}.`;
+  return "Subject validation failed.";
+};
+
+// 409 for a duplicate, 400 for a rejected payload, 500 for anything unexpected.
+// Anything still unclassified is logged, since its detail is no longer returned.
+const sendSubjectError = (res, err, fallbackMessage) => {
+  if (err?.code === 11000) {
+    return res.status(409).json({ success: false, message: describeDuplicate(err) });
+  }
+  if (err?.name === "ValidationError" || err?.name === "CastError") {
+    return res.status(400).json({ success: false, message: describeValidation(err) });
+  }
+  console.error("Subject error:", err);
+  return res.status(500).json({ success: false, message: fallbackMessage });
+};
 
 function generatePrefix(name) {
   return name.substring(0, 3).toUpperCase(); // Math -> MATH, English -> ENG
 }
 
 // Generate unique subject code
-async function generateSubjectCode(name) {
+async function generateSubjectCode(name, schoolId) {
   const prefix = generatePrefix(name);
 
   // Find last subject with same prefix
-  const lastSubject = await Subject.findOne({ subjectCode: new RegExp(`^${prefix}`) })
+  const lastSubject = await Subject.findOne({ subjectCode: new RegExp(`^${prefix}`), schoolId })
     .sort({ createdAt: -1 });
 
   let newNumber = 101; // start at 101
@@ -29,6 +95,8 @@ async function generateSubjectCode(name) {
 
 
 exports.createSubject = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   let { subjectName, type } = req.body;
   try {
     if (!subjectName || !type)
@@ -44,6 +112,7 @@ exports.createSubject = async (req, res) => {
     const existingSubj = await Subject.findOne({
       subjectName: { $regex: new RegExp("^" + subjectName + "$", "i") },
       type,
+      schoolId,
     });
 
     if (existingSubj) {
@@ -53,9 +122,9 @@ exports.createSubject = async (req, res) => {
       });
     }
 
-    const code = await generateSubjectCode(subjectName);
+    const code = await generateSubjectCode(subjectName, schoolId);
 
-    const newSubject = await Subject.create({ subjectName, type, subjectCode: code });
+    const newSubject = await Subject.create({ subjectName, type, subjectCode: code, schoolId });
 
     res.status(201).json({
       success: true,
@@ -64,13 +133,13 @@ exports.createSubject = async (req, res) => {
     });
 
   } catch (err) {
-    res
-      .status(400)
-      .json({ success: false, message: "Invalid data", error: err.message });
+    return sendSubjectError(res, err, "Could not create subject. Please try again.");
   }
 };
 
 exports.getSubjects = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, studentId, sectionId } = req.query;
     let targetClassId = classId;
@@ -78,14 +147,14 @@ exports.getSubjects = async (req, res) => {
 
     // RBAC: If student, get their classId and sectionId
     if (req.user && req.user.role === 'student') {
-      const student = await Student.findById(req.user.refId).select("personalInfo.class personalInfo.section");
+      const student = await Student.findOne({ _id: req.user.refId, schoolId }).select("personalInfo.class personalInfo.section");
       targetClassId = student?.personalInfo?.class;
       targetSectionId = student?.personalInfo?.section;
     }
 
     // RBAC: If parent, get their child's classId and sectionId
     if (req.user && req.user.role === 'parent') {
-      const parent = await Parent.findById(req.user.refId).populate("children");
+      const parent = await Parent.findOne({ _id: req.user.refId, schoolId }).populate("children");
       if (studentId) {
         const child = parent.children.find(c => c._id.toString() === studentId);
         targetClassId = child?.personalInfo?.class;
@@ -97,6 +166,17 @@ exports.getSubjects = async (req, res) => {
     }
 
     if (targetClassId) {
+      // A client-supplied classId is only a class *filter*. It must not be
+      // usable to reach another school's SubjectGroup or Curriculum, so it is
+      // verified against the authenticated school before any lookup.
+      if (!(await findOwnedClass(targetClassId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+
+      if (targetSectionId && !(await findOwnedSection(targetSectionId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Section not found" });
+      }
+
       // 1. Check Subject Group for class/section
       let sgQuery = { classes: targetClassId };
       if (targetSectionId) sgQuery.sections = targetSectionId;
@@ -131,7 +211,7 @@ exports.getSubjects = async (req, res) => {
     }
 
     // Default or for staff: return all subjects if no class filter
-    const subjects = await Subject.find().sort({ createdAt: -1 });
+    const subjects = await Subject.find({ schoolId }).sort({ createdAt: -1 });
 
     if (!subjects || subjects.length === 0) {
       return res.status(200).json({
@@ -156,11 +236,19 @@ exports.getSubjects = async (req, res) => {
 };
 
 exports.updateSubject = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const updatedSubject = await Subject.findByIdAndUpdate(req.params.id, { ...req.body }, {
-      new: true,
-      runValidators: true,
-    });
+    // A client-supplied schoolId must never move a subject between schools.
+    const { schoolId: _ignored, ...safeBody } = req.body || {};
+    const updatedSubject = await Subject.findOneAndUpdate(
+      { _id: req.params.id, schoolId },
+      { ...safeBody },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedSubject) {
       return res.status(404).json({ success: false, message: "Subject not found" });
@@ -172,11 +260,13 @@ exports.updateSubject = async (req, res) => {
       data: updatedSubject,
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: "Update failed", error: err.message });
+    return sendSubjectError(res, err, "Could not update subject. Please try again.");
   }
 };
 
 exports.deleteSubject = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log("Delete request for Subject ID:", req.params.id);
 
@@ -188,7 +278,7 @@ exports.deleteSubject = async (req, res) => {
       });
     }
 
-    const deletedSubject = await Subject.findByIdAndDelete(req.params.id);
+    const deletedSubject = await Subject.findOneAndDelete({ _id: req.params.id, schoolId });
     console.log("Found subject to delete:", deletedSubject);
 
     if (!deletedSubject) {

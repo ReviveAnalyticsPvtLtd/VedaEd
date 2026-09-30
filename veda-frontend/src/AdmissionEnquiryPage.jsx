@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { authFetch } from "./services/apiClient";
 
 export default function AdmissionEnquiryPage() {
   const [formData, setFormData] = useState({
@@ -55,7 +56,7 @@ export default function AdmissionEnquiryPage() {
     setStatus({ loading: true, success: null, error: null });
 
     try {
-      const response = await fetch("/api/admission-enquiry", {
+      const response = await authFetch("/admission-enquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

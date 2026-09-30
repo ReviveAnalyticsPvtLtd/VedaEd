@@ -22,6 +22,7 @@ import {
   Legend,
 } from "recharts";
 import CommunicationAPI from "./communicationAPI";
+import { authFetch } from "../services/apiClient";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
@@ -45,12 +46,12 @@ const CommunicationAdminDashboard = () => {
       setError(null);
 
       // Fetch notice stats
-      const noticeStatsRes = await fetch(`${CommunicationAPI.getNotices ? 'http://localhost:5000/api/communication' : ''}/notices/stats/summary`)
+      const noticeStatsRes = await authFetch('/communication/notices/stats/summary')
         .then(res => res.json())
         .catch(() => null);
 
       // Fetch notification stats
-      const notificationStatsRes = await fetch('http://localhost:5000/api/communication/notifications/stats/summary')
+      const notificationStatsRes = await authFetch('/communication/notifications/stats/summary')
         .then(res => res.json())
         .catch(() => null);
 

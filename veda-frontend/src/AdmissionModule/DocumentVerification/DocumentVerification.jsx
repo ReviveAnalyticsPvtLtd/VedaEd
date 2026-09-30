@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import {
   FiFileText,
@@ -157,8 +157,8 @@ const paginatedStudents = filteredStudents.slice(
     setLoading(true);
     try {
       const [applicationsRes, interviewRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/admission/application`),
-        axios.get(`${config.API_BASE_URL}/admission/interview`),
+        api.get(`${config.API_BASE_URL}/admission/application`),
+        api.get(`${config.API_BASE_URL}/admission/interview`),
       ]);
 
       const qualifiedInterviewApplicationIds = new Set(
@@ -251,7 +251,7 @@ const paginatedStudents = filteredStudents.slice(
     setLoading(true);
     try {
       // Update document verification status via API
-      const res = await axios.put(
+      const res = await api.put(
         `${config.API_BASE_URL}/admission/application/${selectedStudent._id}/document/${selectedDocument._id}/verify`,
         {
           status: verificationStatus,

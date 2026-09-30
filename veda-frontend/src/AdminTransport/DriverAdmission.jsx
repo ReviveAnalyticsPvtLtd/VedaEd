@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
 
@@ -34,7 +34,7 @@ useEffect(() => {
 
 const fetchDrivers = async () => {
     try {
-        const res = await axios.get(`${config.API_BASE_URL}/transport/drivers`);
+        const res = await api.get(`${config.API_BASE_URL}/transport/drivers`);
         setData(res.data.map(d => ({
             ...d,
             id: d._id,
@@ -72,7 +72,7 @@ const uploadFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     try {
-        const res = await axios.post(`${config.API_BASE_URL}/transport/drivers/upload`, formData, {
+        const res = await api.post(`${config.API_BASE_URL}/transport/drivers/upload`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return res.data.url;
@@ -131,9 +131,9 @@ try {
     };
 
     if(editData){
-        await axios.put(`${config.API_BASE_URL}/transport/drivers/${editData.id}`, payload);
+        await api.put(`${config.API_BASE_URL}/transport/drivers/${editData.id}`, payload);
     }else{
-        await axios.post(`${config.API_BASE_URL}/transport/drivers`, payload);
+        await api.post(`${config.API_BASE_URL}/transport/drivers`, payload);
     }
     
     fetchDrivers();
@@ -160,7 +160,7 @@ setShowModal(true);
 const handleDelete = async (id)=>{
 if(window.confirm("Delete record?")){
     try {
-        await axios.delete(`${config.API_BASE_URL}/transport/drivers/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/drivers/${id}`);
         fetchDrivers();
     } catch (error) {
         console.error("Error deleting driver:", error);

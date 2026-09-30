@@ -12,7 +12,7 @@ import {
   FiTrash2,
   FiEye,
 } from "react-icons/fi";
-import axios from "axios";
+import api from "../../services/apiClient";
 import jsPDF from "jspdf";
 import config from "../../config";
 import ProfileAvatar from "../../components/ProfileAvatar";
@@ -220,7 +220,7 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
 
     const fetchStudent = async () => {
       try {
-        const res = await axios.get(
+        const res = await api.get(
           `${config.API_BASE_URL}/admission/application/${id}`
         );
         if (res.data?.success && res.data?.data) {
@@ -329,7 +329,7 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
     form.append("type", type);
 
     try {
-      const res = await axios.post(
+      const res = await api.post(
         `${config.API_BASE_URL}/admission/application/${id}/upload`,
         form,
         { headers: { "Content-Type": "multipart/form-data" } }
@@ -349,7 +349,7 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
 
   const handleDeleteDocument = async (docId) => {
     try {
-      await axios.delete(
+      await api.delete(
         `${config.API_BASE_URL}/admission/application/${id}/document/${docId}`
       );
       setDocuments((prev) =>
@@ -377,7 +377,7 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
     }
 
     try {
-      const response = await axios.get(fileUrl, { responseType: "blob" });
+      const response = await api.get(fileUrl, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = blobUrl;
@@ -437,7 +437,7 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
       form.append("file", file);
       form.append("type", "Passport Size Photo");
 
-      const res = await axios.post(
+      const res = await api.post(
         `${config.API_BASE_URL}/admission/application/${id}/upload`,
         form,
         { headers: { "Content-Type": "multipart/form-data" } }

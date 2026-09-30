@@ -3,6 +3,14 @@ const { Schema } = mongoose;
 
 const StudentSchema = new Schema(
   {
+    // Tenant ownership. The authoritative value is assigned server-side from the
+    // authenticated user; it is never accepted from the client.
+    schoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+      index: true
+    },
     personalInfo: {
       name: {
         type: String,

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const PlatformAdmin = require("../../models/PlatformAdmin");
 const User = require("../../models/User");
 const Role = require("../../models/Role");
@@ -143,7 +144,12 @@ exports.listAdmins = async (req, res) => {
       ];
     }
 
-    const admins = await PlatformAdmin.find(filter).sort({ createdAt: -1 }).lean();
+    const scoped = await scopeToRequesterSchool(req, filter);
+    if (scoped.refused) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT);
+    }
+
+    const admins = await PlatformAdmin.find(scoped.filter).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: admins });
   } catch (error) {
     console.error("listAdmins error:", error);
@@ -153,7 +159,15 @@ exports.listAdmins = async (req, res) => {
 
 exports.getAdmin = async (req, res) => {
   try {
-    const admin = await PlatformAdmin.findById(req.params.id)
+    const scoped = await scopeToRequesterSchool(req, { _id: req.params.id });
+    if (scoped.refused) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT);
+    }
+
+    // A record belonging to another school simply fails to match and is
+    // reported as not found, so this endpoint cannot be used to probe for the
+    // existence of another tenant's admins.
+    const admin = await PlatformAdmin.findOne(scoped.filter)
       .select("+initialPassword")
       .lean();
     if (!admin) {
@@ -181,6 +195,61 @@ exports.getNextEmployeeId = async (req, res) => {
     console.error("getNextEmployeeId error:", error);
     res.status(500).json({ success: false, message: "Failed to generate employee ID" });
   }
+};
+
+/**
+ * The requesting superadmin's own school, read from the authenticated user
+ * document that authMiddleware resolved from the database. Never from the body.
+ * Returns null when the account is not linked to a school.
+ */
+const requesterSchoolId = (req) => {
+  const id = req.user?.schoolId;
+  return id && mongoose.isValidObjectId(String(id)) ? id : null;
+};
+
+const NO_SCHOOL_CONTEXT = {
+  success: false,
+  code: "NO_SCHOOL_CONTEXT",
+  message: "Your account is not linked to a school. Complete onboarding first.",
+};
+
+/**
+ * Builds a PlatformAdmin query restricted to the requesting superadmin's school.
+ *
+ * Membership is resolved through the linked login User's schoolId, NOT through
+ * PlatformAdmin.schoolId. That column is not trustworthy: on the existing data
+ * several records carry a schoolId that contradicts their own user's schoolId,
+ * and one school name is stamped across many unrelated schools. Trusting it
+ * would concentrate every leak into a single tenant's view. The user document is
+ * the authoritative tenant, so the filter is built from it.
+ *
+ * Records that cannot be tied to a school this way are handled explicitly. A
+ * draft admin has no login account, so for those the stamped
+ * PlatformAdmin.schoolId is the only tenant available. Anything else that
+ * matches neither branch — for example an admin whose linked user was deleted —
+ * stays invisible, which is fail-closed: such an account cannot authenticate.
+ */
+const scopeToRequesterSchool = async (req, extra = {}) => {
+  const schoolId = requesterSchoolId(req);
+  if (!schoolId) return { refused: true };
+
+  const users = await User.find({ schoolId }).select("_id").lean();
+
+  return {
+    refused: false,
+    filter: {
+      $and: [
+        extra,
+        {
+          $or: [
+            { userId: { $in: users.map((u) => u._id) } },
+            { userId: { $exists: false }, schoolId },
+            { userId: null, schoolId },
+          ],
+        },
+      ],
+    },
+  };
 };
 
 const rollbackCreatedAdmin = async (adminId, userId) => {
@@ -219,7 +288,27 @@ exports.createAdmin = async (req, res) => {
 
     const isInviteFlow = payload.sendInvite && !payload.isDraft;
 
+    // The creating superadmin's own school is the ONLY authority for the new
+    // admin's tenant. It is read from the authenticated user document that
+    // authMiddleware resolved from the database, never from the request body,
+    // so one school can never stamp an admin into another.
+    const creatorSchoolId =
+      req.user?.schoolId && mongoose.isValidObjectId(String(req.user.schoolId))
+        ? req.user.schoolId
+        : null;
+
     if (!payload.isDraft) {
+      // Fail closed rather than mint another account that can never reach any
+      // school data (an admin with no schoolId is refused by requireSchoolContext).
+      if (!creatorSchoolId) {
+        return res.status(403).json({
+          success: false,
+          code: "NO_SCHOOL_CONTEXT",
+          message:
+            "Your account is not linked to a school. Complete onboarding before creating admins.",
+        });
+      }
+
       const password = (payload.password || payload.tempPassword || "").trim();
       if (!password || password.length < PASSWORD_MIN_LENGTH) {
         return res.status(400).json({
@@ -244,6 +333,7 @@ exports.createAdmin = async (req, res) => {
         email: payload.email.toLowerCase(),
         password,
         roleId: adminRole._id,
+        schoolId: creatorSchoolId,
         status: isInviteFlow ? "inactive" : payload.status || "active",
       });
       createdUserId = user._id;
@@ -262,6 +352,9 @@ exports.createAdmin = async (req, res) => {
       designation: payload.designation,
       adminType: payload.adminType,
       school: payload.school,
+      // Stamped even for drafts (where no login User exists yet) so a later
+      // invite-accept still knows which school the admin belongs to.
+      schoolId: creatorSchoolId || undefined,
       campus: payload.campus,
       scope: payload.scope,
       permissions,
@@ -306,7 +399,12 @@ exports.createAdmin = async (req, res) => {
 
 exports.updateAdmin = async (req, res) => {
   try {
-    const admin = await PlatformAdmin.findById(req.params.id);
+    const scoped = await scopeToRequesterSchool(req, { _id: req.params.id });
+    if (scoped.refused) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT);
+    }
+
+    const admin = await PlatformAdmin.findOne(scoped.filter);
     if (!admin) {
       return res.status(404).json({ success: false, message: "Admin not found" });
     }
@@ -372,7 +470,12 @@ exports.updateStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid status" });
     }
 
-    const existing = await PlatformAdmin.findById(req.params.id);
+    const scoped = await scopeToRequesterSchool(req, { _id: req.params.id });
+    if (scoped.refused) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT);
+    }
+
+    const existing = await PlatformAdmin.findOne(scoped.filter);
     if (!existing) {
       return res.status(404).json({ success: false, message: "Admin not found" });
     }
@@ -468,7 +571,12 @@ exports.getDefaultPermissions = async (req, res) => {
 
 exports.sendInvite = async (req, res) => {
   try {
-    const admin = await PlatformAdmin.findById(req.params.id);
+    const scoped = await scopeToRequesterSchool(req, { _id: req.params.id });
+    if (scoped.refused) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT);
+    }
+
+    const admin = await PlatformAdmin.findOne(scoped.filter);
     if (!admin || admin.isDraft) {
       return res.status(404).json({ success: false, message: "Admin not found" });
     }
@@ -567,6 +675,12 @@ exports.acceptInvite = async (req, res) => {
           admin.initialPassword = password;
         }
         user.status = "active";
+        // Repair accounts minted before schoolId was recorded. An existing
+        // schoolId is never overwritten — that could relocate a live account
+        // into a different school.
+        if (!user.schoolId && admin.schoolId) {
+          user.schoolId = admin.schoolId;
+        }
         await user.save();
       }
     }
@@ -581,6 +695,7 @@ exports.acceptInvite = async (req, res) => {
         email: admin.email,
         password,
         roleId: adminRole._id,
+        schoolId: admin.schoolId || undefined,
         status: "active",
       });
       admin.userId = user._id;

@@ -20,7 +20,7 @@ import {
 } from "recharts";
 
 import CommunicationAPI from "./communicationAPI";
-import config from "../../../config";
+import { authFetch } from "../../../services/apiClient";
 
 const COLORS = [
   "#3b82f6",
@@ -67,9 +67,7 @@ const SuperAdminCommunicationDashboard = () => {
          * Same working endpoint used by the existing
          * Communication Admin Dashboard.
          */
-        const noticeStatsRes = await fetch(
-          `${config.API_BASE_URL}/communication/notices/stats/summary`
-        );
+        const noticeStatsRes = await authFetch('/communication/notices/stats/summary');
 
         if (!noticeStatsRes.ok) {
           throw new Error(
@@ -85,9 +83,7 @@ const SuperAdminCommunicationDashboard = () => {
          * Same working endpoint used by the existing
          * Communication Admin Dashboard.
          */
-        const notificationStatsRes = await fetch(
-          `${config.API_BASE_URL}/communication/notifications/stats/summary`
-        );
+        const notificationStatsRes = await authFetch('/communication/notifications/stats/summary');
 
         if (!notificationStatsRes.ok) {
           throw new Error(

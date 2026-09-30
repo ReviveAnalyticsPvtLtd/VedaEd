@@ -8,6 +8,19 @@ const AdmissionApplicationSchema = new Schema(
             unique: true,
             // We can generate this automatically or let it be flexible
         },
+        /**
+         * Authoritative tenant ownership. Assigned server-side from the
+         * authenticated session (req.user.schoolId) on creation and never
+         * accepted from the request body. Immutable so no later update path can
+         * move an application to another school.
+         */
+        schoolId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "School",
+            required: true,
+            index: true,
+            immutable: true,
+        },
         personalInfo: {
             name: { type: String, required: true, trim: true },
             stdId: { type: String, trim: true, default: "" },

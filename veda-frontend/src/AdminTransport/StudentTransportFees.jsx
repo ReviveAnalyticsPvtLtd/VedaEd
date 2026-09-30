@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import {
   FiSearch,
@@ -47,7 +47,7 @@ export default function StudentTransportFees() {
   /* ---------------- FETCH CLASSES ---------------- */
   const fetchClasses = async () => {
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/classes`);
+      const res = await api.get(`${config.API_BASE_URL}/classes`);
       if (res.data.success) {
         setClasses(res.data.data);
       }
@@ -75,7 +75,7 @@ export default function StudentTransportFees() {
       const params = new URLSearchParams();
       if (selectedClass) params.set("class", selectedClass);
       if (selectedSection) params.set("section", selectedSection);
-      const res = await axios.get(
+      const res = await api.get(
         `${config.API_BASE_URL}/transport/student-transports?${params.toString()}`
       );
       setStudents(res.data);
@@ -120,7 +120,7 @@ export default function StudentTransportFees() {
     if (!selectedMonth || !amount) return;
 
     try {
-      await axios.post(`${config.API_BASE_URL}/transport/student-transports/pay`, {
+      await api.post(`${config.API_BASE_URL}/transport/student-transports/pay`, {
         studentId: activeStudent.studentId,
         month: selectedMonth,
         amount: Number(amount),

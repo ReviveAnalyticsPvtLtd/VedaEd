@@ -1,16 +1,16 @@
+const mongoose = require('mongoose');
 const CommunicationLog = require('./communicationLogModel');
-const Student = require('../student/studentModels');
-const Teacher = require('../teacher/teacherModel');
-const Staff = require('../staff/staffModels');
-const Parent = require('../parents/parentModel');
+const { schoolId, rejectForeignActor, resolveActor, labelFor } = require('./communicationTenantScope');
 
 // Get communication logs
 exports.getCommunicationLogs = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { page = 1, limit = 10, userId, userModel, action, startDate, endDate } = req.query;
 
-    const query = {};
-    
+    // Tenant scope is applied first and cannot be overridden by a filter.
+    const query = { schoolId: school };
+
     if (userId && userModel) {
       query.user = userId;
       query.userModel = userModel;
@@ -23,7 +23,7 @@ exports.getCommunicationLogs = async (req, res) => {
     }
 
     const logs = await CommunicationLog.find(query)
-      .populate('user', 'personalInfo.name personalInfo.email')
+      .populate('user', 'personalInfo.name personalInfo.email name email')
       .populate('target')
       .sort({ timestamp: -1 })
       .limit(limit * 1)
@@ -42,9 +42,10 @@ exports.getCommunicationLogs = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching communication logs:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -52,11 +53,25 @@ exports.getCommunicationLogs = async (req, res) => {
 // Get logs for a specific user
 exports.getUserLogs = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { userId, userModel } = req.params;
     const { page = 1, limit = 10, action, startDate, endDate } = req.query;
 
-    const query = { user: userId, userModel: userModel };
-    
+    // A log stream belongs to the caller, not to an arbitrary party.
+    if (rejectForeignActor(req, res, userId)) return;
+
+    // The party is matched on the actor the session actually resolved to, not
+    // on the client-supplied label. A caller sending `userModel=student` (or
+    // any other case) still gets their own history, and cannot reach another
+    // party's by naming a different model.
+    const actor = await resolveActor(req);
+
+    const query = {
+      schoolId: school,
+      user: String(actor.id),
+      userModel: labelFor(actor.model),
+    };
+
     if (action) query.action = action;
     if (startDate || endDate) {
       query.timestamp = {};
@@ -83,9 +98,10 @@ exports.getUserLogs = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching user logs:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -93,31 +109,31 @@ exports.getUserLogs = async (req, res) => {
 // Get communication statistics
 exports.getCommunicationStats = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { startDate, endDate } = req.query;
 
-    const query = {};
+    // Every aggregate below inherits the tenant $match, so no metric can
+    // report a global total.
+    const schoolObjectId = new mongoose.Types.ObjectId(school);
+    const query = { schoolId: schoolObjectId };
     if (startDate || endDate) {
       query.timestamp = {};
       if (startDate) query.timestamp.$gte = new Date(startDate);
       if (endDate) query.timestamp.$lte = new Date(endDate);
     }
 
-    // Total logs
     const totalLogs = await CommunicationLog.countDocuments(query);
 
-    // Logs by action
     const logsByAction = await CommunicationLog.aggregate([
       { $match: query },
       { $group: { _id: '$action', count: { $sum: 1 } } }
     ]);
 
-    // Logs by user model
     const logsByUserModel = await CommunicationLog.aggregate([
       { $match: query },
       { $group: { _id: '$userModel', count: { $sum: 1 } } }
     ]);
 
-    // Logs by target model
     const logsByTargetModel = await CommunicationLog.aggregate([
       { $match: { ...query, targetModel: { $exists: true } } },
       { $group: { _id: '$targetModel', count: { $sum: 1 } } }
@@ -146,7 +162,6 @@ exports.getCommunicationStats = async (req, res) => {
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
     ]);
 
-    // Most active users
     const mostActiveUsers = await CommunicationLog.aggregate([
       { $match: query },
       { $group: { _id: { user: '$user', userModel: '$userModel' }, count: { $sum: 1 } } },
@@ -167,9 +182,10 @@ exports.getCommunicationStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching communication stats:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -177,42 +193,32 @@ exports.getCommunicationStats = async (req, res) => {
 // Get activity summary for dashboard
 exports.getActivitySummary = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { userId, userModel } = req.params;
     const { days = 7 } = req.query;
 
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    // Activity is the caller's own, scoped to their school.
+    if (rejectForeignActor(req, res, userId)) return;
 
-    // Recent activity
+    const schoolObjectId = new mongoose.Types.ObjectId(school);
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const scope = { schoolId: schoolObjectId, user: userId, userModel: userModel };
+
     const recentActivity = await CommunicationLog.find({
-      user: userId,
-      userModel: userModel,
+      ...scope,
       timestamp: { $gte: startDate }
     })
       .populate('target')
       .sort({ timestamp: -1 })
       .limit(10);
 
-    // Activity counts
     const activityCounts = await CommunicationLog.aggregate([
-      {
-        $match: {
-          user: userId,
-          userModel: userModel,
-          timestamp: { $gte: startDate }
-        }
-      },
+      { $match: { ...scope, timestamp: { $gte: startDate } } },
       { $group: { _id: '$action', count: { $sum: 1 } } }
     ]);
 
-    // Daily activity
     const dailyActivity = await CommunicationLog.aggregate([
-      {
-        $match: {
-          user: userId,
-          userModel: userModel,
-          timestamp: { $gte: startDate }
-        }
-      },
+      { $match: { ...scope, timestamp: { $gte: startDate } } },
       {
         $group: {
           _id: {
@@ -237,9 +243,10 @@ exports.getActivitySummary = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching activity summary:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -247,32 +254,33 @@ exports.getActivitySummary = async (req, res) => {
 // Create a log entry (for internal use)
 exports.createLog = async (req, res) => {
   try {
-    const {
-      user,
-      userModel,
-      action,
-      target,
-      targetModel,
-      details,
-      ipAddress,
-      userAgent,
-      sessionId
-    } = req.body;
+    const school = schoolId(req);
+    const { action, target, targetModel, details, ipAddress, userAgent, sessionId } = req.body;
 
-    const logData = {
-      user,
-      userModel,
+    if (!action) {
+      return res.status(400).json({ success: false, message: 'action is required' });
+    }
+
+    // targetModel is a closed enum. Constrain the client's value here rather
+    // than letting an unknown string reach the schema.
+    const TARGET_MODELS = ['Message', 'Notice', 'Complaint', 'User', 'Notification', 'Template'];
+    const safeTargetModel = TARGET_MODELS.includes(targetModel) ? targetModel : 'User';
+
+    // The actor and the tenant are both derived from the session. A client
+    // cannot write a log attributed to another school, or to another user.
+    const log = await CommunicationLog.create({
+      schoolId: school,
+      user: req.user.userId,
+      userModel: 'Admin',
       action,
       target,
-      targetModel,
+      targetModel: safeTargetModel,
       details,
       ipAddress,
       userAgent,
-      sessionId,
+      sessionId: sessionId || req.user.sessionId,
       timestamp: new Date()
-    };
-
-    const log = await CommunicationLog.create(logData);
+    });
 
     res.status(201).json({
       success: true,
@@ -281,9 +289,10 @@ exports.createLog = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating log:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -291,10 +300,15 @@ exports.createLog = async (req, res) => {
 // Delete old logs (cleanup)
 exports.deleteOldLogs = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { days = 90 } = req.query;
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+    // Cleanup is scoped to the caller's own school. It can never delete another
+    // school's logs, and never touches the quarantined records of this school
+    // (they have no schoolId, so they do not match this filter).
     const result = await CommunicationLog.deleteMany({
+      schoolId: school,
       timestamp: { $lt: cutoffDate }
     });
 
@@ -305,9 +319,10 @@ exports.deleteOldLogs = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting old logs:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };

@@ -1,7 +1,5 @@
 // API service for assignments
-import config from '../config';
 import { authFetch } from "./apiClient";
-const API_BASE_URL = config.API_BASE_URL;
 
 // Assignment API functions
 export const assignmentAPI = {
@@ -200,7 +198,7 @@ export const dropdownAPI = {
   // Get all classes
   getClasses: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/classes`);
+      const response = await authFetch('/classes');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -217,7 +215,7 @@ export const dropdownAPI = {
   // Get all sections
   getSections: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/sections`);
+      const response = await authFetch('/sections');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -234,7 +232,7 @@ export const dropdownAPI = {
   // Get sections for a specific class
   getSectionsByClass: async (classId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/sections?classId=${classId}`);
+      const response = await authFetch(`/sections?classId=${classId}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -268,7 +266,7 @@ export const dropdownAPI = {
   // Get all subject groups (class-subject mapping)
   getSubjectGroups: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/subGroups`);
+      const response = await authFetch('/subGroups');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

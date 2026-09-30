@@ -24,10 +24,24 @@ const safeDocumentPath = (filename) => {
   return path.join(UPLOADS_DIR, normalizedFilename);
 };
 
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
 /** Admin student profile may use SIS Student _id or AdmissionApplication _id */
-async function findStudentOrAdmissionById(id) {
+async function findStudentOrAdmissionById(id, schoolId) {
   if (!id) return null;
-  const student = await Student.findById(id);
+  const student = await Student.findOne({ _id: id, schoolId });
   if (student) return { kind: "student", doc: student };
   if (mongoose.Types.ObjectId.isValid(id)) {
     const application = await AdmissionApplication.findById(id);
@@ -36,12 +50,12 @@ async function findStudentOrAdmissionById(id) {
   return null;
 }
 
-const generateUniqueStudentUsername = async (name, dob) => {
+const generateUniqueStudentUsername = async (name, dob, schoolId) => {
   const baseUsername = generateStudentUsernameBase(name, dob) || "user";
   let username = baseUsername;
   let suffix = 1;
 
-  while (await Student.exists({ "personalInfo.username": username })) {
+  while (await Student.exists({ "personalInfo.username": username, schoolId })) {
     username = `${baseUsername}${suffix}`;
     suffix += 1;
   }
@@ -76,6 +90,8 @@ const teacherAssignedToStudent = async (teacherStaffId, studentDoc) => {
 };
 
 exports.createStudent = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   console.log("req-body", req.body);
   const {
     personalInfo,
@@ -102,14 +118,14 @@ exports.createStudent = async (req, res) => {
     // Class with that name exists?
     const { class: className, section: sectionName } = req.body.personalInfo;
 
-    const existClass = await Class.findOne({ name: className });
+    const existClass = await Class.findOne({ name: className, schoolId });
     console.log("existClass", existClass);
     if (!existClass) {
       return res.status(400).json({ message: "Class not found" });
     }
 
     // Section with that name exists?
-    const existSection = await Section.findOne({ name: sectionName }, "name");
+    const existSection = await Section.findOne({ name: sectionName, schoolId }, "name");
     console.log(existSection);
     if (!existSection) {
       return res.status(400).json({ message: "Section not found" });
@@ -132,11 +148,13 @@ exports.createStudent = async (req, res) => {
 
     const username = await generateUniqueStudentUsername(
       personalInfo.name,
-      personalInfo.DOB || personalInfo.dateOfBirth
+      personalInfo.DOB || personalInfo.dateOfBirth,
+      schoolId
     );
     personalInfo.username = username;
 
     const duplicate = await Student.findOne({
+      schoolId,
       $or: [
         { "personalInfo.username": username },
         { "personalInfo.stdId": stdIdClean },
@@ -164,6 +182,7 @@ exports.createStudent = async (req, res) => {
         class: existClass._id,
         section: existSection._id,
       },
+      schoolId,
       parent,
       curriculum,
       assignments,
@@ -186,19 +205,22 @@ exports.createStudent = async (req, res) => {
 
     // linking to parents
     if (parent) {
-      const parentExists = await Parent.findById(parent);
+      const parentExists = await Parent.findOne({ _id: parent, schoolId });
       if (!parentExists) {
         return res.status(404).json({
           success: false,
           message: "Parent not found",
         });
       }
-      await Parent.findByIdAndUpdate(parent, {
-        $push: { children: newStudent._id },
-      });
+      await Parent.findOneAndUpdate(
+        { _id: parent, schoolId },
+        {
+          $push: { children: newStudent._id },
+        }
+      );
     }
 
-    const studentDoc = await Student.findById(newStudent._id)
+    const studentDoc = await Student.findOne({ _id: newStudent._id, schoolId })
       .populate("parent")
       .populate("personalInfo.class", "name") // only bring class name
       .populate("personalInfo.section", "name"); // only bring section name
@@ -227,6 +249,7 @@ exports.createStudent = async (req, res) => {
           password: personalInfo.password, // bcrypt hashing is handled by User model pre-save hook
           roleId: roleDoc._id,
           refId: newStudent._id,
+          schoolId,
           status: 'active'
         });
         console.log("Auth User created for student");
@@ -320,16 +343,25 @@ exports.loginStudent = async (req, res) => {
 
 // GET students/
 exports.getAllStudents = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    let query = {};
+    let query = { schoolId };
+
+    console.log("=== STUDENT TENANT DEBUG ===");
+    console.log("DB:", mongoose.connection.name);
+    console.log("User ID:", req.user?.userId);
+    console.log("Role:", req.user?.role);
+    console.log("School ID:", schoolId);
+    console.log("Initial query:", JSON.stringify(query));
 
     // 1. Parent Access filtering: JWT userId is User._id; Student.parent is Parent._id (User.refId).
     if (req.user && req.user.role === 'parent') {
-      const userDoc = await User.findById(req.user.userId).select("refId").lean();
+      const userDoc = await User.findOne({ _id: req.user.userId, schoolId }).select("refId").lean();
       if (userDoc?.refId) {
-        query = { parent: userDoc.refId };
+        query.parent = userDoc.refId;
       } else {
-        query = { _id: { $in: [] } };
+        query._id = { $in: [] };
       }
     }
 
@@ -342,7 +374,7 @@ exports.getAllStudents = async (req, res) => {
         .lean();
 
       if (!assignments.length) {
-        query = { _id: { $in: [] } };
+        query._id = { $in: [] };
       } else {
         const classSectionFilters = assignments
           .filter((item) => item.class && item.section)
@@ -352,7 +384,7 @@ exports.getAllStudents = async (req, res) => {
           }));
 
         if (!classSectionFilters.length) {
-          query = { _id: { $in: [] } };
+          query._id = { $in: [] };
         } else {
           query.$or = classSectionFilters;
         }
@@ -362,15 +394,15 @@ exports.getAllStudents = async (req, res) => {
     // 3. User Filter by class/section
     const { class: cls, section: sec, keyword } = req.query;
     if (cls && cls !== "All") {
-      const existClass = await Class.findOne({ name: cls });
+      const existClass = await Class.findOne({ name: cls, schoolId });
       if (existClass) query["personalInfo.class"] = existClass._id;
     }
     if (sec && sec !== "All") {
-      const existSection = await Section.findOne({ name: sec });
+      const existSection = await Section.findOne({ name: sec, schoolId });
       if (existSection) query["personalInfo.section"] = existSection._id;
     }
     if (keyword) {
-      const matchingClasses = await Class.find({ name: { $regex: keyword, $options: 'i' } }).select("_id");
+      const matchingClasses = await Class.find({ name: { $regex: keyword, $options: 'i' }, schoolId }).select("_id");
       const classIds = matchingClasses.map(c => c._id);
 
       const keywordFilter = {
@@ -413,6 +445,11 @@ exports.getAllStudents = async (req, res) => {
       admissionQuery._id = { $in: [] };
     }
 
+    console.log("Final student query:", JSON.stringify(query));
+    console.log(
+      "Matching students:",
+      await Student.countDocuments(query)
+    );
     const [studentDocs, admissionDocs] = await Promise.all([
       Student.find(query)
         .sort({ createdAt: -1, _id: -1 })
@@ -586,6 +623,8 @@ if (admissionDoc) {
 */
 // Single student profile
 exports.getStudent = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { id } = req.params;
 
   try {
@@ -614,7 +653,7 @@ exports.getStudent = async (req, res) => {
 
     // 1. Try finding in SIS Students by ID
     if (mongoose.Types.ObjectId.isValid(trimmedId)) {
-      studentDoc = await Student.findById(trimmedId)
+      studentDoc = await Student.findOne({ _id: trimmedId, schoolId })
         .populate("personalInfo.class", "name")
         .populate("personalInfo.section", "name")
         .populate("parent", "parentId fatherName motherName contactDetails")
@@ -624,6 +663,7 @@ exports.getStudent = async (req, res) => {
     // 2. If not found, try finding in SIS Students by stdId or username
     if (!studentDoc) {
       studentDoc = await Student.findOne({
+        schoolId,
         $or: [
           { "personalInfo.stdId": trimmedId },
           { "personalInfo.username": trimmedId },
@@ -747,6 +787,8 @@ const normalizeClassSectionLookupName = (raw) => {
 };
 
 exports.updateStudent = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   console.log("Full request body:", JSON.stringify(req.body, null, 2));
   console.log("Update request for ID:", req.params.id);
   try {
@@ -764,7 +806,7 @@ exports.updateStudent = async (req, res) => {
     // Only validate class and section if they are provided in the request
     if (className) {
       console.log("Looking for class with name:", className);
-      existClass = await Class.findOne({ name: className });
+      existClass = await Class.findOne({ name: className, schoolId });
       console.log("existClass", existClass);
       if (!existClass) {
         return res.status(400).json({ message: "Class not found" });
@@ -775,7 +817,7 @@ exports.updateStudent = async (req, res) => {
 
     if (sectionName) {
       console.log("Looking for section with name:", sectionName);
-      existSection = await Section.findOne({ name: sectionName }, "name");
+      existSection = await Section.findOne({ name: sectionName, schoolId }, "name");
       console.log("existSection", existSection);
       if (!existSection) {
         return res.status(400).json({ message: "Section not found" });
@@ -806,7 +848,7 @@ exports.updateStudent = async (req, res) => {
     }
 
     // Get the existing student to preserve required fields
-    const existingStudent = await Student.findById(id);
+    const existingStudent = await Student.findOne({ _id: id, schoolId });
     if (!existingStudent) {
       return res.status(404).json({
         success: false,
@@ -939,7 +981,7 @@ exports.updateStudent = async (req, res) => {
     console.log("Final update data:", JSON.stringify(updateFields, null, 2));
 
     // Update student
-    const updatedStudent = await Student.findByIdAndUpdate(id, updateFields, {
+    const updatedStudent = await Student.findOneAndUpdate({ _id: id, schoolId }, updateFields, {
       new: true, // return updated doc
       runValidators: true, // run schema validators
     })
@@ -971,8 +1013,8 @@ exports.updateStudent = async (req, res) => {
       }
 
       if (Object.keys(parentUpdate).length > 0) {
-        await Parent.findByIdAndUpdate(updatedStudent.parent._id, { $set: parentUpdate }, { new: true });
-        updatedStudent.parent = await Parent.findById(updatedStudent.parent._id)
+        await Parent.findOneAndUpdate({ _id: updatedStudent.parent._id, schoolId }, { $set: parentUpdate }, { new: true });
+        updatedStudent.parent = await Parent.findOne({ _id: updatedStudent.parent._id, schoolId })
           .select("fatherName motherName contactDetails");
       }
     }
@@ -1012,6 +1054,8 @@ exports.updateStudent = async (req, res) => {
 
 /** PUT /students/:id/health — health + optional profile blood group only */
 exports.updateStudentHealth = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const updateData = req.body || {};
@@ -1023,7 +1067,7 @@ exports.updateStudentHealth = async (req, res) => {
       });
     }
 
-    const existingStudent = await Student.findById(id);
+    const existingStudent = await Student.findOne({ _id: id, schoolId });
     if (!existingStudent) {
       return res.status(404).json({
         success: false,
@@ -1092,7 +1136,7 @@ exports.updateStudentHealth = async (req, res) => {
       updateFields.$set["personalInfo.bloodGroup"] = finalBloodGroup;
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(id, updateFields, {
+    const updatedStudent = await Student.findOneAndUpdate({ _id: id, schoolId }, updateFields, {
       new: true,
       runValidators: true,
     })
@@ -1123,10 +1167,12 @@ exports.updateStudentHealth = async (req, res) => {
 };
 
 exports.deleteStudentById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
 
-    const deletedStudent = await Student.findByIdAndDelete(id);
+    const deletedStudent = await Student.findOneAndDelete({ _id: id, schoolId });
 
     if (!deletedStudent) {
       return res.status(404).json({
@@ -1158,13 +1204,16 @@ exports.deleteStudentById = async (req, res) => {
 
 // Get student statistics
 exports.getStudentStats = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const totalStudents = await Student.countDocuments();
-    const activeStudents = await Student.countDocuments({ "personalInfo.status": "Active" });
-    const inactiveStudents = await Student.countDocuments({ "personalInfo.status": "Inactive" });
+    const totalStudents = await Student.countDocuments({ schoolId });
+    const activeStudents = await Student.countDocuments({ schoolId, "personalInfo.status": "Active" });
+    const inactiveStudents = await Student.countDocuments({ schoolId, "personalInfo.status": "Inactive" });
 
     // Get students by class
     const studentsByClass = await Student.aggregate([
+      { $match: { schoolId: new mongoose.Types.ObjectId(String(schoolId)) } },
       {
         $group: {
           _id: "$personalInfo.class",
@@ -1192,6 +1241,8 @@ exports.getStudentStats = async (req, res) => {
 };
 
 exports.getNextStudentId = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const nextStudentId = await peekNextStudentId();
     return res.status(200).json({
@@ -1224,6 +1275,8 @@ async function studSafe(fn, fallback) {
 }
 
 exports.getStudentDashboardStats = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
 
@@ -1236,15 +1289,15 @@ exports.getStudentDashboardStats = async (req, res) => {
     for (const c of candidates) {
       const str = String(c);
       if (!mongoose.Types.ObjectId.isValid(str)) continue;
-      student = await studSafe(() => Student.findById(str).lean(), null);
+      student = await studSafe(() => Student.findOne({ _id: str, schoolId }).lean(), null);
       if (student) break;
-      const user = await studSafe(() => User.findById(str).lean(), null);
+      const user = await studSafe(() => User.findOne({ _id: str, schoolId }).lean(), null);
       if (
         user &&
         user.refId &&
         mongoose.Types.ObjectId.isValid(user.refId)
       ) {
-        student = await studSafe(() => Student.findById(user.refId).lean(), null);
+        student = await studSafe(() => Student.findOne({ _id: user.refId, schoolId }).lean(), null);
         if (student) break;
       }
     }
@@ -1376,9 +1429,15 @@ exports.getStudentDashboardStats = async (req, res) => {
     }));
 
     // ---- Upcoming events / exams ----
+    // Tenant-scoped by schoolId, which requireSchool validated above from
+    // req.user.schoolId. This query previously had no schoolId filter, so it
+    // returned every scheduled student-visible event in the deployment, letting
+    // one school's events populate another school's dashboard exam count and
+    // next-exam date. studSafe fails closed to [] if the query throws.
     const upcomingEventsRaw = await studSafe(
       () =>
         CalendarEvent.find({
+          schoolId,
           startDate: { $gte: now },
           status: "Scheduled",
           visibility: "Student",
@@ -1402,9 +1461,14 @@ exports.getStudentDashboardStats = async (req, res) => {
     );
 
     // ---- Published notices for students ----
+    // Tenant-scoped. This query previously had no schoolId filter, so it could
+    // surface notices published by a different school on a student dashboard.
+    // `schoolId` was already resolved and validated by requireSchool above, and
+    // studSafe fails closed to [] if the query throws.
     const notices = await studSafe(
       () =>
         Notice.find({
+          schoolId,
           status: "published",
           publishDate: { $lte: now },
           $or: [{ expiryDate: null }, { expiryDate: { $gte: now } }],
@@ -1448,6 +1512,8 @@ exports.getStudentDashboardStats = async (req, res) => {
 
 
 exports.importStudents = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { students } = req.body;
 
@@ -1482,11 +1548,11 @@ exports.importStudents = async (req, res) => {
         let classId = null;
         if (rawClass && rawClass !== "-") {
           // 1. Try exact match (e.g., "Class 10")
-          let cls = await Class.findOne({ name: rawClass });
+          let cls = await Class.findOne({ name: rawClass, schoolId });
           
           // 2. If not found and rawClass is just a number (e.g., "10"), try "Class 10"
           if (!cls && /^\d+$/.test(rawClass)) {
-            cls = await Class.findOne({ name: `Class ${rawClass}` });
+            cls = await Class.findOne({ name: `Class ${rawClass}`, schoolId });
           }
 
           if (cls) {
@@ -1499,7 +1565,7 @@ exports.importStudents = async (req, res) => {
         // ── Resolve Section ObjectId ────────────────────────────────────────
         let sectionId = null;
         if (rawSection && rawSection !== "-") {
-          const sec = await Section.findOne({ name: rawSection });
+          const sec = await Section.findOne({ name: rawSection, schoolId });
           if (sec) {
             sectionId = sec._id;
           } else {
@@ -1508,7 +1574,7 @@ exports.importStudents = async (req, res) => {
         }
 
         // ── Duplicate check: skip if same name + class + section exists ─────
-        const duplicateQuery = { "personalInfo.name": name };
+        const duplicateQuery = { schoolId, "personalInfo.name": name };
         if (classId)   duplicateQuery["personalInfo.class"]   = classId;
         if (sectionId) duplicateQuery["personalInfo.section"] = sectionId;
 
@@ -1525,7 +1591,8 @@ exports.importStudents = async (req, res) => {
         const stdId = await generateNextStudentId();
         const username = await generateUniqueStudentUsername(
           name,
-          stu.personalInfo?.DOB || stu.personalInfo?.dateOfBirth
+          stu.personalInfo?.DOB || stu.personalInfo?.dateOfBirth,
+          schoolId
         );
         const plainPassword = stu.personalInfo?.password || "default123";
 
@@ -1544,6 +1611,7 @@ exports.importStudents = async (req, res) => {
             password: plainPassword,
             status: stu.personalInfo?.status || "Active",
           },
+          schoolId,
           attendance: stu.attendance || "-",
         });
 
@@ -1564,6 +1632,7 @@ exports.importStudents = async (req, res) => {
               password: plainPassword,
               roleId: studentRole._id,
               refId: newStudent._id,
+              schoolId,
               status: 'active',
             });
           } catch (authErr) {
@@ -1602,6 +1671,8 @@ exports.importStudents = async (req, res) => {
 };
 
 exports.uploadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   console.log("req.file from uploaddoc student", req.file);
   console.log("req.body:", req.body);
   try {
@@ -1618,7 +1689,7 @@ exports.uploadDocument = async (req, res) => {
 
     const fileUrl = `/uploads/${req.file.filename}`;
 
-    const ctx = await findStudentOrAdmissionById(studentId);
+    const ctx = await findStudentOrAdmissionById(studentId, schoolId);
     if (!ctx) {
       return res.status(404).json({ success: false, message: "Student or admission record not found" });
     }
@@ -1668,10 +1739,12 @@ exports.uploadDocument = async (req, res) => {
 
 // Get all documents for student
 exports.getAllDocuments = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { studentId } = req.params;
     console.log("Getting documents for studentId:", studentId);
-    const ctx = await findStudentOrAdmissionById(studentId);
+    const ctx = await findStudentOrAdmissionById(studentId, schoolId);
     if (!ctx) {
       return res.status(404).json({ success: false, message: "Student not found [LOC_DOCS]" });
     }
@@ -1690,6 +1763,8 @@ exports.getAllDocuments = async (req, res) => {
 };
 
 exports.previewDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1705,6 +1780,8 @@ exports.previewDocument = async (req, res) => {
 };
 
 exports.downloadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1720,9 +1797,11 @@ exports.downloadDocument = async (req, res) => {
 };
 
 exports.deleteDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { studentId, documentId } = req.params;
-    const ctx = await findStudentOrAdmissionById(studentId);
+    const ctx = await findStudentOrAdmissionById(studentId, schoolId);
 
     if (!ctx) {
       return res.status(404).json({ success: false, message: "Student not found" });

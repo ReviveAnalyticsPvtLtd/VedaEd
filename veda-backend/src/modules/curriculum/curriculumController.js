@@ -5,8 +5,28 @@ const StudyMaterial = require("./studyMaterialModel");
 const Student = require("../student/studentModels");
 const Class = require("../class/classSchema");
 const Subject = require("../subject/subjectSchema");
+const mongoose = require("mongoose");
 
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// Syllabus/StudyMaterial have no schoolId of their own, so every lookup is
+// anchored to the Class/Subject documents they reference.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const findOwnedSubject = (subjectId, schoolId) => Subject.findOne({ _id: subjectId, schoolId }).select("_id");
 
 // Helper function to safely delete file from disk
 const deleteFileFromDisk = (fileUrl) => {
@@ -29,6 +49,8 @@ const deleteFileFromDisk = (fileUrl) => {
 
 // 1. Upload Syllabus (Teacher)
 exports.uploadSyllabus = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, subjectId, academicYear, title, description, status } = req.body;
 
@@ -40,6 +62,16 @@ exports.uploadSyllabus = async (req, res) => {
       // Remove uploaded file if validation fails
       deleteFileFromDisk(req.file.filename);
       return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    if (!(await findOwnedClass(classId, schoolId))) {
+      deleteFileFromDisk(req.file.filename);
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (!(await findOwnedSubject(subjectId, schoolId))) {
+      deleteFileFromDisk(req.file.filename);
+      return res.status(404).json({ success: false, message: "Subject not found" });
     }
 
     const fileUrl = `/uploads/${req.file.filename}`;
@@ -71,17 +103,29 @@ exports.uploadSyllabus = async (req, res) => {
 
 // 2. Get Teacher's Syllabuses (Teacher)
 exports.getTeacherSyllabuses = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, subjectId, academicYear } = req.query;
     const filter = { uploadedBy: req.user.userId };
 
-    if (classId) filter.class = classId;
-    if (subjectId) filter.subject = subjectId;
+    if (classId) {
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+      filter.class = classId;
+    }
+    if (subjectId) {
+      if (!(await findOwnedSubject(subjectId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Subject not found" });
+      }
+      filter.subject = subjectId;
+    }
     if (academicYear) filter.academicYear = academicYear;
 
     const syllabuses = await Syllabus.find(filter)
-      .populate("class", "name")
-      .populate("subject", "subjectName subjectCode")
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -97,12 +141,14 @@ exports.getTeacherSyllabuses = async (req, res) => {
 
 // 3. Update Syllabus (Teacher)
 exports.updateSyllabus = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const { title, description, status, classId, subjectId, academicYear } = req.body;
 
     const syllabus = await Syllabus.findById(id);
-    if (!syllabus) {
+    if (!syllabus || !(await findOwnedClass(syllabus.class, schoolId))) {
       if (req.file) deleteFileFromDisk(req.file.filename);
       return res.status(404).json({ success: false, message: "Syllabus not found" });
     }
@@ -111,6 +157,19 @@ exports.updateSyllabus = async (req, res) => {
     if (syllabus.uploadedBy.toString() !== req.user.userId.toString() && req.user.role !== "admin") {
       if (req.file) deleteFileFromDisk(req.file.filename);
       return res.status(403).json({ success: false, message: "Not authorized to update this syllabus" });
+    }
+
+    if (classId) {
+      if (!(await findOwnedClass(classId, schoolId))) {
+        if (req.file) deleteFileFromDisk(req.file.filename);
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+    }
+    if (subjectId) {
+      if (!(await findOwnedSubject(subjectId, schoolId))) {
+        if (req.file) deleteFileFromDisk(req.file.filename);
+        return res.status(404).json({ success: false, message: "Subject not found" });
+      }
     }
 
     if (title) syllabus.title = title;
@@ -143,11 +202,13 @@ exports.updateSyllabus = async (req, res) => {
 
 // 4. Delete Syllabus (Teacher)
 exports.deleteSyllabus = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
 
     const syllabus = await Syllabus.findById(id);
-    if (!syllabus) {
+    if (!syllabus || !(await findOwnedClass(syllabus.class, schoolId))) {
       return res.status(404).json({ success: false, message: "Syllabus not found" });
     }
 
@@ -174,11 +235,13 @@ exports.deleteSyllabus = async (req, res) => {
 
 // 5. Get Student's Syllabuses (Student Portal POV)
 exports.getStudentSyllabuses = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     let classId;
 
     if (req.user.role === "student") {
-      const student = await Student.findById(req.user.refId);
+      const student = await Student.findOne({ _id: req.user.refId, schoolId });
       if (!student || !student.personalInfo?.class) {
         return res.status(400).json({ success: false, message: "Student record or class assignment not found" });
       }
@@ -189,15 +252,22 @@ exports.getStudentSyllabuses = async (req, res) => {
       if (!classId) {
         return res.status(400).json({ success: false, message: "Class ID is required" });
       }
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
     }
 
     const { subjectId } = req.query;
+    if (subjectId && !(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
+    }
+
     const filter = { class: classId, status: "Published" };
 
     if (subjectId) filter.subject = subjectId;
 
     const syllabuses = await Syllabus.find(filter)
-      .populate("subject", "subjectName subjectCode")
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -217,6 +287,8 @@ exports.getStudentSyllabuses = async (req, res) => {
 
 // 1. Upload Study Material (Teacher)
 exports.uploadStudyMaterial = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, subjectId, title, description, visibleToStudents } = req.body;
 
@@ -228,6 +300,16 @@ exports.uploadStudyMaterial = async (req, res) => {
       // Delete uploaded files if validation fails
       req.files.forEach(file => deleteFileFromDisk(file.filename));
       return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    if (!(await findOwnedClass(classId, schoolId))) {
+      req.files.forEach(file => deleteFileFromDisk(file.filename));
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (!(await findOwnedSubject(subjectId, schoolId))) {
+      req.files.forEach(file => deleteFileFromDisk(file.filename));
+      return res.status(404).json({ success: false, message: "Subject not found" });
     }
 
     const filesArray = req.files.map(file => ({
@@ -264,16 +346,28 @@ exports.uploadStudyMaterial = async (req, res) => {
 
 // 2. Get Teacher's Study Materials (Teacher)
 exports.getTeacherStudyMaterials = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, subjectId } = req.query;
     const filter = { uploadedBy: req.user.userId };
 
-    if (classId) filter.class = classId;
-    if (subjectId) filter.subject = subjectId;
+    if (classId) {
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+      filter.class = classId;
+    }
+    if (subjectId) {
+      if (!(await findOwnedSubject(subjectId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Subject not found" });
+      }
+      filter.subject = subjectId;
+    }
 
     const materials = await StudyMaterial.find(filter)
-      .populate("class", "name")
-      .populate("subject", "subjectName subjectCode")
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -289,12 +383,14 @@ exports.getTeacherStudyMaterials = async (req, res) => {
 
 // 3. Update Study Material (Teacher)
 exports.updateStudyMaterial = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const { title, description, visibleToStudents, classId, subjectId } = req.body;
 
     const material = await StudyMaterial.findById(id);
-    if (!material) {
+    if (!material || !(await findOwnedClass(material.class, schoolId))) {
       if (req.files) req.files.forEach(file => deleteFileFromDisk(file.filename));
       return res.status(404).json({ success: false, message: "Study material not found" });
     }
@@ -303,6 +399,15 @@ exports.updateStudyMaterial = async (req, res) => {
     if (material.uploadedBy.toString() !== req.user.userId.toString() && req.user.role !== "admin") {
       if (req.files) req.files.forEach(file => deleteFileFromDisk(file.filename));
       return res.status(403).json({ success: false, message: "Not authorized to update this material" });
+    }
+
+    if (classId && !(await findOwnedClass(classId, schoolId))) {
+      if (req.files) req.files.forEach(file => deleteFileFromDisk(file.filename));
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+    if (subjectId && !(await findOwnedSubject(subjectId, schoolId))) {
+      if (req.files) req.files.forEach(file => deleteFileFromDisk(file.filename));
+      return res.status(404).json({ success: false, message: "Subject not found" });
     }
 
     if (title) material.title = title;
@@ -341,11 +446,13 @@ exports.updateStudyMaterial = async (req, res) => {
 
 // 4. Delete Study Material File (Remove a single file from study material upload)
 exports.deleteStudyMaterialFile = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id, fileId } = req.params;
 
     const material = await StudyMaterial.findById(id);
-    if (!material) {
+    if (!material || !(await findOwnedClass(material.class, schoolId))) {
       return res.status(404).json({ success: false, message: "Study material not found" });
     }
 
@@ -379,11 +486,13 @@ exports.deleteStudyMaterialFile = async (req, res) => {
 
 // 5. Delete Full Study Material (Teacher)
 exports.deleteStudyMaterial = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
 
     const material = await StudyMaterial.findById(id);
-    if (!material) {
+    if (!material || !(await findOwnedClass(material.class, schoolId))) {
       return res.status(404).json({ success: false, message: "Study material not found" });
     }
 
@@ -410,11 +519,13 @@ exports.deleteStudyMaterial = async (req, res) => {
 
 // 6. Get Student's Study Materials (Student Portal POV)
 exports.getStudentStudyMaterials = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     let classId;
 
     if (req.user.role === "student") {
-      const student = await Student.findById(req.user.refId);
+      const student = await Student.findOne({ _id: req.user.refId, schoolId });
       if (!student || !student.personalInfo?.class) {
         return res.status(400).json({ success: false, message: "Student record or class assignment not found" });
       }
@@ -425,15 +536,22 @@ exports.getStudentStudyMaterials = async (req, res) => {
       if (!classId) {
         return res.status(400).json({ success: false, message: "Class ID is required" });
       }
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
     }
 
     const { subjectId } = req.query;
+    if (subjectId && !(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
+    }
+
     const filter = { class: classId, visibleToStudents: true };
 
     if (subjectId) filter.subject = subjectId;
 
     const materials = await StudyMaterial.find(filter)
-      .populate("subject", "subjectName subjectCode")
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
       .sort({ createdAt: -1 });
 
     res.status(200).json({

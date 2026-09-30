@@ -4,11 +4,19 @@ const { Schema } = mongoose;
 
 const superadminLandingSchema = new Schema(
   {
+    // Tenant ownership. Assigned server-side; never accepted from the client.
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+      unique: true,
+      index: true,
+      immutable: true,
+    },
+    // Retained for backward schema compatibility; no longer unique or used for tenant identification.
     singletonKey: {
       type: String,
       default: "default",
-      unique: true,
-      index: true,
     },
     profile: {
       // GENERAL

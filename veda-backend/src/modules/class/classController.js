@@ -1,5 +1,6 @@
 
 
+const mongoose = require("mongoose");
 const Class = require("./classSchema");
 const Section = require("../section/sectionSchema");
 const Student = require('../student/studentModels');
@@ -14,8 +15,24 @@ const {
   sortClasses,
 } = require("./services/classAutomationService");
 
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
 // @route   POST /api/classes/
 exports.createClass = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   console.log("create class backend posted: ", req.body);
   const { name, sections, capacity } = req.body;
   try {
@@ -26,21 +43,25 @@ exports.createClass = async (req, res) => {
 
     // Validate Sections
     if (sections && sections.length > 0) {
-      const sectionFound = await Section.find({ _id: { $in: sections } });
+      const sectionFound = await Section.find({ _id: { $in: sections }, schoolId });
       if (sectionFound.length !== sections.length)
         return res.status(400).json({ success: false, message: 'Some sections not found' });
     }
 
     // Check if class already exists (exact or alias)
-    const existingClasses = await Class.find({});
+    const existingClasses = await Class.find({ schoolId });
     const isclassExist = existingClasses.find((c) =>
       matchesGrade(c.name, normalizedName)
     );
     if (isclassExist)
       return res.status(409).json({ success: false, message: 'Class already exists' });
 
-    const newClass = await Class.create({ name: normalizedName, sections, capacity });
-    const reply = await Class.findById(newClass._id).populate("sections", "name");
+    const newClass = await Class.create({ name: normalizedName, sections, capacity, schoolId });
+    const reply = await Class.findOne({ _id: newClass._id, schoolId }).populate({
+      path: "sections",
+      match: { schoolId },
+      select: "name",
+    });
 
     res.status(201).json({
       success: true,
@@ -113,9 +134,11 @@ exports.createClass = async (req, res) => {
 // @desc    Get all classes
 // @route   GET /api/classes
 exports.getClasses = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const classes = await Class.find({})
-      .populate("sections", "name capacity");
+    const classes = await Class.find({ schoolId })
+      .populate({ path: "sections", match: { schoolId }, select: "name capacity" });
 
     const assignedTeachers = await AssignTeacher.find()
       .populate("classTeacher", "personalInfo.name");
@@ -168,6 +191,8 @@ exports.getClasses = async (req, res) => {
 
 //  GET /api/classes/:id
 exports.getClassById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const {id}= req.params;
   try {
 
@@ -175,7 +200,10 @@ exports.getClassById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Invalid not found" });
     }
 
-    const classData = await Class.findById(id).select("name capacity");
+    const classData = await Class.findOne({ _id: id, schoolId }).select("name capacity");
+    if (!classData) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
     const assignTeacherDocs = await AssignTeacher.find({class:id})
         .populate("classTeacher", "personalInfo.name")
         .populate("section", "name capacity"); 
@@ -199,6 +227,8 @@ exports.getClassById = async (req, res) => {
 };
 
 exports.getClassByIdAndSection = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { classId, sectionId } = req.params;
 
   try {
@@ -207,12 +237,16 @@ exports.getClassByIdAndSection = async (req, res) => {
     }
 
     // Get class info
-    const classname = await Class.findById(classId).select("name capacity");
-    const sectionName = await Section.findById(sectionId).select("name capacity");
+    const classname = await Class.findOne({ _id: classId, schoolId }).select("name capacity");
+    if (!classname) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+    const sectionName = await Section.findOne({ _id: sectionId, schoolId }).select("name capacity");
     // Students of this class + section
     const students = await Student.find({
       "personalInfo.class": classId,
-      "personalInfo.section": sectionId
+      "personalInfo.section": sectionId,
+      schoolId,
     }).select("personalInfo.rollNo personalInfo.name personalInfo.gender");
 
     // Timetable for this class + section
@@ -226,15 +260,15 @@ exports.getClassByIdAndSection = async (req, res) => {
 
   // timetableWithPeriods se hi kis subject ka konsa teacher hai map ho jayega in the frontend bro 
     const timetableWithPeriods = timetableDocs
-    .sort((a, b) => a.timeFrom.localeCompare(b.timeFrom)) // sorted by time
-    .map((item, index) => ({
-      period: index + 1,
-      day: item.day,
-      timeFrom: item.timeFrom,
-      timeTo: item.timeTo,
-      subject: item.subject ? item.subject.subjectName : null,
-      teacher: item.teacher ? item.teacher.personalInfo.name : null,
-    }));
+      .sort((a, b) => a.timeFrom.localeCompare(b.timeFrom)) // sorted by time
+      .map((item, index) => ({
+        period: index + 1,
+        day: item.day,
+        timeFrom: item.timeFrom,
+        timeTo: item.timeTo,
+        subject: item.subject ? item.subject.subjectName : null,
+        teacher: item.teacher ? item.teacher.personalInfo.name : null,
+      }));
 const assignedTeacher = await AssignTeacher.findOne({
   class: classId,
   section: sectionId,
@@ -270,13 +304,15 @@ const assignedTeacher = await AssignTeacher.findOne({
 
 //PUT /api/classes/:id
 exports.updateClass = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const {id} = req.params;
     const {name, sections, capacity} = req.body;
 
     // Validate sections if provided
     if(sections && sections.length > 0){
-      const sectionFound = await Section.find({_id:{$in:sections}});
+      const sectionFound = await Section.find({_id:{$in:sections}, schoolId});
       if(sectionFound.length !== sections.length) 
         return res.status(400).json({ success: false, message: 'Some sections not found' });
     }
@@ -286,7 +322,7 @@ exports.updateClass = async (req, res) => {
     if (sections !== undefined) updatePayload.sections = sections;
     if (capacity !== undefined) updatePayload.capacity = capacity;
 
-    const updatedClass = await Class.findByIdAndUpdate(id, updatePayload, {
+    const updatedClass = await Class.findOneAndUpdate({ _id: id, schoolId }, updatePayload, {
       new: true,
       runValidators: true,
     });
@@ -295,7 +331,11 @@ exports.updateClass = async (req, res) => {
       return res.status(404).json({ success: false, message: "Class not found" });
     }
 
-    const reply = await Class.findById(updatedClass._id).populate("sections", "name");
+    const reply = await Class.findOne({ _id: updatedClass._id, schoolId }).populate({
+      path: "sections",
+      match: { schoolId },
+      select: "name",
+    });
 
     res.status(200).json({
       success: true,
@@ -310,8 +350,10 @@ exports.updateClass = async (req, res) => {
 
 //DELETE /api/classes/:id
 exports.deleteClass = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const deletedClass = await Class.findByIdAndDelete(req.params.id);
+    const deletedClass = await Class.findOneAndDelete({ _id: req.params.id, schoolId });
 
     if (!deletedClass) {
       return res.status(404).json({ success: false, message: "Class not found" });
@@ -325,4 +367,3 @@ exports.deleteClass = async (req, res) => {
     res.status(500).json({ success: false, message: "Delete failed", error: err.message });
   }
 };
-

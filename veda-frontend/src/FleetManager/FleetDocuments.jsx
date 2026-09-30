@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import {
   FiUpload,
@@ -38,8 +38,8 @@ export default function FleetDocuments() {
     try {
       setLoading(true);
       const [vRes, dRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/documents`)
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/documents`)
       ]);
 
       const mappedVehicles = vRes.data.map(v => {
@@ -82,7 +82,7 @@ export default function FleetDocuments() {
         fileUrl: URL.createObjectURL(file) // Mock URL as per implementation
       };
 
-      await axios.post(`${config.API_BASE_URL}/transport/documents`, payload);
+      await api.post(`${config.API_BASE_URL}/transport/documents`, payload);
       fetchData();
     } catch (error) {
       console.error("Error uploading document:", error);
@@ -97,7 +97,7 @@ export default function FleetDocuments() {
 
     if (window.confirm("Delete this document?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/documents/${doc.id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/documents/${doc.id}`);
         fetchData();
       } catch (error) {
         console.error("Error deleting document:", error);

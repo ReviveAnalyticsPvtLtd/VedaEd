@@ -3,8 +3,7 @@ import Select from "react-select";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { useNavigate , Link} from "react-router-dom";
-import config from "../../config";
-import api from "../../services/apiClient";
+import api, { authFetch } from "../../services/apiClient";
 import Pagination from "../../components/common/Pagination";
 
 const AssignClassTeacher = () => {
@@ -32,7 +31,7 @@ const AssignClassTeacher = () => {
     try {
 
       // Classes fetch
-      const classRes = await fetch(`${config.API_BASE_URL}/classes`);
+      const classRes = await authFetch(`/classes`);
       const classData = await classRes.json();
 
       if (classData?.success && Array.isArray(classData.data)) {
@@ -75,7 +74,7 @@ const AssignClassTeacher = () => {
       setSelectedSection("");
       return;
     }
-    fetch(`${config.API_BASE_URL}/sections?classId=${selectedClass}`)
+    authFetch(`/sections?classId=${selectedClass}`)
       .then((res) => res.json())
       .then((sectionData) => {
         if (
@@ -119,7 +118,7 @@ if (assignedClassTeachers.includes(classTeacher)) {
   alert("This teacher is already assigned as a Class Teacher.");
   return;
 }
-    fetch(`${config.API_BASE_URL}/assignTeachers/`, {
+    authFetch(`/assignTeachers/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -147,7 +146,7 @@ if (assignedClassTeachers.includes(classTeacher)) {
   
 
   const fetchRecords = () => {
-    fetch(`${config.API_BASE_URL}/assignTeachers/`)
+    authFetch(`/assignTeachers/`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -184,7 +183,7 @@ if (assignedClassTeachers.includes(classTeacher)) {
     setEditTeachers(originalData.teachers.map((t) => t._id));
     setEditClassTeacher(originalData.classTeacher._id);
 
-    fetch(`${config.API_BASE_URL}/sections?classId=${originalData.class._id}`)
+    authFetch(`/sections?classId=${originalData.class._id}`)
       .then((res) => res.json())
       .then((sectionData) => {
         if (sectionData && sectionData.success && Array.isArray(sectionData.data)) {
@@ -216,7 +215,7 @@ if (alreadyAssigned) {
   alert("This teacher is already assigned as a Class Teacher.");
   return;
 }
-    fetch(`${config.API_BASE_URL}/assignTeachers/${editingRecord._id}`, {
+    authFetch(`/assignTeachers/${editingRecord._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -244,7 +243,7 @@ if (alreadyAssigned) {
       const deleteId = String(
         record.id || (record.originalData && record.originalData._id)
       );
-      fetch(`${config.API_BASE_URL}/assignTeachers/${deleteId}`, {
+      authFetch(`/assignTeachers/${deleteId}`, {
         method: "DELETE",
       })
         .then((res) => res.json())
@@ -411,7 +410,7 @@ const paginatedRecords = records.slice(
               setEditSection("");
               setEditSections([]);
               if (e.target.value) {
-                fetch(`${config.API_BASE_URL}/sections?classId=${e.target.value}`)
+                authFetch(`/sections?classId=${e.target.value}`)
                   .then((res) => res.json())
                   .then((sectionData) => {
                     if (sectionData && sectionData.success && Array.isArray(sectionData.data)) {

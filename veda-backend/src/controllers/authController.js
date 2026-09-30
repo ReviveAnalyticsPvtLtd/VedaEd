@@ -17,6 +17,112 @@ const {
 
 const PASSWORD_MIN_LENGTH = 8;
 
+/**
+ * Sanitises one component of a synthesised login key.
+ */
+const sanitizeLoginPart = (value) =>
+  String(value == null ? "" : value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+/**
+ * Builds a deterministic, collision-proof login key for a person who signs in
+ * with an ID rather than an email address.
+ *
+ * User.email is required and uniquely indexed, and the just-in-time paths used
+ * to fill it from whichever field happened to be populated — contactInfo.email,
+ * then personalInfo.username, then the ID. Two students with no contactInfo and
+ * the same placeholder username therefore produced the same value and the
+ * second insert died with E11000 duplicate key ... index: email_1.
+ *
+ * The school is part of the key deliberately. stdId, parentId and staffId are
+ * each unique only WITHIN a school — the indexes are compound, e.g.
+ * schoolId_1_personalInfo.stdId_1 — and the live data proves the point:
+ * STD-2026-0001 currently exists under six different schools. Building the key
+ * from the ID alone would merely move the collision from within a school to
+ * between schools. The (school, identifier) pair is exactly the key the database
+ * already enforces as unique.
+ *
+ * The .invalid TLD is reserved by RFC 2606 and can never be registered, so a
+ * synthetic key can never collide with somebody's real mailbox.
+ */
+const syntheticLoginEmail = (kind, schoolId, seed) =>
+  `${kind}-${sanitizeLoginPart(schoolId)}-${sanitizeLoginPart(seed)}@${kind}s.invalid`;
+
+/**
+ * Chooses the login key for a just-in-time user: a genuine address when one is
+ * present and genuinely unused, otherwise a deterministic synthetic key.
+ *
+ * A real address is still preferred so the users list stays readable, but it is
+ * verified as free before use — addresses are unique per school, not per
+ * person, so two students can legitimately share one.
+ */
+const resolveJitLoginEmail = async ({ preferredEmail, kind, schoolId, seed }) => {
+  const preferred = String(preferredEmail == null ? "" : preferredEmail).trim().toLowerCase();
+  if (preferred) {
+    const taken = await User.findOne({ email: preferred }).select("_id").lean();
+    if (!taken) return preferred;
+  }
+  return syntheticLoginEmail(kind, schoolId, seed);
+};
+
+/**
+ * Resolves a login id to at most one record, or refuses to choose.
+ *
+ * Neither personalInfo.stdId nor personalInfo.username is globally unique. Both
+ * are unique only WITHIN a school, enforced by compound indexes
+ * (schoolId_1_personalInfo.stdId_1 and schoolId_1_personalInfo.username_1).
+ * The live data proves this is not theoretical: STD-2026-0001 exists under six
+ * schools and the username "aara" under five.
+ *
+ * The login request carries no tenant context whatsoever — the body is only
+ * { email|employeeId, password, role } — and /api/auth/login is the single
+ * global endpoint, with no school slug, host or subdomain middleware anywhere in
+ * the app. So there is no legitimate, non-guessable way to tell the schools
+ * apart, and this function must not invent one.
+ *
+ * findOne() would return whichever document the query planner produced first.
+ * That is a cross-tenant hole, not a cosmetic bug: the just-in-time path below
+ * faithfully stamps User.schoolId from the resolved record, so picking the
+ * wrong Student hands the caller a working account in the wrong school. The JIT
+ * tenant logic cannot repair this after the fact.
+ *
+ * So: no match -> null (caller falls through to other lookups). One school ->
+ * safe to proceed. More than one school -> fail closed.
+ *
+ * The caller must still apply its own no-school guard; a single unambiguous
+ * match with no schoolId is returned as-is and rejected there.
+ */
+const resolveUnambiguousBySchool = async (Model, searchRegex) => {
+  const matches = await Model.find({
+    $or: [
+      { "personalInfo.stdId": searchRegex },
+      { "personalInfo.username": searchRegex },
+    ],
+  })
+    // Must cover everything the caller reads downstream: the just-in-time path
+    // needs schoolId, the password and the real contact address. Projecting
+    // these away would silently fall back to default123 and a synthetic key.
+    .select(
+      "schoolId personalInfo.stdId personalInfo.username personalInfo.password personalInfo.contactDetails"
+    )
+    .lean();
+
+  if (matches.length === 0) return { record: null };
+
+  const distinctSchools = new Set(
+    matches.map((m) => (m.schoolId ? String(m.schoolId) : ""))
+  );
+
+  if (distinctSchools.size > 1) {
+    return { ambiguous: true, schoolCount: distinctSchools.size };
+  }
+
+  return { record: matches[0] };
+};
+
 exports.login = async (req, res) => {
   try {
 
@@ -69,13 +175,41 @@ exports.login = async (req, res) => {
         // --- STUDENT FALLBACK ---
         // Escape special regex characters in loginId and construct a case-insensitive exact match regex
         const searchRegex = new RegExp(`^${loginId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i');
-        let student = await Student.findOne({
-          $or: [{ "personalInfo.stdId": searchRegex }, { "personalInfo.username": searchRegex }]
-        });
+        let student = null;
+        let ambiguousSchool = null;
 
-        if (!student) {
-          student = await AdmissionApplication.findOne({
-            $or: [{ "personalInfo.stdId": searchRegex }, { "personalInfo.username": searchRegex }]
+        // stdId and username are each unique only within a school, so a single
+        // findOne() could resolve a record belonging to a different school than
+        // the one the caller meant. Refuse when the id is not tenant-unique.
+        const studentResolution = await resolveUnambiguousBySchool(Student, searchRegex);
+        if (studentResolution.ambiguous) {
+          ambiguousSchool = studentResolution;
+        } else {
+          student = studentResolution.record;
+        }
+
+        if (!student && !ambiguousSchool) {
+          const applicationResolution = await resolveUnambiguousBySchool(
+            AdmissionApplication,
+            searchRegex
+          );
+          if (applicationResolution.ambiguous) {
+            ambiguousSchool = applicationResolution;
+          } else {
+            student = applicationResolution.record;
+          }
+        }
+
+        if (ambiguousSchool) {
+          // Fail closed. Guessing a tenant here would issue a working login in
+          // the wrong school. The count is reported so the failure is
+          // diagnosable, but never the school ids themselves.
+          console.error(
+            `Refusing ambiguous student login for ${loginId}: matches ${ambiguousSchool.schoolCount} schools`
+          );
+          return res.status(409).json({
+            message:
+              "This login ID is not unique - it is used by students in more than one school. Log in with your email address, or use your school's own sign-in page.",
           });
         }
 
@@ -85,16 +219,40 @@ exports.login = async (req, res) => {
             user = await User.findOne({ refId: student._id, roleId: studentRole._id }).populate("roleId");
             
             if (!user) {
-              console.log(`Just-in-time student user creation: ${loginId}`);
-              user = await User.create({
-                name: student.personalInfo?.name || "Student",
-                email: student.contactInfo?.email || student.personalInfo?.username || student.personalInfo?.stdId || loginId,
-                password: student.personalInfo?.password || "default123",
-                roleId: studentRole._id,
-                refId: student._id,
-                status: 'active'
-              });
-              user.roleId = studentRole;
+              // A login account with no school cannot reach any school data —
+              // requireSchoolContext refuses every request for it. Refuse to
+              // mint one rather than create an account that is dead on arrival.
+              const studentSchoolId = student.schoolId;
+              if (!studentSchoolId) {
+                console.error(
+                  `Refusing just-in-time student user creation for ${loginId}: source record has no schoolId`
+                );
+              } else {
+                console.log(`Just-in-time student user creation: ${loginId}`);
+                const loginEmail = await resolveJitLoginEmail({
+                  // The Student schema has never had a `contactInfo` field, so
+                  // the old `contactInfo?.email` read was permanently undefined
+                  // and every login fell through to the placeholder username.
+                  // The real address lives at personalInfo.contactDetails.email.
+                  preferredEmail: student.personalInfo?.contactDetails?.email,
+                  kind: "student",
+                  schoolId: studentSchoolId,
+                  seed:
+                    student.personalInfo?.stdId ||
+                    student.personalInfo?.username ||
+                    student._id,
+                });
+                user = await User.create({
+                  name: student.personalInfo?.name || "Student",
+                  email: loginEmail,
+                  password: student.personalInfo?.password || "default123",
+                  roleId: studentRole._id,
+                  refId: student._id,
+                  schoolId: studentSchoolId,
+                  status: 'active'
+                });
+                user.roleId = studentRole;
+              }
             }
           }
         }
@@ -131,33 +289,58 @@ exports.login = async (req, res) => {
             user = await User.findOne({ refId, roleId: parentRole._id }).populate("roleId");
 
             if (!user) {
-              console.log(`Just-in-time parent user creation: ${loginId}`);
-              const appParents = application?.parents;
-              let admissionAccountName = null;
-              if (appParents) {
-                const holder = normalizeParentIdAccountHolder(
-                  appParents.parentIdAccountHolder,
-                  appParents
+              // refId may point at a Parent or at an AdmissionApplication. Only
+              // those two relationships are accepted as evidence of ownership —
+              // never a name, address or matching identifier. When neither
+              // record carries a school the account is refused rather than
+              // created without one.
+              const parentSchoolId = parent?.schoolId || application?.schoolId;
+              if (!parentSchoolId) {
+                console.error(
+                  `Refusing just-in-time parent user creation for ${loginId}: source record has no schoolId`
                 );
-                const person = getPersonForHolder(appParents, holder);
-                admissionAccountName =
-                  (person.name && String(person.name).trim()) || null;
+              } else {
+                console.log(`Just-in-time parent user creation: ${loginId}`);
+                const appParents = application?.parents;
+                let admissionAccountName = null;
+                if (appParents) {
+                  const holder = normalizeParentIdAccountHolder(
+                    appParents.parentIdAccountHolder,
+                    appParents
+                  );
+                  const person = getPersonForHolder(appParents, holder);
+                  admissionAccountName =
+                    (person.name && String(person.name).trim()) || null;
+                }
+                // The identifier itself is kept as the login key when it is
+                // free, so parents keep signing in exactly as before; it is only
+                // replaced when another school already holds the same ID.
+                const loginEmail = await resolveJitLoginEmail({
+                  preferredEmail: loginId,
+                  kind: "parent",
+                  schoolId: parentSchoolId,
+                  seed:
+                    parent?.parentId ||
+                    application?.applicationId ||
+                    refId,
+                });
+                user = await User.create({
+                  name:
+                    parent?.name ||
+                    admissionAccountName ||
+                    application?.parents?.father?.name ||
+                    application?.parents?.mother?.name ||
+                    application?.parents?.guardian?.name ||
+                    "Parent",
+                  email: loginEmail,
+                  password: parent?.password || "default123",
+                  roleId: parentRole._id,
+                  refId: refId,
+                  schoolId: parentSchoolId,
+                  status: 'active'
+                });
+                user.roleId = parentRole;
               }
-              user = await User.create({
-                name:
-                  parent?.name ||
-                  admissionAccountName ||
-                  application?.parents?.father?.name ||
-                  application?.parents?.mother?.name ||
-                  application?.parents?.guardian?.name ||
-                  "Parent",
-                email: loginId,
-                password: parent?.password || "default123",
-                roleId: parentRole._id,
-                refId: refId,
-                status: 'active'
-              });
-              user.roleId = parentRole;
             }
           }
         }
@@ -192,16 +375,33 @@ exports.login = async (req, res) => {
             user = await User.findOne({ refId: staff._id, roleId: staffRole._id }).populate("roleId");
 
             if (!user) {
-              console.log(`Just-in-time staff user creation: ${loginId}`);
-              user = await User.create({
-                name: staff.personalInfo?.name || "Staff",
-                email: staff.personalInfo?.email || staff.personalInfo?.username || loginId,
-                password: staff.personalInfo?.password || "default123",
-                roleId: staffRole._id,
-                refId: staff._id,
-                status: "active"
-              });
-              user.roleId = staffRole;
+              const staffSchoolId = staff.schoolId;
+              if (!staffSchoolId) {
+                console.error(
+                  `Refusing just-in-time staff user creation for ${loginId}: source record has no schoolId`
+                );
+              } else {
+                console.log(`Just-in-time staff user creation: ${loginId}`);
+                const loginEmail = await resolveJitLoginEmail({
+                  preferredEmail: staff.personalInfo?.email,
+                  kind: "staff",
+                  schoolId: staffSchoolId,
+                  seed:
+                    staff.personalInfo?.staffId ||
+                    staff.personalInfo?.username ||
+                    staff._id,
+                });
+                user = await User.create({
+                  name: staff.personalInfo?.name || "Staff",
+                  email: loginEmail,
+                  password: staff.personalInfo?.password || "default123",
+                  roleId: staffRole._id,
+                  refId: staff._id,
+                  schoolId: staffSchoolId,
+                  status: 'active'
+                });
+                user.roleId = staffRole;
+              }
             }
           }
         }
@@ -294,6 +494,9 @@ exports.login = async (req, res) => {
         userId: user._id,
         role: roleName,
         refId: user.refId,
+        // Informational only. authMiddleware re-resolves schoolId from the user
+        // document on every request, so the token is never the authority.
+        schoolId: user.schoolId || null,
         sessionId,
       },
       process.env.JWT_SECRET || "fallback_secret_key",
@@ -333,6 +536,9 @@ exports.login = async (req, res) => {
         email: user.email,
         role: roleName,
         refId: user.refId,
+        // Informational only, so the client can tell which school the session
+        // belongs to. The backend never treats this as authorization.
+        schoolId: user.schoolId || null,
         authProvider: user.authProvider,
         ...(platformAdminProfile || {}),
       },

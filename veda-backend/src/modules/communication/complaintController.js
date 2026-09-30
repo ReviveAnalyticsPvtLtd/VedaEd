@@ -1,16 +1,26 @@
+const mongoose = require('mongoose');
 const Complaint = require('./complaintModel');
-const CommunicationLog = require('./communicationLogModel');
-const Student = require('../student/studentModels');
-const Teacher = require('../teacher/teacherModel');
-const Staff = require('../staff/staffModels');
 const Parent = require('../parents/parentModel');
+const {
+  schoolId,
+  rejectForeignActor,
+  rejectForeignRecipients,
+  findPartyModel,
+  resolveActor,
+  logAction,
+  labelFor,
+} = require('./communicationTenantScope');
+
+const COMPLAINANT_SELECT = 'personalInfo.name personalInfo.email personalInfo.fullName name email';
+
+/** Complaint statuses the write routes accept. */
+const STATUSES = ['submitted', 'under_review', 'in_progress', 'resolved', 'closed', 'rejected'];
 
 // Create a new complaint
 exports.createComplaint = async (req, res) => {
   try {
+    const school = schoolId(req);
     const {
-      complainant,
-      complainantModel,
       subject,
       description,
       category,
@@ -21,7 +31,6 @@ exports.createComplaint = async (req, res) => {
       dueDate,
       complaintAgainst,
       targetUser,
-      targetUserModel,
       sendTo,
       panel,
       status
@@ -35,20 +44,20 @@ exports.createComplaint = async (req, res) => {
       });
     }
 
-    // Check if complainant exists (if not anonymous)
-    if (!isAnonymous && complainant && complainantModel) {
-      const complainantExists = await validateUser(complainant, complainantModel);
-      if (!complainantExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'Complainant not found'
-        });
-      }
-    }
+    // A complaint is about somebody, so that somebody must be in this school.
+    if (await rejectForeignRecipients(res, [targetUser].filter(Boolean), school)) return;
+    if (await rejectForeignRecipients(res, [sendTo].filter(Boolean), school)) return;
+
+    // The complainant is the authenticated session, not a body field. The old
+    // code accepted any complainant id, so a caller could file a complaint in
+    // another school's name.
+    const actor = await resolveActor(req);
 
     const complaintData = {
-      complainant: isAnonymous ? null : complainant,
-      complainantModel: isAnonymous ? null : complainantModel,
+      // Authoritative tenant, derived from the session.
+      schoolId: school,
+      complainant: isAnonymous ? null : actor.id,
+      complainantModel: isAnonymous ? null : actor.model,
       subject,
       description,
       category,
@@ -60,7 +69,7 @@ exports.createComplaint = async (req, res) => {
       status: status || 'Pending',
       complaintAgainst,
       targetUser,
-      targetUserModel,
+      targetUserModel: targetUser ? labelFor((await findPartyModel(targetUser)).model) : undefined,
       sendTo,
       panel
     };
@@ -68,10 +77,8 @@ exports.createComplaint = async (req, res) => {
     const complaint = await Complaint.create(complaintData);
 
     // Log the action
-    if (!isAnonymous && complainant && complainantModel) {
-      await CommunicationLog.create({
-        user: complainant,
-        userModel: complainantModel,
+    if (!isAnonymous) {
+      await logAction(req, {
         action: 'complaint_submitted',
         target: complaint._id,
         targetModel: 'Complaint',
@@ -86,9 +93,10 @@ exports.createComplaint = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating complaint:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -96,9 +104,11 @@ exports.createComplaint = async (req, res) => {
 // Get all complaints
 exports.getComplaints = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { page = 1, limit = 10, status, category, priority, assignedTo, targetUser } = req.query;
 
-    const query = {};
+    // Tenant scope first, so no filter can widen it.
+    const query = { schoolId: school };
 
     if (status) query.status = status;
     if (category) query.category = category;
@@ -107,9 +117,9 @@ exports.getComplaints = async (req, res) => {
     if (targetUser) query.targetUser = targetUser;
 
     const complaints = await Complaint.find(query)
-      .populate('complainant', 'personalInfo.name personalInfo.email personalInfo.fullName')
-      .populate('assignedTo', 'personalInfo.name personalInfo.email personalInfo.fullName')
-      .populate('targetUser', 'personalInfo.name personalInfo.email personalInfo.fullName')
+      .populate('complainant', COMPLAINANT_SELECT)
+      .populate('assignedTo', COMPLAINANT_SELECT)
+      .populate('targetUser', COMPLAINANT_SELECT)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -127,9 +137,10 @@ exports.getComplaints = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching complaints:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -137,35 +148,39 @@ exports.getComplaints = async (req, res) => {
 // Get complaints for a specific user
 exports.getUserComplaints = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { userId, userModel } = req.params;
     const { page = 1, limit = 10, status } = req.query;
 
-    let query;
+    // A complaint history is the caller's own.
+    if (rejectForeignActor(req, res, userId)) return;
 
-    if (String(userModel).toLowerCase() === "parent") {
-      const parent = await Parent.findById(userId).select("children");
+    const actor = await resolveActor(req);
+    const conditions = [{ complainant: actor.id, complainantModel: labelFor(actor.model) }];
+
+    if (String(userModel).toLowerCase() === 'parent') {
+      // A parent also sees complaints raised about their own children. The
+      // parent record itself must belong to the caller's school.
+      const parent = await Parent.findOne({ _id: actor.id, schoolId: school }).select('children').lean();
       const childStudentIds = parent && parent.children ? parent.children : [];
 
-      const conditions = [{ complainant: userId, complainantModel: userModel }];
       if (childStudentIds.length > 0) {
         conditions.push({
           targetUser: { $in: childStudentIds },
-          targetUserModel: "Student"
+          targetUserModel: 'Student'
         });
       }
-      if (status) {
-        conditions.forEach((c) => { c.status = status; });
-      }
-      query = { $or: conditions };
-    } else {
-      query = { complainant: userId, complainantModel: userModel };
-      if (status) query.status = status;
     }
 
+    if (status) conditions.forEach((c) => { c.status = status; });
+
+    // Tenant scope is ANDed with the ownership conditions, never ORed away.
+    const query = { schoolId: school, $or: conditions };
+
     const complaints = await Complaint.find(query)
-      .populate('complainant', 'personalInfo.name personalInfo.email personalInfo.fullName')
-      .populate('assignedTo', 'personalInfo.name personalInfo.email personalInfo.fullName')
-      .populate('targetUser', 'personalInfo.name personalInfo.email personalInfo.fullName')
+      .populate('complainant', COMPLAINANT_SELECT)
+      .populate('assignedTo', COMPLAINANT_SELECT)
+      .populate('targetUser', COMPLAINANT_SELECT)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -183,9 +198,10 @@ exports.getUserComplaints = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching user complaints:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -193,14 +209,15 @@ exports.getUserComplaints = async (req, res) => {
 // Get a specific complaint
 exports.getComplaint = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
-    const { userId, userModel } = req.query;
 
-    const complaint = await Complaint.findById(complaintId)
-      .populate('complainant', 'personalInfo.name personalInfo.email')
-      .populate('assignedTo', 'personalInfo.name personalInfo.email')
-      .populate('responses.responder', 'personalInfo.name personalInfo.email')
-      .populate('resolution.resolvedBy', 'personalInfo.name personalInfo.email');
+    // Tenant-scoped direct id access: a foreign complaint simply does not match.
+    const complaint = await Complaint.findOne({ _id: complaintId, schoolId: school })
+      .populate('complainant', COMPLAINANT_SELECT)
+      .populate('assignedTo', COMPLAINANT_SELECT)
+      .populate('responses.responder', COMPLAINANT_SELECT)
+      .populate('resolution.resolvedBy', COMPLAINANT_SELECT);
 
     if (!complaint) {
       return res.status(404).json({
@@ -209,16 +226,12 @@ exports.getComplaint = async (req, res) => {
       });
     }
 
-    // Log view if user is provided
-    if (userId && userModel) {
-      await CommunicationLog.create({
-        user: userId,
-        userModel: userModel,
-        action: 'complaint_viewed',
-        target: complaint._id,
-        targetModel: 'Complaint'
-      });
-    }
+    // The viewer is the session, not a query parameter.
+    await logAction(req, {
+      action: 'complaint_viewed',
+      target: complaint._id,
+      targetModel: 'Complaint'
+    });
 
     res.status(200).json({
       success: true,
@@ -226,9 +239,10 @@ exports.getComplaint = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching complaint:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -236,10 +250,18 @@ exports.getComplaint = async (req, res) => {
 // Update complaint status
 exports.updateComplaintStatus = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
-    const { status, userId, userModel } = req.body;
+    const { status } = req.body;
 
-    const complaint = await Complaint.findById(complaintId);
+    if (!STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `status must be one of: ${STATUSES.join(', ')}`
+      });
+    }
+
+    const complaint = await Complaint.findOne({ _id: complaintId, schoolId: school });
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -257,9 +279,10 @@ exports.updateComplaintStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating complaint status:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -267,10 +290,11 @@ exports.updateComplaintStatus = async (req, res) => {
 // Assign complaint to staff
 exports.assignComplaint = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
-    const { assignedTo, assignedToModel, userId, userModel } = req.body;
+    const { assignedTo } = req.body;
 
-    const complaint = await Complaint.findById(complaintId);
+    const complaint = await Complaint.findOne({ _id: complaintId, schoolId: school });
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -278,13 +302,12 @@ exports.assignComplaint = async (req, res) => {
       });
     }
 
-    // Check if assigned user exists
-    const assignedUserExists = await validateUser(assignedTo, assignedToModel);
-    if (!assignedUserExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Assigned user not found'
-      });
+    // The assignee must be a real party in this school.
+    if (await rejectForeignRecipients(res, [assignedTo].filter(Boolean), school)) return;
+
+    const assignedToModel = labelFor((await findPartyModel(assignedTo)).model);
+    if (!assignedToModel) {
+      return res.status(400).json({ success: false, message: 'Assigned user not found' });
     }
 
     complaint.assignedTo = assignedTo;
@@ -299,9 +322,10 @@ exports.assignComplaint = async (req, res) => {
     });
   } catch (error) {
     console.error('Error assigning complaint:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -309,10 +333,15 @@ exports.assignComplaint = async (req, res) => {
 // Add response to complaint
 exports.addResponse = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
-    const { responder, responderModel, response, isInternal, userId, userModel } = req.body;
+    const { response, isInternal } = req.body;
 
-    const complaint = await Complaint.findById(complaintId);
+    if (!response) {
+      return res.status(400).json({ success: false, message: 'response is required' });
+    }
+
+    const complaint = await Complaint.findOne({ _id: complaintId, schoolId: school });
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -320,37 +349,24 @@ exports.addResponse = async (req, res) => {
       });
     }
 
-    // Check if responder exists
-    const responderExists = await validateUser(responder, responderModel);
-    if (!responderExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Responder not found'
-      });
-    }
+    // The responder is the authenticated session, never a body field.
+    const actor = await resolveActor(req);
 
-    const responseData = {
-      responder,
-      responderModel,
+    complaint.responses.push({
+      responder: actor.id,
+      responderModel: labelFor(actor.model),
       response,
       isInternal: isInternal || false,
       responseDate: new Date()
-    };
-
-    complaint.responses.push(responseData);
+    });
     complaint.status = 'in_progress';
     await complaint.save();
 
-    // Log the action
-    if (userId && userModel) {
-      await CommunicationLog.create({
-        user: userId,
-        userModel: userModel,
-        action: 'complaint_responded',
-        target: complaint._id,
-        targetModel: 'Complaint'
-      });
-    }
+    await logAction(req, {
+      action: 'complaint_responded',
+      target: complaint._id,
+      targetModel: 'Complaint'
+    });
 
     res.status(200).json({
       success: true,
@@ -359,9 +375,10 @@ exports.addResponse = async (req, res) => {
     });
   } catch (error) {
     console.error('Error adding response:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -369,10 +386,11 @@ exports.addResponse = async (req, res) => {
 // Resolve complaint
 exports.resolveComplaint = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
-    const { description, resolvedBy, resolvedByModel, resolutionType, userId, userModel } = req.body;
+    const { description, resolutionType } = req.body;
 
-    const complaint = await Complaint.findById(complaintId);
+    const complaint = await Complaint.findOne({ _id: complaintId, schoolId: school });
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -380,10 +398,13 @@ exports.resolveComplaint = async (req, res) => {
       });
     }
 
+    // The resolver is the authenticated session, never a body field.
+    const actor = await resolveActor(req);
+
     complaint.resolution = {
       description,
-      resolvedBy,
-      resolvedByModel,
+      resolvedBy: actor.id,
+      resolvedByModel: labelFor(actor.model),
       resolvedAt: new Date(),
       resolutionType: resolutionType || 'resolved'
     };
@@ -397,9 +418,10 @@ exports.resolveComplaint = async (req, res) => {
     });
   } catch (error) {
     console.error('Error resolving complaint:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -407,9 +429,11 @@ exports.resolveComplaint = async (req, res) => {
 // Delete complaint
 exports.deleteComplaint = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { complaintId } = req.params;
 
-    const complaint = await Complaint.findById(complaintId);
+    // Scoped delete: a foreign complaintId matches nothing and is untouched.
+    const complaint = await Complaint.findOneAndDelete({ _id: complaintId, schoolId: school });
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -417,17 +441,16 @@ exports.deleteComplaint = async (req, res) => {
       });
     }
 
-    await Complaint.findByIdAndDelete(complaintId);
-
     res.status(200).json({
       success: true,
       message: 'Complaint deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting complaint:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -435,24 +458,31 @@ exports.deleteComplaint = async (req, res) => {
 // Get complaint statistics
 exports.getComplaintStats = async (req, res) => {
   try {
-    const totalComplaints = await Complaint.countDocuments();
-    const submittedComplaints = await Complaint.countDocuments({ status: 'submitted' });
-    const underReviewComplaints = await Complaint.countDocuments({ status: 'under_review' });
-    const inProgressComplaints = await Complaint.countDocuments({ status: 'in_progress' });
-    const resolvedComplaints = await Complaint.countDocuments({ status: 'resolved' });
+    const school = schoolId(req);
+    const scope = { schoolId: school };
 
-    // Complaints by category
+    const totalComplaints = await Complaint.countDocuments(scope);
+    const submittedComplaints = await Complaint.countDocuments({ ...scope, status: 'submitted' });
+    const underReviewComplaints = await Complaint.countDocuments({ ...scope, status: 'under_review' });
+    const inProgressComplaints = await Complaint.countDocuments({ ...scope, status: 'in_progress' });
+    const resolvedComplaints = await Complaint.countDocuments({ ...scope, status: 'resolved' });
+
+    // Aggregations carry the tenant $match so they cannot report global totals.
+    const schoolObjectId = new mongoose.Types.ObjectId(school);
+    const match = { $match: { schoolId: schoolObjectId } };
+
     const complaintsByCategory = await Complaint.aggregate([
+      match,
       { $group: { _id: '$category', count: { $sum: 1 } } }
     ]);
 
-    // Complaints by priority
     const complaintsByPriority = await Complaint.aggregate([
+      match,
       { $group: { _id: '$priority', count: { $sum: 1 } } }
     ]);
 
-    // Complaints by status
     const complaintsByStatus = await Complaint.aggregate([
+      match,
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
@@ -471,39 +501,10 @@ exports.getComplaintStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching complaint stats:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
-
-// Helper function to validate user existence
-async function validateUser(userId, userModel) {
-  try {
-    let user;
-    switch (userModel) {
-      case 'Student':
-        user = await Student.findById(userId);
-        break;
-      case 'Teacher':
-        // For teachers, we need to check both Teacher and Staff models
-        user = await Teacher.findById(userId).populate('personalInfo');
-        if (!user) {
-          user = await Staff.findById(userId);
-        }
-        break;
-      case 'Parent':
-        user = await Parent.findById(userId);
-        break;
-      case 'Admin':
-        user = await Staff.findById(userId);
-        break;
-      default:
-        return false;
-    }
-    return !!user;
-  } catch (error) {
-    return false;
-  }
-}

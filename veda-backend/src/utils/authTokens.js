@@ -19,6 +19,9 @@ const buildAccessToken = (user, sessionId) =>
       userId: user._id,
       role: user.roleId?.name || user.roleId,
       refId: user.refId,
+      // Informational only. authMiddleware re-resolves schoolId from the user
+      // document on every request, so the token is never the authority.
+      schoolId: user.schoolId || null,
       ...(sessionId ? { sessionId } : {}),
     },
     process.env.JWT_SECRET || "fallback_secret_key",

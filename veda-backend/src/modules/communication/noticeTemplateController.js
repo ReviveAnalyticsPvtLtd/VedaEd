@@ -1,7 +1,9 @@
 const NoticeTemplate = require('./noticeTemplateModel');
+const { schoolId } = require('./communicationTenantScope');
 
 exports.createNoticeTemplate = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { title, message } = req.body;
 
     if (!title || !message) {
@@ -12,6 +14,7 @@ exports.createNoticeTemplate = async (req, res) => {
     }
 
     const template = await NoticeTemplate.create({
+      schoolId: school,
       title: title.trim(),
       message: message.trim()
     });
@@ -23,16 +26,19 @@ exports.createNoticeTemplate = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating notice template:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
 
 exports.getNoticeTemplates = async (req, res) => {
   try {
-    const templates = await NoticeTemplate.find().sort({ createdAt: -1 });
+    const school = schoolId(req);
+
+    const templates = await NoticeTemplate.find({ schoolId: school }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -40,9 +46,10 @@ exports.getNoticeTemplates = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching notice templates:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -52,7 +59,9 @@ exports.updateNoticeTemplate = async (req, res) => {
     const { templateId } = req.params;
     const { title, message } = req.body;
 
-    const template = await NoticeTemplate.findById(templateId);
+    const school = schoolId(req);
+
+    const template = await NoticeTemplate.findOne({ _id: templateId, schoolId: school });
     if (!template) {
       return res.status(404).json({
         success: false,
@@ -79,9 +88,10 @@ exports.updateNoticeTemplate = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating notice template:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -90,7 +100,9 @@ exports.deleteNoticeTemplate = async (req, res) => {
   try {
     const { templateId } = req.params;
 
-    const template = await NoticeTemplate.findById(templateId);
+    const school = schoolId(req);
+
+    const template = await NoticeTemplate.findOne({ _id: templateId, schoolId: school });
     if (!template) {
       return res.status(404).json({
         success: false,
@@ -98,7 +110,7 @@ exports.deleteNoticeTemplate = async (req, res) => {
       });
     }
 
-    await NoticeTemplate.findByIdAndDelete(templateId);
+    await NoticeTemplate.findOneAndDelete({ _id: templateId, schoolId: school });
 
     res.status(200).json({
       success: true,
@@ -106,9 +118,10 @@ exports.deleteNoticeTemplate = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting notice template:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };

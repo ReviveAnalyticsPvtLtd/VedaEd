@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 
 export default function FleetFueling() {
@@ -24,8 +24,8 @@ export default function FleetFueling() {
     try {
       setLoading(true);
       const [vehRes, fuelRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/fueling`),
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/fueling`),
       ]);
 
       const fuelLogs = fuelRes.data;
@@ -55,7 +55,7 @@ export default function FleetFueling() {
     const amount = Number(form.litres) * Number(form.rate);
 
     try {
-      await axios.post(`${config.API_BASE_URL}/transport/fueling`, {
+      await api.post(`${config.API_BASE_URL}/transport/fueling`, {
         vehicleId,
         date: form.date,
         litres: Number(form.litres),
@@ -75,7 +75,7 @@ export default function FleetFueling() {
   const deleteFuelEntry = async (fuelId) => {
     if (!window.confirm("Delete record?")) return;
     try {
-      await axios.delete(`${config.API_BASE_URL}/transport/fueling/${fuelId}`);
+      await api.delete(`${config.API_BASE_URL}/transport/fueling/${fuelId}`);
       fetchData();
     } catch (error) {
       console.error("Error deleting fuel entry:", error);

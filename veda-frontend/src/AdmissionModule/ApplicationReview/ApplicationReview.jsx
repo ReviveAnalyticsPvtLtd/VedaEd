@@ -9,7 +9,7 @@ import {
   FiDownload,
   FiEye
 } from "react-icons/fi";
-import axios from "axios";
+import api from "../../services/apiClient";
 import ProfileAvatar from "../../components/ProfileAvatar";
 import config from "../../config";
 
@@ -218,7 +218,7 @@ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fetchApplication = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/admission/application/${id}`);
+      const res = await api.get(`${config.API_BASE_URL}/admission/application/${id}`);
       if (res.data.success) {
         const data = ensureParentIdAccountHolderOnApp(res.data.data);
         setApplication(data);
@@ -259,7 +259,7 @@ const handleDocumentUpload = async (file, type) => {
   form.append("type", type);
 
   try {
-    const res = await axios.post(
+    const res = await api.post(
       `${config.API_BASE_URL}/admission/application/${id}/upload`,
       form,
       { headers: { "Content-Type": "multipart/form-data" } }
@@ -287,7 +287,7 @@ const handleDocumentUpload = async (file, type) => {
 };
 const handleDeleteDocument = async (docId) => {
   try {
-    await axios.delete(
+    await api.delete(
       `${config.API_BASE_URL}/admission/application/${id}/document/${docId}`
     );
 
@@ -322,7 +322,7 @@ const handleDownload = async (doc) => {
   }
 
   try {
-    const response = await axios.get(fileUrl, { responseType: "blob" });
+    const response = await api.get(fileUrl, { responseType: "blob" });
     const blobUrl = window.URL.createObjectURL(response.data);
     const link = document.createElement("a");
     link.href = blobUrl;
@@ -392,7 +392,7 @@ const handleSave = async () => {
   if (Object.values(errors).some(e => e)) return;
 
   try {
-    await axios.put(
+    await api.put(
       `${config.API_BASE_URL}/admission/application/${id}`,
       formData
     );

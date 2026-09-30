@@ -3,6 +3,25 @@ const { Schema } = mongoose;
 
 const ComplaintSchema = new Schema(
   {
+    /**
+     * Authoritative tenant ownership. Assigned server-side from the
+     * authenticated session (req.user.schoolId) on creation and never
+     * accepted from the request body. Immutable so no later update path can
+     * move a record to another school.
+     *
+     * Legacy records were attributed by the read-only resolver in
+     * scripts/communication-ownership-backfill.js. A small, explicitly
+     * reported set of legacy documents has no provable owner and therefore no
+     * schoolId; they are quarantined (invisible to every school) rather than
+     * guessed at. See the migration report for the exact list.
+     */
+    schoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+      index: true,
+      immutable: true
+    },
     complainant: {
       type: mongoose.Schema.Types.ObjectId,
       refPath: 'complainantModel',
@@ -10,7 +29,7 @@ const ComplaintSchema = new Schema(
     },
     complainantModel: {
       type: String,
-      enum: ['Student', 'Teacher', 'Parent', 'Admin'],
+      enum: ['Student', 'Teacher', 'Parent', 'Admin', 'Staff'],
       required: true
     },
     subject: {

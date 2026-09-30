@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FiTrash2 } from "react-icons/fi";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../components/common/Pagination";
@@ -31,7 +31,7 @@ const [errors, setErrors] = useState({
     fetchVacancies();
     const loadClasses = async () => {
       try {
-        const res = await axios.get(`${config.API_BASE_URL}/classes`);
+        const res = await api.get(`${config.API_BASE_URL}/classes`);
         const classesData = res.data?.success && Array.isArray(res.data.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
         setClasses(classesData);
       } catch (err) {
@@ -45,7 +45,7 @@ const itemsPerPage = 10;
   const fetchVacancies = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/admission/vacancy`);
+      const res = await api.get(`${config.API_BASE_URL}/admission/vacancy`);
       if (res.data.success) {
         setVacancies(res.data.data);
       }
@@ -93,7 +93,7 @@ if (errors.totalSeats || errors.reservedSeats) {
         totalSeats: Number(form.totalSeats),
         reservedSeats: Number(form.reservedSeats || 0),
       };
-      const res = await axios.post(`${config.API_BASE_URL}/admission/vacancy`, payload);
+      const res = await api.post(`${config.API_BASE_URL}/admission/vacancy`, payload);
       if (res.data.success) {
         setVacancies([res.data.data, ...vacancies]);
         setForm({
@@ -114,7 +114,7 @@ if (errors.totalSeats || errors.reservedSeats) {
   const handleDeleteVacancy = async (id) => {
     if (!window.confirm("Are you sure you want to delete this vacancy?")) return;
     try {
-      const res = await axios.delete(`${config.API_BASE_URL}/admission/vacancy/${id}`);
+      const res = await api.delete(`${config.API_BASE_URL}/admission/vacancy/${id}`);
       if (res.data.success) {
         setVacancies(vacancies.filter((v) => v._id !== id));
       }

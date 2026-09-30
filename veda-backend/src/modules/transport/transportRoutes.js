@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const transportController = require('./transportControllers');
 const imageUpload = require('../../middleware/imageUpload');
+const authMiddleware = require('../../middleware/authMiddleware');
+
+// Vehicles, routes, pickup points, drivers and fee data are all tenant-owned.
+router.use(authMiddleware);
 
 // Drivers
 router.get('/drivers', transportController.getDrivers);

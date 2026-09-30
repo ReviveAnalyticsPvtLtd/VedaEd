@@ -104,6 +104,7 @@ exports.updateSetupProfile = async (req, res) => {
     // Automatically synchronize classes and sections based on the updated academic details
     try {
       await syncClassesAndSections({
+        schoolId: req.user?.schoolId,
         gradeFrom: doc.gradeFrom,
         gradeTo: doc.gradeTo,
         institutionType: doc.institutionType,

@@ -1,0 +1,529 @@
+{
+  "phase": "Phase 2 - Fees legacy ownership resolution (READ-ONLY dry run)",
+  "generatedAt": "2026-09-28T14:02:32.666Z",
+  "database": {
+    "uri": "mongodb://127.0.0.1:27017/veda-sms-test",
+    "name": "veda-sms-test",
+    "host": "127.0.0.1:27017",
+    "verifiedLocal": true
+  },
+  "snapshot": [
+    {
+      "collection": "feecategories",
+      "total": 5,
+      "withSchoolId": 4,
+      "withoutSchoolId": 1,
+      "distinctSchoolIds": [
+        "6ab30dbbf71b85f416f49133",
+        "6ab30e1f1b8ded214ae29862",
+        "6ab30e5d66ab6be0f4cb1a22",
+        "6ab30eb4b5665f82230732f1"
+      ]
+    },
+    {
+      "collection": "gradefees",
+      "total": 9,
+      "withSchoolId": 0,
+      "withoutSchoolId": 9,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "installmentplans",
+      "total": 1,
+      "withSchoolId": 0,
+      "withoutSchoolId": 1,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "latefeepolicies",
+      "total": 1,
+      "withSchoolId": 0,
+      "withoutSchoolId": 1,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "discountrules",
+      "total": 0,
+      "withSchoolId": 0,
+      "withoutSchoolId": 0,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "fines",
+      "total": 0,
+      "withSchoolId": 0,
+      "withoutSchoolId": 0,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "feetransactions",
+      "total": 2,
+      "withSchoolId": 0,
+      "withoutSchoolId": 2,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "feeledgers",
+      "total": 3,
+      "withSchoolId": 0,
+      "withoutSchoolId": 3,
+      "distinctSchoolIds": []
+    },
+    {
+      "collection": "feeauditlogs",
+      "total": 2,
+      "withSchoolId": 0,
+      "withoutSchoolId": 2,
+      "distinctSchoolIds": []
+    }
+  ],
+  "totals": {
+    "collections": 9,
+    "documents": 23,
+    "withSchoolId": 4,
+    "withoutSchoolId": 19
+  },
+  "counts": {
+    "MATCH": 4,
+    "REPAIRABLE": 7,
+    "CONFLICT": 0,
+    "UNRESOLVED": 12
+  },
+  "rows": [
+    {
+      "collection": "feecategories",
+      "_id": "6ab30dbef71b85f416f4917e",
+      "currentSchoolId": "6ab30dbbf71b85f416f49133",
+      "proposedSchoolId": "6ab30dbbf71b85f416f49133",
+      "classification": "MATCH",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document already carries a schoolId that resolves to a real School record; no migration action required"
+    },
+    {
+      "collection": "feecategories",
+      "_id": "6ab30e221b8ded214ae298ac",
+      "currentSchoolId": "6ab30e1f1b8ded214ae29862",
+      "proposedSchoolId": "6ab30e1f1b8ded214ae29862",
+      "classification": "MATCH",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document already carries a schoolId that resolves to a real School record; no migration action required"
+    },
+    {
+      "collection": "feecategories",
+      "_id": "6ab30e6166ab6be0f4cb1a6c",
+      "currentSchoolId": "6ab30e5d66ab6be0f4cb1a22",
+      "proposedSchoolId": "6ab30e5d66ab6be0f4cb1a22",
+      "classification": "MATCH",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document already carries a schoolId that resolves to a real School record; no migration action required"
+    },
+    {
+      "collection": "feecategories",
+      "_id": "6ab30eb7b5665f822307333c",
+      "currentSchoolId": "6ab30eb4b5665f82230732f1",
+      "proposedSchoolId": "6ab30eb4b5665f82230732f1",
+      "classification": "MATCH",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document already carries a schoolId that resolves to a real School record; no migration action required"
+    },
+    {
+      "collection": "feecategories",
+      "_id": "6ab36eb1c69e13bf91075e72",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": [
+          {
+            "kind": "categoryUsage",
+            "detail": "Tuition fees was paid by students in 6a99092196f5dd52a7cbf6a9 (Sagar Public School)",
+            "admissible": false,
+            "why": "name/grade/usage matching is explicitly excluded as ownership evidence"
+          }
+        ]
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36eedc69e13bf91075e7b",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36ef5c69e13bf91075e7e",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36efdc69e13bf91075e81",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f04c69e13bf91075e84",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f0cc69e13bf91075e87",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f22c69e13bf91075e8a",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f2ec69e13bf91075e8d",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f36c69e13bf91075e90",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "gradefees",
+      "_id": "6ab36f3dc69e13bf91075e93",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": []
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "installmentplans",
+      "_id": "6ab36fa6c69e13bf91075ea5",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": [
+          {
+            "kind": "categoryNameJoin",
+            "detail": "Tuition Fee -> 6ab30dbbf71b85f416f49133 (Springdale Public School 1790119344873), 6ab30e1f1b8ded214ae29862 (Springdale Public School 1790119445552), 6ab30e5d66ab6be0f4cb1a22 (Springdale Public School 1790119507161), 6ab30eb4b5665f82230732f1 (Springdale Public School 1790119593597)  <-- 4 different schools share this label",
+            "admissible": false,
+            "why": "name/grade/usage matching is explicitly excluded as ownership evidence"
+          }
+        ]
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "latefeepolicies",
+      "_id": "6ab36fc5c69e13bf91075eb8",
+      "currentSchoolId": null,
+      "proposedSchoolId": null,
+      "classification": "UNRESOLVED",
+      "evidence": {
+        "trusted": [],
+        "inadmissible": [
+          {
+            "kind": "categoryNameJoin",
+            "detail": "Tuition Fee -> 6ab30dbbf71b85f416f49133 (Springdale Public School 1790119344873), 6ab30e1f1b8ded214ae29862 (Springdale Public School 1790119445552), 6ab30e5d66ab6be0f4cb1a22 (Springdale Public School 1790119507161), 6ab30eb4b5665f82230732f1 (Springdale Public School 1790119593597)  <-- 4 different schools share this label",
+            "admissible": false,
+            "why": "name/grade/usage matching is explicitly excluded as ownership evidence"
+          }
+        ]
+      },
+      "reason": "document has no schoolId and this model carries no trusted ownership reference at all"
+    },
+    {
+      "collection": "feetransactions",
+      "_id": "6ab3a35c7bc45e2f71daaa3b",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a9bb63fe97e2a7fe665c0a8",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId derives exactly one school"
+    },
+    {
+      "collection": "feetransactions",
+      "_id": "6ab3a4e7b53480336ee49058",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a997d59b8a7389047ac646b",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId derives exactly one school"
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a35d7bc45e2f71daaa45",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a9bb63fe97e2a7fe665c0a8",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          },
+          {
+            "source": "FeeTransaction->Student",
+            "via": "transactionId",
+            "refId": "6ab3a35c7bc45e2f71daaa3b",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId and FeeTransaction->Student via transactionId derives exactly one school"
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a4e7b53480336ee49062",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a997d59b8a7389047ac646b",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId derives exactly one school"
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a4e7b53480336ee49064",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a997d59b8a7389047ac646b",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          },
+          {
+            "source": "FeeTransaction->Student",
+            "via": "transactionId",
+            "refId": "6ab3a4e7b53480336ee49058",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId and FeeTransaction->Student via transactionId derives exactly one school"
+    },
+    {
+      "collection": "feeauditlogs",
+      "_id": "6ab3a35d7bc45e2f71daaa47",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a9bb63fe97e2a7fe665c0a8",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId derives exactly one school"
+    },
+    {
+      "collection": "feeauditlogs",
+      "_id": "6ab3a4e7b53480336ee49066",
+      "currentSchoolId": null,
+      "proposedSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "classification": "REPAIRABLE",
+      "evidence": {
+        "trusted": [
+          {
+            "source": "Student",
+            "via": "studentId",
+            "refId": "6a997d59b8a7389047ac646b",
+            "resolved": true,
+            "schoolId": "6a99092196f5dd52a7cbf6a9",
+            "knownSchool": true
+          }
+        ],
+        "inadmissible": []
+      },
+      "reason": "no schoolId on the document, but Student via studentId derives exactly one school"
+    }
+  ],
+  "duplicateSchoolGroups": [
+    {
+      "schoolId": "6ab30b5ca935a781a08286f2",
+      "name": "Springdale Public School 1790118738689",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30d16a1f0455c01b77f43",
+      "name": "Springdale Public School 1790119180834",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30d58e063950ab2e5a234",
+      "name": "Springdale Public School 1790119246525",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30d83609f38257dd1b9ec",
+      "name": "Springdale Public School 1790119289131",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30dbbf71b85f416f49133",
+      "name": "Springdale Public School 1790119344873",
+      "referencedByFeeData": true
+    },
+    {
+      "schoolId": "6ab30e1f1b8ded214ae29862",
+      "name": "Springdale Public School 1790119445552",
+      "referencedByFeeData": true
+    },
+    {
+      "schoolId": "6ab30e5d66ab6be0f4cb1a22",
+      "name": "Springdale Public School 1790119507161",
+      "referencedByFeeData": true
+    },
+    {
+      "schoolId": "6ab30eb4b5665f82230732f1",
+      "name": "Springdale Public School 1790119593597",
+      "referencedByFeeData": true
+    },
+    {
+      "schoolId": "6ab30e2a1b8ded214ae298fa",
+      "name": "Oakridge International Academy 1790119445552",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30e6866ab6be0f4cb1aba",
+      "name": "Oakridge International Academy 1790119507161",
+      "referencedByFeeData": false
+    },
+    {
+      "schoolId": "6ab30ebfb5665f8223073389",
+      "name": "Oakridge International Academy 1790119593597",
+      "referencedByFeeData": false
+    }
+  ],
+  "writeAttempts": [],
+  "databaseWrites": 0
+}

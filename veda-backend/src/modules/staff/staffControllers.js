@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Staff = require("./staffModels");
 const StaffIdCounter = require("./staffIdCounterModel");
 const StaffAttendance = require("./staffAttendanceModel");
@@ -10,6 +11,9 @@ const Timetable = require("../Timetable/timeTableSchema");
 const Student = require("../student/studentModels");
 const Message = require("../communication/messageModel");
 const CalendarEvent = require("../calendar/calendarModel");
+const Class = require("../class/classSchema");
+const Parent = require("../parents/parentModel");
+const User = require("../../models/User");
 const {
   getLeaveCycleRange,
   leaveFullyInsideCycle,
@@ -26,6 +30,39 @@ const { loadHolidayDateKeySet } = require("./leaveHolidayHelper");
 const ALLOWED_LEAVE_STATUSES = ["Pending", "Approved", "Disapproved"];
 
 const normalizeRole = (role) => String(role || "").toLowerCase().trim();
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// AssignTeacher and Assignment carry no schema-level schoolId of their own, so
+// Class is the only tenant-owned anchor available for them. This mirrors the
+// helper already used by assignTeacherControllers.js and
+// assignmentController.js.
+const getSchoolClassIds = async (schoolId) =>
+  (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+
+// Message uses polymorphic sender/receiver refs, so ownership is proven by
+// requiring both parties to be records of the authenticated school.
+const getSchoolMessagePartyIds = async (schoolId) => {
+  const [staffIds, studentIds, parentIds, userIds] = await Promise.all([
+    Staff.find({ schoolId }).distinct("_id"),
+    Student.find({ schoolId }).distinct("_id"),
+    Parent.find({ schoolId }).distinct("_id"),
+    User.find({ schoolId }).distinct("_id"),
+  ]);
+  return [...staffIds, ...studentIds, ...parentIds, ...userIds];
+};
 
 const hasAnyRole = (user, roles) => {
   const role = normalizeRole(user?.role);
@@ -126,7 +163,7 @@ const validateAndAllocateForStaff = async ({
     };
   }
 
-  const holidayKeys = await loadHolidayDateKeySet(cycle.start, cycle.end, policy.excludeHolidays);
+  const holidayKeys = await loadHolidayDateKeySet(cycle.start, cycle.end, policy.excludeHolidays, schoolId);
   const { effective, attendanceDates } = countEffectiveLeave(parsedFrom, parsedTo, cleanDuration, policy, holidayKeys);
 
   if (effective <= 0) {
@@ -225,6 +262,8 @@ const removeLeaveAttendance = async (staffId, leaveId) => {
 
 // Staff apply leave
 exports.applyStaffLeave = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["staff", "teacher"])) {
       return res.status(403).json({ success: false, message: "Only staff users can apply for leave" });
@@ -320,6 +359,8 @@ exports.applyStaffLeave = async (req, res) => {
 
 // Staff self leave list
 exports.getMyStaffLeaveRequests = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["staff", "teacher"])) {
       return res.status(403).json({ success: false, message: "Only staff users can view own leave requests" });
@@ -341,6 +382,8 @@ exports.getMyStaffLeaveRequests = async (req, res) => {
 
 // Staff update own pending leave request
 exports.updateMyStaffLeaveRequest = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["staff", "teacher"])) {
       return res.status(403).json({ success: false, message: "Only staff users can update own leave requests" });
@@ -444,6 +487,8 @@ exports.updateMyStaffLeaveRequest = async (req, res) => {
 
 // Get all leave requests
 exports.getStaffLeaveRequests = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["hr", "admin"])) {
       return res.status(403).json({ success: false, message: "Only HR/Admin can view all leave requests" });
@@ -460,6 +505,8 @@ exports.getStaffLeaveRequests = async (req, res) => {
 
 // Update leave status
 exports.updateStaffLeaveStatus = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["hr", "admin"])) {
       return res.status(403).json({ success: false, message: "Only HR/Admin can approve or reject leave" });
@@ -581,6 +628,8 @@ exports.updateStaffLeaveStatus = async (req, res) => {
 };
 
 exports.getLeavePolicy = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["hr", "admin", "staff", "teacher"])) {
       return res.status(403).json({ success: false, message: "Forbidden" });
@@ -594,6 +643,8 @@ exports.getLeavePolicy = async (req, res) => {
 };
 
 exports.updateLeavePolicy = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["hr", "admin"])) {
       return res.status(403).json({ success: false, message: "Only HR/Admin can update leave policy" });
@@ -666,6 +717,8 @@ exports.updateLeavePolicy = async (req, res) => {
 };
 
 exports.getMyLeaveBalance = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["staff", "teacher"])) {
       return res.status(403).json({ success: false, message: "Only staff can view leave balance" });
@@ -678,7 +731,7 @@ exports.getMyLeaveBalance = async (req, res) => {
     const policy = policyToPlain(policyDoc);
     const ref = new Date();
     const cycle = getLeaveCycleRange(ref, policy.cycleStartMonth);
-    const holidayKeys = await loadHolidayDateKeySet(cycle.start, cycle.end, policy.excludeHolidays);
+    const holidayKeys = await loadHolidayDateKeySet(cycle.start, cycle.end, policy.excludeHolidays, schoolId);
 
     const leaves = await StaffLeave.find({
       staff: req.user.refId,
@@ -750,6 +803,8 @@ exports.getMyLeaveBalance = async (req, res) => {
 };
 
 exports.cancelApprovedLeave = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!hasAnyRole(req.user, ["hr", "admin"])) {
       return res.status(403).json({ success: false, message: "Only HR/Admin can cancel approved leave" });
@@ -800,6 +855,8 @@ const mapPaymentStatusToPayrollStatus = (status) => {
 
 // Get payroll for a month/year
 exports.getStaffPayroll = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const month = Number(req.query.month);
     const year = Number(req.query.year);
@@ -812,7 +869,7 @@ exports.getStaffPayroll = async (req, res) => {
 
     // Seed monthly payroll rows for active staff when none exist yet.
     if (payrolls.length === 0) {
-      const activeStaff = await Staff.find({ status: "Active" }).select("salaryDetails").lean();
+      const activeStaff = await Staff.find({ status: "Active", schoolId }).select("salaryDetails").lean();
       if (activeStaff.length > 0) {
         const seedDocs = activeStaff.map((staffDoc) => ({
           staff: staffDoc._id,
@@ -847,6 +904,8 @@ exports.getStaffPayroll = async (req, res) => {
 
 // Update payroll status
 exports.updateStaffPayroll = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const { payStatus, note } = req.body;
@@ -874,10 +933,10 @@ const rolePrefixes = {
   staff: "STF" // fallback
 };
 
-const generateStaffId = async () => {
+const generateStaffId = async (schoolId) => {
   const currentYear = new Date().getFullYear();
   const yearPrefix = `TCH-${currentYear}-`;
-  await ensureYearCounterInitialized(currentYear, yearPrefix);
+  await ensureYearCounterInitialized(currentYear, yearPrefix, schoolId);
 
   const counterDoc = await StaffIdCounter.findOneAndUpdate(
     { year: currentYear },
@@ -888,13 +947,14 @@ const generateStaffId = async () => {
   return `TCH-${currentYear}-${paddedSequence}`;
 };
 
-const ensureYearCounterInitialized = async (currentYear, yearPrefix) => {
+const ensureYearCounterInitialized = async (currentYear, yearPrefix, schoolId) => {
   const hasCounter = await StaffIdCounter.exists({ year: currentYear });
   if (hasCounter) return;
 
   const yearRegex = new RegExp(`^${yearPrefix}\\d+$`);
   const existingYearStaff = await Staff.find({
     "personalInfo.staffId": { $regex: yearRegex },
+    schoolId,
   })
     .select("personalInfo.staffId")
     .lean();
@@ -914,10 +974,12 @@ const ensureYearCounterInitialized = async (currentYear, yearPrefix) => {
 };
 
 exports.getNextStaffIdPreview = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const currentYear = new Date().getFullYear();
     const yearPrefix = `TCH-${currentYear}-`;
-    await ensureYearCounterInitialized(currentYear, yearPrefix);
+    await ensureYearCounterInitialized(currentYear, yearPrefix, schoolId);
     const counterDoc = await StaffIdCounter.findOne({ year: currentYear }).lean();
     const nextSequence = (counterDoc?.sequence || 0) + 1;
     const nextStaffId = `TCH-${currentYear}-${String(nextSequence).padStart(3, "0")}`;
@@ -929,6 +991,8 @@ exports.getNextStaffIdPreview = async (req, res) => {
 };
 
 exports.createStaff = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { personalInfo, status } = req.body;
   try {
     const requiredFields = ["name", "role", "email", "password", "department"];
@@ -947,13 +1011,14 @@ exports.createStaff = async (req, res) => {
         personalInfo.role = normalizedRole;
       }
     }
-    personalInfo.staffId = await generateStaffId();
+    personalInfo.staffId = await generateStaffId(schoolId);
     if (!personalInfo.username) {
       personalInfo.username = `${personalInfo.role}_${personalInfo.staffId}`;
     }
     const staffData = {
       personalInfo,
-      status
+      status,
+      schoolId,
     };
     if (personalInfo.assignedClasses) {
       staffData.classesAssigned = personalInfo.assignedClasses;
@@ -978,6 +1043,7 @@ exports.createStaff = async (req, res) => {
           password: personalInfo.password,
           roleId: roleDoc._id,
           refId: newStaff._id,
+          schoolId,
           status: 'active'
         });
         console.log("Auth User created for staff");
@@ -985,7 +1051,7 @@ exports.createStaff = async (req, res) => {
     } catch (err) {
       console.error("Auth User creation failed for staff:", err.message);
     }
-    const staff = await Staff.findById(newStaff._id);
+    const staff = await Staff.findOne({ _id: newStaff._id, schoolId });
     res.status(201).json({
       success: true,
       message: "Staff created successfully",
@@ -1003,8 +1069,10 @@ exports.createStaff = async (req, res) => {
 }
 
 exports.getAllStaff = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const staff = await Staff.find().sort({ createdAt: -1 });
+    const staff = await Staff.find({ schoolId }).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       staff: staff
@@ -1019,10 +1087,12 @@ exports.getAllStaff = async (req, res) => {
 };
 
 exports.getStaffById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { id } = req.params;
   try {
     if (!id) return res.status(404).json({ success: false, message: "ID invalid/missing" });
-    const staffDoc = await Staff.findById(id);
+    const staffDoc = await Staff.findOne({ _id: id, schoolId });
     if (!staffDoc) return res.status(404).json({ success: false, message: "Staff not found" });
     res.status(200).json({ success: true, staff: staffDoc })
   } catch (error) {
@@ -1032,11 +1102,13 @@ exports.getStaffById = async (req, res) => {
 }
 
 exports.updateStaff = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { id } = req.params;
   const updateData = req.body;
   try {
     if (!id) return res.status(404).json({ success: false, message: "ID invalid/missing" });
-    const existingStaff = await Staff.findById(id);
+    const existingStaff = await Staff.findOne({ _id: id, schoolId });
     if (!existingStaff) return res.status(404).json({ success: false, message: "Staff not found" });
     const unhashedPassword = updateData.personalInfo?.password || null;
     const updateFields = {};
@@ -1077,7 +1149,7 @@ exports.updateStaff = async (req, res) => {
         updateFields.payStatus = updateData.salaryDetails.paymentStatus;
       }
     }
-    const updatedStaff = await Staff.findByIdAndUpdate(id, { $set: updateFields }, { new: true, runValidators: false });
+    const updatedStaff = await Staff.findOneAndUpdate({ _id: id, schoolId }, { $set: updateFields }, { new: true, runValidators: false });
     if (!updatedStaff) return res.status(404).json({ success: false, message: "Staff not found" });
     const responseData = {
       ...updatedStaff.toObject(),
@@ -1111,10 +1183,12 @@ exports.updateStaff = async (req, res) => {
 }
 
 exports.deleteStaff = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     if (!id) return res.status(404).json({ success: false, message: "ID invalid/missing" });
-    const deletedStaff = await Staff.findByIdAndDelete(id);
+    const deletedStaff = await Staff.findOneAndDelete({ _id: id, schoolId });
     if (!deletedStaff) return res.status(404).json({ message: "Staff not found" });
     res.json({ message: "Staff deleted successfully" });
 
@@ -1131,12 +1205,14 @@ exports.deleteStaff = async (req, res) => {
 };
 
 exports.uploadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
     const { staffId } = req.body;
     if (!staffId) return res.status(400).json({ success: false, message: "Staff ID is required" });
     const fileUrl = `/uploads/${req.file.filename}`;
-    const staff = await Staff.findById(staffId);
+    const staff = await Staff.findOne({ _id: staffId, schoolId });
     if (!staff) return res.status(404).json({ success: false, message: "Staff not found" });
     if (!staff.documents) staff.documents = [];
     const documentData = {
@@ -1156,9 +1232,11 @@ exports.uploadDocument = async (req, res) => {
 };
 
 exports.getAllDocuments = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { staffId } = req.params;
-    const staff = await Staff.findById(staffId).select("documents");
+    const staff = await Staff.findOne({ _id: staffId, schoolId }).select("documents");
     if (!staff) return res.status(404).json({ success: false, message: "Staff not found" });
     res.status(200).json(staff.documents || []);
   } catch (error) {
@@ -1168,6 +1246,8 @@ exports.getAllDocuments = async (req, res) => {
 };
 
 exports.previewDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1179,6 +1259,8 @@ exports.previewDocument = async (req, res) => {
 };
 
 exports.downloadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1190,9 +1272,11 @@ exports.downloadDocument = async (req, res) => {
 };
 
 exports.deleteDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { staffId, documentId } = req.params;
-    const staff = await Staff.findById(staffId);
+    const staff = await Staff.findOne({ _id: staffId, schoolId });
     if (!staff) return res.status(404).json({ success: false, message: "Staff not found" });
 
     const targetDocument = staff.documents.id(documentId);
@@ -1216,6 +1300,8 @@ exports.deleteDocument = async (req, res) => {
 };
 
 exports.getTeacherDashboardStats = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const teacherId = id || req.user?.refId;
@@ -1223,16 +1309,38 @@ exports.getTeacherDashboardStats = async (req, res) => {
       return res.status(400).json({ success: false, message: "Teacher id required" });
     }
 
+    // Tenant boundary: the requested teacher must belong to the authenticated
+    // school before it is used as an aggregation key below. A foreign teacherId
+    // would otherwise drive every downstream query. Responding 404 (the same
+    // shape as getStaffById) also avoids confirming that the id exists in
+    // another school.
+    const ownedTeacher = await Staff.findOne({ _id: teacherId, schoolId })
+      .select("_id")
+      .lean();
+    if (!ownedTeacher) {
+      return res.status(404).json({ success: false, message: "Staff not found" });
+    }
+
+    const [ownedClassIds, schoolMessagePartyIds] = await Promise.all([
+      getSchoolClassIds(schoolId),
+      getSchoolMessagePartyIds(schoolId),
+    ]);
+
     const [assignedClasses, assignments] = await Promise.all([
+      // AssignTeacher has no schoolId field in its schema, so it is scoped
+      // through its Class ref rather than by a schoolId predicate.
       AssignTeacher.find({
+        class: { $in: ownedClassIds },
         $or: [{ teachers: teacherId }, { classTeacher: teacherId }],
       })
         .select("class section classTeacher")
         .populate("class", "name")
         .populate("section", "name"),
-      Assignment.find({ teacher: teacherId }).select(
-        "status submissions title"
-      ),
+      // Assignment has no schoolId either; anchor it to an in-school class.
+      Assignment.find({
+        teacher: teacherId,
+        class: { $in: ownedClassIds },
+      }).select("status submissions title"),
     ]);
 
     const classList = assignedClasses.map((a) => ({
@@ -1253,6 +1361,7 @@ exports.getTeacherDashboardStats = async (req, res) => {
         Student.countDocuments(
           classSectionPairs.length
             ? {
+                schoolId,
                 $or: classSectionPairs.map((p) => ({
                   "personalInfo.class": p.class,
                   "personalInfo.section": p.section,
@@ -1260,14 +1369,24 @@ exports.getTeacherDashboardStats = async (req, res) => {
               }
             : { _id: null }
         ),
+        // CalendarEvent is school-owned. Both counts are scoped by the
+        // schoolId that requireSchool validated from req.user.schoolId above.
+        // Two legacy events have no provable owner and are quarantined rather
+        // than guessed at, so they are correctly absent from every school's
+        // counts.
         CalendarEvent.countDocuments({
+          schoolId,
           type: { $in: ["Exam", "exam"] },
           status: "Scheduled",
         }),
+        // Message has no schoolId; ownership is proven by requiring both the
+        // sender and the receiver to be in-school records.
         Message.countDocuments({
+          sender: { $in: schoolMessagePartyIds },
+          receiver: { $in: schoolMessagePartyIds },
           $or: [{ sender: teacherId }, { receiver: teacherId }],
         }),
-        CalendarEvent.countDocuments({ visibility: "Teacher" }),
+        CalendarEvent.countDocuments({ schoolId, visibility: "Teacher" }),
       ]);
 
     const assignmentStatus = {
@@ -1284,6 +1403,8 @@ exports.getTeacherDashboardStats = async (req, res) => {
     const monday = new Date(today);
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 
+    // StaffAttendance has no schoolId; it is anchored through its Staff ref,
+    // and teacherId was already proven to be an in-school Staff above.
     const attendanceRecords = await StaffAttendance.find({
       staff: teacherId,
       date: { $gte: monday, $lte: today },
@@ -1350,6 +1471,8 @@ exports.getTeacherDashboardStats = async (req, res) => {
 };
 
 exports.markStaffAttendance = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { attendanceRecords } = req.body;
     if (!Array.isArray(attendanceRecords)) return res.status(400).json({ success: false, message: "Invalid attendance records" });
@@ -1369,11 +1492,13 @@ exports.markStaffAttendance = async (req, res) => {
 };
 
 exports.getStaffAttendance = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { date, role } = req.query;
     if (!date) return res.status(400).json({ success: false, message: "Date is required" });
     const searchDate = new Date(new Date(date).setHours(0, 0, 0, 0));
-    const staffQuery = {};
+    const staffQuery = { schoolId };
     if (role) staffQuery["personalInfo.role"] = role;
     const allStaff = await Staff.find(staffQuery);
     const attendanceRecords = await StaffAttendance.find({
@@ -1399,6 +1524,8 @@ exports.getStaffAttendance = async (req, res) => {
 };
 
 exports.importStaff = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const staffData = req.body;
 
@@ -1434,13 +1561,13 @@ exports.importStaff = async (req, res) => {
 
         const role = rawRole ? (rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase()) : "Other";
 
-        const existing = await Staff.findOne({ "personalInfo.email": email }).select("_id personalInfo.staffId").lean();
+        const existing = await Staff.findOne({ "personalInfo.email": email, schoolId }).select("_id personalInfo.staffId").lean();
         if (existing) {
           results.skipped.push({ name, reason: `Exists (ID: ${existing.personalInfo?.staffId || existing._id})` });
           continue;
         }
 
-        const staffId = await generateStaffId();
+        const staffId = await generateStaffId(schoolId);
         const username = `${role}_${staffId}`;
         const password = getVal(sData, ["Password", "password", "Pass"]) || "default123";
 
@@ -1451,6 +1578,7 @@ exports.importStaff = async (req, res) => {
             department, email, password,
           },
           status: getVal(sData, ["Status", "status"]) || "Active",
+          schoolId,
           classesAssigned: getVal(sData, ["Assigned Classes", "assignedClasses", "Classes"]) ? getVal(sData, ["Assigned Classes", "assignedClasses", "Classes"]).split(",").map(c => c.trim()) : [],
         });
 
@@ -1466,7 +1594,7 @@ exports.importStaff = async (req, res) => {
           if (roleDoc) {
             await require('../../models/User').create({
               name, email: email || username, password,
-              roleId: roleDoc._id, refId: staffDoc._id, status: 'active'
+              roleId: roleDoc._id, refId: staffDoc._id, schoolId, status: 'active'
             });
           }
         } catch (e) { console.warn(`Auth creation fail for ${name}:`, e.message); }

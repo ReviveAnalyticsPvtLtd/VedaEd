@@ -1,7 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const hrRecruitmentController = require("./hrRecruitmentController");
+const authMiddleware = require("../../middleware/authMiddleware");
+const requireSchoolContext = require("../../middleware/requireSchoolContext");
 const multer = require("multer");
+
+// Vacancies, applications, interview scorecards and recruitment dashboard
+// figures are all school-owned. Require an authenticated session for the router.
+router.use(authMiddleware);
 
 // Configure Multer for basic file uploads (resumes, documents)
 const storage = multer.diskStorage({
@@ -46,7 +52,15 @@ router.post(
 router.get("/applications", hrRecruitmentController.getApplications);
 router.put("/applications/:id/status", hrRecruitmentController.updateApplicationStatus);
 router.put("/applications/:id/training", hrRecruitmentController.updateTrainingStatus);
-router.post("/applications/:id/convert", hrRecruitmentController.convertToEmployee);
+// Converting an applicant creates a real User and Staff account inside a
+// specific school, so it additionally requires an authoritative school context.
+// authMiddleware resolves schoolId from the session's user document; a value
+// supplied by the client is discarded and never accepted here.
+router.post(
+    "/applications/:id/convert",
+    requireSchoolContext,
+    hrRecruitmentController.convertToEmployee
+);
 
 // Interviews
 router.post("/applications/:applicationId/interviews", hrRecruitmentController.scheduleInterview);
