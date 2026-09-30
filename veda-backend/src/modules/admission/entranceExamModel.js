@@ -3,6 +3,19 @@ const { Schema } = mongoose;
 
 const EntranceExamSchema = new Schema(
     {
+        /**
+         * Authoritative tenant ownership. Assigned server-side from the
+         * authenticated session (req.user.schoolId) on creation and never
+         * accepted from the request body. Immutable so no later update path can
+         * move an exam to another school.
+         */
+        schoolId: {
+            type: Schema.Types.ObjectId,
+            ref: "School",
+            required: true,
+            index: true,
+            immutable: true,
+        },
         applicationId: {
             type: Schema.Types.ObjectId,
             ref: "AdmissionApplication",
