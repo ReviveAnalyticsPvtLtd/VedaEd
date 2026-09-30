@@ -1,5 +1,14 @@
 const Class = require("../classSchema");
 const Section = require("../../section/sectionSchema");
+const mongoose = require("mongoose");
+
+// Tenant context is always supplied by the server from the authenticated User
+// document. It is never read from a request payload. Database-touching helpers
+// fail closed when it is missing or malformed.
+const normalizeSchoolId = (schoolId) => {
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) return null;
+  return String(schoolId);
+};
 
 const CANONICAL_GRADES = [
   "Nursery",
@@ -230,9 +239,15 @@ function resolveSectionNames({
 /**
  * Fetch or create Section documents for the given section names and capacity.
  * Updates capacity for existing sections if a new valid capacity is specified.
+ * Scoped to a single school; returns [] when no valid school context is given.
  */
-async function getOrCreateSections(sectionNames = ["A"], capacity = 40) {
+async function getOrCreateSections(sectionNames = ["A"], capacity = 40, schoolId = null) {
   const sectionIds = [];
+  const scopedSchoolId = normalizeSchoolId(schoolId);
+  if (!scopedSchoolId) {
+    console.error("getOrCreateSections called without a valid schoolId; skipping section sync");
+    return sectionIds;
+  }
   const parsedCap = Number.isFinite(Number(capacity)) && Number(capacity) > 0
     ? Number(capacity)
     : 40;
@@ -243,10 +258,11 @@ async function getOrCreateSections(sectionNames = ["A"], capacity = 40) {
 
     let secDoc = await Section.findOne({
       name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, "i") },
+      schoolId: scopedSchoolId,
     });
 
     if (!secDoc) {
-      secDoc = await Section.create({ name: trimmed, capacity: parsedCap });
+      secDoc = await Section.create({ name: trimmed, capacity: parsedCap, schoolId: scopedSchoolId });
     } else {
       if (secDoc.capacity !== parsedCap) {
         secDoc.capacity = parsedCap;
@@ -299,11 +315,21 @@ function matchesGrade(existingClassName, targetGradeName) {
 }
 
 /**
- * Safely normalizes all existing Class documents in MongoDB in-place.
+ * Safely normalizes Class documents in MongoDB in-place for a single school.
  * Preserves all ObjectIds and references.
  */
-async function normalizeExistingClassesInDb() {
-  const existingClasses = await Class.find({});
+async function normalizeExistingClassesInDb(schoolId = null) {
+  const scopedSchoolId = normalizeSchoolId(schoolId);
+  if (!scopedSchoolId) {
+    return {
+      success: false,
+      error: "A valid schoolId is required to normalize classes",
+      updatedCount: 0,
+      updated: [],
+    };
+  }
+
+  const existingClasses = await Class.find({ schoolId: scopedSchoolId });
   const updated = [];
 
   for (const cls of existingClasses) {
@@ -335,10 +361,21 @@ async function normalizeExistingClassesInDb() {
  * Normalizes existing class names in-place to the canonical Grade standard.
  * Updates section and class capacity safely.
  *
- * @param {Object} academicConfig - { gradeFrom, gradeTo, institutionType, expectedStudents, maxStudentsPerSection, capacity, sections, sectionMode }
+ * @param {Object} academicConfig - { schoolId, gradeFrom, gradeTo, institutionType, expectedStudents, maxStudentsPerSection, capacity, sections, sectionMode }
  * @returns {Promise<Object>} Automation summary
  */
 async function syncClassesAndSections(academicConfig = {}) {
+  const scopedSchoolId = normalizeSchoolId(academicConfig.schoolId);
+  if (!scopedSchoolId) {
+    console.error("syncClassesAndSections called without a valid schoolId; skipping class sync");
+    return {
+      success: false,
+      error: "A valid schoolId is required to synchronize classes and sections",
+      classesCreated: [],
+      classesReused: [],
+    };
+  }
+
   try {
     const gradeList = resolveGradeList(academicConfig);
     if (!gradeList || gradeList.length === 0) {
@@ -357,9 +394,9 @@ async function syncClassesAndSections(academicConfig = {}) {
     const targetCapacityStr = String(targetCapacity);
 
     const sectionNames = resolveSectionNames(academicConfig);
-    const sectionIds = await getOrCreateSections(sectionNames, targetCapacity);
+    const sectionIds = await getOrCreateSections(sectionNames, targetCapacity, scopedSchoolId);
 
-    const existingClasses = await Class.find({});
+    const existingClasses = await Class.find({ schoolId: scopedSchoolId });
     const createdClasses = [];
     const reusedClasses = [];
 
@@ -414,6 +451,7 @@ async function syncClassesAndSections(academicConfig = {}) {
           name: canonicalGradeName,
           sections: sectionIds,
           capacity: targetCapacityStr,
+          schoolId: scopedSchoolId,
         });
         createdClasses.push({
           _id: newClass._id,

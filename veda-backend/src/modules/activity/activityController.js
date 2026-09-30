@@ -32,6 +32,22 @@ const parseClassIds = (value) => {
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+    if (!req.user?.schoolId || !mongoose.isValidObjectId(String(req.user.schoolId))) {
+        res.status(403).json({
+            success: false,
+            message: "Your account is not linked to a school.",
+        });
+        return null;
+    }
+    return String(req.user.schoolId);
+};
+
+const getSchoolClassIds = async (schoolId) =>
+    (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+
 const activityClassLabels = (activity) => {
     if (Array.isArray(activity.class)) {
         return activity.class.map((c) => String(c).trim()).filter(Boolean);
@@ -71,10 +87,10 @@ const isActivityVisibleToStudent = (activity, studentClassId, studentSectionId, 
 };
 
 /** Resolve legacy admin class/section strings to ObjectIds when missing (SIS Activity Report uses "6".."10"). */
-const normalizeAdminActivityClassSection = async (payload) => {
+const normalizeAdminActivityClassSection = async (payload, schoolId) => {
     const labels = Array.isArray(payload.class) ? payload.class.map((x) => String(x).trim()).filter(Boolean) : [];
     if (labels.length && (!payload.classIds || payload.classIds.length === 0)) {
-        const allClasses = await Class.find().select("name");
+        const allClasses = await Class.find({ schoolId }).select("name");
         const ids = [];
         for (const t of labels) {
             let found = allClasses.find((c) => (c.name || "").trim().toLowerCase() === t.toLowerCase());
@@ -94,13 +110,23 @@ const normalizeAdminActivityClassSection = async (payload) => {
 
     const secRaw = payload.section != null ? String(payload.section).trim() : "";
     if (secRaw && secRaw.toLowerCase() !== "all" && !payload.sectionId) {
-        const sec = await Section.findOne({ name: new RegExp(`^${escapeRegex(secRaw)}$`, "i") });
+        const sec = await Section.findOne({ name: new RegExp(`^${escapeRegex(secRaw)}$`, "i"), schoolId });
         if (sec) payload.sectionId = sec._id;
     }
 };
 
-const getTeacherAssignments = async (teacherId) => {
+const getTeacherAssignments = async (teacherId, schoolId) => {
+    // AssignTeacher has no schoolId, so it is reached only through Class documents
+    // that are proven to belong to the caller's school, and only for a teacher
+    // who is themselves in that school.
+    const teacher = await Staff.findOne({ _id: teacherId, schoolId }).select("_id");
+    if (!teacher) return [];
+
+    const classIds = await getSchoolClassIds(schoolId);
+    if (!classIds.length) return [];
+
     const assignments = await AssignTeacher.find({
+        class: { $in: classIds },
         $or: [{ classTeacher: teacherId }, { teachers: teacherId }],
     })
         .populate("class", "name")
@@ -111,6 +137,8 @@ const getTeacherAssignments = async (teacherId) => {
 };
 
 exports.getAllActivities = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const user = req.user || {};
         const role = (user.role || "").toLowerCase();
@@ -125,7 +153,7 @@ exports.getAllActivities = async (req, res) => {
                 ],
             }).sort({ createdAt: -1 });
         } else if (role === "student") {
-            const student = await Student.findById(user.refId)
+            const student = await Student.findOne({ _id: user.refId, schoolId })
                 .populate("personalInfo.class", "name")
                 .populate("personalInfo.section", "name");
 
@@ -143,7 +171,7 @@ exports.getAllActivities = async (req, res) => {
                 isActivityVisibleToStudent(a, studentClassId, studentSectionId, studentClassName, studentSectionName)
             );
         } else if (role === "parent") {
-            const parent = await Parent.findById(user.refId)
+            const parent = await Parent.findOne({ _id: user.refId, schoolId })
                 .populate({
                     path: "children",
                     populate: [
@@ -181,6 +209,8 @@ exports.getAllActivities = async (req, res) => {
 };
 
 exports.createActivity = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const user = req.user || {};
         const role = (user.role || "").toLowerCase();
@@ -189,7 +219,7 @@ exports.createActivity = async (req, res) => {
         const sectionId = toObjectId(payload.sectionId);
 
         if (role === "teacher") {
-            const teacherAssignments = await getTeacherAssignments(user.refId);
+            const teacherAssignments = await getTeacherAssignments(user.refId, schoolId);
             const allowedPairs = teacherAssignments.map((assignment) => ({
                 classId: normalizeId(assignment.class?._id),
                 sectionId: normalizeId(assignment.section?._id),
@@ -232,10 +262,13 @@ exports.createActivity = async (req, res) => {
         }
 
         if (role !== "teacher") {
-            await normalizeAdminActivityClassSection(payload);
+            await normalizeAdminActivityClassSection(payload, schoolId);
         }
 
-        const creator = role === "teacher" ? await Staff.findById(user.refId).select("personalInfo.name") : null;
+        const creator =
+            role === "teacher"
+                ? await Staff.findOne({ _id: user.refId, schoolId }).select("personalInfo.name")
+                : null;
         payload.createdBy = {
             role: role === "teacher" ? "teacher" : "admin",
             refId: user.refId || null,
@@ -259,6 +292,8 @@ exports.createActivity = async (req, res) => {
 };
 
 exports.updateActivity = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params;
         const user = req.user || {};
@@ -293,6 +328,8 @@ exports.updateActivity = async (req, res) => {
 };
 
 exports.deleteActivity = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params;
         const user = req.user || {};
@@ -320,13 +357,15 @@ exports.deleteActivity = async (req, res) => {
 };
 
 exports.getTeacherActivityScope = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const user = req.user || {};
         if ((user.role || "").toLowerCase() !== "teacher") {
             return res.status(403).json({ message: "Only teacher can access this endpoint" });
         }
 
-        const assignments = await getTeacherAssignments(user.refId);
+        const assignments = await getTeacherAssignments(user.refId, schoolId);
         const classOptionsMap = new Map();
         const sectionOptionsMap = new Map();
         let teachers = [];
@@ -350,7 +389,7 @@ exports.getTeacherActivityScope = async (req, res) => {
         });
 
         // Teacher dropdown should show all teachers in system, not only assigned/class teachers.
-        const allTeacherStaff = await Staff.find({ "personalInfo.role": "Teacher" }).select("personalInfo.name");
+        const allTeacherStaff = await Staff.find({ "personalInfo.role": "Teacher", schoolId }).select("personalInfo.name");
         const allTeacherNames = allTeacherStaff
             .map((teacher) => teacher?.personalInfo?.name)
             .filter(Boolean);

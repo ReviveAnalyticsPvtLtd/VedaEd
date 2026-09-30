@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const AdmissionApplication = require("./admissionApplicationModel");
 const {
     normalizeParentIdAccountHolder,
@@ -10,6 +11,77 @@ const { generateNextParentId } = require("../../utils/parentIdGenerator");
 const { generateStudentUsernameBase } = require("../../utils/studentUsernameGenerator");
 const path = require("path");
 const fs = require("fs");
+
+/**
+ * The AdmissionApplication document is the only authority for a student's
+ * tenant. It is never taken from the request body, email, phone, or
+ * applicationId, and never inferred from applicant attributes.
+ */
+const getApplicationSchoolId = (application) => {
+    const schoolId = application?.schoolId;
+    if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+        return null;
+    }
+    return schoolId;
+};
+
+/**
+ * The caller's authoritative tenant, resolved by authMiddleware from the User
+ * document and guaranteed to be present by requireSchoolContext on every route
+ * of this router.
+ *
+ * Returns the school id, or sends 403 and returns null. Every read and write in
+ * this controller must carry this value in its filter: an application belonging
+ * to another school must be indistinguishable from one that does not exist.
+ */
+const requireSchool = (req, res) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+        res.status(403).json({
+            success: false,
+            code: "NO_SCHOOL_CONTEXT",
+            message: "Your account is not linked to a school.",
+        });
+        return null;
+    }
+    return schoolId;
+};
+
+/**
+ * Reconcile an existing User that is already linked to this application.
+ *
+ * An application for School A must never move a user that belongs to School B,
+ * so a mismatch is reported and left untouched. A user with no school at all is
+ * safe to fill in, because the application is the only claim on it and no
+ * competing tenant exists.
+ *
+ * Returns one of: "already-consistent" | "propagated" | "tenant-mismatch".
+ */
+const reconcileUserSchoolFromApplication = async ({ user, schoolId, applicationId }) => {
+    const currentSchoolId = user?.schoolId;
+
+    if (!currentSchoolId) {
+        user.schoolId = schoolId;
+        await user.save();
+        return "propagated";
+    }
+
+    if (String(currentSchoolId) !== String(schoolId)) {
+        // Refuse to reassign. Report loudly; never silently move a user.
+        console.error(
+            "Tenant mismatch: refusing to reassign user school from an admission application",
+            JSON.stringify({
+                applicationId: String(applicationId),
+                applicationSchoolId: String(schoolId),
+                userSchoolId: String(currentSchoolId),
+                userId: String(user._id),
+            })
+        );
+        return "tenant-mismatch";
+    }
+
+    return "already-consistent";
+};
 
 function parseLegacyCombinedAddress(address = "") {
     if (!address || typeof address !== "string") {
@@ -106,6 +178,9 @@ exports.createApplication = async (req, res) => {
     try {
         console.log("Received application data:", JSON.stringify(req.body, null, 2));
         const applicationData = { ...req.body };
+        // Drop any client-asserted tenant before it reaches the document. The
+        // authoritative school is assigned from req.user below.
+        delete applicationData.schoolId;
         if (applicationData.contactInfo && typeof applicationData.contactInfo === "object") {
             applicationData.contactInfo = normalizeContactInfo(applicationData.contactInfo);
         }
@@ -164,7 +239,11 @@ exports.createApplication = async (req, res) => {
             }
         }
 
-        // Create new application
+        // Create new application.
+        // Tenant ownership is server-assigned: requireSchoolContext has already
+        // guaranteed a valid req.user.schoolId, and the body was cleared of any
+        // schoolId above, so the authenticated school is the only authority.
+        applicationData.schoolId = req.user.schoolId;
         const newApplication = new AdmissionApplication(applicationData);
         await newApplication.save();
 
@@ -173,23 +252,41 @@ exports.createApplication = async (req, res) => {
             try {
                 const User = require("../../models/User");
                 const Role = require("../../models/Role");
-                const existingUser = await User.findOne({ refId: newApplication._id });
-                
-                if (!existingUser) {
-                    const roleDoc = await Role.findOne({ name: 'student' });
-                    if (roleDoc) {
-                        const personalInfo = newApplication.personalInfo || {};
-                        const contactInfo = newApplication.contactInfo || {};
-                        
-                        await User.create({
-                            name: personalInfo.name,
-                            email: contactInfo.email || personalInfo.stdId || personalInfo.username,
-                            password: personalInfo.password || "default123",
-                            roleId: roleDoc._id,
-                            refId: newApplication._id,
-                            status: 'active'
+                // The just-created application is the authoritative tenant.
+                const applicationSchoolId = getApplicationSchoolId(newApplication);
+
+                if (!applicationSchoolId) {
+                    // Fail closed: never mint a tenant-bound User with no school.
+                    console.error(
+                        "Skipped auth user creation: application has no resolvable schoolId",
+                        String(newApplication._id)
+                    );
+                } else {
+                    const existingUser = await User.findOne({ refId: newApplication._id });
+
+                    if (existingUser) {
+                        await reconcileUserSchoolFromApplication({
+                            user: existingUser,
+                            schoolId: applicationSchoolId,
+                            applicationId: newApplication._id,
                         });
-                        console.log("Auth User created for new admission student marked as paid");
+                    } else {
+                        const roleDoc = await Role.findOne({ name: 'student' });
+                        if (roleDoc) {
+                            const personalInfo = newApplication.personalInfo || {};
+                            const contactInfo = newApplication.contactInfo || {};
+
+                            await User.create({
+                                name: personalInfo.name,
+                                email: contactInfo.email || personalInfo.stdId || personalInfo.username,
+                                password: personalInfo.password || "default123",
+                                roleId: roleDoc._id,
+                                refId: newApplication._id,
+                                schoolId: applicationSchoolId,
+                                status: 'active'
+                            });
+                            console.log("Auth User created for new admission student marked as paid");
+                        }
                     }
                 }
             } catch (err) {
@@ -223,6 +320,9 @@ const REQUIRED_DOCUMENTS = [
 // Upload documents for an application
 exports.uploadApplicationDocument = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         console.log("Upload request received. Body:", req.body);
         console.log("Upload request file:", req.file);
 
@@ -238,7 +338,9 @@ exports.uploadApplicationDocument = async (req, res) => {
             return res.status(400).json({ success: false, message: "No applicationId provided" });
         }
 
-        const application = await AdmissionApplication.findById(applicationId);
+        // Scoped: an application owned by another school is a 404, not a 403.
+        // Responding 404 rather than 403 avoids confirming the id exists.
+        const application = await AdmissionApplication.findOne({ _id: applicationId, schoolId });
         if (!application) {
             console.error("Application not found for ID:", applicationId);
             return res.status(404).json({ success: false, message: "Application not found" });
@@ -287,15 +389,18 @@ exports.uploadApplicationDocument = async (req, res) => {
 // Track Application Status
 exports.trackApplication = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const { id } = req.params; // Expecting applicationId (e.g. APP-123) OR _id
 
-        let query = { applicationId: id };
+        let query = { applicationId: id, schoolId };
 
         // Check if input might be a MongoDB _id (24 hex chars)
         if (id.match(/^[0-9a-fA-F]{24}$/)) {
             // It's a valid ObjectId format, verify if it finds anything, OR search applicationId
             // We can use $or to be safe
-            query = { $or: [{ applicationId: id }, { _id: id }] };
+            query = { schoolId, $or: [{ applicationId: id }, { _id: id }] };
         }
 
         const application = await AdmissionApplication.findOne(query);
@@ -439,7 +544,10 @@ exports.trackApplication = async (req, res) => {
 // Get all applications (for the 'Application Approval' list)
 exports.getAllApplications = async (req, res) => {
     try {
-        const applications = await AdmissionApplication.find().sort({ createdAt: -1 });
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
+        const applications = await AdmissionApplication.find({ schoolId }).sort({ createdAt: -1 });
         res.status(200).json({
             success: true,
             data: applications,
@@ -456,7 +564,10 @@ exports.getAllApplications = async (req, res) => {
 // Get single application
 exports.getApplicationById = async (req, res) => {
     try {
-        const application = await AdmissionApplication.findById(req.params.id);
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
+        const application = await AdmissionApplication.findOne({ _id: req.params.id, schoolId });
         if (!application) {
             return res.status(404).json({ success: false, message: "Application not found" });
         }
@@ -481,7 +592,11 @@ exports.getApplicationById = async (req, res) => {
 // Get Selected Students (Verified Documents)
 exports.getSelectedStudents = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const applications = await AdmissionApplication.find({
+            schoolId,
             // Student should appear in selected list only after successful document verification.
             documentVerificationStatus: { $in: ["Verified", "verified"] }
         }).sort({ createdAt: -1 });
@@ -530,6 +645,9 @@ exports.getSelectedStudents = async (req, res) => {
 // Update full application details
 exports.updateApplication = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const updates = req.body;
 
         // Remove internal fields that shouldn't be updated manually
@@ -537,6 +655,8 @@ exports.updateApplication = async (req, res) => {
         delete updates.__v;
         delete updates.createdAt;
         delete updates.updatedAt;
+        // Tenant ownership is immutable; never let a request reassign it.
+        delete updates.schoolId;
 
         const feeStatusFromDotPath = updates["personalInfo.fees"];
         const feeStatusFromObject = updates.personalInfo?.fees;
@@ -546,7 +666,7 @@ exports.updateApplication = async (req, res) => {
         const willMarkAsPaid = requestedFeeStatus === "paid";
 
         const updatePayload = { ...updates };
-        const existingApplication = await AdmissionApplication.findById(req.params.id);
+        const existingApplication = await AdmissionApplication.findOne({ _id: req.params.id, schoolId });
         if (!existingApplication) {
             return res.status(404).json({ success: false, message: "Application not found" });
         }
@@ -670,23 +790,43 @@ exports.updateApplication = async (req, res) => {
             try {
                 const User = require("../../models/User");
                 const Role = require("../../models/Role");
-                const existingUser = await User.findOne({ refId: existingApplication._id });
-                
-                if (!existingUser) {
-                    const roleDoc = await Role.findOne({ name: 'student' });
-                    if (roleDoc) {
-                        const personalInfo = updatePayload.personalInfo || existingApplication.personalInfo || {};
-                        const contactInfo = updatePayload.contactInfo || existingApplication.contactInfo || {};
-                        
-                        await User.create({
-                            name: personalInfo.name,
-                            email: contactInfo.email || personalInfo.stdId || personalInfo.username,
-                            password: personalInfo.password || "default123",
-                            roleId: roleDoc._id,
-                            refId: existingApplication._id,
-                            status: 'active'
+                // existingApplication is the pre-update document. schoolId is
+                // immutable and stripped from the update payload, so this is the
+                // same authoritative tenant the stored document carries.
+                const applicationSchoolId = getApplicationSchoolId(existingApplication);
+
+                if (!applicationSchoolId) {
+                    // Fail closed: never mint a tenant-bound User with no school.
+                    console.error(
+                        "Skipped auth user creation: application has no resolvable schoolId",
+                        String(existingApplication._id)
+                    );
+                } else {
+                    const existingUser = await User.findOne({ refId: existingApplication._id });
+
+                    if (existingUser) {
+                        await reconcileUserSchoolFromApplication({
+                            user: existingUser,
+                            schoolId: applicationSchoolId,
+                            applicationId: existingApplication._id,
                         });
-                        console.log("Auth User created for admission student marked as paid");
+                    } else {
+                        const roleDoc = await Role.findOne({ name: 'student' });
+                        if (roleDoc) {
+                            const personalInfo = updatePayload.personalInfo || existingApplication.personalInfo || {};
+                            const contactInfo = updatePayload.contactInfo || existingApplication.contactInfo || {};
+
+                            await User.create({
+                                name: personalInfo.name,
+                                email: contactInfo.email || personalInfo.stdId || personalInfo.username,
+                                password: personalInfo.password || "default123",
+                                roleId: roleDoc._id,
+                                refId: existingApplication._id,
+                                schoolId: applicationSchoolId,
+                                status: 'active'
+                            });
+                            console.log("Auth User created for admission student marked as paid");
+                        }
                     }
                 }
             } catch (err) {
@@ -694,8 +834,8 @@ exports.updateApplication = async (req, res) => {
             }
         }
 
-        const application = await AdmissionApplication.findByIdAndUpdate(
-            req.params.id,
+        const application = await AdmissionApplication.findOneAndUpdate(
+            { _id: req.params.id, schoolId },
             { $set: updatePayload },
             { new: true, runValidators: true }
         );
@@ -718,9 +858,12 @@ exports.updateApplication = async (req, res) => {
 // Update application status (Approve/Reject)
 exports.updateApplicationStatus = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const { status, remarks } = req.body;
-        const application = await AdmissionApplication.findByIdAndUpdate(
-            req.params.id,
+        const application = await AdmissionApplication.findOneAndUpdate(
+            { _id: req.params.id, schoolId },
             { applicationStatus: status },
             { new: true }
         );
@@ -746,9 +889,12 @@ exports.updateApplicationStatus = async (req, res) => {
 // Delete a document
 exports.deleteApplicationDocument = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const { id, documentId } = req.params;
 
-        const application = await AdmissionApplication.findById(id);
+        const application = await AdmissionApplication.findOne({ _id: id, schoolId });
         if (!application) {
             return res.status(404).json({ success: false, message: "Application not found" });
         }
@@ -786,10 +932,13 @@ exports.deleteApplicationDocument = async (req, res) => {
 // Verify/Reject a specific document
 exports.verifyDocumentStatus = async (req, res) => {
     try {
+        const schoolId = requireSchool(req, res);
+        if (!schoolId) return;
+
         const { applicationId, documentId } = req.params;
         const { status, comment } = req.body;
 
-        const application = await AdmissionApplication.findById(applicationId);
+        const application = await AdmissionApplication.findOne({ _id: applicationId, schoolId });
         if (!application) {
             return res.status(404).json({ success: false, message: "Application not found" });
         }

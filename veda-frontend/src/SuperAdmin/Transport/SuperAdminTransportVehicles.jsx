@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 export default function SuperAdminTransportVehicles() {
@@ -33,7 +33,7 @@ const [errors, setErrors] = useState({});
   const fetchVehicles = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${config.API_BASE_URL}/transport/vehicles`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/vehicles`);
       setVehicles(res.data);
     } catch (error) {
       console.error("Error fetching vehicles:", error);
@@ -96,9 +96,9 @@ const [errors, setErrors] = useState({});
 
     try {
       if (editId) {
-        await axios.put(`${config.API_BASE_URL}/transport/vehicles/${editId}`, formData);
+        await api.put(`${config.API_BASE_URL}/transport/vehicles/${editId}`, formData);
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/vehicles`, formData);
+        await api.post(`${config.API_BASE_URL}/transport/vehicles`, formData);
       }
       fetchVehicles();
       setFormData(emptyForm);
@@ -119,7 +119,7 @@ const [errors, setErrors] = useState({});
   const handleDelete = async (id) => {
     if (window.confirm("Delete this vehicle?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/vehicles/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/vehicles/${id}`);
         fetchVehicles();
       } catch (error) {
         console.error("Error deleting vehicle:", error);

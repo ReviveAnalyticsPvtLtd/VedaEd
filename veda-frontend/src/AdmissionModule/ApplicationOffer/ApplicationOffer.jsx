@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import {
   FiUser,
@@ -171,7 +171,7 @@ const paginatedStudents = filteredStudents.slice(
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
+      const res = await api.get(
         `${config.API_BASE_URL}/admission/application/selected`
       );
       if (res.data.success && Array.isArray(res.data.data)) {
@@ -258,7 +258,7 @@ const paginatedStudents = filteredStudents.slice(
             student
           );
 
-          await axios.put(
+          await api.put(
             `${config.API_BASE_URL}/admission/application/${student._id}`,
             {
               offerStatus: "offer_sent",

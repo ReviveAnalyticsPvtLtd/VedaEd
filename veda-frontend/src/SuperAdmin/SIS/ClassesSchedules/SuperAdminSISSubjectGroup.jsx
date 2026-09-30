@@ -15,6 +15,8 @@ const SuperAdminSISSubjectGroup = () => {
   const [sections, setSections] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [editId, setEditId] = useState(null);
+  const [sectionsError, setSectionsError] = useState("");
+  const [dropdownError, setDropdownError] = useState("");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,6 +34,7 @@ const SuperAdminSISSubjectGroup = () => {
     if (!selectedClass) {
       setSections([]);
       setSelectedSections([]);
+      setSectionsError("");
       return;
     }
 
@@ -43,10 +46,16 @@ const SuperAdminSISSubjectGroup = () => {
       .then((res) => {
         if (res.data.success && Array.isArray(res.data.data)) {
           setSections(res.data.data);
+          setSectionsError("");
         }
       })
       .catch((error) => {
         console.error("Error fetching sections:", error);
+        setSections([]);
+        setSectionsError(
+          error.response?.data?.message ||
+            "Could not load sections for this class."
+        );
       });
   }, [selectedClass]);
 
@@ -59,6 +68,10 @@ const SuperAdminSISSubjectGroup = () => {
       if (res.data.success) setGroups(res.data.data);
     } catch (error) {
       console.error("Error fetching groups:", error);
+      alert(
+        error.response?.data?.message ||
+          "Could not load subject groups. Please try again."
+      );
     }
   };
 
@@ -72,8 +85,13 @@ const SuperAdminSISSubjectGroup = () => {
       ]);
       setClasses(classRes.data.data);
       setSubjects(subjectRes.data.data);
+      setDropdownError("");
     } catch (error) {
       console.error("Error fetching dropdowns:", error);
+      setDropdownError(
+        error.response?.data?.message ||
+          "Could not load classes and subjects. Please refresh and try again."
+      );
     }
   };
 
@@ -90,13 +108,14 @@ const SuperAdminSISSubjectGroup = () => {
   };
 
   const handleSubmit = async () => {
-    if (
-      !name ||
-      !selectedClass ||
-      selectedSections.length === 0 ||
-      selectedSubjects.length === 0
-    ) {
-      alert("Please fill all required fields.");
+    const missing = [];
+    if (!name.trim()) missing.push("Name");
+    if (!selectedClass) missing.push("Class");
+    if (selectedSections.length === 0) missing.push("Section(s)");
+    if (selectedSubjects.length === 0) missing.push("Subject(s)");
+
+    if (missing.length > 0) {
+      alert(`Please select: ${missing.join(", ")}.`);
       return;
     }
 
@@ -157,7 +176,13 @@ const SuperAdminSISSubjectGroup = () => {
         if (res.data.success && Array.isArray(res.data.data))
           setSections(res.data.data);
       })
-      .catch((error) => console.error("Error fetching sections:", error));
+      .catch((error) => {
+        console.error("Error fetching sections:", error);
+        setSectionsError(
+          error.response?.data?.message ||
+            "Could not load sections for this class."
+        );
+      });
   };
 
   const handleDelete = async (id) => {
@@ -217,8 +242,22 @@ const SuperAdminSISSubjectGroup = () => {
           ))}
         </select>
 </div>
+        {dropdownError && (
+          <p className="text-sm text-red-600 mb-3">{dropdownError}</p>
+        )}
+        <label className="block text-lg font-medium mb-1">
+          Sections <span className="text-red-500">*</span>
+        </label>
         {selectedClass && (
           <>
+            {sectionsError ? (
+              <p className="text-sm text-red-600 mb-4">{sectionsError}</p>
+            ) : sections.length === 0 ? (
+              <p className="text-sm text-gray-500 mb-4">
+                No sections are linked to this class. Add sections to the class
+                first.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 mb-4">
               {sections.map((sec) => (
                 <label
@@ -240,6 +279,12 @@ const SuperAdminSISSubjectGroup = () => {
         <label className="block text-lg font-medium mb-1">
           Subjects <span className="text-red-500">*</span>
         </label>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-gray-500 mb-4">
+            No subjects found for your school. Add subjects first, then create
+            the subject group.
+          </p>
+        ) : null}
         <div className="grid grid-cols-2 gap-3 mb-4">
           {subjects.map((sub) => (
             <label key={sub._id} className="flex items-center gap-2 ">

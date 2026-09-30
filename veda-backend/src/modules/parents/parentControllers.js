@@ -12,6 +12,11 @@ const Assignment = require("../assignment/assignment");
 const Complaint = require("../communication/complaintModel");
 const Notice = require("../communication/noticeModel");
 const CalendarEvent = require("../calendar/calendarModel");
+// Class and Section are the only tenant-owning anchors for Assignment records,
+// which carry no schoolId of their own. They are used to verify ownership
+// before any class/section id is trusted in a dashboard query.
+const Class = require("../class/classSchema");
+const Section = require("../section/sectionSchema");
 const { AcademicYear, GradeFee, FeeTransaction } = require("../fees/feeModels");
 const {
   normalizeParentIdAccountHolder,
@@ -25,6 +30,20 @@ const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
 const safeDocumentPath = (filename) => {
   const normalizedFilename = path.basename(filename);
   return path.join(UPLOADS_DIR, normalizedFilename);
+};
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
 };
 
 function flattenParentAddress(parentDoc) {
@@ -262,6 +281,8 @@ function formatParentProfileApiData(parentDoc) {
 }
 
 exports.createParents = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { name, email, phone, parentId, linkedStudentId = [], status, password, role } = req.body;
 
   // Always assign a fresh, unique ID server-side. The ID pre-filled in the
@@ -292,6 +313,7 @@ exports.createParents = async (req, res) => {
       password,
       status,
       role,
+      schoolId,
       children: [] // will push actual student IDs below
     });
 
@@ -300,12 +322,13 @@ exports.createParents = async (req, res) => {
       console.log("Looking for students with IDs:", linkedStudentId);
       const students = await Student.find({
         "personalInfo.stdId": { $in: linkedStudentId },
+        schoolId,
       });
       console.log("Found students:", students);
 
       if (students.length > 0) {
         await Student.updateMany(
-          { _id: { $in: students.map(s => s._id) } },
+          { _id: { $in: students.map(s => s._id) }, schoolId },
           { $set: { parent: parent._id } }
         );
 
@@ -317,7 +340,7 @@ exports.createParents = async (req, res) => {
       }
     }
     // Fetch parent with populated children
-    const newParent = await Parent.findById(parent._id).populate("children", 'personalInfo.stdId');
+    const newParent = await Parent.findOne({ _id: parent._id, schoolId }).populate("children", 'personalInfo.stdId');
     console.log("Populated newParent:", JSON.stringify(newParent, null, 2));
 
     // response object (desired fields + unhashed password)
@@ -354,6 +377,7 @@ exports.createParents = async (req, res) => {
           password: password, // bcrypt hashing is handled by User model pre-save hook
           roleId: roleDoc._id,
           refId: parent._id,
+          schoolId,
           status: 'active'
         });
         console.log("Auth User created for parent");
@@ -371,9 +395,11 @@ exports.createParents = async (req, res) => {
 };
 
 exports.getAllParents = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { keyword, role } = req.query;
-    let query = {};
+    let query = { schoolId };
     if (keyword) {
       query.$or = [
         { name: { $regex: keyword, $options: 'i' } },
@@ -388,7 +414,11 @@ exports.getAllParents = async (req, res) => {
 
     const [parentList, admissionDocs] = await Promise.all([
       Parent.find(query).populate("children", "personalInfo.stdId").lean(),
+      // Tenant scope is mandatory: the admission list feeds the same response
+      // as the SIS parent list, so an unscoped read would leak another school's
+      // parents into this school's listing.
       AdmissionApplication.find({
+        schoolId,
         "personalInfo.fees": { $regex: /^paid$/i },
         ...(keyword ? {
           $or: [
@@ -502,6 +532,8 @@ exports.getAllParents = async (req, res) => {
 };
 
 exports.getParentbyId = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { id } = req.params;
   try {
     if (!id) {
@@ -517,14 +549,17 @@ exports.getParentbyId = async (req, res) => {
       if (!parsed) {
         return res.status(404).json({ success: false, message: "Invalid admission parent id" });
       }
-      const application = await AdmissionApplication.findById(parsed.applicationId).lean();
+      const application = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      }).lean();
       if (!application) {
         return res.status(404).json({ success: false, message: "Parent not found in Admissions" });
       }
 
       parentDoc = buildSyntheticParentDocFromRoute(id, application);
     } else if (mongoose.Types.ObjectId.isValid(id)) {
-      parentDoc = await Parent.findById(id).populate({
+      parentDoc = await Parent.findOne({ _id: id, schoolId }).populate({
         path: 'children',
         populate: [
           { path: 'personalInfo.class', select: 'name' },
@@ -538,7 +573,7 @@ exports.getParentbyId = async (req, res) => {
 
       if (!parentDoc) {
         // Try finding in AdmissionApplication
-        const application = await AdmissionApplication.findById(id).lean();
+        const application = await AdmissionApplication.findOne({ _id: id, schoolId }).lean();
         if (application) {
           const holder = normalizeParentIdAccountHolder(
             application.parents?.parentIdAccountHolder,
@@ -609,6 +644,8 @@ exports.getParentbyId = async (req, res) => {
 };
 
 exports.updateParent = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   const { id } = req.params;
   const updateData = req.body;
 
@@ -626,7 +663,10 @@ exports.updateParent = async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid admission parent id" });
       }
 
-      const application = await AdmissionApplication.findById(parsed.applicationId);
+      const application = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      });
       if (!application) {
         return res.status(404).json({
           success: false,
@@ -689,11 +729,19 @@ exports.updateParent = async (req, res) => {
       if (updateData.address !== undefined) mergedContact.address = updateData.address;
 
       try {
-        await AdmissionApplication.findByIdAndUpdate(
-          parsed.applicationId,
+        // The write is tenant-scoped as well, so a foreign-school application
+        // can never be mutated through this route.
+        const writeResult = await AdmissionApplication.findOneAndUpdate(
+          { _id: parsed.applicationId, schoolId },
           { $set: { parents: mergedParents, contactInfo: mergedContact } },
           { new: true, runValidators: true }
         );
+        if (!writeResult) {
+          return res.status(404).json({
+            success: false,
+            message: "Admission record not found",
+          });
+        }
       } catch (dbErr) {
         console.error("Admission parent profile update failed:", dbErr);
         return res.status(400).json({
@@ -702,13 +750,16 @@ exports.updateParent = async (req, res) => {
         });
       }
 
-      const fresh = await AdmissionApplication.findById(parsed.applicationId).lean();
+      const fresh = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      }).lean();
       const syntheticDoc = buildSyntheticParentDocFromRoute(id, fresh);
       const out = formatParentProfileApiData(syntheticDoc);
       return res.status(200).json({ success: true, parent: out });
     }
 
-    const parentExist = await Parent.findById(id);
+    const parentExist = await Parent.findOne({ _id: id, schoolId });
     if (!parentExist) {
       return res.status(404).json({
         success: false,
@@ -732,7 +783,10 @@ exports.updateParent = async (req, res) => {
       }
     }
 
-    const updatedParent = await Parent.findByIdAndUpdate(id, updateData, {
+    // A client-supplied schoolId must never move a parent between schools.
+    delete updateData.schoolId;
+
+    const updatedParent = await Parent.findOneAndUpdate({ _id: id, schoolId }, updateData, {
       new: true,
       runValidators: true,
     })
@@ -793,10 +847,12 @@ exports.updateParent = async (req, res) => {
 };
 
 exports.deleteParentById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
 
-    const deletedParent = await Parent.findByIdAndDelete(id);
+    const deletedParent = await Parent.findOneAndDelete({ _id: id, schoolId });
 
     if (!deletedParent) {
       return res.status(404).json({
@@ -829,6 +885,8 @@ exports.deleteParentById = async (req, res) => {
 
 // Profile picture (image upload) — SIS Parent by Mongo id, or admission synthetic `adm-...`
 exports.uploadProfilePhoto = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -852,8 +910,8 @@ exports.uploadProfilePhoto = async (req, res) => {
       if (!parsed) {
         return res.status(400).json({ success: false, message: "Invalid admission parent id" });
       }
-      const updated = await AdmissionApplication.findByIdAndUpdate(
-        parsed.applicationId,
+      const updated = await AdmissionApplication.findOneAndUpdate(
+        { _id: parsed.applicationId, schoolId },
         { $set: { parentProfilePhoto: fileUrl } },
         { new: true }
       ).select("parentProfilePhoto");
@@ -871,8 +929,8 @@ exports.uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid parent id" });
     }
 
-    const parent = await Parent.findByIdAndUpdate(
-      id,
+    const parent = await Parent.findOneAndUpdate(
+      { _id: id, schoolId },
       { $set: { profilePhoto: fileUrl } },
       { new: true, runValidators: true }
     ).select("profilePhoto");
@@ -893,6 +951,8 @@ exports.uploadProfilePhoto = async (req, res) => {
 
 // Document upload for parent (SIS Parent document, or AdmissionApplication.documents for `adm-...`)
 exports.uploadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   console.log("req.file from uploaddoc parent", req.file);
   console.log("req.body:", req.body);
   try {
@@ -926,8 +986,8 @@ exports.uploadDocument = async (req, res) => {
       if (!parsed) {
         return res.status(400).json({ success: false, message: "Invalid admission parent id" });
       }
-      const updated = await AdmissionApplication.findByIdAndUpdate(
-        parsed.applicationId,
+      const updated = await AdmissionApplication.findOneAndUpdate(
+        { _id: parsed.applicationId, schoolId },
         { $push: { documents: admissionDocumentData } },
         { new: true, runValidators: true }
       ).select("documents");
@@ -942,7 +1002,7 @@ exports.uploadDocument = async (req, res) => {
       });
     }
 
-    const parent = await Parent.findById(parentId);
+    const parent = await Parent.findOne({ _id: parentId, schoolId });
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
     }
@@ -969,6 +1029,8 @@ exports.uploadDocument = async (req, res) => {
 
 // Get all documents for parent
 exports.getAllDocuments = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { parentId } = req.params;
     console.log("Getting documents for parentId:", parentId);
@@ -978,7 +1040,10 @@ exports.getAllDocuments = async (req, res) => {
       if (!parsed) {
         return res.status(400).json({ success: false, message: "Invalid admission parent id" });
       }
-      const app = await AdmissionApplication.findById(parsed.applicationId)
+      const app = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      })
         .select("documents")
         .lean();
       if (!app) {
@@ -990,7 +1055,7 @@ exports.getAllDocuments = async (req, res) => {
       return res.status(200).json(onlyParentUploads);
     }
 
-    const parent = await Parent.findById(parentId).select("documents");
+    const parent = await Parent.findOne({ _id: parentId, schoolId }).select("documents");
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1005,6 +1070,8 @@ exports.getAllDocuments = async (req, res) => {
 
 // Preview document for parent
 exports.previewDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1021,6 +1088,8 @@ exports.previewDocument = async (req, res) => {
 
 // Download document for parent
 exports.downloadDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { filename } = req.params;
     const filePath = safeDocumentPath(filename);
@@ -1036,6 +1105,8 @@ exports.downloadDocument = async (req, res) => {
 };
 
 exports.deleteDocument = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { parentId, documentId } = req.params;
 
@@ -1044,7 +1115,10 @@ exports.deleteDocument = async (req, res) => {
       if (!parsed) {
         return res.status(400).json({ success: false, message: "Invalid admission parent id" });
       }
-      const application = await AdmissionApplication.findById(parsed.applicationId);
+      const application = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      });
       if (!application) {
         return res.status(404).json({ success: false, message: "Admission record not found" });
       }
@@ -1073,7 +1147,7 @@ exports.deleteDocument = async (req, res) => {
       });
     }
 
-    const parent = await Parent.findById(parentId);
+    const parent = await Parent.findOne({ _id: parentId, schoolId });
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1177,6 +1251,8 @@ function normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade) {
 }
 
 exports.getParentDashboardStats = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { id } = req.params;
     const refId = req.user && req.user.refId ? String(req.user.refId) : null;
@@ -1188,8 +1264,11 @@ exports.getParentDashboardStats = async (req, res) => {
     const populateChildren = {
       path: "children",
       populate: [
-        { path: "personalInfo.class", select: "name" },
-        { path: "personalInfo.section", select: "name" },
+        // Class and Section are tenant-owned, so a foreign class/section must
+        // never be populated into this response. A non-matching populate simply
+        // yields null and the row renders "N/A" instead of another school's name.
+        { path: "personalInfo.class", select: "name", match: { schoolId } },
+        { path: "personalInfo.section", select: "name", match: { schoolId } },
       ],
     };
 
@@ -1198,29 +1277,30 @@ exports.getParentDashboardStats = async (req, res) => {
       if (str.startsWith("adm-")) {
         const parsed = parseAdmissionSyntheticParentRouteId(str);
         if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
-          admissionApp = await AdmissionApplication.findById(
-            parsed.applicationId
-          ).lean();
+          admissionApp = await AdmissionApplication.findOne({
+            _id: parsed.applicationId,
+            schoolId,
+          }).lean();
           if (admissionApp) break;
         }
         continue;
       }
       if (!mongoose.Types.ObjectId.isValid(str)) continue;
 
-      parent = await Parent.findById(str).populate(populateChildren).lean();
+      parent = await Parent.findOne({ _id: str, schoolId }).populate(populateChildren).lean();
       if (parent) break;
 
       // Maybe the id is a User._id → resolve its refId to the Parent
-      const user = await User.findById(str).lean().catch(() => null);
+      const user = await User.findOne({ _id: str, schoolId }).lean().catch(() => null);
       if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
-        parent = await Parent.findById(user.refId)
+        parent = await Parent.findOne({ _id: user.refId, schoolId })
           .populate(populateChildren)
           .lean();
         if (parent) break;
       }
 
       // Admission-linked parents use the application _id as their refId
-      const app = await AdmissionApplication.findById(str).lean();
+      const app = await AdmissionApplication.findOne({ _id: str, schoolId }).lean();
       if (app) {
         admissionApp = app;
         break;
@@ -1236,11 +1316,49 @@ exports.getParentDashboardStats = async (req, res) => {
     const childrenRaw = (parent && parent.children ? parent.children : []).filter(
       (c) => c && c._id
     );
-    const childIds = childrenRaw.map((ch) => ch._id);
+    const childIdsRaw = childrenRaw.map((ch) => ch._id);
+
+    // ---- Verify every child belongs to the authenticated school ----
+    // Parent.children is only an array of Student references; it carries no
+    // ownership guarantee. A parent record referencing a foreign student must
+    // never contribute to this dashboard, so ownership is verified against the
+    // Student document before any id is used downstream. From here on only
+    // verifiedChildIds may be used by dashboard queries.
+    const verifiedStudents = await dashSafe(
+      () => Student.find({ _id: { $in: childIdsRaw }, schoolId }).lean(),
+      []
+    );
+    const verifiedStudentById = new Map(
+      verifiedStudents.map((s) => [String(s._id), s])
+    );
+    const verifiedChildren = childrenRaw.filter((ch) =>
+      verifiedStudentById.has(String(ch._id))
+    );
+    const verifiedChildIds = verifiedChildren.map((ch) => ch._id);
+
+    const droppedChildIds = childIdsRaw.filter(
+      (id) => !verifiedStudentById.has(String(id))
+    );
+    if (droppedChildIds.length > 0) {
+      // Data-integrity / security condition: a parent record references at least
+      // one student this school does not own. Those children are excluded rather
+      // than reported as a server error, so one bad link cannot break the page.
+      console.error(
+        "Parent dashboard: excluded child student(s) not owned by the authenticated school",
+        JSON.stringify({
+          parentId: parent ? String(parent._id) : null,
+          schoolId: String(schoolId),
+          droppedChildIds: droppedChildIds.map((id) => String(id)),
+        })
+      );
+    }
 
     // ---- Attendance ----
+    // Attendance has no schoolId. The tenant anchor is the verified Student
+    // ownership established above: authenticated school -> verified Student ->
+    // Attendance.
     const attendanceRecs = await dashSafe(
-      () => Attendance.find({ student: { $in: childIds } }).lean(),
+      () => Attendance.find({ student: { $in: verifiedChildIds } }).lean(),
       []
     );
     const attByChild = {};
@@ -1264,7 +1382,9 @@ exports.getParentDashboardStats = async (req, res) => {
       null
     );
     const feeYear = activeYear && activeYear.label ? activeYear.label : null;
-    const feeFilter = { studentId: { $in: childIds } };
+    // AcademicYear is left global on purpose: it is only a shared year label and
+    // an input to this student-scoped query, so it cannot widen the tenant.
+    const feeFilter = { studentId: { $in: verifiedChildIds } };
     if (feeYear) feeFilter.year = feeYear;
     const feeTxs = await dashSafe(
       () => FeeTransaction.find(feeFilter).lean(),
@@ -1276,6 +1396,10 @@ exports.getParentDashboardStats = async (req, res) => {
       const sid = String(t.studentId);
       paidByChild[sid] = (paidByChild[sid] || 0) + (Number(t.totalAmount) || 0);
     }
+    // GradeFee is intentionally treated as a shared global reference table in
+    // this task. It is a platform-wide fee schedule with no schoolId, and its
+    // values are compared against this school's own, already student-scoped,
+    // FeeTransactions. It is NOT tenant-isolated and is not claimed to be.
     const gradeFees = await dashSafe(
       () => GradeFee.find(feeYear ? { year: feeYear } : {}).lean(),
       []
@@ -1290,10 +1414,14 @@ exports.getParentDashboardStats = async (req, res) => {
     }
 
     // ---- Gradebook (scores + subject performance) ----
+    // Anchored on verified Student ownership, and the populated Subject is
+    // tenant-matched so a foreign subject name can never be aggregated. A
+    // subject that fails the match populates as null and degrades to the
+    // existing "Subject" fallback label.
     const gradeRecs = await dashSafe(
       () =>
-        Gradebook.find({ student: { $in: childIds } })
-          .populate("subject", "name")
+        Gradebook.find({ student: { $in: verifiedChildIds } })
+          .populate({ path: "subject", select: "name", match: { schoolId } })
           .lean(),
       []
     );
@@ -1318,16 +1446,54 @@ exports.getParentDashboardStats = async (req, res) => {
     }
 
     // ---- Assignments (pending per child) ----
-    const pairs = childrenRaw
-      .map((ch) => {
-        const pi = ch.personalInfo || {};
-        const clsId =
-          pi.class && typeof pi.class === "object" ? pi.class._id : pi.class;
-        const secId =
-          pi.section && typeof pi.section === "object" ? pi.section._id : pi.section;
-        return clsId && secId ? { class: clsId, section: secId } : null;
-      })
-      .filter(Boolean);
+    // Assignment carries no schoolId. Its only tenant relationship is through
+    // Class and Section, so both are verified against the authenticated school
+    // before any of their ids is used to build the query.
+    const classIdOf = (ch) => {
+      const pi = ch.personalInfo || {};
+      return pi.class && typeof pi.class === "object" ? pi.class._id : pi.class;
+    };
+    const sectionIdOf = (ch) => {
+      const pi = ch.personalInfo || {};
+      return pi.section && typeof pi.section === "object" ? pi.section._id : pi.section;
+    };
+
+    const relevantClassIds = [
+      ...new Set(verifiedChildren.map(classIdOf).filter(Boolean).map(String)),
+    ];
+    const relevantSectionIds = [
+      ...new Set(verifiedChildren.map(sectionIdOf).filter(Boolean).map(String)),
+    ];
+
+    const [ownedClasses, ownedSections] = await Promise.all([
+      dashSafe(
+        () => Class.find({ _id: { $in: relevantClassIds }, schoolId }).select("_id").lean(),
+        []
+      ),
+      dashSafe(
+        () => Section.find({ _id: { $in: relevantSectionIds }, schoolId }).select("_id").lean(),
+        []
+      ),
+    ]);
+    const ownedClassIds = new Set(ownedClasses.map((c) => String(c._id)));
+    const ownedSectionIds = new Set(ownedSections.map((s) => String(s._id)));
+
+    // Pairs are keyed by child id, never by array position. The previous
+    // `childrenRaw.forEach((ch, idx) => pairs[idx])` assumed positional alignment
+    // after `.filter(Boolean)`, so a single dropped child shifted every later
+    // child onto the wrong class/section.
+    const pairByChildId = new Map();
+    for (const ch of verifiedChildren) {
+      const clsId = classIdOf(ch);
+      const secId = sectionIdOf(ch);
+      if (!clsId || !secId) continue;
+      // Both sides must be owned by the authenticated school.
+      if (!ownedClassIds.has(String(clsId))) continue;
+      if (!ownedSectionIds.has(String(secId))) continue;
+      pairByChildId.set(String(ch._id), { class: clsId, section: secId });
+    }
+
+    const pairs = [...pairByChildId.values()];
     const assignments =
       pairs.length > 0
         ? await dashSafe(
@@ -1337,14 +1503,10 @@ exports.getParentDashboardStats = async (req, res) => {
           )
         : [];
     const childKeyByClassSection = {};
-    childrenRaw.forEach((ch, idx) => {
-      const pair = pairs[idx];
-      const key = pair ? `${String(pair.class)}|${String(pair.section)}` : null;
-      if (key) {
-        (childKeyByClassSection[key] =
-          childKeyByClassSection[key] || []).push(String(ch._id));
-      }
-    });
+    for (const [childId, pair] of pairByChildId.entries()) {
+      const key = `${String(pair.class)}|${String(pair.section)}`;
+      (childKeyByClassSection[key] = childKeyByClassSection[key] || []).push(childId);
+    }
     const pendingByChild = {};
     for (const a of assignments) {
       const eligible = childKeyByClassSection[`${String(a.class)}|${String(a.section)}`];
@@ -1362,7 +1524,9 @@ exports.getParentDashboardStats = async (req, res) => {
     }
 
     // ---- Assemble children rows ----
-    const children = childrenRaw.map((ch) => {
+    // Built from verifiedChildren so an unverified child is absent from the
+    // response entirely, not merely missing its statistics.
+    const children = verifiedChildren.map((ch) => {
       const row = normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade);
       const key = String(ch._id);
       const scores = scoreByChild[key];
@@ -1434,6 +1598,11 @@ exports.getParentDashboardStats = async (req, res) => {
       .sort((a, b) => b.value - a.value);
 
     // ---- Complaints ----
+    // Tenant-safe without a schoolId field: parentRefId is derived only from the
+    // already tenant-verified identity above — either a Parent matched with
+    // { _id, schoolId } or an AdmissionApplication matched with { _id, schoolId }
+    // (see the resolution loop). A foreign parent/admission id therefore never
+    // reaches this filter, so the relationship is anchored to a School A entity.
     const parentRefId = parent ? parent._id : admissionApp ? admissionApp._id : null;
     const complaints = await dashSafe(
       () =>
@@ -1459,45 +1628,27 @@ exports.getParentDashboardStats = async (req, res) => {
     ).length;
 
     // ---- Notices & events ----
-    const targetAudienceFilter = {
-      $or: [
-        { targetAudience: "all" },
-        { targetAudience: "parents" },
-        ...(parentRefId ? [{ specificTargets: parentRefId }] : []),
-      ],
-    };
-    const notices = await dashSafe(
-      () =>
-        Notice.find({
-          status: "published",
-          publishDate: { $lte: new Date() },
-          $and: [
-            {
-              $or: [
-                { expiryDate: { $exists: false } },
-                { expiryDate: { $gte: new Date() } },
-              ],
-            },
-          ],
-          ...targetAudienceFilter,
-        })
-          .sort({ publishDate: -1 })
-          .limit(6)
-          .lean(),
-      []
-    );
-    const upcomingEvents = await dashSafe(
-      () =>
-        CalendarEvent.find({
-          status: "Scheduled",
-          endDate: { $gte: new Date() },
-          visibility: "Parent",
-        })
-          .sort({ startDate: 1 })
-          .limit(6)
-          .lean(),
-      []
-    );
+    // FAIL CLOSED — BLOCKER, not fixed tenant ownership.
+    //
+    // Notice has no tenant anchor that can be trusted: the schema declares no
+    // schoolId, the communication module does not write one, and the undeclared
+    // schoolId on existing documents is demonstrably unreliable (it contradicts
+    // the author's real school in at least one record, and several author
+    // references are dangling). Inferring ownership from author, name, email,
+    // phone or that undeclared field would all be weak guesses, so no notices are
+    // returned. The previous `targetAudience: "all"` match returned every
+    // school's notices to every parent.
+    //
+    // Re-enable only after Notice is given a real, written-through tenant owner.
+    const notices = [];
+
+    // CalendarEvent is failed closed for the same reason and is even weaker: it
+    // declares no schoolId, its `classes`/`sections` are plain name strings
+    // rather than references, `createdBy` is the string "Admin" and not a
+    // user reference, and only some documents carry the undeclared field. The
+    // previous query returned every school's parent-visible events globally.
+    // upcomingPTA therefore falls back to its existing empty-state label.
+    const upcomingEvents = [];
     const ptaEvent = upcomingEvents.find(
       (e) => String(e.type || "").toLowerCase() === "meeting"
     );
@@ -1547,6 +1698,8 @@ exports.getParentDashboardStats = async (req, res) => {
 };
 
 exports.getNextParentId = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     // Just preview the next upcoming ID without consuming it. The unique ID is
     // actually assigned server-side inside createParents.
@@ -1565,6 +1718,8 @@ exports.getNextParentId = async (req, res) => {
 };
 
 exports.importParents = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const parentsData = req.body;
 
@@ -1600,7 +1755,7 @@ exports.importParents = async (req, res) => {
           continue;
         }
 
-        const existing = await Parent.findOne({ name, phone }).select("_id parentId").lean();
+        const existing = await Parent.findOne({ name, phone, schoolId }).select("_id parentId").lean();
         if (existing) {
           results.skipped.push({ name, reason: `Exists (ID: ${existing.parentId || existing._id})` });
           continue;
@@ -1616,13 +1771,14 @@ exports.importParents = async (req, res) => {
           name, email, phone, parentId, password,
           status: getVal(pData, ["Status", "status"]) || "Active",
           role: ["Primary Guardian", "Secondary Guardian", "Father", "Mother", "Guardian"].includes(role) ? role : "Guardian",
+          schoolId,
           children: []
         });
 
         if (linkedStudentIds.length > 0) {
-          const students = await Student.find({ "personalInfo.stdId": { $in: linkedStudentIds } });
+          const students = await Student.find({ "personalInfo.stdId": { $in: linkedStudentIds }, schoolId });
           if (students.length > 0) {
-            await Student.updateMany({ _id: { $in: students.map(s => s._id) } }, { $set: { parent: parent._id } });
+            await Student.updateMany({ _id: { $in: students.map(s => s._id) }, schoolId }, { $set: { parent: parent._id } });
             parent.children.push(...students.map(s => s._id));
             await parent.save();
           }
@@ -1634,7 +1790,7 @@ exports.importParents = async (req, res) => {
           try {
             await require('../../models/User').create({
               name, email: email || parentId, password,
-              roleId: parentRoleDoc._id, refId: parent._id, status: 'active'
+              roleId: parentRoleDoc._id, refId: parent._id, schoolId, status: 'active'
             });
           } catch (e) { console.warn(`Auth creation fail for ${name}:`, e.message); }
         }

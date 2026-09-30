@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { Link } from "react-router-dom";
 import {
@@ -51,7 +51,7 @@ export default function StudentMasterDashboard() {
         }
         const token = localStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await axios.get(
+        const res = await api.get(
           `${config.API_BASE_URL}/students/${studentId}/dashboard-stats`,
           { headers }
         );

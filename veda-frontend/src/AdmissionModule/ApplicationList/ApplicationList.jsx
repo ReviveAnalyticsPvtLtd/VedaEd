@@ -4,7 +4,7 @@ import { FiEye } from "react-icons/fi";
 import * as XLSX from "xlsx";
 import HelpInfo from "../../components/HelpInfo";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import Pagination from "../../components/common/Pagination";
 
@@ -38,7 +38,7 @@ const itemsPerPage = 10; // jitne rows per page chahiye
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/admission/application`);
+      const res = await api.get(`${config.API_BASE_URL}/admission/application`);
       if (res.data.success) {
         setApplications(res.data.data);
       }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import { useNavigate } from "react-router-dom";
 import {
@@ -33,7 +33,7 @@ export default function SuperAdminAdmissionStatusTracking() {
 
     setLoading(true);
     try {
-        const res = await axios.get(`${config.API_BASE_URL}/admission/application/track/${applicationId.trim()}`);
+        const res = await api.get(`${config.API_BASE_URL}/admission/application/track/${applicationId.trim()}`);
         if(res.data.success) {
             setApplication(res.data.data);
         } else {

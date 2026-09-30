@@ -22,6 +22,12 @@ const platformAdminSchema = new mongoose.Schema(
     designation: { type: String, trim: true },
     adminType: { type: String, required: true, trim: true },
     school: { type: String, trim: true },
+    // Authoritative tenant for this admin, copied from the creating superadmin's
+    // own user document (never from a request body). `school` above is a free-text
+    // label only and is not safe to match on. This field exists because the
+    // invite-acceptance route is public and has no authenticated caller to read
+    // a school from, so the tenant must travel with the invitation itself.
+    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
     campus: { type: String, trim: true },
     scope: { type: String, trim: true },
     permissions: { type: [permissionRowSchema], default: [] },

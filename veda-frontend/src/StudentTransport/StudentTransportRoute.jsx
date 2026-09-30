@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet";
 import L from "leaflet";
@@ -29,7 +29,7 @@ export default function StudentTransportRoute() {
       setLoading(true);
 
       // 🔹 example API (backend ke hisaab se change kar sakti ho)
-      const res = await axios.get(
+      const res = await api.get(
         `${config.API_BASE_URL}/student/transport/route`
       );
 

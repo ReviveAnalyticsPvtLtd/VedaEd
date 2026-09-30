@@ -1,13 +1,33 @@
+const mongoose = require('mongoose');
 const Notification = require('./notificationModel');
-const CommunicationLog = require('./communicationLogModel');
-const Teacher = require('../teacher/teacherModel');
-const Staff = require('../staff/staffModels');
-const Student = require('../student/studentModels');
-const Parent = require('../parents/parentModel');
+const {
+  schoolId,
+  rejectForeignActor,
+  rejectForeignRecipients,
+  recipientIds,
+  labelFor,
+  findPartyModel,
+  resolveActor,
+  logAction,
+} = require('./communicationTenantScope');
+
+// Fields a client may change. `schoolId`, `createdBy` and `createdByModel` are
+// deliberately absent: ownership and provenance are server-derived.
+const MUTABLE_FIELDS = [
+  'title',
+  'description',
+  'type',
+  'audience',
+  'specificTargets',
+  'specificTargetModel',
+  'channels',
+  'status',
+];
 
 // Create a new notification
 exports.createNotification = async (req, res) => {
   try {
+    const school = schoolId(req);
     const {
       title,
       description,
@@ -15,42 +35,25 @@ exports.createNotification = async (req, res) => {
       audience,
       specificTargets,
       specificTargetModel,
-      createdBy,
-      createdByModel,
       channels,
       publishDate,
       status
     } = req.body;
 
-    // Validate required fields
-    if (!title || !description || !createdBy || !createdByModel) {
+    // Validate required fields. The creator is no longer a client field.
+    if (!title || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Title, description, createdBy, and createdByModel are required'
+        message: 'Title and description are required'
       });
     }
 
-    // Check if creator exists
-    const mongoose = require("mongoose");
-    let creatorExists = false;
-    if (createdByModel === 'Teacher') {
-      const teacher = await Teacher.findById(createdBy).populate('personalInfo');
-      if (teacher) creatorExists = true;
-    } else if (createdByModel === 'Admin') {
-      const Admin = mongoose.model('Admin');
-      const adminObj = await Admin.findById(createdBy);
-      if (adminObj) creatorExists = true;
-    } else {
-      const staff = await Staff.findById(createdBy);
-      if (staff) creatorExists = true;
-    }
+    // Recipients must all be in the caller's own school.
+    const targets = recipientIds(specificTargets);
+    if (await rejectForeignRecipients(res, targets, school)) return;
 
-    if (!creatorExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Creator user not found'
-      });
-    }
+    // The creator is the authenticated session.
+    const actor = await resolveActor(req);
 
     // Parse publish date
     const parsedPublishDate = publishDate ? new Date(publishDate) : new Date();
@@ -62,14 +65,16 @@ exports.createNotification = async (req, res) => {
     }
 
     const notificationData = {
+      // Authoritative tenant, derived from the session.
+      schoolId: school,
       title,
       description,
       type: type || 'Information',
       audience: audience || 'all',
       specificTargets: specificTargets || [],
       specificTargetModel: specificTargetModel || undefined,
-      createdBy,
-      createdByModel,
+      createdBy: actor.id,
+      createdByModel: labelFor(actor.model),
       channels: channels || ['app'],
       publishDate: parsedPublishDate,
       status: finalStatus
@@ -77,13 +82,10 @@ exports.createNotification = async (req, res) => {
 
     const notification = await Notification.create(notificationData);
 
-    // Log action to CommunicationLog
-    await CommunicationLog.create({
-      user: createdBy,
-      userModel: createdByModel,
+    await logAction(req, {
       action: 'message_sent',
       target: notification._id,
-      targetModel: 'Notice',
+      targetModel: 'Notification',
       details: { title, type, audience }
     });
 
@@ -94,9 +96,10 @@ exports.createNotification = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating notification:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -104,9 +107,11 @@ exports.createNotification = async (req, res) => {
 // Get all notifications (history)
 exports.getNotifications = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { page = 1, limit = 10, type, status, audience, search } = req.query;
 
-    const query = {};
+    // Tenant scope first and not overridable by any filter.
+    const query = { schoolId: school };
     if (type) query.type = type;
     if (status) query.status = status;
     if (audience) query.audience = audience;
@@ -120,7 +125,7 @@ exports.getNotifications = async (req, res) => {
     const notifications = await Notification.find(query)
       .populate({
         path: 'createdBy',
-        select: 'personalInfo.name personalInfo.email'
+        select: 'personalInfo.name personalInfo.email name email'
       })
       .sort({ publishDate: -1 })
       .limit(limit * 1)
@@ -139,9 +144,10 @@ exports.getNotifications = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -149,12 +155,14 @@ exports.getNotifications = async (req, res) => {
 // Get single notification
 exports.getNotification = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { notificationId } = req.params;
 
-    const notification = await Notification.findById(notificationId)
+    // Tenant-scoped direct id access: a foreign id does not match and 404s.
+    const notification = await Notification.findOne({ _id: notificationId, schoolId: school })
       .populate({
         path: 'createdBy',
-        select: 'personalInfo.name personalInfo.email'
+        select: 'personalInfo.name personalInfo.email name email'
       });
 
     if (!notification) {
@@ -170,9 +178,10 @@ exports.getNotification = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching notification:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -180,10 +189,11 @@ exports.getNotification = async (req, res) => {
 // Update notification
 exports.updateNotification = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { notificationId } = req.params;
-    const updateData = req.body;
+    const updateData = req.body || {};
 
-    const notification = await Notification.findById(notificationId);
+    const notification = await Notification.findOne({ _id: notificationId, schoolId: school });
     if (!notification) {
       return res.status(404).json({
         success: false,
@@ -191,8 +201,11 @@ exports.updateNotification = async (req, res) => {
       });
     }
 
-    // Update fields
-    Object.keys(updateData).forEach(key => {
+    if (await rejectForeignRecipients(res, recipientIds(updateData.specificTargets), school)) return;
+
+    // Allow-list only. This drops schoolId, createdBy, createdByModel and
+    // anything else a client might send.
+    MUTABLE_FIELDS.forEach((key) => {
       if (updateData[key] !== undefined) {
         notification[key] = updateData[key];
       }
@@ -218,9 +231,10 @@ exports.updateNotification = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating notification:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -228,9 +242,11 @@ exports.updateNotification = async (req, res) => {
 // Delete notification
 exports.deleteNotification = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { notificationId } = req.params;
 
-    const notification = await Notification.findById(notificationId);
+    // Scoped delete: a foreign id matches nothing and is left untouched.
+    const notification = await Notification.findOneAndDelete({ _id: notificationId, schoolId: school });
     if (!notification) {
       return res.status(404).json({
         success: false,
@@ -238,17 +254,16 @@ exports.deleteNotification = async (req, res) => {
       });
     }
 
-    await Notification.findByIdAndDelete(notificationId);
-
     res.status(200).json({
       success: true,
       message: 'Notification deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting notification:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -256,13 +271,17 @@ exports.deleteNotification = async (req, res) => {
 // Get notifications statistics
 exports.getNotificationStats = async (req, res) => {
   try {
-    const totalNotifications = await Notification.countDocuments();
-    const sentNotifications = await Notification.countDocuments({ status: 'sent' });
-    const scheduledNotifications = await Notification.countDocuments({ status: 'scheduled' });
-    const failedNotifications = await Notification.countDocuments({ status: 'failed' });
+    const school = schoolId(req);
+    const scope = { schoolId: school };
 
-    // Breakdown by type
+    const totalNotifications = await Notification.countDocuments(scope);
+    const sentNotifications = await Notification.countDocuments({ ...scope, status: 'sent' });
+    const scheduledNotifications = await Notification.countDocuments({ ...scope, status: 'scheduled' });
+    const failedNotifications = await Notification.countDocuments({ ...scope, status: 'failed' });
+
+    // Aggregation carries the tenant $match so it cannot report global totals.
     const notificationsByType = await Notification.aggregate([
+      { $match: { schoolId: new mongoose.Types.ObjectId(school) } },
       { $group: { _id: '$type', count: { $sum: 1 } } }
     ]);
 
@@ -278,9 +297,10 @@ exports.getNotificationStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching notification stats:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };
@@ -288,28 +308,34 @@ exports.getNotificationStats = async (req, res) => {
 // Get received notifications for a specific user
 exports.getReceivedNotifications = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { userId, userModel } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const modelName = userModel.charAt(0).toUpperCase() + userModel.slice(1).toLowerCase();
+    // The feed belongs to the caller, not to an arbitrary party.
+    if (rejectForeignActor(req, res, userId)) return;
 
-    // Query for notifications where:
-    // 1. status is 'sent' and publishDate is <= now
-    // 2. target matches role or specific targets
+    const actor = await resolveActor(req);
+    const modelName = String(userModel).charAt(0).toUpperCase() + String(userModel).slice(1).toLowerCase();
+
+    // Scoped three ways: the school, the published state, and the audience.
+    // The old query had no schoolId at all, so a notification addressed to an
+    // individual in another school would surface on this school's feed.
     const query = {
+      schoolId: school,
       status: 'sent',
       publishDate: { $lte: new Date() },
       $or: [
         { audience: 'all' },
         { audience: modelName.toLowerCase() + 's' },
-        { specificTargets: userId }
+        { specificTargets: actor.id }
       ]
     };
 
     const notifications = await Notification.find(query)
       .populate({
         path: 'createdBy',
-        select: 'personalInfo.name personalInfo.email'
+        select: 'personalInfo.name personalInfo.email name email'
       })
       .sort({ publishDate: -1 })
       .limit(limit * 1)
@@ -328,9 +354,10 @@ exports.getReceivedNotifications = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching received notifications:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Internal Server Error'
+      code: error.code,
+      message: error.status ? error.message : 'Internal Server Error'
     });
   }
 };

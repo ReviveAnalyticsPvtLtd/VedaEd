@@ -12,6 +12,30 @@ const {
   FeeAuditLog
 } = require("./feeModels");
 const Student = require("../student/studentModels");
+const {
+  CAP,
+  schoolId,
+  tenantScope,
+  pick,
+  hasCapability,
+  canManageFees,
+  isParent,
+  resolveAccessibleStudent,
+  verifiedChildIds,
+} = require("./feeTenant");
+
+// Per-model allowlists. A caller may set these fields and nothing else, so a
+// client can never smuggle `schoolId` (or any other server-derived field) into
+// a create/update payload.
+const FIELDS = {
+  feeCategory: ["name", "code", "desc", "frequency", "applicability", "optional", "partial", "taxable", "taxPercent", "active", "year"],
+  installmentPlan: ["name", "category", "year", "slices"],
+  lateFeePolicy: ["category", "graceDays", "type", "amount", "maxCap", "compound", "year"],
+  discountRule: ["name", "description", "basis", "type", "value", "maxCap", "categories", "grades", "stackable", "active", "year"],
+  fine: ["name", "description", "amount", "active", "year"],
+  gradeFee: ["year", "grade", "fees"],
+  academicYear: ["label", "startDate", "endDate", "isActive", "terms"],
+};
 
 // Match a FeeCategory's `applicability` (grade range like "All", "All Grades",
 // "Grade 1-5", "Grade 6-10") against a student's grade. Also keeps a legacy
@@ -51,6 +75,9 @@ function isFeeApplicable(category, student) {
 }
 
 // --- Academic Year Controllers ---
+// AcademicYear is GLOBAL reference data and deliberately has no schoolId.
+// It is still not anonymous: reads require an authenticated school account,
+// writes require the existing `manage_fees` capability.
 
 exports.getAcademicYears = async (req, res) => {
   try {
@@ -63,7 +90,7 @@ exports.getAcademicYears = async (req, res) => {
 
 exports.createAcademicYear = async (req, res) => {
   try {
-    const { label, startDate, endDate, isActive, terms } = req.body;
+    const { label, startDate, endDate, isActive, terms } = pick(req.body, FIELDS.academicYear);
 
     if (isActive) {
       await AcademicYear.updateMany({}, { isActive: false });
@@ -87,7 +114,7 @@ exports.createAcademicYear = async (req, res) => {
 exports.updateAcademicYear = async (req, res) => {
   try {
     const { id } = req.params;
-    const { label, startDate, endDate, isActive, terms } = req.body;
+    const { label, startDate, endDate, isActive, terms } = pick(req.body, FIELDS.academicYear);
 
     if (isActive) {
       await AcademicYear.updateMany({ _id: { $ne: id } }, { isActive: false });
@@ -156,7 +183,7 @@ exports.getFeeCategories = async (req, res) => {
 
     if (!year) return res.json([]); // No year selected and no active year found
 
-    const query = { year };
+    const query = tenantScope(req, { year });
     const categories = await FeeCategory.find(query).sort({ createdAt: -1 });
     res.json(categories);
   } catch (error) {
@@ -166,7 +193,8 @@ exports.getFeeCategories = async (req, res) => {
 
 exports.createFeeCategory = async (req, res) => {
   try {
-    const categoryData = req.body;
+    // Allowlisted fields only; the tenant is assigned server-side.
+    const categoryData = { ...pick(req.body, FIELDS.feeCategory), schoolId: schoolId(req) };
     const newCategory = new FeeCategory(categoryData);
     await newCategory.save();
     res.status(201).json(newCategory);
@@ -178,11 +206,13 @@ exports.createFeeCategory = async (req, res) => {
 exports.updateFeeCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const categoryData = req.body;
-    const updatedCategory = await FeeCategory.findByIdAndUpdate(
-      id,
+    // schoolId is never accepted from the client, and the selector carries the
+    // tenant so a foreign id behaves as NOT FOUND.
+    const categoryData = pick(req.body, FIELDS.feeCategory);
+    const updatedCategory = await FeeCategory.findOneAndUpdate(
+      tenantScope(req, { _id: id }),
       categoryData,
-      { new: true }
+      { new: true, runValidators: true }
     );
     if (!updatedCategory) {
       return res.status(404).json({ message: "Fee category not found" });
@@ -196,7 +226,7 @@ exports.updateFeeCategory = async (req, res) => {
 exports.deleteFeeCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedCategory = await FeeCategory.findByIdAndDelete(id);
+    const deletedCategory = await FeeCategory.findOneAndDelete(tenantScope(req, { _id: id }));
     if (!deletedCategory) {
       return res.status(404).json({ message: "Fee category not found" });
     }
@@ -209,7 +239,7 @@ exports.deleteFeeCategory = async (req, res) => {
 exports.toggleFeeCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const category = await FeeCategory.findById(id);
+    const category = await FeeCategory.findOne(tenantScope(req, { _id: id }));
     if (!category) {
       return res.status(404).json({ message: "Fee category not found" });
     }
@@ -228,7 +258,7 @@ exports.getGradeFees = async (req, res) => {
     if (!year) {
       return res.status(400).json({ message: "Year is required" });
     }
-    const fees = await GradeFee.find({ year });
+    const fees = await GradeFee.find(tenantScope(req, { year }));
     res.json(fees);
   } catch (error) {
     res.status(500).json({ message: "Error fetching grade fees", error });
@@ -237,11 +267,14 @@ exports.getGradeFees = async (req, res) => {
 
 exports.updateGradeFee = async (req, res) => {
   try {
-    const { year, grade, field, value } = req.body;
-    let feeDoc = await GradeFee.findOne({ year, grade });
+    const { year, grade, field, value } = pick(req.body, [...FIELDS.gradeFee, "field", "value"]);
+    // A matching year+grade in another school is NOT this school's row: the
+    // tenant is part of the selector, so a foreign row is created untouched
+    // rather than overwritten.
+    let feeDoc = await GradeFee.findOne(tenantScope(req, { year, grade }));
 
     if (!feeDoc) {
-      feeDoc = new GradeFee({ year, grade, fees: {} });
+      feeDoc = new GradeFee({ year, grade, fees: {}, schoolId: schoolId(req) });
     }
 
     // Set the fee value in the map
@@ -266,7 +299,7 @@ exports.getInstallmentPlans = async (req, res) => {
 
     if (!year) return res.json([]);
 
-    const query = { year };
+    const query = tenantScope(req, { year });
     const plans = await InstallmentPlan.find(query).sort({ createdAt: -1 });
     res.json(plans);
   } catch (error) {
@@ -276,7 +309,7 @@ exports.getInstallmentPlans = async (req, res) => {
 
 exports.createInstallmentPlan = async (req, res) => {
   try {
-    const planData = req.body;
+    const planData = { ...pick(req.body, FIELDS.installmentPlan), schoolId: schoolId(req) };
     const newPlan = new InstallmentPlan(planData);
     await newPlan.save();
     res.status(201).json(newPlan);
@@ -288,11 +321,11 @@ exports.createInstallmentPlan = async (req, res) => {
 exports.updateInstallmentPlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const planData = req.body;
-    const updatedPlan = await InstallmentPlan.findByIdAndUpdate(
-      id,
+    const planData = pick(req.body, FIELDS.installmentPlan);
+    const updatedPlan = await InstallmentPlan.findOneAndUpdate(
+      tenantScope(req, { _id: id }),
       planData,
-      { new: true }
+      { new: true, runValidators: true }
     );
     if (!updatedPlan) {
       return res.status(404).json({ message: "Installment plan not found" });
@@ -306,7 +339,7 @@ exports.updateInstallmentPlan = async (req, res) => {
 exports.deleteInstallmentPlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedPlan = await InstallmentPlan.findByIdAndDelete(id);
+    const deletedPlan = await InstallmentPlan.findOneAndDelete(tenantScope(req, { _id: id }));
     if (!deletedPlan) {
       return res.status(404).json({ message: "Installment plan not found" });
     }
@@ -326,7 +359,7 @@ exports.getLateFeePolicies = async (req, res) => {
 
     if (!year) return res.json([]);
 
-    const query = { year };
+    const query = tenantScope(req, { year });
     const policies = await LateFeePolicy.find(query).sort({ createdAt: -1 });
     res.json(policies);
   } catch (error) {
@@ -336,7 +369,7 @@ exports.getLateFeePolicies = async (req, res) => {
 
 exports.createLateFeePolicy = async (req, res) => {
   try {
-    const newPolicy = new LateFeePolicy(req.body);
+    const newPolicy = new LateFeePolicy({ ...pick(req.body, FIELDS.lateFeePolicy), schoolId: schoolId(req) });
     await newPolicy.save();
     res.status(201).json(newPolicy);
   } catch (error) {
@@ -347,7 +380,11 @@ exports.createLateFeePolicy = async (req, res) => {
 exports.updateLateFeePolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedPolicy = await LateFeePolicy.findByIdAndUpdate(id, req.body, { new: true });
+    const updatedPolicy = await LateFeePolicy.findOneAndUpdate(
+      tenantScope(req, { _id: id }),
+      pick(req.body, FIELDS.lateFeePolicy),
+      { new: true, runValidators: true }
+    );
     if (!updatedPolicy) return res.status(404).json({ message: "Late fee policy not found" });
     res.json(updatedPolicy);
   } catch (error) {
@@ -358,7 +395,7 @@ exports.updateLateFeePolicy = async (req, res) => {
 exports.deleteLateFeePolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedPolicy = await LateFeePolicy.findByIdAndDelete(id);
+    const deletedPolicy = await LateFeePolicy.findOneAndDelete(tenantScope(req, { _id: id }));
     if (!deletedPolicy) return res.status(404).json({ message: "Late fee policy not found" });
     res.json({ message: "Policy deleted successfully" });
   } catch (error) {
@@ -377,7 +414,7 @@ exports.getDiscountRules = async (req, res) => {
 
     if (!year) return res.json([]);
 
-    const query = { year };
+    const query = tenantScope(req, { year });
     const rules = await DiscountRule.find(query).sort({ createdAt: -1 });
     res.json(rules);
   } catch (error) {
@@ -387,7 +424,7 @@ exports.getDiscountRules = async (req, res) => {
 
 exports.createDiscountRule = async (req, res) => {
   try {
-    const newRule = new DiscountRule(req.body);
+    const newRule = new DiscountRule({ ...pick(req.body, FIELDS.discountRule), schoolId: schoolId(req) });
     await newRule.save();
     res.status(201).json(newRule);
   } catch (error) {
@@ -398,7 +435,11 @@ exports.createDiscountRule = async (req, res) => {
 exports.updateDiscountRule = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedRule = await DiscountRule.findByIdAndUpdate(id, req.body, { new: true });
+    const updatedRule = await DiscountRule.findOneAndUpdate(
+      tenantScope(req, { _id: id }),
+      pick(req.body, FIELDS.discountRule),
+      { new: true, runValidators: true }
+    );
     if (!updatedRule) return res.status(404).json({ message: "Discount rule not found" });
     res.json(updatedRule);
   } catch (error) {
@@ -409,7 +450,7 @@ exports.updateDiscountRule = async (req, res) => {
 exports.deleteDiscountRule = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedRule = await DiscountRule.findByIdAndDelete(id);
+    const deletedRule = await DiscountRule.findOneAndDelete(tenantScope(req, { _id: id }));
     if (!deletedRule) return res.status(404).json({ message: "Discount rule not found" });
     res.json({ message: "Discount rule deleted successfully" });
   } catch (error) {
@@ -428,7 +469,7 @@ exports.getFines = async (req, res) => {
 
     if (!year) return res.json([]);
 
-    const query = { year };
+    const query = tenantScope(req, { year });
     const fines = await Fine.find(query).sort({ createdAt: -1 });
     res.json(fines);
   } catch (error) {
@@ -438,7 +479,7 @@ exports.getFines = async (req, res) => {
 
 exports.createFine = async (req, res) => {
   try {
-    const newFine = new Fine(req.body);
+    const newFine = new Fine({ ...pick(req.body, FIELDS.fine), schoolId: schoolId(req) });
     await newFine.save();
     res.status(201).json(newFine);
   } catch (error) {
@@ -449,7 +490,11 @@ exports.createFine = async (req, res) => {
 exports.updateFine = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedFine = await Fine.findByIdAndUpdate(id, req.body, { new: true });
+    const updatedFine = await Fine.findOneAndUpdate(
+      tenantScope(req, { _id: id }),
+      pick(req.body, FIELDS.fine),
+      { new: true, runValidators: true }
+    );
     if (!updatedFine) return res.status(404).json({ message: "Fine not found" });
     res.json(updatedFine);
   } catch (error) {
@@ -460,7 +505,7 @@ exports.updateFine = async (req, res) => {
 exports.deleteFine = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedFine = await Fine.findByIdAndDelete(id);
+    const deletedFine = await Fine.findOneAndDelete(tenantScope(req, { _id: id }));
     if (!deletedFine) return res.status(404).json({ message: "Fine not found" });
     res.json({ message: "Fine deleted successfully" });
   } catch (error) {
@@ -471,7 +516,7 @@ exports.deleteFine = async (req, res) => {
 exports.toggleFineStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const fine = await Fine.findById(id);
+    const fine = await Fine.findOne(tenantScope(req, { _id: id }));
     if (!fine) return res.status(404).json({ message: "Fine not found" });
     fine.active = !fine.active;
     await fine.save();
@@ -482,13 +527,16 @@ exports.toggleFineStatus = async (req, res) => {
 };
 // --- Dashboard & Collection ---
 
-async function calculateStudentFees(student, year) {
+async function calculateStudentFees(student, year, school) {
   const gName = student.personalInfo.class?.name || (student.personalInfo.class && student.personalInfo.class.name);
-  const gf = await GradeFee.findOne({ year, grade: gName });
-  const transactions = await FeeTransaction.find({ studentId: student._id, year, status: 'Paid' });
-  const discountRules = await DiscountRule.find({ year, active: true });
-  const lateFeePolicies = await LateFeePolicy.find({ year });
-  const installmentPlans = await InstallmentPlan.find({ year });
+  // Every configuration read here is tenant-scoped: a grade/year match in
+  // another school is never this student's fee structure.
+  const gf = await GradeFee.findOne({ school, year, grade: gName });
+  const transactions = await FeeTransaction.find({ schoolId: school, studentId: student._id, year, status: 'Paid' });
+  const discountRules = await DiscountRule.find({ schoolId: school, year, active: true });
+  const lateFeePolicies = await LateFeePolicy.find({ schoolId: school, year });
+  const installmentPlans = await InstallmentPlan.find({ schoolId: school, year });
+
 
   let transportFee = 0;
   try {
@@ -513,7 +561,7 @@ async function calculateStudentFees(student, year) {
   }
 
   const studentOptionalFees = student.personalInfo?.optionalFees || [];
-  const allCategories = await FeeCategory.find({ year, active: true });
+  const allCategories = await FeeCategory.find({ schoolId: school, year, active: true });
   const dynamicFees = new Map();
 
   if (gf && gf.fees) {
@@ -552,7 +600,7 @@ async function calculateStudentFees(student, year) {
   let totalFines = 0;
   let totalOverdue = 0;
 
-  const hasSibling = student.parent ? (await Student.countDocuments({ parent: student.parent, _id: { $ne: student._id } })) > 0 : false;
+  const hasSibling = student.parent ? (await Student.countDocuments({ schoolId: school, parent: student.parent, _id: { $ne: student._id } })) > 0 : false;
   const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
   const isRTE = studentCategory.toLowerCase() === "rte";
 
@@ -704,6 +752,7 @@ async function calculateStudentFees(student, year) {
 
 exports.getFeesDashboard = async (req, res) => {
   try {
+    const school = schoolId(req);
     let { year } = req.query;
     if (!year) {
       const active = await AcademicYear.findOne({ isActive: true });
@@ -713,13 +762,14 @@ exports.getFeesDashboard = async (req, res) => {
     if (!year) return res.status(400).json({ message: "No active session found" });
 
     // 1. Total Collection
-    const transactions = await FeeTransaction.find({ year, status: 'Paid' });
+    const transactions = await FeeTransaction.find({ schoolId: school, year, status: 'Paid' });
     const totalCollection = transactions.reduce((s, t) => s + t.totalAmount, 0);
 
     // 2. Collection Today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const transactionsToday = await FeeTransaction.find({
+      schoolId: school,
       year,
       status: 'Paid',
       date: { $gte: today }
@@ -727,14 +777,15 @@ exports.getFeesDashboard = async (req, res) => {
     const collectionToday = transactionsToday.reduce((s, t) => s + t.totalAmount, 0);
 
     // 3. Pending & Total Expected (Dynamic calculation)
-    const studentsList = await Student.find({}).populate("personalInfo.class");
+    // Constrained in the database, not filtered in JS.
+    const studentsList = await Student.find({ schoolId: school }).populate("personalInfo.class");
 
     let totalExpected = 0;
     let pendingFees = 0;
     let overdue = 0;
 
     for (const std of studentsList) {
-      const feesSummary = await calculateStudentFees(std, year);
+      const feesSummary = await calculateStudentFees(std, year, school);
       totalExpected += feesSummary.totalPayable; // dynamic expected amount includes fines minus discounts
       pendingFees += feesSummary.balance;
       overdue += feesSummary.overdue;
@@ -751,7 +802,7 @@ exports.getFeesDashboard = async (req, res) => {
       const start = new Date(y, m, 1);
       const end = new Date(y, m + 1, 0, 23, 59, 59);
 
-      const mt = await FeeTransaction.find({ status: 'Paid', date: { $gte: start, $lte: end } });
+      const mt = await FeeTransaction.find({ schoolId: school, status: 'Paid', date: { $gte: start, $lte: end } });
       monthlyData.push({
         month: monthNames[m],
         collection: mt.reduce((s, t) => s + t.totalAmount, 0)
@@ -759,7 +810,7 @@ exports.getFeesDashboard = async (req, res) => {
     }
 
     // 5. Recent Transactions
-    const recent = await FeeTransaction.find({ year, status: 'Paid' })
+    const recent = await FeeTransaction.find({ schoolId: school, year, status: 'Paid' })
       .sort({ date: -1 })
       .limit(5)
       .populate('studentId');
@@ -787,16 +838,16 @@ exports.getFeesDashboard = async (req, res) => {
   }
 };
 
-async function initializeLedgerDebits(studentId, year) {
-  const debitCount = await FeeLedger.countDocuments({ studentId, year, type: 'Debit' });
+async function initializeLedgerDebits(studentId, year, school) {
+  const debitCount = await FeeLedger.countDocuments({ schoolId: school, studentId, year, type: 'Debit' });
   if (debitCount > 0) return;
 
-  const student = await Student.findById(studentId).populate("personalInfo.class personalInfo.section");
+  const student = await Student.findOne({ _id: studentId, schoolId: school }).populate("personalInfo.class personalInfo.section");
   if (!student) return;
 
   const gName = student.personalInfo.class?.name;
-  const gf = await GradeFee.findOne({ year, grade: gName });
-  const allCategories = await FeeCategory.find({ year, active: true });
+  const gf = await GradeFee.findOne({ schoolId: school, year, grade: gName });
+  const allCategories = await FeeCategory.find({ schoolId: school, year, active: true });
 
   let transportFee = 0;
   let transportCategoryName = "Transport Fee";
@@ -830,6 +881,7 @@ async function initializeLedgerDebits(studentId, year) {
         if (category.optional) {
           if (studentOptionalFees.includes(catName)) {
             await FeeLedger.create({
+              schoolId: school,
               studentId,
               year,
               type: 'Debit',
@@ -841,6 +893,7 @@ async function initializeLedgerDebits(studentId, year) {
         } else {
           if (isFeeApplicable(category, student)) {
             await FeeLedger.create({
+              schoolId: school,
               studentId,
               year,
               type: 'Debit',
@@ -858,6 +911,7 @@ async function initializeLedgerDebits(studentId, year) {
     const transCat = allCategories.find(c => c.name.toLowerCase().includes("transport") || c.code.toLowerCase().includes("transport"));
     if (transCat) transportCategoryName = transCat.name;
     await FeeLedger.create({
+      schoolId: school,
       studentId,
       year,
       type: 'Debit',
@@ -872,6 +926,7 @@ async function initializeLedgerDebits(studentId, year) {
     const hostelCat = allCategories.find(c => c.name.toLowerCase().includes("hostel") || c.code.toLowerCase().includes("hostel"));
     if (hostelCat) hostelCategoryName = hostelCat.name;
     await FeeLedger.create({
+      schoolId: school,
       studentId,
       year,
       type: 'Debit',
@@ -884,6 +939,7 @@ async function initializeLedgerDebits(studentId, year) {
 
 exports.getStudentFeeProfile = async (req, res) => {
   try {
+    const school = schoolId(req);
     const { id } = req.params;
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
@@ -893,16 +949,21 @@ exports.getStudentFeeProfile = async (req, res) => {
 
     if (!year) return res.status(400).json({ message: "No active academic year found" });
 
-    const student = await Student.findById(id).populate("personalInfo.class personalInfo.section");
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    // The client-supplied student id proves nothing on its own. It must resolve
+    // to a Student this school owns -- and, for a parent, to a verified child.
+    // A foreign id is reported as NOT FOUND so existence is not disclosed.
+    const accessible = await resolveAccessibleStudent(req, id);
+    if (!accessible) return res.status(404).json({ message: "Student not found" });
+    const student = await Student.findById(accessible._id).populate("personalInfo.class personalInfo.section");
 
     // Calculate Fees structure
     const gName = student.personalInfo.class?.name;
-    const gf = await GradeFee.findOne({ year, grade: gName });
-    const transactions = await FeeTransaction.find({ studentId: id, year });
-    const discountRules = await DiscountRule.find({ year, active: true });
-    const lateFeePolicies = await LateFeePolicy.find({ year });
-    const installmentPlans = await InstallmentPlan.find({ year });
+    const gf = await GradeFee.findOne({ schoolId: school, year, grade: gName });
+    const transactions = await FeeTransaction.find({ schoolId: school, studentId: id, year });
+    const discountRules = await DiscountRule.find({ schoolId: school, year, active: true });
+    const lateFeePolicies = await LateFeePolicy.find({ schoolId: school, year });
+    const installmentPlans = await InstallmentPlan.find({ schoolId: school, year });
+
 
     let transportFee = 0;
     let transportCategoryName = "Transport Fee";
@@ -928,7 +989,7 @@ exports.getStudentFeeProfile = async (req, res) => {
     }
 
     const studentOptionalFees = student.personalInfo?.optionalFees || [];
-    const allCategories = await FeeCategory.find({ year, active: true });
+    const allCategories = await FeeCategory.find({ schoolId: school, year, active: true });
     const dynamicFees = new Map();
 
     if (gf && gf.fees) {
@@ -966,7 +1027,7 @@ exports.getStudentFeeProfile = async (req, res) => {
     const feesList = [];
     const installmentList = [];
 
-    const hasSibling = student.parent ? (await Student.countDocuments({ parent: student.parent, _id: { $ne: id } })) > 0 : false;
+    const hasSibling = student.parent ? (await Student.countDocuments({ schoolId: school, parent: student.parent, _id: { $ne: id } })) > 0 : false;
     const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
     const isRTE = studentCategory.toLowerCase() === "rte";
 
@@ -1169,7 +1230,12 @@ exports.getStudentFeeProfile = async (req, res) => {
 
 exports.recordFeePayment = async (req, res) => {
   try {
-    const { studentId, year, fees, totalAmount, paymentMethod, remark, performedBy } = req.body;
+    const school = schoolId(req);
+    // Allowlisted. A client-supplied `schoolId` or `performedBy` is dropped, so
+    // the tenant and the actor can only come from the session.
+    const { studentId, year, fees, totalAmount, paymentMethod, remark } = pick(req.body, [
+      "studentId", "year", "fees", "totalAmount", "paymentMethod", "remark",
+    ]);
 
     if (!studentId || !year || !totalAmount || !fees || !Array.isArray(fees)) {
       return res.status(400).json({
@@ -1185,8 +1251,16 @@ exports.recordFeePayment = async (req, res) => {
       });
     }
 
+    // The student must be owned by this school. A School A collector therefore
+    // cannot record a payment against a School B student.
+    const accessible = await resolveAccessibleStudent(req, studentId);
+    if (!accessible) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
     const duplicateThreshold = new Date(Date.now() - 60000);
     const duplicate = await FeeTransaction.findOne({
+      schoolId: school,
       studentId,
       totalAmount,
       year,
@@ -1201,6 +1275,7 @@ exports.recordFeePayment = async (req, res) => {
     }
 
     const transaction = new FeeTransaction({
+      schoolId: school,
       studentId,
       year,
       fees,
@@ -1212,10 +1287,11 @@ exports.recordFeePayment = async (req, res) => {
 
     await transaction.save();
 
-    await initializeLedgerDebits(studentId, year);
+    await initializeLedgerDebits(studentId, year, school);
 
     for (let f of fees) {
       await FeeLedger.create({
+        schoolId: school,
         studentId,
         year,
         type: 'Credit',
@@ -1226,20 +1302,23 @@ exports.recordFeePayment = async (req, res) => {
       });
     }
 
+    // Actor comes from the authenticated session, not the request body.
     const auditLog = new FeeAuditLog({
+      schoolId: school,
       action: "Payment Recorded",
-      performedBy: performedBy || req.user?.username || "Admin",
+      performedBy: req.user?.username || req.user?.userId || "unknown",
       details: `Recorded payment of ₹${totalAmount} via ${paymentMethod || 'Cash'} for student ID ${studentId}. Paid fees breakdown: ${JSON.stringify(fees)}`,
       studentId,
       date: new Date()
     });
     await auditLog.save();
 
-    const student = await Student.findById(studentId);
-    if (student) {
+    if (accessible) {
+      // Re-hydrate a real document: the paid/due flag below must actually persist.
+      const student = await Student.findById(accessible._id);
       const clsName = student.personalInfo.class ? (await mongoose.model('Class').findById(student.personalInfo.class))?.name : "";
-      const gf = await GradeFee.findOne({ year, grade: clsName });
-      const transactions = await FeeTransaction.find({ studentId, year, status: 'Paid' });
+      const gf = await GradeFee.findOne({ schoolId: school, year, grade: clsName });
+      const transactions = await FeeTransaction.find({ schoolId: school, studentId, year, status: 'Paid' });
 
       let totalExpected = 0;
       if (gf && gf.fees) {
@@ -1266,7 +1345,22 @@ exports.recordFeePayment = async (req, res) => {
 exports.getPaymentReceipt = async (req, res) => {
   try {
     const { id } = req.params;
-    const transaction = await FeeTransaction.findById(id).populate({
+    // Receipts are tenant-scoped, and a parent may only fetch a receipt that
+    // belongs to one of their verified children.
+    const transaction = await FeeTransaction.findOne(tenantScope(req, { _id: id }));
+    if (!transaction) return res.status(404).json({ message: "Transaction not found" });
+
+    // A fee-capability holder may read any receipt in its own school. Anyone
+    // else -- in practice a parent -- is limited to receipts for a verified
+    // child, and anything else is reported as NOT FOUND.
+    if (!(await canManageFees(req))) {
+      const allowed = await verifiedChildIds(req);
+      if (!allowed || !allowed.includes(String(transaction.studentId))) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+    }
+
+    await transaction.populate({
       path: "studentId",
       populate: { path: "personalInfo.class personalInfo.section" }
     });
@@ -1304,9 +1398,17 @@ exports.getStudentFeeLedger = async (req, res) => {
     }
     if (!year) return res.status(400).json({ message: "Active year required" });
 
-    await initializeLedgerDebits(id, year);
+    // Same access rule as the fee profile: own school, plus parent-child if parent.
+    const accessible = await resolveAccessibleStudent(req, id);
+    if (!accessible) return res.status(404).json({ message: "Student not found" });
 
-    const ledgerEntries = await FeeLedger.find({ studentId: id, year }).sort({ date: 1 });
+    await initializeLedgerDebits(id, year, schoolId(req));
+
+    const ledgerEntries = await FeeLedger.find({
+      schoolId: schoolId(req),
+      studentId: id,
+      year
+    }).sort({ date: 1 });
     res.json(ledgerEntries);
   } catch (error) {
     res.status(500).json({ message: "Error fetching fee ledger", error: error.message });
@@ -1322,7 +1424,8 @@ exports.updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const transaction = await FeeTransaction.findById(id);
+    // findById would happily let a School A admin cancel a School B payment.
+    const transaction = await FeeTransaction.findOne(tenantScope(req, { _id: id }));
     if (!transaction) return res.status(404).json({ message: "Transaction not found" });
 
     const oldStatus = transaction.status;
@@ -1330,8 +1433,9 @@ exports.updatePaymentStatus = async (req, res) => {
     await transaction.save();
 
     const auditLog = new FeeAuditLog({
+      schoolId: schoolId(req),
       action: "Payment Status Updated",
-      performedBy: req.user?.username || "Admin",
+      performedBy: req.user?.username || req.user?.userId || "unknown",
       details: `Updated payment ID ${id} status from ${oldStatus} to ${status}`,
       studentId: transaction.studentId,
       date: new Date()
@@ -1339,7 +1443,8 @@ exports.updatePaymentStatus = async (req, res) => {
     await auditLog.save();
 
     if (status === 'Cancelled') {
-      await FeeLedger.deleteMany({ transactionId: id });
+      // deleteMany here is a bulk write, so it carries the tenant too.
+      await FeeLedger.deleteMany({ schoolId: schoolId(req), transactionId: id });
     }
 
     res.json(transaction);
@@ -1351,12 +1456,14 @@ exports.updatePaymentStatus = async (req, res) => {
 exports.searchFeeTransactions = async (req, res) => {
   try {
     const { search, paymentMethod } = req.query;
-    let query = {};
+    // Tenant is part of the base query, so it cannot be widened by filters.
+    let query = { schoolId: schoolId(req) };
     if (paymentMethod && paymentMethod !== "All") {
       query.paymentMethod = paymentMethod;
     }
     if (search) {
       const students = await Student.find({
+        schoolId: schoolId(req),
         $or: [
           { "personalInfo.name": { $regex: search, $options: "i" } },
           { "personalInfo.stdId": { $regex: search, $options: "i" } }
@@ -1380,7 +1487,8 @@ exports.searchFeeTransactions = async (req, res) => {
 exports.getDueFees = async (req, res) => {
   try {
     const { class: className, section: sectionName } = req.query;
-    let studentQuery = {};
+    // The whole tenant's students, never every school's students.
+    const studentQuery = { schoolId: schoolId(req) };
 
     const studentsList = await Student.find(studentQuery)
       .populate("personalInfo.class personalInfo.section");
@@ -1397,7 +1505,7 @@ exports.getDueFees = async (req, res) => {
       const gName = student.personalInfo.class?.name;
       if (!gName) continue;
 
-      const feesSummary = await calculateStudentFees(student, year);
+      const feesSummary = await calculateStudentFees(student, year, schoolId(req));
 
       if (feesSummary.balance > 0) {
         dueList.push({
@@ -1423,6 +1531,10 @@ exports.getDueFees = async (req, res) => {
 
 // --- Report Controllers ---
 
+// ObjectId is not a string: it has no .substring and no .length, so building a
+// receipt number from it directly threw and failed the whole report with a 500.
+const receiptNo = (id) => String(id).slice(-8).toUpperCase();
+
 exports.getDailyCollectionReport = async (req, res) => {
   try {
     const { date } = req.query;
@@ -1436,6 +1548,7 @@ exports.getDailyCollectionReport = async (req, res) => {
     end.setHours(23, 59, 59, 999);
 
     const transactions = await FeeTransaction.find({
+      schoolId: schoolId(req),
       date: { $gte: start, $lte: end }
     }).populate({
       path: "studentId",
@@ -1456,7 +1569,7 @@ exports.getDailyCollectionReport = async (req, res) => {
       transactionCount: transactions.length,
       modeBreakdown,
       transactions: transactions.map(t => ({
-        receiptNo: t._id.substring(t._id.length - 8).toUpperCase(),
+        receiptNo: receiptNo(t._id),
         studentName: t.studentId?.personalInfo?.name || "Unknown",
         class: t.studentId?.personalInfo?.class?.name || "N/A",
         amount: t.totalAmount,
@@ -1481,6 +1594,7 @@ exports.getMonthlyCollectionReport = async (req, res) => {
     const end = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
 
     const transactions = await FeeTransaction.find({
+      schoolId: schoolId(req),
       date: { $gte: start, $lte: end }
     }).populate({
       path: "studentId",
@@ -1530,7 +1644,7 @@ exports.getClassWiseCollectionReport = async (req, res) => {
       year = active?.label;
     }
 
-    const transactions = await FeeTransaction.find({ year }).populate({
+    const transactions = await FeeTransaction.find({ schoolId: schoolId(req), year }).populate({
       path: "studentId",
       populate: { path: "personalInfo.class" }
     });
@@ -1559,7 +1673,7 @@ exports.getPaymentModeReport = async (req, res) => {
       year = active?.label;
     }
 
-    const transactions = await FeeTransaction.find({ year });
+    const transactions = await FeeTransaction.find({ schoolId: schoolId(req), year });
     const modeSummary = {};
     transactions.forEach(t => {
       const mode = t.paymentMethod || "Cash";
@@ -1584,7 +1698,7 @@ exports.getFineCollectionReport = async (req, res) => {
       year = active?.label;
     }
 
-    const transactions = await FeeTransaction.find({ year }).populate({
+    const transactions = await FeeTransaction.find({ schoolId: schoolId(req), year }).populate({
       path: "studentId",
       populate: { path: "personalInfo.class" }
     });
@@ -1603,7 +1717,7 @@ exports.getFineCollectionReport = async (req, res) => {
       if (transactionFine > 0) {
         totalFineCollected += transactionFine;
         fineList.push({
-          receiptNo: t._id.substring(t._id.length - 8).toUpperCase(),
+          receiptNo: receiptNo(t._id),
           studentName: t.studentId?.personalInfo?.name || "Unknown",
           class: t.studentId?.personalInfo?.class?.name || "N/A",
           fineAmount: transactionFine,
@@ -1631,7 +1745,7 @@ exports.getDiscountReport = async (req, res) => {
       year = active?.label;
     }
 
-    const transactions = await FeeTransaction.find({ year }).populate({
+    const transactions = await FeeTransaction.find({ schoolId: schoolId(req), year }).populate({
       path: "studentId",
       populate: { path: "personalInfo.class" }
     });
@@ -1650,7 +1764,7 @@ exports.getDiscountReport = async (req, res) => {
       if (transactionDiscount > 0) {
         totalDiscountsAmount += transactionDiscount;
         discountList.push({
-          receiptNo: t._id.substring(t._id.length - 8).toUpperCase(),
+          receiptNo: receiptNo(t._id),
           studentName: t.studentId?.personalInfo?.name || "Unknown",
           class: t.studentId?.personalInfo?.class?.name || "N/A",
           discountAmount: transactionDiscount,

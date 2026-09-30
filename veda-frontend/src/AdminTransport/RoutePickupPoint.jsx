@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 export default function RoutePickupPoint() {
@@ -41,9 +41,9 @@ export default function RoutePickupPoint() {
     try {
       setLoading(true);
       const [rRes, pRes, sRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/routes`),
-        axios.get(`${config.API_BASE_URL}/transport/pickup-points`),
-        axios.get(`${config.API_BASE_URL}/transport/route-stops`)
+        api.get(`${config.API_BASE_URL}/transport/routes`),
+        api.get(`${config.API_BASE_URL}/transport/pickup-points`),
+        api.get(`${config.API_BASE_URL}/transport/route-stops`)
       ]);
       setRoutes(rRes.data);
       setPickupPoints(pRes.data);
@@ -62,7 +62,7 @@ export default function RoutePickupPoint() {
     }
 
     try {
-      await axios.post(`${config.API_BASE_URL}/transport/route-stops`, {
+      await api.post(`${config.API_BASE_URL}/transport/route-stops`, {
         route: selectedRoute,
         stop: selectedStop
       });
@@ -77,7 +77,7 @@ export default function RoutePickupPoint() {
   const handleDelete = async (id) => {
     if (window.confirm("Remove this stop from route?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/route-stops/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/route-stops/${id}`);
         fetchData();
       } catch (error) {
         console.error("Error deleting stop mapping:", error);
@@ -154,7 +154,7 @@ export default function RoutePickupPoint() {
       const promises = pickups
         .filter(p => p.point !== "")
         .map(p => {
-          return axios.post(`${config.API_BASE_URL}/transport/route-stops`, {
+          return api.post(`${config.API_BASE_URL}/transport/route-stops`, {
             route: route, // this is the route ID
             stop: p.point, // this is the pickup point ID
             distance: p.distance,

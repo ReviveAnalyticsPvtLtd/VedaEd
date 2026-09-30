@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import config from "../../config";
+import api from "../../services/apiClient";
 
 const Classes = () => {
   const [classInput, setClassInput] = useState("");
@@ -16,8 +16,8 @@ const Classes = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch(`${config.API_BASE_URL}/classes`);
-        const data = await response.json();
+        const response = await api.get("/classes");
+        const data = response.data;
 
         if (data.success) {
           setClasses(data.data || []);

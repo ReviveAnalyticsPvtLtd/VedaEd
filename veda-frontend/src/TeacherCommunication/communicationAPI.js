@@ -1,11 +1,10 @@
-import config from '../config';
-const API_BASE_URL = `${config.API_BASE_URL}/communication`;
+import { authFetch } from "../services/apiClient";
 
 class CommunicationAPI {
   // Notice API methods
   static async createNotice(noticeData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/notices`, {
+      const response = await authFetch(`/communication/notices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,7 +27,7 @@ class CommunicationAPI {
   static async getNotices(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/notices?${queryParams}`);
+      const response = await authFetch(`/communication/notices?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch notices');
@@ -44,7 +43,7 @@ class CommunicationAPI {
   static async getPublishedNotices(userId, userModel, params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/notices/published/${userId}/${userModel}?${queryParams}`);
+      const response = await authFetch(`/communication/notices/published/${userId}/${userModel}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch published notices');
@@ -65,7 +64,7 @@ class CommunicationAPI {
         queryParams.append('userModel', userModel);
       }
 
-      const response = await fetch(`${API_BASE_URL}/notices/${noticeId}?${queryParams}`);
+      const response = await authFetch(`/communication/notices/${noticeId}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch notice');
@@ -80,7 +79,7 @@ class CommunicationAPI {
 
   static async updateNotice(noticeId, updateData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/notices/${noticeId}`, {
+      const response = await authFetch(`/communication/notices/${noticeId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +101,7 @@ class CommunicationAPI {
 
   static async publishNotice(noticeId, userId, userModel) {
     try {
-      const response = await fetch(`${API_BASE_URL}/notices/${noticeId}/publish`, {
+      const response = await authFetch(`/communication/notices/${noticeId}/publish`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +123,7 @@ class CommunicationAPI {
 
   static async deleteNotice(noticeId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/notices/${noticeId}`, {
+      const response = await authFetch(`/communication/notices/${noticeId}`, {
         method: 'DELETE'
       });
 
@@ -143,7 +142,7 @@ class CommunicationAPI {
   // Message template API methods
   static async createMessageTemplate(templateData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/message-templates`, {
+      const response = await authFetch(`/communication/message-templates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +164,7 @@ class CommunicationAPI {
 
   static async getMessageTemplates() {
     try {
-      const response = await fetch(`${API_BASE_URL}/message-templates`);
+      const response = await authFetch(`/communication/message-templates`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch message templates');
@@ -180,7 +179,7 @@ class CommunicationAPI {
 
   static async updateMessageTemplate(templateId, updateData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/message-templates/${templateId}`, {
+      const response = await authFetch(`/communication/message-templates/${templateId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +201,7 @@ class CommunicationAPI {
 
   static async deleteMessageTemplate(templateId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/message-templates/${templateId}`, {
+      const response = await authFetch(`/communication/message-templates/${templateId}`, {
         method: 'DELETE'
       });
 
@@ -221,7 +220,7 @@ class CommunicationAPI {
   // Message API methods
   static async createMessage(messageData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/messages`, {
+      const response = await authFetch(`/communication/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -244,7 +243,7 @@ class CommunicationAPI {
   static async getMessages(userId, userModel, params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/messages/${userId}/${userModel}?${queryParams}`);
+      const response = await authFetch(`/communication/messages/${userId}/${userModel}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch messages');
@@ -260,7 +259,7 @@ class CommunicationAPI {
   static async getSentMessages(userId, userModel, params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/messages/sent/${userId}/${userModel}?${queryParams}`);
+      const response = await authFetch(`/communication/messages/sent/${userId}/${userModel}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch sent messages');
@@ -276,7 +275,7 @@ class CommunicationAPI {
   // Complaint API methods
   static async createComplaint(complaintData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/complaints`, {
+      const response = await authFetch(`/communication/complaints`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -299,7 +298,7 @@ class CommunicationAPI {
   static async getComplaints(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/complaints?${queryParams}`);
+      const response = await authFetch(`/communication/complaints?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch complaints');
@@ -315,7 +314,7 @@ class CommunicationAPI {
   static async getUserComplaints(userId, userModel, params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/complaints/user/${userId}/${userModel}?${queryParams}`);
+      const response = await authFetch(`/communication/complaints/user/${userId}/${userModel}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch user complaints');
@@ -334,7 +333,7 @@ class CommunicationAPI {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE_URL}/upload/attachment`, {
+      const response = await authFetch(`/communication/upload/attachment`, {
         method: 'POST',
         body: formData
       });
@@ -355,7 +354,7 @@ class CommunicationAPI {
   static async getCommunicationLogs(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/logs?${queryParams}`);
+      const response = await authFetch(`/communication/logs?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch communication logs');
@@ -371,7 +370,7 @@ class CommunicationAPI {
   static async getUserLogs(userId, userModel, params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/logs/user/${userId}/${userModel}?${queryParams}`);
+      const response = await authFetch(`/communication/logs/user/${userId}/${userModel}?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch user logs');
@@ -387,7 +386,7 @@ class CommunicationAPI {
   static async getCommunicationStats(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/logs/stats/summary?${queryParams}`);
+      const response = await authFetch(`/communication/logs/stats/summary?${queryParams}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch communication stats');

@@ -1,7 +1,7 @@
   
 
   import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 export default function AssignVehicle() {
@@ -23,9 +23,9 @@ export default function AssignVehicle() {
     try {
       setLoading(true);
       const [routesRes, vehiclesRes, assignmentsRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/routes`),
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/assignments`)
+        api.get(`${config.API_BASE_URL}/transport/routes`),
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/assignments`)
       ]);
       setRoutes(routesRes.data);
       setVehicles(vehiclesRes.data);
@@ -58,9 +58,9 @@ export default function AssignVehicle() {
       };
 
       if (editId) {
-        await axios.put(`${config.API_BASE_URL}/transport/assignments/${editId}`, payload);
+        await api.put(`${config.API_BASE_URL}/transport/assignments/${editId}`, payload);
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/assignments`, payload);
+        await api.post(`${config.API_BASE_URL}/transport/assignments`, payload);
       }
       fetchData();
       setSelectedRoute("");
@@ -81,7 +81,7 @@ export default function AssignVehicle() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/assignments/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/assignments/${id}`);
         fetchData();
       } catch (error) {
         console.error("Error deleting assignment:", error);

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import config from "../../config";
+import { authFetch } from "../../services/apiClient";
 
 export default function ByClass() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export default function ByClass() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch(`${config.API_BASE_URL}/classes`);
+        const response = await authFetch(`/classes`);
         if (!response.ok) return;
         const payload = await response.json();
         const list = Array.isArray(payload?.data) ? payload.data : [];

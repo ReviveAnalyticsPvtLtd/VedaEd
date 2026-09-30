@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -63,7 +63,7 @@ export default function PickupPoint() {
   const fetchPickupPoints = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${config.API_BASE_URL}/transport/pickup-points`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/pickup-points`);
       setPickupPoints(res.data);
     } catch (error) {
       console.error("Error fetching pickup points:", error);
@@ -175,9 +175,9 @@ export default function PickupPoint() {
 
     try {
       if (editData) {
-        await axios.put(`${config.API_BASE_URL}/transport/pickup-points/${editData._id}`, formData);
+        await api.put(`${config.API_BASE_URL}/transport/pickup-points/${editData._id}`, formData);
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/pickup-points`, formData);
+        await api.post(`${config.API_BASE_URL}/transport/pickup-points`, formData);
       }
       fetchPickupPoints();
       resetForm();
@@ -197,7 +197,7 @@ export default function PickupPoint() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete?")) {
       try {
-        await axios.delete(`${config.API_BASE_URL}/transport/pickup-points/${id}`);
+        await api.delete(`${config.API_BASE_URL}/transport/pickup-points/${id}`);
         fetchPickupPoints();
       } catch (error) {
         console.error("Error deleting pickup point:", error);

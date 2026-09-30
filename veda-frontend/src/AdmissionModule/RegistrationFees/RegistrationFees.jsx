@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FiEdit2, FiPlus, FiDownload } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +24,7 @@ const itemsPerPage = 10;
   const fetchSelectedStudents = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
+      const res = await api.get(
         `${config.API_BASE_URL}/admission/application/selected`
       );
 
@@ -123,7 +123,7 @@ const toggleAll = (e) => {
         selectedStudent.admissionFee === "" || selectedStudent.admissionFee === null
           ? 0
           : Number(selectedStudent.admissionFee);
-      await axios.put(
+      await api.put(
         `${config.API_BASE_URL}/admission/application/${selectedStudent.id}`,
         {
           "personalInfo.fees": backendFeeStatus,

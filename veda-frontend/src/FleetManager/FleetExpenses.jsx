@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 
 export default function FleetExpense() {
@@ -26,8 +26,8 @@ export default function FleetExpense() {
     try {
       setLoading(true);
       const [vehRes, expRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/expenses`),
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/expenses`),
       ]);
       setVehicles(vehRes.data);
       setExpenses(expRes.data);
@@ -47,9 +47,9 @@ export default function FleetExpense() {
 
     try {
       if (editId) {
-        await axios.put(`${config.API_BASE_URL}/transport/expenses/${editId}`, { ...form, vehicleId: busId });
+        await api.put(`${config.API_BASE_URL}/transport/expenses/${editId}`, { ...form, vehicleId: busId });
       } else {
-        await axios.post(`${config.API_BASE_URL}/transport/expenses`, { ...form, vehicleId: busId });
+        await api.post(`${config.API_BASE_URL}/transport/expenses`, { ...form, vehicleId: busId });
       }
       fetchData();
       setForm({ type: "Fuel", amount: "", date: "", note: "" });
@@ -62,7 +62,7 @@ export default function FleetExpense() {
   const deleteExpense = async (expId) => {
     if(!window.confirm("Are you sure?")) return;
     try {
-      await axios.delete(`${config.API_BASE_URL}/transport/expenses/${expId}`);
+      await api.delete(`${config.API_BASE_URL}/transport/expenses/${expId}`);
       fetchData();
     } catch (error) {
       console.error("Error deleting expense:", error);

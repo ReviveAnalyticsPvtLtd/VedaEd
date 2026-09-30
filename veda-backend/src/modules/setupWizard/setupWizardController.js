@@ -505,6 +505,7 @@ exports.saveSetupWizard = async (req, res) => {
     try {
       if (doc?.gradeFrom && doc?.gradeTo) {
         await syncClassesAndSections({
+          schoolId: req.user?.schoolId,
           gradeFrom: doc.gradeFrom,
           gradeTo: doc.gradeTo,
           institutionType: doc.institutionType,
@@ -913,6 +914,7 @@ exports.saveStep4SchoolTypeCurriculum = async (req, res) => {
 
     try {
       await syncClassesAndSections({
+          schoolId: req.user?.schoolId,
         gradeFrom: trimmedGradeFrom,
         gradeTo: trimmedGradeTo,
         institutionType: trimmedInstitution,
@@ -1218,6 +1220,7 @@ exports.saveStep6AcademicStructure = async (req, res) => {
 
     try {
       await syncClassesAndSections({
+          schoolId: req.user?.schoolId,
         gradeFrom: trimmedGradeFrom,
         gradeTo: trimmedGradeTo,
         institutionType: doc?.institutionType,
@@ -2369,6 +2372,7 @@ exports.launchSchoolSetup = async (req, res) => {
 
     try {
       await syncClassesAndSections({
+          schoolId: req.user?.schoolId,
         gradeFrom: doc?.gradeFrom || snapshot?.gradeFrom,
         gradeTo: doc?.gradeTo || snapshot?.gradeTo,
         institutionType: doc?.institutionType || snapshot?.institutionType,

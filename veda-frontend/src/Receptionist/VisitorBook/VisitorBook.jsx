@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FiDownload, FiPlus, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import * as XLSX from "xlsx";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import { useLocation } from "react-router-dom";
 import HelpInfo from "../../components/HelpInfo";
@@ -34,7 +34,7 @@ const [editId, setEditId] = useState(null);
 
   const fetchVisitors = async () => {
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/visitor-book`);
+      const res = await api.get(`${config.API_BASE_URL}/visitor-book`);
       if (res.data.success) {
         setVisitorData(res.data.visitors);
       }
@@ -78,7 +78,7 @@ const handleSaveVisitor = async () => {
     };
 
     try {
-      const res = await axios.post(`${config.API_BASE_URL}/visitor-book`, payload);
+      const res = await api.post(`${config.API_BASE_URL}/visitor-book`, payload);
       if (res.data.success) {
         setVisitorData([res.data.visitor, ...visitorData]);
         setShowModal(false);
@@ -128,7 +128,7 @@ const handleSaveVisitor = async () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this entry?")) return;
     try {
-      const res = await axios.delete(`${config.API_BASE_URL}/visitor-book/${id}`);
+      const res = await api.delete(`${config.API_BASE_URL}/visitor-book/${id}`);
       if (res.data.success) {
         setVisitorData(visitorData.filter((v) => v._id !== id));
       }

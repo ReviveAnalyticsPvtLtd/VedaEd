@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import {
   FiArrowLeft,
@@ -27,7 +27,7 @@ export default function FleetMaintenanceDetail() {
   const fetchMaintenance = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${config.API_BASE_URL}/transport/maintenance/${id}`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/maintenance/${id}`);
       setMaintenance(res.data);
     } catch (error) {
       console.error("Error fetching maintenance detail:", error);
@@ -49,7 +49,7 @@ export default function FleetMaintenanceDetail() {
 
     try {
         const updatedWorks = [...(maintenance.works || []), { ...newWork, cost: Number(newWork.cost || 0), date: new Date() }];
-        await axios.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { works: updatedWorks });
+        await api.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { works: updatedWorks });
         fetchMaintenance();
         setNewWork({ part: "", action: "", mechanic: "", cost: "" });
     } catch (error) {
@@ -60,7 +60,7 @@ export default function FleetMaintenanceDetail() {
   const deleteWork = async (workId) => {
     try {
         const updatedWorks = maintenance.works.filter(w => w._id !== workId);
-        await axios.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { works: updatedWorks });
+        await api.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { works: updatedWorks });
         fetchMaintenance();
     } catch (error) {
         console.error("Error deleting work log:", error);
@@ -75,12 +75,12 @@ export default function FleetMaintenanceDetail() {
   /* ================= COMPLETE ================= */
   const completeMaintenance = async () => {
     try {
-        await axios.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { 
+        await api.put(`${config.API_BASE_URL}/transport/maintenance/${id}`, { 
             status: "Completed",
             lastServiceDate: new Date()
         });
         if(maintenance.vehicleId?._id) {
-            await axios.put(`${config.API_BASE_URL}/transport/vehicles/${maintenance.vehicleId._id}`, { status: "Active" });
+            await api.put(`${config.API_BASE_URL}/transport/vehicles/${maintenance.vehicleId._id}`, { status: "Active" });
         }
         fetchMaintenance();
     } catch (error) {

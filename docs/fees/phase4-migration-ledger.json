@@ -1,0 +1,741 @@
+{
+  "phase": 4,
+  "generatedAt": "2026-09-28T15:05:34.094Z",
+  "generatedBy": "post-migration verification (read-only rebuild from the safety backup)",
+  "database": {
+    "uri": "mongodb://127.0.0.1:27017/veda-sms-test",
+    "name": "veda-sms-test",
+    "host": "127.0.0.1:27017",
+    "verifiedLocal": true,
+    "productionTouched": false
+  },
+  "targetSchool": {
+    "schoolId": "6a99092196f5dd52a7cbf6a9",
+    "name": "Sagar Public School"
+  },
+  "mode": "verify-only",
+  "transactionsSupported": false,
+  "safetyGates": [
+    {
+      "name": "target School exists",
+      "ok": true,
+      "detail": "Sagar Public School"
+    },
+    {
+      "name": "no CONFLICT records in corpus",
+      "ok": true,
+      "detail": "0 conflict(s)"
+    },
+    {
+      "name": "all 7 allowlist documents exist",
+      "ok": true,
+      "detail": "all present"
+    },
+    {
+      "name": "no extra REPAIRABLE beyond allowlist",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "name": "no MISSING document",
+      "ok": true,
+      "detail": "0 missing"
+    },
+    {
+      "name": "no OWNERSHIP_CONFLICT",
+      "ok": true,
+      "detail": "0 conflict(s)"
+    },
+    {
+      "name": "no MIGRATION_BLOCKED",
+      "ok": true,
+      "detail": "0 blocked"
+    },
+    {
+      "name": "corpus state is coherent (PENDING or DONE)",
+      "ok": true,
+      "detail": "DONE"
+    },
+    {
+      "name": "0 conflicts, 0 unresolved among the allowlist",
+      "ok": true,
+      "detail": "0 would migrate, 7 already migrated"
+    }
+  ],
+  "dryRunPassed": true,
+  "counts": {
+    "wouldMigrate": 0,
+    "alreadyMigrated": 7,
+    "ownershipConflict": 0,
+    "migrationBlocked": 0,
+    "missing": 0
+  },
+  "migrated": [
+    {
+      "collection": "feeauditlogs",
+      "_id": "6ab3a35d7bc45e2f71daaa47",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a35d7bc45e2f71daaa47",
+        "action": "Payment Recorded",
+        "performedBy": "Admin",
+        "details": "Recorded payment of ₹1500 via Cash for student ID 6a9bb63fe97e2a7fe665c0a8. Paid fees breakdown: [{\"category\":\"Tuition fees\",\"amount\":1500}]",
+        "studentId": "6a9bb63fe97e2a7fe665c0a8",
+        "date": "2026-09-23T10:01:01.266Z",
+        "createdAt": "2026-09-23T10:01:01.269Z",
+        "updatedAt": "2026-09-23T10:01:01.269Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:01:01.269Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feeauditlogs",
+      "_id": "6ab3a4e7b53480336ee49066",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a4e7b53480336ee49066",
+        "action": "Payment Recorded",
+        "performedBy": "Admin",
+        "details": "Recorded payment of ₹1500 via UPI for student ID 6a997d59b8a7389047ac646b. Paid fees breakdown: [{\"category\":\"Tuition fees\",\"amount\":1500}]",
+        "studentId": "6a997d59b8a7389047ac646b",
+        "date": "2026-09-23T10:07:35.426Z",
+        "createdAt": "2026-09-23T10:07:35.431Z",
+        "updatedAt": "2026-09-23T10:07:35.431Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:07:35.431Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a35d7bc45e2f71daaa45",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a35d7bc45e2f71daaa45",
+        "studentId": "6a9bb63fe97e2a7fe665c0a8",
+        "year": "2025-26",
+        "type": "Credit",
+        "category": "Tuition fees",
+        "amount": 1500,
+        "transactionId": "6ab3a35c7bc45e2f71daaa3b",
+        "description": "Fee Payment",
+        "date": "2026-09-23T10:01:01.024Z",
+        "createdAt": "2026-09-23T10:01:01.025Z",
+        "updatedAt": "2026-09-23T10:01:01.025Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:01:01.025Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a4e7b53480336ee49062",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a4e7b53480336ee49062",
+        "studentId": "6a997d59b8a7389047ac646b",
+        "year": "2026-27",
+        "type": "Debit",
+        "category": "Tuition fees",
+        "amount": 1500,
+        "description": "Fee Assignment",
+        "date": "2026-09-23T10:07:35.337Z",
+        "createdAt": "2026-09-23T10:07:35.340Z",
+        "updatedAt": "2026-09-23T10:07:35.340Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:07:35.340Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feeledgers",
+      "_id": "6ab3a4e7b53480336ee49064",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a4e7b53480336ee49064",
+        "studentId": "6a997d59b8a7389047ac646b",
+        "year": "2026-27",
+        "type": "Credit",
+        "category": "Tuition fees",
+        "amount": 1500,
+        "transactionId": "6ab3a4e7b53480336ee49058",
+        "description": "Parent fee payment",
+        "date": "2026-09-23T10:07:35.382Z",
+        "createdAt": "2026-09-23T10:07:35.386Z",
+        "updatedAt": "2026-09-23T10:07:35.386Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:07:35.386Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feetransactions",
+      "_id": "6ab3a35c7bc45e2f71daaa3b",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a35c7bc45e2f71daaa3b",
+        "studentId": "6a9bb63fe97e2a7fe665c0a8",
+        "year": "2025-26",
+        "fees": [
+          {
+            "category": "Tuition fees",
+            "amount": 1500,
+            "_id": "6ab3a35c7bc45e2f71daaa3c"
+          }
+        ],
+        "totalAmount": 1500,
+        "paymentMethod": "Cash",
+        "status": "Paid",
+        "date": "2026-09-23T10:01:00.264Z",
+        "createdAt": "2026-09-23T10:01:00.275Z",
+        "updatedAt": "2026-09-23T10:01:00.275Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:01:00.275Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    },
+    {
+      "collection": "feetransactions",
+      "_id": "6ab3a4e7b53480336ee49058",
+      "outcome": "MIGRATED",
+      "docBefore": {
+        "_id": "6ab3a4e7b53480336ee49058",
+        "studentId": "6a997d59b8a7389047ac646b",
+        "year": "2026-27",
+        "fees": [
+          {
+            "category": "Tuition fees",
+            "amount": 1500,
+            "_id": "6ab3a4e7b53480336ee49059"
+          }
+        ],
+        "totalAmount": 1500,
+        "paymentMethod": "UPI",
+        "status": "Paid",
+        "remark": "Parent fee payment",
+        "date": "2026-09-23T10:07:35.028Z",
+        "createdAt": "2026-09-23T10:07:35.039Z",
+        "updatedAt": "2026-09-23T10:07:35.039Z",
+        "__v": 0
+      },
+      "updatedAtBefore": "2026-09-23T10:07:35.039Z",
+      "previousSchoolId": null,
+      "newSchoolId": "6a99092196f5dd52a7cbf6a9",
+      "updatedAtUnchanged": true
+    }
+  ],
+  "databaseWrites": 0,
+  "databaseDeletions": 0,
+  "databaseResets": 0,
+  "postWriteVerification": {
+    "checks": [
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a35d7bc45e2f71daaa47",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a4e7b53480336ee49066",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a35d7bc45e2f71daaa45",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49062",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49064",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a35c7bc45e2f71daaa3b",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      },
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a4e7b53480336ee49058",
+        "schoolId": "6a99092196f5dd52a7cbf6a9",
+        "_idUnchanged": true,
+        "studentIdUnchanged": true,
+        "transactionIdUnchanged": true,
+        "updatedAtUnchanged": true,
+        "nonSchoolIdContentUnchanged": true,
+        "ok": true
+      }
+    ],
+    "relationships": [
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a35d7bc45e2f71daaa47",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": null,
+        "ok": true
+      },
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a4e7b53480336ee49066",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": null,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a35d7bc45e2f71daaa45",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49062",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": null,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49064",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": true,
+        "ok": true
+      },
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a35c7bc45e2f71daaa3b",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": null,
+        "ok": true
+      },
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a4e7b53480336ee49058",
+        "studentChainAgrees": true,
+        "transactionChainAgrees": null,
+        "ok": true
+      }
+    ],
+    "ok": true
+  },
+  "fieldLevelVerification": {
+    "checks": [
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a35c7bc45e2f71daaa3b",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feetransactions",
+        "_id": "6ab3a4e7b53480336ee49058",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a35d7bc45e2f71daaa45",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49062",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feeledgers",
+        "_id": "6ab3a4e7b53480336ee49064",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a35d7bc45e2f71daaa47",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      },
+      {
+        "collection": "feeauditlogs",
+        "_id": "6ab3a4e7b53480336ee49066",
+        "addedFields": [
+          "schoolId"
+        ],
+        "removedFields": [],
+        "otherFieldsChanged": [],
+        "schoolIdSet": true,
+        "updatedAtUnchanged": true,
+        "agreesWithSafetyBackup": true,
+        "ok": true
+      }
+    ],
+    "ok": true
+  },
+  "excludedUntouched": {
+    "checks": [
+      {
+        "collection": "feecategories",
+        "_id": "6ab36eb1c69e13bf91075e72",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "installmentplans",
+        "_id": "6ab36fa6c69e13bf91075ea5",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "latefeepolicies",
+        "_id": "6ab36fc5c69e13bf91075eb8",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36eedc69e13bf91075e7b",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36ef5c69e13bf91075e7e",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36efdc69e13bf91075e81",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f04c69e13bf91075e84",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f0cc69e13bf91075e87",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f22c69e13bf91075e8a",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f2ec69e13bf91075e8d",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f36c69e13bf91075e90",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      },
+      {
+        "collection": "gradefees",
+        "_id": "6ab36f3dc69e13bf91075e93",
+        "schoolId": null,
+        "schoolIdAbsent": true,
+        "present": true,
+        "byteIdenticalToPreMigration": true,
+        "ok": true
+      }
+    ],
+    "ok": true
+  },
+  "collectionProof": [
+    {
+      "collection": "feecategories",
+      "containsMigratedDocuments": false,
+      "countBefore": 5,
+      "countNow": 5,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "41c59fa49883d81a",
+      "digestNow": "19543a9f14744459",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "gradefees",
+      "containsMigratedDocuments": false,
+      "countBefore": 9,
+      "countNow": 9,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "d9b44726d530e2dc",
+      "digestNow": "692b84402227411f",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "installmentplans",
+      "containsMigratedDocuments": false,
+      "countBefore": 1,
+      "countNow": 1,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "e10808d43975dc40",
+      "digestNow": "c8e89ee9b5ea1879",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "latefeepolicies",
+      "containsMigratedDocuments": false,
+      "countBefore": 1,
+      "countNow": 1,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "e10808d43975dc40",
+      "digestNow": "70af2b9fee0f3ddd",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "discountrules",
+      "containsMigratedDocuments": false,
+      "countBefore": 0,
+      "countNow": 0,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "4f53cda18c2baa0c",
+      "digestNow": "4f53cda18c2baa0c",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "fines",
+      "containsMigratedDocuments": false,
+      "countBefore": 0,
+      "countNow": 0,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "4f53cda18c2baa0c",
+      "digestNow": "4f53cda18c2baa0c",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "feetransactions",
+      "containsMigratedDocuments": true,
+      "countBefore": 2,
+      "countNow": 2,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "d827049039f82a8b",
+      "digestNow": "ee567cba5bb471e0",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "feeledgers",
+      "containsMigratedDocuments": true,
+      "countBefore": 3,
+      "countNow": 3,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "82e81eff8fdb5188",
+      "digestNow": "b803602360cb8a86",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "feeauditlogs",
+      "containsMigratedDocuments": true,
+      "countBefore": 2,
+      "countNow": 2,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "d827049039f82a8b",
+      "digestNow": "2ef4df84fa2dd753",
+      "bitIdentical": true,
+      "ok": true
+    },
+    {
+      "collection": "academicyears",
+      "containsMigratedDocuments": false,
+      "countBefore": 1,
+      "countNow": 1,
+      "idsUnchanged": true,
+      "updatedAtUnchanged": true,
+      "indexesUnchanged": true,
+      "digestBefore": "e10808d43975dc40",
+      "digestNow": "9ad0e8404a053ba1",
+      "bitIdentical": true,
+      "ok": true
+    }
+  ],
+  "schoolsProof": {
+    "countBefore": 24,
+    "countNow": 24,
+    "idsUnchanged": true,
+    "ok": true
+  },
+  "evidenceSources": {
+    "safetyBackup": "/tmp/opencode/phase4-rollback-safety-backup.json",
+    "preMigrationSnapshot": "/tmp/opencode/p4-snapshot-before-2026-09-28T14-05-00-378Z.json",
+    "preMigrationSnapshotTakenAt": "2026-09-28T14:05:00.746Z"
+  },
+  "finalSnapshotDigest": {
+    "feecategories": "19543a9f14744459",
+    "gradefees": "692b84402227411f",
+    "installmentplans": "c8e89ee9b5ea1879",
+    "latefeepolicies": "70af2b9fee0f3ddd",
+    "discountrules": "4f53cda18c2baa0c",
+    "fines": "4f53cda18c2baa0c",
+    "feetransactions": "ee567cba5bb471e0",
+    "feeledgers": "b803602360cb8a86",
+    "feeauditlogs": "2ef4df84fa2dd753",
+    "academicyears": "9ad0e8404a053ba1"
+  },
+  "stopped": false
+}

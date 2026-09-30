@@ -20,11 +20,30 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Routes
-router.post("/apply", controller.createApplication);
+const authMiddleware = require("../../middleware/authMiddleware");
+const requireSchoolContext = require("../../middleware/requireSchoolContext");
+
+// Every route on this router is tenant-scoped.
+//
+// Document upload and status tracking used to be mounted before authMiddleware
+// "because a prospective applicant has no account yet". That reasoning no longer
+// holds: application submission (`POST /apply`) is already behind
+// authMiddleware, and both frontend callers of these routes
+// (AdmissionForm.jsx, SuperAdminAdmissionStatusTracking.jsx) already go through
+// the authenticated apiClient. Left public they were an unauthenticated write
+// (`POST /:id/upload` pushed a file onto ANY application found by ObjectId) and
+// an unauthenticated read of the whole applicant pipeline over a predictable
+// applicationId.
+router.use(authMiddleware);
+router.use(requireSchoolContext);
+
+// Applicant-facing document upload, now confined to the caller's own school.
 router.post("/upload", upload.single("file"), controller.uploadApplicationDocument);
 router.post("/:id/upload", upload.single("file"), controller.uploadApplicationDocument);
 router.get("/track/:id", controller.trackApplication);
+
+router.post("/apply", controller.createApplication);
+
 router.get("/selected", controller.getSelectedStudents);
 router.get("/", controller.getAllApplications);
 router.get("/:id", controller.getApplicationById);

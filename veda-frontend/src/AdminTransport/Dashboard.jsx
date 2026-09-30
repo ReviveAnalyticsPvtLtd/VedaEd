@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import {
   FiTruck,
@@ -25,10 +25,10 @@ export default function TransportDashboard() {
   const fetchStats = async () => {
     try {
       const [vRes, rRes, pRes, aRes] = await Promise.all([
-        axios.get(`${config.API_BASE_URL}/transport/vehicles`),
-        axios.get(`${config.API_BASE_URL}/transport/routes`),
-        axios.get(`${config.API_BASE_URL}/transport/pickup-points`),
-        axios.get(`${config.API_BASE_URL}/transport/assignments`)
+        api.get(`${config.API_BASE_URL}/transport/vehicles`),
+        api.get(`${config.API_BASE_URL}/transport/routes`),
+        api.get(`${config.API_BASE_URL}/transport/pickup-points`),
+        api.get(`${config.API_BASE_URL}/transport/assignments`)
       ]);
       setStats({
         vehicles: vRes.data.length,

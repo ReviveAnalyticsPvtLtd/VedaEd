@@ -3,6 +3,15 @@ const { Schema } = mongoose;
 
 const InstitutionSchema = new Schema(
     {
+        // Tenant ownership. Assigned server-side; never accepted from the client.
+        schoolId: {
+            type: Schema.Types.ObjectId,
+            ref: "School",
+            required: true,
+            unique: true,
+            index: true,
+            immutable: true,
+        },
         identity: {
             schoolName: { type: String, trim: true },
             shortName: { type: String, trim: true },

@@ -5,8 +5,36 @@ const Parent = require("../parents/parentModel");
 const fs = require("fs");
 const path = require("path");
 const { uploadsDir } = require("../../middleware/upload");
+const Class = require("../class/classSchema");
+const Section = require("../section/sectionSchema");
+const Subject = require("../subject/subjectSchema");
+const mongoose = require("mongoose");
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// Assignment has no schoolId of its own, so every lookup is anchored to the
+// Class/Section/Subject/Student documents it references.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const findOwnedSection = (sectionId, schoolId) => Section.findOne({ _id: sectionId, schoolId }).select("_id");
+const findOwnedSubject = (subjectId, schoolId) => Subject.findOne({ _id: subjectId, schoolId }).select("_id");
+const getSchoolClassIds = async (schoolId) => (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+const getSchoolSectionIds = async (schoolId) => (await Section.find({ schoolId }).select("_id")).map((s) => s._id);
 
 exports.createAssignment = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log('=== ASSIGNMENT CREATION START ===');
     console.log('Request body:', req.body);
@@ -27,6 +55,18 @@ exports.createAssignment = async (req, res) => {
         message: "Missing required fields: classId, sectionId, subjectId, title, and dueDate are required",
         received: { classId, sectionId, subjectId, title, dueDate }
       });
+    }
+
+    if (!(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (!(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+
+    if (!(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
     }
 
     const resolvedTeacherId = req.user?.role === "teacher" ? req.user.refId : teacherId;
@@ -53,10 +93,10 @@ exports.createAssignment = async (req, res) => {
     // Populate the assignment with related data
     console.log('Populating assignment data...');
     const populatedAssignment = await Assignment.findById(assignment._id)
-      .populate({ path: "class", select: "name" })
-      .populate({ path: "section", select: "name" })
-      .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" });
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name name" });
 
     console.log('Populated assignment:', populatedAssignment);
     console.log('=== ASSIGNMENT CREATION SUCCESS ===');
@@ -83,13 +123,25 @@ exports.createAssignment = async (req, res) => {
 };
 
 exports.getAssignments = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { status, classId, subjectId, studentId } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
-    if (classId) filter.class = classId;
-    if (subjectId) filter.subject = subjectId;
+    if (classId) {
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+      filter.class = classId;
+    }
+    if (subjectId) {
+      if (!(await findOwnedSubject(subjectId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Subject not found" });
+      }
+      filter.subject = subjectId;
+    }
 
     // RBAC: If teacher, return only assignments created by logged-in teacher
     if (req.user && req.user.role === "teacher") {
@@ -98,7 +150,7 @@ exports.getAssignments = async (req, res) => {
 
     // RBAC: If student, filter by their class, section, and allotted teachers
     if (req.user && req.user.role === 'student') {
-      const student = await Student.findById(req.user.refId).select("personalInfo.class personalInfo.section");
+      const student = await Student.findOne({ _id: req.user.refId, schoolId }).select("personalInfo.class personalInfo.section");
       if (student && student.personalInfo?.class && student.personalInfo?.section) {
         filter.class = student.personalInfo.class;
         filter.section = student.personalInfo.section;
@@ -121,7 +173,7 @@ exports.getAssignments = async (req, res) => {
 
     // RBAC: If parent, filter by their children's class, section, and allotted teachers
     if (req.user && req.user.role === 'parent') {
-      const parent = await Parent.findById(req.user.refId).populate("children");
+      const parent = await Parent.findOne({ _id: req.user.refId, schoolId }).populate({ path: "children", match: { schoolId } });
       if (parent && parent.children && parent.children.length > 0) {
         let targets = [];
         
@@ -164,12 +216,21 @@ exports.getAssignments = async (req, res) => {
       }
     }
 
+    const [schoolClassIds, schoolSectionIds] = await Promise.all([
+      getSchoolClassIds(schoolId),
+      getSchoolSectionIds(schoolId),
+    ]);
+    filter.$and = [
+      { class: { $in: schoolClassIds } },
+      { section: { $in: schoolSectionIds } },
+    ];
+
     const assignments = await Assignment.find(filter)
-      .populate({ path: "class", select: "name" })
-      .populate({ path: "section", select: "name" })
-      .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" })
-      .populate({ path: "submissions.student", select: "personalInfo.name" })
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name name" })
+      .populate({ path: "submissions.student", match: { schoolId }, select: "personalInfo.name" })
       .sort({ createdAt: -1 });
 
     // Scope submissions so students/parents only see their own (child's) submissions
@@ -181,7 +242,7 @@ exports.getAssignments = async (req, res) => {
         );
       });
     } else if (req.user?.role === "parent") {
-      const parent = await Parent.findById(req.user.refId).populate("children");
+      const parent = await Parent.findOne({ _id: req.user.refId, schoolId }).populate({ path: "children", match: { schoolId } });
       const childIds = (parent?.children || []).map((c) => String(c._id));
       assignments.forEach((a) => {
         a.submissions = (a.submissions || []).filter((s) =>
@@ -197,13 +258,20 @@ exports.getAssignments = async (req, res) => {
 };
 
 exports.getAssignmentById = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
+    const raw = await Assignment.findById(req.params.id).select("class");
+    if (!raw || !(await findOwnedClass(raw.class, schoolId))) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
     const assignment = await Assignment.findById(req.params.id)
-      .populate({ path: "class", select: "name" })
-      .populate({ path: "section", select: "name" })
-      .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" })
-      .populate({ path: "submissions.student", select: "personalInfo.name" });
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name name" })
+      .populate({ path: "submissions.student", match: { schoolId }, select: "personalInfo.name" });
 
     if (!assignment) return res.status(404).json({ message: "Assignment not found" });
 
@@ -222,6 +290,8 @@ exports.getAssignmentById = async (req, res) => {
 };
 
 exports.updateAssignment = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const {
       classId,
@@ -233,6 +303,21 @@ exports.updateAssignment = async (req, res) => {
       dueDate,
       status,
     } = req.body;
+
+    const target = await Assignment.findById(req.params.id).select("class");
+    if (!target || !(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({ success: false, message: "Assignment not found" });
+    }
+
+    if (classId && !(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+    if (sectionId && !(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+    if (subjectId && !(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
+    }
 
     const updatePayload = {};
 
@@ -254,10 +339,10 @@ exports.updateAssignment = async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: "Assignment not found" });
 
     const populatedAssignment = await Assignment.findById(updated._id)
-      .populate({ path: "class", select: "name" })
-      .populate({ path: "section", select: "name" })
-      .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" });
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name name" });
 
     res.status(200).json({ success: true, assignment: populatedAssignment });
   } catch (err) {
@@ -266,7 +351,14 @@ exports.updateAssignment = async (req, res) => {
 };
 
 exports.deleteAssignment = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
+    const target = await Assignment.findById(req.params.id).select("class");
+    if (!target || !(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
     const deleted = await Assignment.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: "Assignment not found" });
 
@@ -277,16 +369,24 @@ exports.deleteAssignment = async (req, res) => {
 };
 
 exports.getStudentAssignments = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
-    const studentClass = req.user.class; // assuming from student login
-    const studentSection = req.user.section;
+    // Class/section are resolved from the school-scoped student record, never
+    // from the token payload.
+    const student = await Student.findOne({ _id: req.user.refId, schoolId })
+      .select("personalInfo.class personalInfo.section");
+
+    if (!student || !student.personalInfo?.class || !student.personalInfo?.section) {
+      return res.json([]);
+    }
 
     const assignments = await Assignment.find({
-      class: studentClass,
-      section: studentSection,
+      class: student.personalInfo.class,
+      section: student.personalInfo.section,
     })
-      .populate({ path: "subject", select: "subjectName subjectCode" })
-      .populate({ path: "teacher", select: "personalInfo.name name" })
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name name" })
       .sort({ dueDate: 1 });
 
     res.json(assignments);
@@ -296,13 +396,17 @@ exports.getStudentAssignments = async (req, res) => {
 };
 
 exports.submitAssignment = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!req.user || req.user.role !== "student") {
       return res.status(403).json({ message: "Only students can submit assignments" });
     }
 
     const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+    if (!assignment || !(await findOwnedClass(assignment.class, schoolId))) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
 
     const studentId = req.user.refId;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -333,6 +437,7 @@ exports.submitAssignment = async (req, res) => {
 
     const populated = await Assignment.findById(assignment._id).populate({
       path: "submissions.student",
+      match: { schoolId },
       select: "personalInfo.name",
     });
 
@@ -343,13 +448,17 @@ exports.submitAssignment = async (req, res) => {
 };
 
 exports.deleteSubmission = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!req.user || req.user.role !== "student") {
       return res.status(403).json({ message: "Only students can delete their submission" });
     }
 
     const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+    if (!assignment || !(await findOwnedClass(assignment.class, schoolId))) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
 
     const studentId = req.user.refId;
     const before = assignment.submissions.length;
@@ -369,6 +478,8 @@ exports.deleteSubmission = async (req, res) => {
 };
 
 exports.gradeSubmission = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     if (!req.user || req.user.role !== "teacher") {
       return res.status(403).json({ message: "Only teachers can grade submissions" });
@@ -376,7 +487,9 @@ exports.gradeSubmission = async (req, res) => {
 
     const { marks, grade, feedback } = req.body;
     const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+    if (!assignment || !(await findOwnedClass(assignment.class, schoolId))) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
 
     const submission = assignment.submissions.id(req.params.submissionId);
     if (!submission) return res.status(404).json({ message: "Submission not found" });

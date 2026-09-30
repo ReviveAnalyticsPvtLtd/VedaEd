@@ -6,7 +6,7 @@
     "start": "node src/index.js",
     "dev": "npx nodemon src/index.js",
     "seed:superadmin": "node seedSuperAdminRole.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +29,7 @@
     "postalcodes-india": "^1.1.4"
   },
   "devDependencies": {
+    "mongodb-memory-server": "11.3.0",
     "nodemon": "^3.0.1"
   }
 }

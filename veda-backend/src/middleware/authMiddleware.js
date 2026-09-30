@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const { findActivePlatformAdmin } = require("../utils/platformAdminAuth");
 
@@ -19,7 +20,13 @@ const authMiddleware = async (req, res, next) => {
       sessionId: decoded.sessionId,
     };
 
-    const user = await User.findById(req.user.userId).select("status email activeSession").lean();
+    // Any client-supplied school identity is discarded here. The authoritative
+    // school is resolved only from the authenticated account, below.
+    req.schoolId = undefined;
+
+    const user = await User.findById(req.user.userId)
+      .select("status email activeSession schoolId")
+      .lean();
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
@@ -28,6 +35,12 @@ const authMiddleware = async (req, res, next) => {
         message: "Your account is inactive. Contact your administrator.",
       });
     }
+
+    // Authoritative tenant context. Read from the user document rather than the
+    // token so a stale or tampered token can never carry a foreign schoolId.
+    req.user.schoolId = user.schoolId && mongoose.isValidObjectId(String(user.schoolId))
+      ? String(user.schoolId)
+      : null;
 
     if (decoded.sessionId && (!user.activeSession?.sessionId || user.activeSession.sessionId !== decoded.sessionId)) {
       return res.status(401).json({

@@ -4,14 +4,48 @@ const path = require("path");
 const Student = require("../student/studentModels");
 const Parent = require("../parents/parentModel");
 const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
+const Class = require("../class/classSchema");
+const Section = require("../section/sectionSchema");
+const mongoose = require("mongoose");
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// ExamTimetable has no schoolId of its own, so every lookup is anchored to the
+// Class/Section documents it references.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const findOwnedSection = (sectionId, schoolId) => Section.findOne({ _id: sectionId, schoolId }).select("_id");
+const getSchoolClassIds = async (schoolId) => (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+const getSchoolSectionIds = async (schoolId) => (await Section.find({ schoolId }).select("_id")).map((s) => s._id);
 
 // Upload Exam Timetable
 exports.uploadExamTimetable = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { title, classId, sectionId, examType } = req.body;
 
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        if (!(await findOwnedClass(classId, schoolId))) {
+            return res.status(404).json({ success: false, message: "Class not found" });
+        }
+
+        if (!(await findOwnedSection(sectionId, schoolId))) {
+            return res.status(404).json({ success: false, message: "Section not found" });
         }
 
         // RBAC: Teachers can upload timetables only for class/section assigned to them.
@@ -52,6 +86,8 @@ exports.uploadExamTimetable = async (req, res) => {
 
 // Get All Exam Timetables
 exports.getExamTimetables = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { classId, sectionId, examType, studentId } = req.query;
         const filter = {};
@@ -68,7 +104,7 @@ exports.getExamTimetables = async (req, res) => {
 
         // RBAC: If student, filter by their class, section and allotted teachers
         if (req.user?.role === "student") {
-            const student = await Student.findById(req.user.refId).select("personalInfo.class personalInfo.section");
+            const student = await Student.findOne({ _id: req.user.refId, schoolId }).select("personalInfo.class personalInfo.section");
             if (student && student.personalInfo?.class && student.personalInfo?.section) {
                 filter.class = student.personalInfo.class;
                 filter.section = student.personalInfo.section;
@@ -88,7 +124,7 @@ exports.getExamTimetables = async (req, res) => {
 
         // RBAC: If parent, filter by their children's class, section and allotted teachers
         if (req.user?.role === "parent") {
-            const parent = await Parent.findById(req.user.refId).populate("children");
+            const parent = await Parent.findOne({ _id: req.user.refId, schoolId }).populate({ path: "children", match: { schoolId } });
             if (parent && parent.children && parent.children.length > 0) {
                 let targets = [];
                 
@@ -131,9 +167,18 @@ exports.getExamTimetables = async (req, res) => {
             }
         }
 
+        const [schoolClassIds, schoolSectionIds] = await Promise.all([
+            getSchoolClassIds(schoolId),
+            getSchoolSectionIds(schoolId),
+        ]);
+        filter.$and = [
+            { class: { $in: schoolClassIds } },
+            { section: { $in: schoolSectionIds } },
+        ];
+
         const timetables = await ExamTimetable.find(filter)
-            .populate("class", "name")
-            .populate("section", "name")
+            .populate({ path: "class", match: { schoolId }, select: "name" })
+            .populate({ path: "section", match: { schoolId }, select: "name" })
             .sort({ createdAt: -1 });
 
         res.json({ success: true, count: timetables.length, data: timetables });
@@ -144,17 +189,27 @@ exports.getExamTimetables = async (req, res) => {
 
 // Update Exam Timetable
 exports.updateExamTimetable = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params;
         const { title, classId, sectionId, examType } = req.body;
 
         const existing = await ExamTimetable.findById(id);
-        if (!existing) {
+        if (!existing || !(await findOwnedClass(existing.class, schoolId))) {
             return res.status(404).json({ success: false, message: "Timetable not found" });
         }
 
         const nextClassId = classId || String(existing.class);
         const nextSectionId = sectionId || String(existing.section);
+
+        if (!(await findOwnedClass(nextClassId, schoolId))) {
+            return res.status(404).json({ success: false, message: "Class not found" });
+        }
+
+        if (!(await findOwnedSection(nextSectionId, schoolId))) {
+            return res.status(404).json({ success: false, message: "Section not found" });
+        }
 
         // RBAC: Teachers can update timetables only for class/section assigned to them.
         // Keep existing behavior for non-teacher roles.
@@ -185,8 +240,8 @@ exports.updateExamTimetable = async (req, res) => {
         await existing.save();
 
         const updated = await ExamTimetable.findById(existing._id)
-            .populate("class", "name")
-            .populate("section", "name");
+            .populate({ path: "class", match: { schoolId }, select: "name" })
+            .populate({ path: "section", match: { schoolId }, select: "name" });
 
         res.json({
             success: true,
@@ -201,11 +256,13 @@ exports.updateExamTimetable = async (req, res) => {
 
 // Delete Exam Timetable
 exports.deleteExamTimetable = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params;
         const timetable = await ExamTimetable.findById(id);
 
-        if (!timetable) {
+        if (!timetable || !(await findOwnedClass(timetable.class, schoolId))) {
             return res.status(404).json({ message: "Timetable not found" });
         }
 

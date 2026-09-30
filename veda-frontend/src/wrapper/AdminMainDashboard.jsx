@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import { Link } from "react-router-dom";
 import config from "../config";
 import { canViewModule } from "../utils/adminPermissions";
@@ -32,7 +32,7 @@ export default function AdminMasterDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get(`${config.API_BASE_URL}/dashboard/master-stats`);
+        const res = await api.get(`${config.API_BASE_URL}/dashboard/master-stats`);
         if (res.data.success) {
           setStats(res.data.stats);
         }

@@ -7,6 +7,30 @@ const Section = require("../section/sectionSchema");
 const Subject = require("../subject/subjectSchema");
 const Student = require("../student/studentModels");
 const Parent = require("../parents/parentModel");
+const mongoose = require("mongoose");
+
+// Tenant context is resolved by authMiddleware from the authenticated User
+// document. It is never read from the request payload.
+const requireSchool = (req, res) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a school.",
+    });
+    return null;
+  }
+  return String(schoolId);
+};
+
+// Timetable has no schoolId of its own, so every lookup is anchored to the
+// Class/Section/Subject/Staff documents it references.
+const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, schoolId }).select("_id");
+const findOwnedSection = (sectionId, schoolId) => Section.findOne({ _id: sectionId, schoolId }).select("_id");
+const findOwnedSubject = (subjectId, schoolId) => Subject.findOne({ _id: subjectId, schoolId }).select("_id");
+const findOwnedStaff = (staffId, schoolId) => Staff.findOne({ _id: staffId, schoolId }).select("_id");
+const getSchoolClassIds = async (schoolId) => (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
+const getSchoolSectionIds = async (schoolId) => (await Section.find({ schoolId }).select("_id")).map((s) => s._id);
 
 // helpers
 const toMin = (hhmm) => {
@@ -254,6 +278,8 @@ const toMin = (hhmm) => {
 
 
 exports.createTimetableEntry = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log("Request body:", req.body);
     const {
@@ -285,6 +311,20 @@ exports.createTimetableEntry = async (req, res) => {
       return res.status(400).json({ success: false, message: "timeFrom must be earlier than timeTo" });
     }
     console.log("step", 14)
+    // 1b) tenant-owned reference checks
+    if (!(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+    if (!(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+    if (!(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
+    }
+    if (!(await findOwnedStaff(teacherId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Teacher (staff) not found" });
+    }
+
     // 2) validate subject group ↔ class/section/subject (TEMPORARILY DISABLED FOR TESTING)
     console.log("WARNING: Subject group validation is disabled for testing");
     console.log("This allows timetable creation without strict subject group validation");
@@ -441,11 +481,11 @@ exports.createTimetableEntry = async (req, res) => {
     console.log("Timetable entry created successfully:", created);
 
     const populated = await Timetable.findById(created._id)
-      .populate("class", "name")
-      .populate("section", "name")
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
       .populate("subjectGroup", "name")
-      .populate("subject", "subjectName subjectCode type")
-      .populate("teacher", "personalInfo.name personalInfo.staffId personalInfo.department");
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode type" })
+      .populate({ path: "teacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId personalInfo.department" });
 
     console.log("Populated timetable entry:", populated);
     res.status(201).json({ success: true, message: "Timetable entry created", data: populated });
@@ -458,6 +498,8 @@ exports.createTimetableEntry = async (req, res) => {
 // GET timetable entries
 // GET timetable entries
 exports.getTimetableEntries = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, sectionId, teacherId } = req.query;
 
@@ -465,25 +507,32 @@ exports.getTimetableEntries = async (req, res) => {
 
     // Teacher timetable
     if (teacherId) {
+      if (!(await findOwnedStaff(teacherId, schoolId))) {
+        return res.status(200).json({
+          success: true,
+          message: "Timetable entries fetched successfully",
+          data: [],
+        });
+      }
       filter.teacher = teacherId;
     } else if (req.user && req.user.role === 'student') {
       // RBAC: If student, get their classId and sectionId
-      const student = await Student.findById(req.user.refId).select("personalInfo.class personalInfo.section");
+      const student = await Student.findOne({ _id: req.user.refId, schoolId }).select("personalInfo.class personalInfo.section");
       if (student && student.personalInfo) {
         filter.class = student.personalInfo.class;
         filter.section = student.personalInfo.section;
       }
     } else if (req.user && req.user.role === 'parent') {
       // RBAC: If parent, get their child's classId and sectionId
-      const parent = await Parent.findById(req.user.refId).populate("children");
+      const parent = await Parent.findOne({ _id: req.user.refId, schoolId }).populate({ path: "children", match: { schoolId } });
       const childId = req.query.studentId;
-      if (childId) {
+      if (parent && childId) {
         const child = parent.children.find(c => c._id.toString() === childId);
         if (child && child.personalInfo) {
           filter.class = child.personalInfo.class;
           filter.section = child.personalInfo.section;
         }
-      } else if (parent.children && parent.children.length > 0) {
+      } else if (parent && parent.children && parent.children.length > 0) {
         filter.class = parent.children[0].personalInfo?.class;
         filter.section = parent.children[0].personalInfo?.section;
       }
@@ -493,14 +542,22 @@ exports.getTimetableEntries = async (req, res) => {
       filter.section = sectionId;
     }
 
+    const [schoolClassIds, schoolSectionIds] = await Promise.all([
+      getSchoolClassIds(schoolId),
+      getSchoolSectionIds(schoolId),
+    ]);
+    filter.$and = [
+      { class: { $in: schoolClassIds } },
+      { section: { $in: schoolSectionIds } },
+    ];
+
     const timetables = await Timetable.find(filter)
-      .populate("class", "name")
-      .populate("section", "name")
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
       .populate("subjectGroup", "name")
-      .populate("subject", "subjectName subjectCode type")
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode type" })
       .populate(
-        "teacher",
-        "personalInfo.name personalInfo.staffId personalInfo.department"
+        { path: "teacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId personalInfo.department" }
       )
       .sort({ day: 1, timeFrom: 1 });
 
@@ -535,6 +592,8 @@ exports.getTimetableEntries = async (req, res) => {
 
 // Debug endpoint to check data relationships
 exports.debugTimetableData = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     const { classId, sectionId, subjectGroupId, teacherId, subjectId } = req.query;
 
@@ -543,6 +602,9 @@ exports.debugTimetableData = async (req, res) => {
     // Check subject group
     if (subjectGroupId) {
       const group = await SubjectGroup.findById(subjectGroupId);
+      if (group && !(await findOwnedClass(group.classes, schoolId))) {
+        return res.status(404).json({ success: false, message: "Subject Group not found" });
+      }
       debug.subjectGroup = {
         found: !!group,
         data: group ? {
@@ -556,6 +618,18 @@ exports.debugTimetableData = async (req, res) => {
 
     // Check teacher assignment
     if (classId && sectionId) {
+      if (!(await findOwnedClass(classId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+      if (!(await findOwnedSection(sectionId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Section not found" });
+      }
+      if (teacherId && !(await findOwnedStaff(teacherId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Teacher (staff) not found" });
+      }
+      if (subjectId && !(await findOwnedSubject(subjectId, schoolId))) {
+        return res.status(404).json({ success: false, message: "Subject not found" });
+      }
       const assignment = await AssignTeacher.findOne({ class: classId, section: sectionId });
       debug.teacherAssignment = {
         found: !!assignment,
@@ -601,6 +675,8 @@ exports.debugTimetableData = async (req, res) => {
 
 // UPDATE timetable entry
 exports.updateTimetableEntry = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log("Update request ID:", req.params.id);
     console.log("Update body:", req.body);
@@ -649,6 +725,27 @@ exports.updateTimetableEntry = async (req, res) => {
       });
     }
 
+    const target = await Timetable.findById(req.params.id);
+    if (!target || !(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({
+        success: false,
+        message: "Timetable entry not found",
+      });
+    }
+
+    if (!(await findOwnedClass(classId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+    if (!(await findOwnedSection(sectionId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Section not found" });
+    }
+    if (!(await findOwnedSubject(subjectId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
+    }
+    if (!(await findOwnedStaff(teacherId, schoolId))) {
+      return res.status(404).json({ success: false, message: "Teacher (staff) not found" });
+    }
+
     const updated = await Timetable.findByIdAndUpdate(
       req.params.id,
       {
@@ -673,13 +770,12 @@ exports.updateTimetableEntry = async (req, res) => {
     }
 
     const populated = await Timetable.findById(updated._id)
-      .populate("class", "name")
-      .populate("section", "name")
+      .populate({ path: "class", match: { schoolId }, select: "name" })
+      .populate({ path: "section", match: { schoolId }, select: "name" })
       .populate("subjectGroup", "name")
-      .populate("subject", "subjectName subjectCode type")
+      .populate({ path: "subject", match: { schoolId }, select: "subjectName subjectCode type" })
       .populate(
-        "teacher",
-        "personalInfo.name personalInfo.staffId personalInfo.department"
+        { path: "teacher", match: { schoolId }, select: "personalInfo.name personalInfo.staffId personalInfo.department" }
       );
 
     res.status(200).json({
@@ -698,6 +794,8 @@ exports.updateTimetableEntry = async (req, res) => {
 };
 // Delete timetable entry
 exports.deleteTimetableEntry = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
   try {
     console.log("Delete request for timetable ID:", req.params.id);
 
@@ -706,6 +804,14 @@ exports.deleteTimetableEntry = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid timetable ID format"
+      });
+    }
+
+    const target = await Timetable.findById(req.params.id);
+    if (!target || !(await findOwnedClass(target.class, schoolId))) {
+      return res.status(404).json({
+        success: false,
+        message: "Timetable entry not found"
       });
     }
 

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
 const SuperadminLanding = require("./superadminLandingModel");
 
 const uploadsDirectory = path.join(__dirname, "../../../public/uploads");
@@ -18,32 +19,79 @@ const sendError = (res, status, message, error) =>
     data: error ? { error: error.message || String(error) } : {},
   });
 
-const SINGLETON_FILTER = { singletonKey: "default" };
-
-const ensureSingletonDocument = async () => {
-  const keyMatched = await SuperadminLanding.findOne(SINGLETON_FILTER);
-  if (keyMatched) return keyMatched;
-
-  const docs = await SuperadminLanding.find().sort({ createdAt: 1 });
-  if (!docs.length) return null;
-
-  const primary = docs[0];
-  if (primary.singletonKey !== "default") {
-    primary.singletonKey = "default";
-    await primary.save({ validateBeforeSave: false });
+const getSchoolId = (req) => {
+  const schoolId = req.user?.schoolId;
+  if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+    return null;
   }
+  return String(schoolId);
+};
 
-  if (docs.length > 1) {
-    const duplicateIds = docs.slice(1).map((doc) => doc._id);
-    await SuperadminLanding.deleteMany({ _id: { $in: duplicateIds } });
+const NO_SCHOOL_CONTEXT_RESPONSE = {
+  success: false,
+  code: "NO_SCHOOL_CONTEXT",
+  message: "Your account is not linked to a school.",
+};
+
+const PROFILE_ALLOWED_FIELDS = [
+  "schoolName",
+  "shortName",
+  "schoolType",
+  "board",
+  "affiliationNumber",
+  "udise",
+  "establishmentYear",
+  "schoolLevel",
+  "medium",
+  "genderType",
+  "status",
+  "sessionStart",
+  "sessionEnd",
+  "gradingSystem",
+  "startTime",
+  "endTime",
+  "street",
+  "area",
+  "country",
+  "state",
+  "district",
+  "city",
+  "pin",
+  "principalName",
+  "principalEmail",
+  "principalPhone",
+  "schoolPhone",
+  "altPhone",
+  "email",
+  "website",
+  "management",
+  "recognition",
+  "authority",
+  "motto",
+  "subdomain",
+  "timezone",
+  "language",
+  "logo",
+];
+
+const sanitizeProfilePayload = (body = {}) => {
+  const clean = {};
+  for (const key of PROFILE_ALLOWED_FIELDS) {
+    if (body[key] !== undefined) {
+      clean[key] = body[key];
+    }
   }
-
-  return SuperadminLanding.findOne(SINGLETON_FILTER);
+  return clean;
 };
 
 exports.getProfile = async (req, res) => {
   try {
-    const document = await ensureSingletonDocument();
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const document = await SuperadminLanding.findOne({ schoolId }).lean();
     return sendSuccess(res, document?.profile || {});
   } catch (error) {
     return sendError(res, 500, "Failed to fetch profile", error);
@@ -52,14 +100,22 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    await SuperadminLanding.findOneAndUpdate(
-      SINGLETON_FILTER,
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const cleanProfile = sanitizeProfilePayload(req.body);
+
+    const updated = await SuperadminLanding.findOneAndUpdate(
+      { schoolId },
       {
         $set: {
-          singletonKey: "default",
-          profile: req.body || {},
+          profile: cleanProfile,
         },
         $setOnInsert: {
+          schoolId,
+          singletonKey: "default",
           theme: {},
           other: {},
         },
@@ -68,10 +124,10 @@ exports.updateProfile = async (req, res) => {
         new: true,
         runValidators: true,
         upsert: true,
+        setDefaultsOnInsert: true,
       }
-    );
+    ).lean();
 
-    const updated = await ensureSingletonDocument();
     return sendSuccess(res, updated?.profile || {});
   } catch (error) {
     return sendError(res, 500, "Failed to update profile", error);
@@ -80,11 +136,16 @@ exports.updateProfile = async (req, res) => {
 
 exports.uploadLogo = async (req, res) => {
   try {
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
     if (!req.file) {
       return sendError(res, 400, "Logo file is required");
     }
 
-    const document = await ensureSingletonDocument();
+    const document = await SuperadminLanding.findOne({ schoolId });
     if (!document) {
       return sendError(
         res,
@@ -96,7 +157,7 @@ exports.uploadLogo = async (req, res) => {
     const newLogoPath = `/uploads/${req.file.filename}`;
 
     await SuperadminLanding.updateOne(
-      { _id: document._id },
+      { _id: document._id, schoolId },
       { $set: { "profile.logo": newLogoPath } }
     );
 
@@ -108,8 +169,7 @@ exports.uploadLogo = async (req, res) => {
       }
     }
 
-    const updated = await ensureSingletonDocument();
-    return sendSuccess(res, { logo: updated?.profile?.logo || "" });
+    return sendSuccess(res, { logo: newLogoPath });
   } catch (error) {
     return sendError(res, 500, "Failed to upload logo", error);
   }
@@ -117,7 +177,12 @@ exports.uploadLogo = async (req, res) => {
 
 exports.getTheme = async (req, res) => {
   try {
-    const document = await ensureSingletonDocument();
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const document = await SuperadminLanding.findOne({ schoolId }).lean();
     return sendSuccess(res, document?.theme || {});
   } catch (error) {
     return sendError(res, 500, "Failed to fetch theme", error);
@@ -126,7 +191,12 @@ exports.getTheme = async (req, res) => {
 
 exports.updateTheme = async (req, res) => {
   try {
-    const document = await ensureSingletonDocument();
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const document = await SuperadminLanding.findOne({ schoolId });
     if (!document) {
       return sendError(
         res,
@@ -135,13 +205,18 @@ exports.updateTheme = async (req, res) => {
       );
     }
 
+    const safeTheme =
+      typeof req.body === "object" && req.body !== null ? { ...req.body } : {};
+    delete safeTheme.schoolId;
+    delete safeTheme._id;
+    delete safeTheme.singletonKey;
+
     await SuperadminLanding.updateOne(
-      { _id: document._id },
-      { $set: { theme: req.body || {} } }
+      { _id: document._id, schoolId },
+      { $set: { theme: safeTheme } }
     );
 
-    const updated = await ensureSingletonDocument();
-    return sendSuccess(res, updated?.theme || {});
+    return sendSuccess(res, safeTheme);
   } catch (error) {
     return sendError(res, 500, "Failed to update theme", error);
   }
@@ -149,7 +224,12 @@ exports.updateTheme = async (req, res) => {
 
 exports.getOther = async (req, res) => {
   try {
-    const document = await ensureSingletonDocument();
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const document = await SuperadminLanding.findOne({ schoolId }).lean();
     return sendSuccess(res, document?.other || {});
   } catch (error) {
     return sendError(res, 500, "Failed to fetch other settings", error);
@@ -158,7 +238,12 @@ exports.getOther = async (req, res) => {
 
 exports.updateOther = async (req, res) => {
   try {
-    const document = await ensureSingletonDocument();
+    const schoolId = getSchoolId(req);
+    if (!schoolId) {
+      return res.status(403).json(NO_SCHOOL_CONTEXT_RESPONSE);
+    }
+
+    const document = await SuperadminLanding.findOne({ schoolId });
     if (!document) {
       return sendError(
         res,
@@ -167,13 +252,18 @@ exports.updateOther = async (req, res) => {
       );
     }
 
+    const safeOther =
+      typeof req.body === "object" && req.body !== null ? { ...req.body } : {};
+    delete safeOther.schoolId;
+    delete safeOther._id;
+    delete safeOther.singletonKey;
+
     await SuperadminLanding.updateOne(
-      { _id: document._id },
-      { $set: { other: req.body || {} } }
+      { _id: document._id, schoolId },
+      { $set: { other: safeOther } }
     );
 
-    const updated = await ensureSingletonDocument();
-    return sendSuccess(res, updated?.other || {});
+    return sendSuccess(res, safeOther);
   } catch (error) {
     return sendError(res, 500, "Failed to update other settings", error);
   }

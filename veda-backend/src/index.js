@@ -1,23 +1,30 @@
-// CONNECT DB & START SERVER 
+// CONNECT DB & START SERVER
 const express = require('express');
 const dotenv = require('dotenv');
 require('dotenv').config();
+
 const app = require("./app");
 const main = require("./config/db");
 const ensureDefaultRoles = require("./utils/ensureDefaultRoles");
 
 main()
-.then(async () => {
-        console.log("connected to db");
-        await ensureDefaultRoles();
-        console.log("default roles ensured");
-        const seedIntegrationProviders = require("./modules/integrations/seedProviders");
-        await seedIntegrationProviders();
+  .then(async () => {
+    console.log("connected to db");
 
-        const port = process.env.PORT || 5000;
-        app.listen(port, () => {
-                console.log("Server Listening at Port: " + port);
-        });
-})
-.catch(err => console.log("DB Connection Error: ", err));
+    if (process.env.ENSURE_DEFAULT_ROLES === "true") {
+      await ensureDefaultRoles();
+      console.log("default roles ensured");
+    }
 
+    if (process.env.SEED_INTEGRATION_PROVIDERS === "true") {
+      const seedIntegrationProviders = require("./modules/integrations/seedProviders");
+      await seedIntegrationProviders();
+    }
+
+    const port = process.env.PORT || 5000;
+
+    app.listen(port, () => {
+      console.log("Server Listening at Port: " + port);
+    });
+  })
+  .catch(err => console.log("DB Connection Error: ", err));

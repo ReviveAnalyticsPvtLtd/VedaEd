@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { FiTrash2, FiEdit, FiSearch } from "react-icons/fi";
-import axios from "axios";
-import api from "../../services/apiClient";
+import api, { authFetch } from "../../services/apiClient";
 
 import config from "../../config";
 
@@ -153,7 +152,7 @@ export default function ClassTimetable() {
       return;
     }
 
-    const res = await axios.get(`${API_BASE}/assignTeachers`);
+    const res = await api.get(`/assignTeachers`);
 
     const assignments = res.data?.data || [];
 
@@ -177,7 +176,7 @@ export default function ClassTimetable() {
   // ---------- Fetch base dropdowns ----------
   useEffect(() => {
     // fetch classes
-    fetch(`${API_BASE}/classes`)
+    authFetch(`/classes`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.success && Array.isArray(data.data))
@@ -205,7 +204,7 @@ export default function ClassTimetable() {
       setCriteriaSection("");
       return;
     }
-    fetch(`${API_BASE}/sections?classId=${criteriaClass}`)
+    authFetch(`/sections?classId=${criteriaClass}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.success && Array.isArray(data.data))
@@ -219,7 +218,7 @@ export default function ClassTimetable() {
   // Modal: fetch sections for modalClass
   useEffect(() => {
     if (!modalClass) return;
-    fetch(`${API_BASE}/sections?classId=${modalClass}`)
+    authFetch(`/sections?classId=${modalClass}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.success && Array.isArray(data.data))
@@ -237,8 +236,8 @@ export default function ClassTimetable() {
       setModalGroup("");
       return;
     }
-    fetch(
-      `${API_BASE}/subGroups?classId=${modalClass}&sectionId=${modalSection}`
+    authFetch(
+      `/subGroups?classId=${modalClass}&sectionId=${modalSection}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -258,8 +257,8 @@ useEffect(() => {
     return;
   }
 
-  axios
-    .get(`${API_BASE}/subGroups/${modalGroup}`)
+  api
+    .get(`/subGroups/${modalGroup}`)
     .then((res) => {
       const groupSubjects = res.data?.data?.subjects || [];
       setSubjects(groupSubjects);
@@ -330,7 +329,7 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
   const groupId =
     timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId;
 
-  const res = await axios.get(`${API_BASE}/subGroups/${groupId}`);
+  const res = await api.get(`/subGroups/${groupId}`);
   setSubjects(res.data?.data?.subjects || []);
 }
 
@@ -380,7 +379,7 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
       console.log("Attempting to delete timetable with ID:", timetableId);
       console.log("Delete URL:", `${API_BASE}/timetables/${timetableId}`);
 
-      const res = await axios.delete(`${API_BASE}/timetables/${timetableId}`);
+      const res = await api.delete(`/timetables/${timetableId}`);
       console.log("Delete response:", res.data);
 
       if (res.data.success) {
@@ -413,7 +412,7 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
       });
 
       // Check if assignment exists
-      const checkRes = await axios.get(`${API_BASE}/assignTeachers`);
+      const checkRes = await api.get(`/assignTeachers`);
       console.log("Existing assignments response:", checkRes.data);
       const existingAssignments = checkRes.data?.data || [];
 
@@ -435,8 +434,8 @@ if (timetableEntry.subjectGroup?._id || timetableEntry.subjectGroupId) {
         };
 
         console.log("Creating assignment with data:", assignmentData);
-        const createRes = await axios.post(
-          `${API_BASE}/assignTeachers`,
+        const createRes = await api.post(
+          `/assignTeachers`,
           assignmentData
         );
         console.log("Assignment creation response:", createRes.data);
@@ -504,12 +503,12 @@ const isMongoId = (id) => /^[a-fA-F0-9]{24}$/.test(id);
 if (isEditMode && row.mongoId && isMongoId(row.mongoId)) {
   // ✅ UPDATE existing timetable
   requests.push(
-    axios.put(`${API_BASE}/timetables/${row.mongoId}`, payload)
+    api.put(`/timetables/${row.mongoId}`, payload)
   );
 } else {
   // ✅ CREATE new timetable
   requests.push(
-    axios.post(`${API_BASE}/timetables`, payload)
+    api.post(`/timetables`, payload)
   );
 }
           metas.push({ day, ...payload });

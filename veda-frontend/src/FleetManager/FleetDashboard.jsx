@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 import {
   FiTruck,
@@ -28,7 +28,7 @@ export default function FleetDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/transport/fleet-stats`);
+      const res = await api.get(`${config.API_BASE_URL}/transport/fleet-stats`);
       setStatsData(res.data);
     } catch (error) {
       console.error("Error fetching stats:", error);

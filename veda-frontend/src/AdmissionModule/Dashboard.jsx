@@ -10,7 +10,7 @@ import {
   FiAlertCircle,
   FiBookOpen,
 } from "react-icons/fi";
-import axios from "axios";
+import api from "../services/apiClient";
 import config from "../config";
 
 import {
@@ -43,11 +43,11 @@ export default function AdmissionDashboard() {
       try {
         const [enquiryRes, applicationRes, vacancyRes, entranceRes, studentsRes] =
           await Promise.allSettled([
-            axios.get(`${config.API_BASE_URL}/admission-enquiry`),
-            axios.get(`${config.API_BASE_URL}/admission/application`),
-            axios.get(`${config.API_BASE_URL}/admission/vacancy`),
-            axios.get(`${config.API_BASE_URL}/admission/entrance-exam`),
-            axios.get(`${config.API_BASE_URL}/students`),
+            api.get(`${config.API_BASE_URL}/admission-enquiry`),
+            api.get(`${config.API_BASE_URL}/admission/application`),
+            api.get(`${config.API_BASE_URL}/admission/vacancy`),
+            api.get(`${config.API_BASE_URL}/admission/entrance-exam`),
+            api.get(`${config.API_BASE_URL}/students`),
           ]);
 
         if (enquiryRes.status === "fulfilled") {

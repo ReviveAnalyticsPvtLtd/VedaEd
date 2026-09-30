@@ -10,7 +10,7 @@ import {
 import * as XLSX from "xlsx";
 import HelpInfo from "../../components/HelpInfo";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 import config from "../../config";
 import Pagination from "../../components/common/Pagination";
 
@@ -72,7 +72,7 @@ export default function SelectedStudent() {
   const fetchSelectedStudents = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${config.API_BASE_URL}/admission/application/selected`);
+      const res = await api.get(`${config.API_BASE_URL}/admission/application/selected`);
       if (res.data.success) {
         // Transform data to match table structure
         const mappedData = res.data.data
