@@ -385,6 +385,19 @@ Tools available inside every class:
           <div className="flex justify-center items-center py-8">
             <div className="text-gray-500">Loading students...</div>
           </div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="flex flex-col items-center gap-1 py-8 text-center">
+            <div className="text-gray-600">
+              {students.length === 0
+                ? "No students are currently assigned to you."
+                : "No students match the selected class, section or search."}
+            </div>
+            {students.length === 0 && (
+              <div className="text-gray-400 text-sm">
+                Students appear here once you are assigned a class and section.
+              </div>
+            )}
+          </div>
         ) : (
           <table className="w-full text-sm border ">
             <thead className="bg-gray-100">
@@ -437,7 +450,9 @@ Tools available inside every class:
         )}
 
         {/* Pagination */}
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        {!loading && filteredStudents.length > 0 && (
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        )}
 
         {/* Add Manually Form */}
         {showForm && (

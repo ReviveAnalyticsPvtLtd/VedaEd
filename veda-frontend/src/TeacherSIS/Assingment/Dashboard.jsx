@@ -229,8 +229,14 @@ const AssignmentDashboardUI = () => {
   };
 
   const handleGradeSave = async (submissionId, enteredValues) => {
-    const updated = enteredValues || gradeInputs[submissionId];
-    if (!updated || Object.keys(updated).length === 0) {
+    // The draft captured at render time can be stale by the time the button is
+    // clicked, so live state wins and the passed draft only fills the gaps.
+    const latest = gradeInputs[submissionId] || {};
+    const merged = { ...(enteredValues || {}), ...latest };
+    const updated = Object.fromEntries(
+      Object.entries(merged).filter(([, v]) => v !== undefined && v !== null)
+    );
+    if (Object.keys(updated).length === 0) {
       alert("Enter marks, grade, or feedback first.");
       return;
     }

@@ -17,6 +17,7 @@ const CalendarEvent = require("../calendar/calendarModel");
 const Notice = require("../communication/noticeModel");
 const User = require('../../models/User');
 const { generateStudentUsernameBase } = require("../../utils/studentUsernameGenerator");
+const { getTeacherRosterScope } = require("../../services/teacherAssignmentScope");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
 
 const safeDocumentPath = (filename) => {
@@ -368,26 +369,17 @@ exports.getAllStudents = async (req, res) => {
     // 2. Teacher Access filtering: must only see assigned class-section pairs
     if (req.user && req.user.role === 'teacher') {
       // JWT refId points to Staff._id for teacher accounts.
-      const teacherStaffId = req.user.refId;
-      const assignments = await AssignTeacher.find({ teachers: teacherStaffId })
-        .select("class section")
-        .lean();
+      const { pairs } = await getTeacherRosterScope(req.user.refId, schoolId);
 
-      if (!assignments.length) {
+      const classSectionFilters = pairs.map((pair) => ({
+        "personalInfo.class": pair.class,
+        "personalInfo.section": pair.section,
+      }));
+
+      if (!classSectionFilters.length) {
         query._id = { $in: [] };
       } else {
-        const classSectionFilters = assignments
-          .filter((item) => item.class && item.section)
-          .map((item) => ({
-            "personalInfo.class": item.class,
-            "personalInfo.section": item.section,
-          }));
-
-        if (!classSectionFilters.length) {
-          query._id = { $in: [] };
-        } else {
-          query.$or = classSectionFilters;
-        }
+        query.$or = classSectionFilters;
       }
     }
 

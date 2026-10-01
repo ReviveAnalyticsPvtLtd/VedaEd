@@ -83,15 +83,9 @@ async function seedDatabase() {
     console.log("Initial SuperAdmin user created: superadmin@veda.com / password123");
     console.log("School admins are created dynamically via SuperAdmin Identity & Access.");
 
-    // Create a dummy Teacher for testing
-    await User.create({
-      name: "Teresa Teacher",
-      email: "teacher@veda.com",
-      password: "password123",
-      roleId: createdRoles['teacher']._id,
-      status: 'active'
-    });
-    console.log("Initial Teacher user created: teacher@veda.com / password123");
+    // Teacher login accounts are created by POST /api/staff, which stamps
+    // schoolId from the Staff record. Seeding one here produced an account with
+    // no refId and no schoolId, which no tenant backfill can ever resolve.
 
     console.log("Seed completed successfully");
     process.exit();

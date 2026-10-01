@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 
 const User = require("../models/User");
 const RolePermission = require("../models/RolePermission");
@@ -374,8 +375,24 @@ exports.login = async (req, res) => {
           if (staffRole) {
             user = await User.findOne({ refId: staff._id, roleId: staffRole._id }).populate("roleId");
 
+            const staffSchoolId = staff.schoolId;
+
+            // Repair accounts minted before schoolId was recorded. An existing
+            // schoolId is never overwritten — that could relocate a live account
+            // into a different school. No trustworthy Staff school means we leave
+            // it null so every tenant-scoped route keeps refusing the account.
+            if (
+              user &&
+              !user.schoolId &&
+              staffSchoolId &&
+              mongoose.isValidObjectId(String(staffSchoolId))
+            ) {
+              user.schoolId = staffSchoolId;
+              await user.save();
+              console.log(`Repaired missing schoolId on staff login account: ${loginId}`);
+            }
+
             if (!user) {
-              const staffSchoolId = staff.schoolId;
               if (!staffSchoolId) {
                 console.error(
                   `Refusing just-in-time staff user creation for ${loginId}: source record has no schoolId`
