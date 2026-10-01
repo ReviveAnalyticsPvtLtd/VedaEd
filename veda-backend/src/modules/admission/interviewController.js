@@ -1,6 +1,32 @@
+const mongoose = require("mongoose");
 const Interview = require("./interviewModel");
 const AdmissionApplication = require("./admissionApplicationModel");
 const EntranceExam = require("./entranceExamModel");
+
+/**
+ * Tenant context is resolved by authMiddleware from the authenticated User
+ * document. It is never read from the request payload.
+ */
+const requireSchool = (req, res) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+        res.status(403).json({
+            success: false,
+            code: "NO_SCHOOL_CONTEXT",
+            message: "Your account is not linked to a school.",
+        });
+        return null;
+    }
+    return String(schoolId);
+};
+
+/**
+ * Resolve an applicant to this school. An application belonging to another
+ * school is deliberately indistinguishable from one that does not exist, so a
+ * caller cannot probe for or write onto a foreign application by ObjectId.
+ */
+const findOwnApplication = (applicationIdRef, schoolId) =>
+    AdmissionApplication.findOne({ _id: applicationIdRef, schoolId }).select("_id");
 
 const isDeclaredResult = (value) =>
     value === "Qualified" || value === "Disqualified";
@@ -24,20 +50,23 @@ const resolveInterviewOutcome = ({ currentAttendance, currentResult, nextAttenda
 
 // Get all candidates (Applications merged with Interview details)
 exports.getInterviewCandidates = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         // 1. Fetch only applications with a Qualified entrance result
         const qualifiedExamRecords = await EntranceExam.find(
-            { result: "Qualified" },
+            { result: "Qualified", schoolId },
             { applicationId: 1 }
         );
         const qualifiedApplicationIds = qualifiedExamRecords.map((exam) => exam.applicationId);
 
         const applications = await AdmissionApplication.find({
-            _id: { $in: qualifiedApplicationIds }
+            _id: { $in: qualifiedApplicationIds },
+            schoolId
         }).sort({ createdAt: -1 });
 
         // 2. Get all scheduled interviews
-        const interviews = await Interview.find();
+        const interviews = await Interview.find({ schoolId });
 
         // 3. Map by applicationId
         const interviewMap = {};
@@ -81,10 +110,19 @@ exports.getInterviewCandidates = async (req, res) => {
 
 // Schedule or Update Interview
 exports.scheduleInterview = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { applicationIdRef, date, time, duration, teacher, venue, type, sms, whatsapp, email } = req.body;
 
-        let interview = await Interview.findOne({ applicationId: applicationIdRef });
+        // The applicant must belong to this school, otherwise the caller could
+        // schedule an interview onto another school's application.
+        const application = await findOwnApplication(applicationIdRef, schoolId);
+        if (!application) {
+            return res.status(404).json({ message: "Application not found" });
+        }
+
+        let interview = await Interview.findOne({ applicationId: applicationIdRef, schoolId });
 
         if (interview) {
             interview.interviewDate = date;
@@ -98,6 +136,7 @@ exports.scheduleInterview = async (req, res) => {
         } else {
             interview = new Interview({
                 applicationId: applicationIdRef,
+                schoolId,
                 interviewDate: date,
                 interviewTime: time,
                 duration,
@@ -118,11 +157,15 @@ exports.scheduleInterview = async (req, res) => {
 
 // Update Result
 exports.updateInterviewResult = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params;
         const { result, attendance } = req.body;
 
-        const interview = await Interview.findById(id);
+        // Scoped lookup: an interview owned by another school is
+        // indistinguishable from one that does not exist.
+        const interview = await Interview.findOne({ _id: id, schoolId });
         if (!interview) {
             return res.status(404).json({ message: "Interview record not found. Please schedule first." });
         }
@@ -147,10 +190,18 @@ exports.updateInterviewResult = async (req, res) => {
 };
 
 exports.declareResult = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { applicationId, result, attendance } = req.body;
 
-        let interview = await Interview.findOne({ applicationId });
+        // The applicant must belong to this school.
+        const application = await findOwnApplication(applicationId, schoolId);
+        if (!application) {
+            return res.status(404).json({ message: "Application not found" });
+        }
+
+        let interview = await Interview.findOne({ applicationId, schoolId });
 
         const outcome = resolveInterviewOutcome({
             currentAttendance: interview?.attendance,
@@ -162,6 +213,7 @@ exports.declareResult = async (req, res) => {
         if (!interview) {
             interview = new Interview({
                 applicationId,
+                schoolId,
                 status: outcome.status,
                 result: outcome.result,
                 attendance: outcome.attendance,

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '../services/apiClient';
 import config from '../config';
 
 const API_BASE_URL = `${config.API_BASE_URL}/admission`;
@@ -7,7 +7,7 @@ const API_BASE_URL = `${config.API_BASE_URL}/admission`;
 
 export const getEntranceCandidates = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/entrance-exam`);
+        const response = await api.get(`${API_BASE_URL}/entrance-exam`);
         return response.data;
     } catch (error) {
         console.error("Error fetching entrance candidates:", error);
@@ -17,7 +17,7 @@ export const getEntranceCandidates = async () => {
 
 export const scheduleEntranceExam = async (data) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/entrance-exam/schedule`, data);
+        const response = await api.post(`${API_BASE_URL}/entrance-exam/schedule`, data);
         return response.data;
     } catch (error) {
         console.error("Error scheduling entrance exam:", error);
@@ -27,7 +27,7 @@ export const scheduleEntranceExam = async (data) => {
 
 export const updateEntranceResult = async (id, data) => {
     try {
-        const response = await axios.put(`${API_BASE_URL}/entrance-exam/${id}`, data);
+        const response = await api.put(`${API_BASE_URL}/entrance-exam/${id}`, data);
         return response.data;
     } catch (error) {
         console.error("Error updating entrance result:", error);
@@ -37,7 +37,7 @@ export const updateEntranceResult = async (id, data) => {
 
 export const declareEntranceResult = async (data) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/entrance-exam/result`, data);
+        const response = await api.post(`${API_BASE_URL}/entrance-exam/result`, data);
         return response.data;
     } catch (error) {
         console.error("Error declaring entrance result:", error);
@@ -47,7 +47,7 @@ export const declareEntranceResult = async (data) => {
 
 export const getVacancies = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/vacancy`);
+        const response = await api.get(`${API_BASE_URL}/vacancy`);
         return response.data;
     } catch (error) {
         console.error("Error fetching vacancies:", error);
@@ -59,7 +59,7 @@ export const getVacancies = async () => {
 
 export const getInterviewCandidates = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/interview`);
+        const response = await api.get(`${API_BASE_URL}/interview`);
         return response.data;
     } catch (error) {
         console.error("Error fetching interview candidates:", error);
@@ -69,7 +69,7 @@ export const getInterviewCandidates = async () => {
 
 export const scheduleInterview = async (data) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/interview/schedule`, data);
+        const response = await api.post(`${API_BASE_URL}/interview/schedule`, data);
         return response.data;
     } catch (error) {
         console.error("Error scheduling interview:", error);
@@ -79,7 +79,7 @@ export const scheduleInterview = async (data) => {
 
 export const updateInterviewResult = async (id, data) => {
     try {
-        const response = await axios.put(`${API_BASE_URL}/interview/${id}`, data);
+        const response = await api.put(`${API_BASE_URL}/interview/${id}`, data);
         return response.data;
     } catch (error) {
         console.error("Error updating interview result:", error);
@@ -89,7 +89,7 @@ export const updateInterviewResult = async (id, data) => {
 
 export const declareInterviewResult = async (data) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/interview/result`, data);
+        const response = await api.post(`${API_BASE_URL}/interview/result`, data);
         return response.data;
     } catch (error) {
         console.error("Error declaring interview result:", error);

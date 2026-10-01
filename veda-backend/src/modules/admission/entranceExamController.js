@@ -1,5 +1,31 @@
+const mongoose = require("mongoose");
 const EntranceExam = require("./entranceExamModel");
 const AdmissionApplication = require("./admissionApplicationModel");
+
+/**
+ * Tenant context is resolved by authMiddleware from the authenticated User
+ * document. It is never read from the request payload.
+ */
+const requireSchool = (req, res) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId || !mongoose.isValidObjectId(String(schoolId))) {
+        res.status(403).json({
+            success: false,
+            code: "NO_SCHOOL_CONTEXT",
+            message: "Your account is not linked to a school.",
+        });
+        return null;
+    }
+    return String(schoolId);
+};
+
+/**
+ * Resolve an applicant to this school. An application belonging to another
+ * school is deliberately indistinguishable from one that does not exist, so a
+ * caller cannot probe for or write onto a foreign application by ObjectId.
+ */
+const findOwnApplication = (applicationIdRef, schoolId) =>
+    AdmissionApplication.findOne({ _id: applicationIdRef, schoolId }).select("_id");
 
 const formatClassLabel = (value) => {
     const normalized = String(value || "")
@@ -31,13 +57,15 @@ const resolveExamOutcome = ({ currentAttendance, currentResult, nextAttendance, 
 
 // Get all candidates (Applications merged with Exam details)
 exports.getEntranceCandidates = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         // 1. Get all applications
         // You might want to filter by status if needed, e.g., only "Pending" or "Document Verified" applications
-        const applications = await AdmissionApplication.find().sort({ createdAt: -1 });
+        const applications = await AdmissionApplication.find({ schoolId }).sort({ createdAt: -1 });
 
         // 2. Get all scheduled exams
-        const exams = await EntranceExam.find();
+        const exams = await EntranceExam.find({ schoolId });
 
         // 3. Map exams by applicationId for easy lookup
         const examMap = {};
@@ -85,11 +113,20 @@ exports.getEntranceCandidates = async (req, res) => {
 
 // Schedule or Update Exam
 exports.scheduleEntranceExam = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { applicationIdRef, date, time, duration, examiner, venue, type, sms, whatsapp, email } = req.body;
 
+        // The applicant must belong to this school, otherwise the caller could
+        // schedule an exam onto another school's application.
+        const application = await findOwnApplication(applicationIdRef, schoolId);
+        if (!application) {
+            return res.status(404).json({ message: "Application not found" });
+        }
+
         // Check if exam exists
-        let exam = await EntranceExam.findOne({ applicationId: applicationIdRef });
+        let exam = await EntranceExam.findOne({ applicationId: applicationIdRef, schoolId });
 
         if (exam) {
             // Update
@@ -105,6 +142,7 @@ exports.scheduleEntranceExam = async (req, res) => {
             // Create
             exam = new EntranceExam({
                 applicationId: applicationIdRef,
+                schoolId,
                 examDate: date,
                 examTime: time,
                 duration,
@@ -127,6 +165,8 @@ exports.scheduleEntranceExam = async (req, res) => {
 
 // Update Result/Attendance
 exports.updateEntranceResult = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { id } = req.params; // Entrance Exam ID (if we have it) or Application ID?
         // Safer to use Entrance Exam ID if we are editing an arbitrary row that has an ID. 
@@ -140,7 +180,9 @@ exports.updateEntranceResult = async (req, res) => {
         // For now assuming we update by Exam ID.
         const { result, attendance } = req.body;
 
-        const exam = await EntranceExam.findById(id);
+        // Scoped lookup: an exam owned by another school is indistinguishable
+        // from one that does not exist.
+        const exam = await EntranceExam.findOne({ _id: id, schoolId });
         if (!exam) {
             return res.status(404).json({ message: "Exam record not found. Please schedule first." });
         }
@@ -165,6 +207,8 @@ exports.updateEntranceResult = async (req, res) => {
 };
 
 exports.declareResult = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
     try {
         const { applicationId, result, attendance } = req.body;
 
@@ -178,7 +222,13 @@ exports.declareResult = async (req, res) => {
         // The frontend sends `applicationId: student.applicationIdRef` to `declareResult`.
         // So we should search by `applicationId: applicationId`.
 
-        let exam = await EntranceExam.findOne({ applicationId });
+        // The applicant must belong to this school.
+        const application = await findOwnApplication(applicationId, schoolId);
+        if (!application) {
+            return res.status(404).json({ message: "Application not found" });
+        }
+
+        let exam = await EntranceExam.findOne({ applicationId, schoolId });
 
         const outcome = resolveExamOutcome({
             currentAttendance: exam?.attendance,
@@ -190,6 +240,7 @@ exports.declareResult = async (req, res) => {
         if (!exam) {
             exam = new EntranceExam({
                 applicationId,
+                schoolId,
                 status: outcome.status,
                 result: outcome.result,
                 attendance: outcome.attendance,
