@@ -12,6 +12,7 @@ import {
 } from "../../api/admissionExamAPI";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 export default function EntranceList() {
   const navigate = useNavigate();
   /* ================= MODAL ================= */
@@ -392,37 +393,36 @@ useEffect(() => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-            <select
-              className="border px-3 py-2 rounded-md text-sm w-full sm:w-auto"
+            <CustomSelect
+              className="w-full sm:w-auto min-w-[130px]"
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-            >
-              <option value="All">All Classes</option>
-              {availableClassOptions.map((className) => (
-                <option key={className} value={className}>{className}</option>
-              ))}
-            </select>
+              options={["All", ...availableClassOptions]}
+            />
 
-            <select
-  className="border px-3 py-2 rounded-md text-sm w-full sm:w-auto"
-  value={statusFilter}
-  onChange={(e) => setStatusFilter(e.target.value)}
->
-  <option value="All">All Status</option>
-  <option value="Scheduled">Scheduled</option>
-  <option value="Completed">Completed</option>
-  <option value="Pending">Pending</option>
-</select>
+            <CustomSelect
+              className="w-full sm:w-auto min-w-[130px]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { value: "All", label: "All Status" },
+                { value: "Scheduled", label: "Scheduled" },
+                { value: "Completed", label: "Completed" },
+                { value: "Pending", label: "Pending" },
+              ]}
+            />
 
-            <select
-              className="border px-3 py-2 rounded-md text-sm w-full sm:w-auto"
+            <CustomSelect
+              className="w-full sm:w-auto min-w-[130px]"
               value={bulkAction}
               onChange={(e) => handleBulkActionChange(e.target.value)}
-            >
-              <option value="">Bulk Action</option>
-              <option value="schedule">Schedule</option>
-              <option value="export">Export</option>
-            </select>
+              placeholder="Bulk Action"
+              options={[
+                { value: "", label: "Bulk Action" },
+                { value: "schedule", label: "Schedule" },
+                { value: "export", label: "Export" },
+              ]}
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -506,34 +506,38 @@ useEffect(() => {
                 <td className="p-2 border">{formatDateTimeDayMonthYear(s.entranceDateTime)}</td>
                 <td className="p-2 border">{s.examiner || "-"}</td>
                 <td className="p-2 border">
-                    <select 
-                        value={s.attendance} 
+                    <CustomSelect 
+                        value={s.attendance || "Pending"} 
                         onChange={(e) => handleUpdateResult(s, 'attendance', e.target.value)}
                         disabled={s.status !== "Scheduled" && s.status !== "Completed"}
-                        className={`px-2 py-1 rounded text-xs border ${
-                            s.attendance === 'Present' ? 'bg-green-100 text-green-700' : 
-                            s.attendance === 'Absent' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                        buttonClassName={`px-2 py-1 rounded text-xs border font-medium ${
+                            s.attendance === 'Present' ? 'bg-green-100 text-green-700 border-green-300' : 
+                            s.attendance === 'Absent' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-yellow-100 text-yellow-700 border-yellow-300'
                         }`}
-                    >
-                        <option>Pending</option>
-                        <option>Present</option>
-                        <option>Absent</option>
-                    </select>
+                        options={[
+                          { value: "Pending", label: "Pending" },
+                          { value: "Present", label: "Present" },
+                          { value: "Absent", label: "Absent" },
+                        ]}
+                        className="min-w-[100px]"
+                    />
                 </td>
                 <td className="p-2 border">
-                  <select
-                    value={s.result}
+                  <CustomSelect
+                    value={s.result || "Not Declared"}
                     onChange={(e) => handleUpdateResult(s, 'result', e.target.value)}
                     disabled={
                       s.attendance !== "Present" ||
                       (s.status !== "Scheduled" && s.status !== "Completed")
                     }
-                    className="border rounded-md px-1 py-0.5 text-xs w-full"
-                  >
-                    <option>Not Declared</option>
-                    <option>Qualified</option>
-                    <option>Disqualified</option>
-                  </select>
+                    buttonClassName="px-2 py-1 text-xs border rounded-md"
+                    options={[
+                      { value: "Not Declared", label: "Not Declared" },
+                      { value: "Qualified", label: "Qualified" },
+                      { value: "Disqualified", label: "Disqualified" },
+                    ]}
+                    className="w-full min-w-[125px]"
+                  />
                 </td>
                 <td className="p-2 border">
                     <span className={`px-2 py-1 rounded text-xs ${
@@ -569,7 +573,7 @@ useEffect(() => {
   {/* NEXT */}
   <button
     onClick={() => navigate("/admission/interview-list")}
-    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 w-full sm:w-auto"
+    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors w-full sm:w-auto"
   >
     Next
   </button>
@@ -593,14 +597,15 @@ useEffect(() => {
   <label className="block text-sm font-semibold text-gray-600 mb-1">
     Exam Type
   </label>
-  <select
-    className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+  <CustomSelect
+    className="w-full"
     value={form.examType}
     onChange={(e) => setForm({ ...form, examType: e.target.value })}
-  >
-    <option value="Oral">Oral</option>
-    <option value="Theory">Theory</option>
-  </select>
+    options={[
+      { value: "Oral", label: "Oral" },
+      { value: "Theory", label: "Theory" },
+    ]}
+  />
 </div>
 
                          </div>
@@ -627,15 +632,17 @@ useEffect(() => {
                              </div>
                              <div>
                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Slot Duration</label>
-                               <select className="w-full border rounded-md px-3 py-2 text-sm focus:border-blue-500 outline-none bg-white"
+                               <CustomSelect
+                                 className="w-full"
                                  value={form.slot}
-                                 onChange={(e) => setForm({...form, slot: e.target.value})}
-                               >
-                                 <option>10 mins</option>
-                                 <option>15 mins</option>
-                                 <option>30 mins</option>
-                                 <option>60 mins</option>
-                               </select>
+                                 onChange={(e) => setForm({ ...form, slot: e.target.value })}
+                                 options={[
+                                   { value: "10 mins", label: "10 mins" },
+                                   { value: "15 mins", label: "15 mins" },
+                                   { value: "30 mins", label: "30 mins" },
+                                   { value: "60 mins", label: "60 mins" },
+                                 ]}
+                               />
                              </div>
                            </div>
            

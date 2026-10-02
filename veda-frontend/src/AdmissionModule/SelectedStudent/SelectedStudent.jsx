@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/apiClient";
 import config from "../../config";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 
 export default function SelectedStudent() {
   const navigate = useNavigate();
@@ -264,28 +265,29 @@ You can search by name or parent, filter by class, add students manually, import
           />
         </div>
 
-        <select
+        <CustomSelect
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
-          className="px-3 py-2 border rounded-md text-sm"
-        >
-          <option value="">All Classes</option>
-          <option value="9">Class 9</option>
-          <option value="10">Class 10</option>
-        </select>
+          options={[
+            { value: "", label: "All Classes" },
+            { value: "9", label: "Class 9" },
+            { value: "10", label: "Class 10" },
+          ]}
+          className="min-w-[130px]"
+        />
 
         {/* BULK */}
         <div className="relative" ref={bulkRef}>
           <button
             onClick={() => setShowBulk(!showBulk)}
-            className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm"
+            className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm hover:border-blue-500 hover:text-blue-600 transition-colors"
           >
             Bulk Action <FiChevronDown />
           </button>
 
           {showBulk && (
             <div className="absolute mt-2 w-44 bg-white border rounded shadow z-10">
-              <label className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+              <label className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 cursor-pointer transition-colors">
                 <FiUpload /> Import
                 <input
                   type="file"
@@ -296,13 +298,13 @@ You can search by name or parent, filter by class, add students manually, import
               </label>
               <button
                 onClick={exportExcel}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
               >
                 <FiDownload /> Export
               </button>
               <button
                 onClick={deleteMultiple}
-                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
               >
                 Delete
               </button>
@@ -472,7 +474,7 @@ You can search by name or parent, filter by class, add students manually, import
 
       <button
         onClick={() => navigate("/admission/application-offer")}
-        className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+        className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
       >
         Next →
       </button>

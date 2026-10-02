@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -452,19 +453,20 @@ Use this page to carefully verify each document and update the status accordingl
             </div>
             <div className="flex items-center gap-2 w-full lg:w-auto">
               <FiFilter className="text-gray-500" />
-              <select
+              <CustomSelect
                 value={statusFilter}
-               onChange={(e) => {
-  setStatusFilter(e.target.value);
-  setCurrentPage(1);
-}}
-                className="border px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full lg:w-auto"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="verified">Verified</option>
-                <option value="rejected">Rejected</option>
-              </select>
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: "all", label: "All Status" },
+                  { value: "pending", label: "Pending" },
+                  { value: "verified", label: "Verified" },
+                  { value: "rejected", label: "Rejected" },
+                ]}
+                className="w-full lg:w-auto min-w-[140px]"
+              />
             </div>
           </div>
         </div>
@@ -693,15 +695,16 @@ Use this page to carefully verify each document and update the status accordingl
               <label className="block font-medium mb-2">
                 Verification Status *
               </label>
-              <select
+              <CustomSelect
                 value={verificationStatus}
                 onChange={(e) => setVerificationStatus(e.target.value)}
-                className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Verified">Verified</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+                options={[
+                  { value: "Pending", label: "Pending" },
+                  { value: "Verified", label: "Verified" },
+                  { value: "Rejected", label: "Rejected" },
+                ]}
+                className="w-full"
+              />
             </div>
 
             <div className="mb-6">
@@ -777,7 +780,7 @@ Use this page to carefully verify each document and update the status accordingl
   {/* NEXT */}
   <button
     onClick={() => navigate("/admission/selected-student")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold w-full sm:w-auto"
+    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 font-semibold w-full sm:w-auto transition-colors"
   >
     Next →
   </button>

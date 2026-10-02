@@ -16,6 +16,7 @@ import {
 } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -404,16 +405,16 @@ Use this page to efficiently track and manage application offers and ensure time
             </div>
             <div className="flex items-center gap-2">
               <FiFilter className="text-gray-500" />
-              <select
+              <CustomSelect
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="border px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="offer_sent">Offer Sent</option>
-                
-              </select>
+                options={[
+                  { value: "all", label: "All Status" },
+                  { value: "pending", label: "Pending" },
+                  { value: "offer_sent", label: "Offer Sent" },
+                ]}
+                className="w-full sm:w-auto min-w-[140px]"
+              />
             </div>
           </div>
        
@@ -557,7 +558,7 @@ Use this page to efficiently track and manage application offers and ensure time
 
   <button
     onClick={() => navigate("/admission/registration-fees")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next →
   </button>

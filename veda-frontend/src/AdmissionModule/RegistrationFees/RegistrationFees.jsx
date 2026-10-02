@@ -6,6 +6,7 @@ import config from "../../config";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 export default function RegistrationFees() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
@@ -361,7 +362,7 @@ Use the search feature to quickly find student fee records. Add new payments as 
 
   <button
     onClick={() => navigate("/admission/status-tracking")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 w-full sm:w-auto"
+    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors w-full sm:w-auto"
   >
     Next →
   </button>
@@ -447,35 +448,39 @@ Use the search feature to quickly find student fee records. Add new payments as 
                   />
                 </div>
                 <div>
-                  <label className="block  font-medium">Term</label>
-                  <select
+                  <label className="block font-medium mb-1">Term</label>
+                  <CustomSelect
                     name="term"
-                    value={selectedStudent.term}
+                    value={selectedStudent.term || ""}
                     onChange={handleChange}
-                    className="w-full border rounded-lg px-3 py-2 mt-1"
-                  >
-                    <option value="">Select Term</option>
-                    <option>First Quarter</option>
-                    <option>Second Quarter</option>
-                    <option>Third Quarter</option>
-                    <option>Annual</option>
-                  </select>
+                    placeholder="Select Term"
+                    options={[
+                      { value: "", label: "Select Term" },
+                      { value: "First Quarter", label: "First Quarter" },
+                      { value: "Second Quarter", label: "Second Quarter" },
+                      { value: "Third Quarter", label: "Third Quarter" },
+                      { value: "Annual", label: "Annual" },
+                    ]}
+                    className="w-full"
+                  />
                 </div>
                 <div>
-                  <label className="block font-medium">
+                  <label className="block font-medium mb-1">
                     Payment Mode
                   </label>
-                  <select
+                  <CustomSelect
                     name="paymentMode"
-                    value={selectedStudent.paymentMode}
+                    value={selectedStudent.paymentMode || ""}
                     onChange={handleChange}
-                    className="w-full border rounded-lg px-3 py-2 mt-1"
-                  >
-                    <option value="">Select Mode</option>
-                    <option>Online</option>
-                    <option>Cash</option>
-                    <option>Cheque</option>
-                  </select>
+                    placeholder="Select Mode"
+                    options={[
+                      { value: "", label: "Select Mode" },
+                      { value: "Online", label: "Online" },
+                      { value: "Cash", label: "Cash" },
+                      { value: "Cheque", label: "Cheque" },
+                    ]}
+                    className="w-full"
+                  />
                 </div>
                 <div>
                   <label className="block  font-medium">
@@ -490,16 +495,17 @@ Use the search feature to quickly find student fee records. Add new payments as 
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block  font-medium">Status</label>
-                  <select
+                  <label className="block font-medium mb-1">Status</label>
+                  <CustomSelect
                     name="status"
-                    value={selectedStudent.status}
+                    value={selectedStudent.status || "Paid"}
                     onChange={handleChange}
-                    className="w-full border rounded-lg px-3 py-2 mt-1"
-                  >
-                    <option>Paid</option>
-                    <option>Pending</option>
-                  </select>
+                    options={[
+                      { value: "Paid", label: "Paid" },
+                      { value: "Pending", label: "Pending" },
+                    ]}
+                    className="w-full"
+                  />
                 </div>
               </div>
 

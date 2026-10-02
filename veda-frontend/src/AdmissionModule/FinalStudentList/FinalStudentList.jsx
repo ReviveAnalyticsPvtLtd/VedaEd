@@ -574,7 +574,7 @@ Sections:
             <div className="relative group w-full sm:w-auto" ref={classDropdownRef}>
               <button
                 onClick={() => setShowClassDropdown(!showClassDropdown)}
-                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-full sm:w-[120px] justify-between hover:border-blue-500"
+                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-full sm:w-[120px] justify-between hover:border-blue-500 hover:text-blue-600 transition-colors"
               >
                 <span>{filterClass || "Class"}</span>
                 <FiChevronDown className="text-xs" />
@@ -591,7 +591,7 @@ Sections:
                       setShowClassDropdown(false);
                       setShowSectionDropdown(false);
                     }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                   >
                     All Classes
                   </button>
@@ -604,7 +604,7 @@ Sections:
                         setShowClassDropdown(false);
                         setShowSectionDropdown(false);
                       }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      className="block w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       {cls.name}
                     </button>
@@ -752,7 +752,7 @@ Sections:
               <div className="relative group w-full sm:w-auto" ref={statusDropdownRef}>
                 <button
                   onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-full sm:w-[120px] justify-between hover:border-blue-500"
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-full sm:w-[120px] justify-between hover:border-blue-500 hover:text-blue-600 transition-colors"
                 >
                   <span>{filterStatus || "Status"}</span>
                   <FiChevronDown className="text-xs" />
@@ -767,7 +767,7 @@ Sections:
                         setFilterStatus("");
                         setShowStatusDropdown(false);
                       }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      className="block w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       All Status
                     </button>
@@ -776,7 +776,7 @@ Sections:
                         setFilterStatus("active");
                         setShowStatusDropdown(false);
                       }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      className="block w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       Active
                     </button>
@@ -785,7 +785,7 @@ Sections:
                         setFilterStatus("inactive");
                         setShowStatusDropdown(false);
                       }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      className="block w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       Inactive
                     </button>

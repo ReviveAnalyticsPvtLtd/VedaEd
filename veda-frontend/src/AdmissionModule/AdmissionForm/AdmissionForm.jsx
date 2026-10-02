@@ -4,6 +4,7 @@ import api from "../../services/apiClient";
 import { State, City } from "country-state-city";
 import config from "../../config";
 import HelpInfo from "../../components/HelpInfo";
+import CustomSelect from "../../components/common/CustomSelect";
 import {
   FiUser,
   FiPhone,
@@ -102,23 +103,24 @@ const FormField = ({
 
 
 // Reusable Select Component
-const SelectField = ({ label, name, value, onChange, required = false, options = [], className = "", children }) => (
+const SelectField = ({ label, name, value, onChange, required = false, options = [], className = "", placeholder, disabled = false, children }) => (
   <FormField label={label} name={name} required={required} className={className}>
     {children || (
-      <select
+      <CustomSelect
         name={name}
         value={value}
         onChange={onChange}
-        required={required}
-        className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">Select {label.replace("*", "").trim()}</option>
-        {options.map((opt) => (
-          <option key={opt.value || opt} value={opt.value || opt}>
-            {opt.label || opt}
-          </option>
-        ))}
-      </select>
+        disabled={disabled}
+        placeholder={placeholder || `Select ${label ? label.replace("*", "").trim() : ""}`}
+        options={[
+          { value: "", label: placeholder || `Select ${label ? label.replace("*", "").trim() : ""}` },
+          ...options.map((opt) => ({
+            value: typeof opt === "object" ? (opt.value !== undefined ? String(opt.value) : "") : String(opt),
+            label: typeof opt === "object" ? (opt.label !== undefined ? String(opt.label) : String(opt.value || "")) : String(opt),
+          })),
+        ]}
+        className="w-full"
+      />
     )}
   </FormField>
 );
@@ -685,45 +687,45 @@ Username is auto-generated but editable; set a secure password for the studentâ€
               <label className="block text-sm font-medium mb-1">
                 State <span className="text-red-500">*</span>
               </label>
-              <select
+              <CustomSelect
                 name="state"
                 value={formData.state || ""}
                 onChange={(e) => {
                   setFormData((prev) => ({ ...prev, state: e.target.value, city: "" }));
                 }}
-                required
-                className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
-              >
-                <option value="">Select State</option>
-                {allStates.map((state) => (
-                  <option key={state.isoCode} value={state.name}>
-                    {state.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select State"
+                options={[
+                  { value: "", label: "Select State" },
+                  ...allStates.map((state) => ({
+                    value: state.name,
+                    label: state.name,
+                  })),
+                ]}
+                className="w-full"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">
                 City <span className="text-red-500">*</span>
               </label>
-              <select
+              <CustomSelect
                 name="city"
                 value={formData.city || ""}
                 onChange={(e) => {
                   setFormData((prev) => ({ ...prev, city: e.target.value }));
                 }}
-                required
                 disabled={!formData.state}
-                className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed bg-white text-sm"
-              >
-                <option value="">Select City</option>
-                {citiesOfSelectedState.map((city) => (
-                  <option key={city.name} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select City"
+                options={[
+                  { value: "", label: "Select City" },
+                  ...citiesOfSelectedState.map((city) => ({
+                    value: city.name,
+                    label: city.name,
+                  })),
+                ]}
+                className="w-full"
+              />
             </div>
 
           <FormField
@@ -1271,7 +1273,7 @@ Username is auto-generated but editable; set a secure password for the studentâ€
 
   <button
     onClick={() => navigate("/admission/application-list")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next â†’
   </button>
