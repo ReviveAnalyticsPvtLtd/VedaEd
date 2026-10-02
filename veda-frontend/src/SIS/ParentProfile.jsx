@@ -181,9 +181,12 @@ const ParentProfile = () => {
         }
       : null
   );
-  const [engagement, setEngagement] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [meetings, setMeetings] = useState([]);
+  // Meetings and engagement have no backend source yet; these stay empty so the
+  // tabs render an honest empty state instead of invented rows. Convert back to
+  // useState when a real per-parent source is wired in.
+  const meetings = [];
+  const engagement = [];
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [pageLoading, setPageLoading] = useState(() => Boolean(resolvedParentId));
@@ -240,30 +243,10 @@ const ParentProfile = () => {
     fetchParent();
   }, [resolvedParentId]);
 
-  // Mock data for engagement, meetings (can be replaced with real API calls later)
-  useEffect(() => {
-    // Set mock data for now
-    setEngagement([
-      { activity: "PTA Meeting", count: 3 },
-      { activity: "School Events", count: 5 },
-      { activity: "Volunteer Work", count: 2 },
-    ]);
-
-    setMeetings([
-      {
-        topic: "Academic Progress",
-        date: "2023-10-15",
-        notes: "Discussed student performance",
-        status: "Completed",
-      },
-      {
-        topic: "Behavioral Issues",
-        date: "2023-11-20",
-        notes: "Addressing classroom behavior",
-        status: "Scheduled",
-      },
-    ]);
-  }, []);
+  // Engagement and Meetings have no backend source yet, so they stay empty
+  // rather than showing fabricated rows. Meetings should read from the
+  // calendar module (events with type "meeting") scoped to this parent's
+  // school and students once that tenant ownership is trustworthy.
 
   // Fetch documents for the parent
   useEffect(() => {
@@ -840,16 +823,22 @@ const ParentProfile = () => {
 
           {activeTab === "engagement" && (
             <div className="bg-white rounded-xl shadow-md p-4">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={engagement}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="activity" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="count" fill="#4f46e5" />
-                </BarChart>
-              </ResponsiveContainer>
+              {engagement.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={engagement}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="activity" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#4f46e5" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="py-3 text-center text-gray-500">
+                  No engagement activity recorded yet.
+                </p>
+              )}
             </div>
           )}
 
@@ -931,14 +920,25 @@ const ParentProfile = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {meetings.map((meeting, i) => (
-                    <tr key={i} className="border-b">
-                      <td className="px-4 py-3">{meeting.topic}</td>
-                      <td className="px-4 py-3">{meeting.date}</td>
-                      <td className="px-4 py-3">{meeting.notes}</td>
-                      <td className="px-4 py-3">{meeting.status}</td>
+                  {meetings.length > 0 ? (
+                    meetings.map((meeting, i) => (
+                      <tr key={i} className="border-b">
+                        <td className="px-4 py-3">{meeting.topic}</td>
+                        <td className="px-4 py-3">{meeting.date}</td>
+                        <td className="px-4 py-3">{meeting.notes}</td>
+                        <td className="px-4 py-3">{meeting.status}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-3 text-center text-gray-500"
+                      >
+                        No meetings recorded yet.
+                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

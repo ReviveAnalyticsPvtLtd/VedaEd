@@ -20,6 +20,25 @@ const { generateStudentUsernameBase } = require("../../utils/studentUsernameGene
 const { getTeacherRosterScope } = require("../../services/teacherAssignmentScope");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
 
+/**
+ * Parent fields the student profile endpoints expose. Every populate/select that
+ * hydrates `student.parent` must use this list, otherwise fields saved from the
+ * SIS student profile are silently dropped on read.
+ */
+const PARENT_PROFILE_FIELDS = [
+  "parentId",
+  "fatherName",
+  "motherName",
+  "contactDetails",
+  "guardian",
+  "fatherOccupation",
+  "fatherPhone",
+  "fatherEmail",
+  "motherOccupation",
+  "motherPhone",
+  "motherEmail",
+].join(" ");
+
 const safeDocumentPath = (filename) => {
   const normalizedFilename = path.basename(filename);
   return path.join(UPLOADS_DIR, normalizedFilename);
@@ -447,7 +466,7 @@ exports.getAllStudents = async (req, res) => {
         .sort({ createdAt: -1, _id: -1 })
         .populate("personalInfo.class", "name")
         .populate("personalInfo.section", "name")
-        .populate("parent", "parentId fatherName motherName contactDetails")
+        .populate("parent", PARENT_PROFILE_FIELDS)
         .lean(),
       AdmissionApplication.find(admissionQuery)
         .sort({ createdAt: -1 })
@@ -648,7 +667,7 @@ exports.getStudent = async (req, res) => {
       studentDoc = await Student.findOne({ _id: trimmedId, schoolId })
         .populate("personalInfo.class", "name")
         .populate("personalInfo.section", "name")
-        .populate("parent", "parentId fatherName motherName contactDetails")
+        .populate("parent", PARENT_PROFILE_FIELDS)
         .lean();
     }
 
@@ -663,7 +682,7 @@ exports.getStudent = async (req, res) => {
       })
         .populate("personalInfo.class", "name")
         .populate("personalInfo.section", "name")
-        .populate("parent", "parentId fatherName motherName contactDetails")
+        .populate("parent", PARENT_PROFILE_FIELDS)
         .lean();
     }
 
@@ -979,13 +998,25 @@ exports.updateStudent = async (req, res) => {
     })
       .populate("personalInfo.class", "name") // populate class with name
       .populate("personalInfo.section", "name") // populate section with name
-      .populate("parent", "parentId fatherName motherName contactDetails")
+      .populate("parent", PARENT_PROFILE_FIELDS)
       .select("-personalInfo.password"); // exclude password in response
 
     if (!updatedStudent) {
       return res.status(404).json({
         success: false,
         message: "Student not found",
+      });
+    }
+
+    // Parent / guardian details live on the linked Parent document, so there is
+    // nowhere to store them without one. Never fabricate a parent record here:
+    // fail loudly when the admin actually edited that card, and stay out of the
+    // way when they did not (the payload always carries the current values).
+    if (updateData.parent && updateData.parent.infoChanged && !updatedStudent.parent?._id) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This student has no parent linked, so parent and guardian details cannot be saved. Create the parent from the Parents module first, then reopen this profile.",
       });
     }
 
@@ -1003,11 +1034,35 @@ exports.updateStudent = async (req, res) => {
           email: updateData.parent.contactDetails.email || "",
         };
       }
+      if (updateData.parent.guardian && typeof updateData.parent.guardian === "object") {
+        const g = updateData.parent.guardian;
+        parentUpdate.guardian = {
+          name: g.name || "",
+          relation: g.relation || "",
+          phone: g.phone || "",
+          email: g.email || "",
+        };
+      }
+
+      // Per-parent details edited on the SIS student profile. Only overwrite a
+      // field the client actually sent, so a partial payload cannot blank data.
+      [
+        "fatherOccupation",
+        "fatherPhone",
+        "fatherEmail",
+        "motherOccupation",
+        "motherPhone",
+        "motherEmail",
+      ].forEach((key) => {
+        if (updateData.parent[key] !== undefined) {
+          parentUpdate[key] = updateData.parent[key] || "";
+        }
+      });
 
       if (Object.keys(parentUpdate).length > 0) {
         await Parent.findOneAndUpdate({ _id: updatedStudent.parent._id, schoolId }, { $set: parentUpdate }, { new: true });
         updatedStudent.parent = await Parent.findOne({ _id: updatedStudent.parent._id, schoolId })
-          .select("fatherName motherName contactDetails");
+          .select(PARENT_PROFILE_FIELDS);
       }
     }
 
@@ -1134,7 +1189,7 @@ exports.updateStudentHealth = async (req, res) => {
     })
       .populate("personalInfo.class", "name")
       .populate("personalInfo.section", "name")
-      .populate("parent", "parentId fatherName motherName contactDetails")
+      .populate("parent", PARENT_PROFILE_FIELDS)
       .select("-personalInfo.password");
 
     if (!updatedStudent) {
@@ -1497,6 +1552,125 @@ exports.getStudentDashboardStats = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching student dashboard stats:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+/**
+ * Resolve a Student document that belongs to the authenticated school.
+ * Accepts the route id, the caller's own refId, or a User._id that points at a
+ * student, so admin views and the student portal both resolve. The schoolId
+ * filter is what keeps this tenant-safe.
+ */
+const resolveScopedStudent = async (req, id, schoolId) => {
+  const candidates = [
+    req.user && req.user.refId ? String(req.user.refId) : null,
+    id,
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    const str = String(c);
+    if (!mongoose.Types.ObjectId.isValid(str)) continue;
+
+    const direct = await studSafe(
+      () => Student.findOne({ _id: str, schoolId }).lean(),
+      null
+    );
+    if (direct) return direct;
+
+    const user = await studSafe(
+      () => User.findOne({ _id: str, schoolId }).lean(),
+      null
+    );
+    if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
+      const viaUser = await studSafe(
+        () => Student.findOne({ _id: user.refId, schoolId }).lean(),
+        null
+      );
+      if (viaUser) return viaUser;
+    }
+  }
+
+  return null;
+};
+
+exports.getStudentAttendance = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
+  try {
+    const student = await resolveScopedStudent(req, req.params.id, schoolId);
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found" });
+    }
+
+    // RBAC: a student may only read their own attendance.
+    if (
+      req.user &&
+      req.user.role === "student" &&
+      String(req.user.refId) !== String(student._id)
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied." });
+    }
+
+    // Attendance rows carry no schoolId of their own. They are keyed by student
+    // reference, and the student above was resolved with a schoolId match, so
+    // filtering by that student's _id cannot reach another school's rows.
+    // The tenant is never taken from the request body.
+    const records = await studSafe(
+      () =>
+        Attendance.find({ student: student._id })
+          .select("date status")
+          .sort({ date: -1 })
+          .lean(),
+      []
+    );
+
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let lastPresentMs = null;
+
+    for (const rec of records) {
+      if (rec.status === "Absent") {
+        absent += 1;
+        continue;
+      }
+      if (rec.status === "Late") late += 1;
+      else present += 1;
+      if (rec.date) {
+        const ms = new Date(rec.date).getTime();
+        // Take the latest attended day explicitly rather than trusting the
+        // sort order, so the answer is correct regardless of index ordering.
+        if (!Number.isNaN(ms) && (lastPresentMs === null || ms > lastPresentMs)) {
+          lastPresentMs = ms;
+        }
+      }
+    }
+
+    const total = records.length;
+    // "Late" counts as attended, matching the definition already used by
+    // getStudentDashboardStats (status !== "Absent").
+    const attended = present + late;
+
+    res.status(200).json({
+      success: true,
+      attendance: {
+        // null rather than 0 when nothing is recorded, so the UI can tell
+        // "no data yet" apart from "absent every single day".
+        percentage: total > 0 ? Math.round((attended / total) * 100) : null,
+        present,
+        late,
+        absent,
+        total,
+        lastPresent: lastPresentMs === null ? null : new Date(lastPresentMs),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching student attendance:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };

@@ -93,16 +93,23 @@ const EditableField = ({
   min,
   step,
   error,
+  required = false,
   readOnly = false,
 }) => (
   <div className="py-2 border-b border-gray-100 last:border-b-0">
-    <label className="block text-sm font-medium text-gray-500 mb-1">{label}</label>
+    <label className="block text-sm font-medium text-gray-500 mb-1">
+      {label}
+      {required && !readOnly ? (
+        <span className="text-red-500"> *</span>
+      ) : null}
+    </label>
     {type === "select" ? (
       <select
         name={name}
         value={value || ""}
         onChange={onChange}
-        className={`w-full border rounded-lg p-2 ${error ? "border-red-500" : ""}`}
+        aria-invalid={error ? "true" : undefined}
+        className={`w-full border rounded-lg p-2 ${error ? "border-red-500 bg-red-50" : ""}`}
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -123,10 +130,15 @@ const EditableField = ({
         min={min}
         step={step}
         readOnly={readOnly}
-        className={`w-full border rounded-lg p-2 ${error ? "border-red-500" : ""}`}
+        aria-invalid={error ? "true" : undefined}
+        className={`w-full border rounded-lg p-2 ${error ? "border-red-500 bg-red-50" : ""} ${readOnly ? "bg-gray-100 text-gray-500" : ""}`}
       />
     )}
-    {error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null}
+    {error ? (
+      <p className="text-xs text-red-500 mt-1" role="alert">
+        {error}
+      </p>
+    ) : null}
   </div>
 );
 
@@ -144,6 +156,150 @@ const TabButton = ({ label, isActive, onClick, icon }) => (
   </button>
 );
 
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\d{10}$/;
+const USERNAME_RE = /^[A-Za-z0-9._-]{3,30}$/;
+const SALARY_RE = /^\d{1,9}(\.\d{1,2})?$/;
+const EXPERIENCE_RE = /^\d{1,2}\s*(year|years)?$/i;
+const GENDER_VALUES = ["male", "female", "other"];
+const STATUS_VALUES = ["active", "on leave"];
+const PAYMENT_STATUS_VALUES = ["paid", "pending", "unpaid"];
+
+/** Phone-only fields, stripped to digits as the admin types. */
+const PHONE_FIELDS = ["phone", "emergencyContact"];
+
+/**
+ * Rules for the edit form. Keys are `formData` field names. Only the fields the
+ * Staff schema marks required are `required`; everything else is validated when
+ * present, so legacy records with gaps stay saveable.
+ */
+const STAFF_FIELD_RULES = {
+  name: { label: "Name", required: true, maxLength: 100 },
+  gender: {
+    label: "Gender",
+    oneOf: GENDER_VALUES,
+    message: "Gender must be Male, Female or Other.",
+  },
+  role: { label: "Role", required: true, maxLength: 60 },
+  department: { label: "Department", required: true, maxLength: 60 },
+  status: {
+    label: "Status",
+    oneOf: STATUS_VALUES,
+    message: "Status must be Active or On Leave.",
+  },
+  address: { label: "Address", maxLength: 250 },
+
+  joiningDate: { label: "Date of Joining", date: true },
+  assignedClasses: { label: "Assigned Classes", maxLength: 200 },
+  experience: {
+    label: "Experience",
+    validate: EXPERIENCE_RE,
+    message: 'Use format like "8" or "8 years".',
+  },
+  qualification: { label: "Qualification", maxLength: 100 },
+
+  contact: {
+    label: "Email",
+    required: true,
+    validate: EMAIL_RE,
+    message: "Enter a valid email address",
+    maxLength: 120,
+  },
+  phone: {
+    label: "Mobile Number",
+    validate: PHONE_RE,
+    message: "Mobile number must be exactly 10 digits.",
+  },
+  emergencyContact: {
+    label: "Emergency Contact",
+    validate: PHONE_RE,
+    message: "Emergency contact must be exactly 10 digits.",
+  },
+
+  salary: {
+    label: "Current Salary",
+    validate: SALARY_RE,
+    message: "Salary must be a number with up to 2 decimal places.",
+  },
+  lastPayment: { label: "Last Payment Date", date: true },
+  paymentStatus: {
+    label: "Payment Status",
+    oneOf: PAYMENT_STATUS_VALUES,
+    message: "Payment Status must be Paid, Pending or Unpaid.",
+  },
+
+  username: {
+    label: "Username",
+    validate: USERNAME_RE,
+    message:
+      "Username may use letters, numbers, dot, underscore and hyphen (3-30 characters).",
+  },
+  // Deliberately optional: an untouched record still carries the stored hash
+  // here, so requiring it would block edits that never touch credentials.
+  password: {
+    label: "Password",
+    minLength: 6,
+    message: "Password must be at least 6 characters.",
+  },
+};
+
+/** Date inputs give YYYY-MM-DD; reject rollovers such as 2024-02-31. */
+const parseInputDate = (value) => {
+  const [year, month, day] = String(value).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const isRealDate =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day;
+  return isRealDate ? date : null;
+};
+
+/** Returns { field: message } for every rule `values` violates. */
+const validateStaffFields = (values) => {
+  const errors = {};
+
+  Object.entries(STAFF_FIELD_RULES).forEach(([field, rule]) => {
+    const raw = values?.[field];
+    const value = typeof raw === "string" ? raw.trim() : "";
+
+    if (rule.required && !value) {
+      errors[field] = `${rule.label} is required`;
+      return;
+    }
+    if (!value) return;
+
+    if (rule.maxLength && value.length > rule.maxLength) {
+      errors[field] = `${rule.label} must be ${rule.maxLength} characters or fewer`;
+      return;
+    }
+    if (rule.minLength && value.length < rule.minLength) {
+      errors[field] = rule.message;
+      return;
+    }
+    if (rule.validate && !rule.validate.test(value)) {
+      errors[field] = rule.message;
+      return;
+    }
+    if (rule.oneOf && !rule.oneOf.includes(value.toLowerCase())) {
+      errors[field] =
+        rule.message ||
+        `${rule.label} must be one of ${rule.oneOf.join(", ")}`;
+      return;
+    }
+    if (rule.date) {
+      const parsed = parseInputDate(value);
+      if (!parsed) {
+        errors[field] = `${rule.label} is not a valid date`;
+      } else if (parsed.getTime() > Date.now()) {
+        errors[field] = `${rule.label} cannot be in the future`;
+      }
+    }
+  });
+
+  return errors;
+};
+
 const HRStaffProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -156,6 +312,10 @@ const HRStaffProfile = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
+  /** Ordered {field, message} pairs for the summary banner above the tabs. */
+  const validationErrorList = Object.entries(validationErrors)
+    .filter(([, message]) => Boolean(message))
+    .map(([field, message]) => ({ field, message }));
   const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx";
   const toInputDate = (value) => {
     if (!value) return "";
@@ -309,6 +469,7 @@ const HRStaffProfile = () => {
   }
 
   const handleEdit = () => {
+    setValidationErrors({});
     setIsEditing(true);
   };
 
@@ -319,25 +480,7 @@ const HRStaffProfile = () => {
   };
 
   const validateForm = () => {
-    const nextErrors = {};
-    const phoneDigits = (formData.phone || "").replace(/\D/g, "");
-    const emergencyDigits = (formData.emergencyContact || "").replace(/\D/g, "");
-    const experienceValue = String(formData.experience || "").trim();
-    const salaryValue = String(formData.salary || "").trim();
-
-    if (phoneDigits && phoneDigits.length !== 10) {
-      nextErrors.phone = "Mobile number must be exactly 10 digits.";
-    }
-    if (emergencyDigits && emergencyDigits.length !== 10) {
-      nextErrors.emergencyContact = "Emergency contact must be exactly 10 digits.";
-    }
-    if (salaryValue && !/^\d+(\.\d+)?$/.test(salaryValue)) {
-      nextErrors.salary = "Salary must be numeric.";
-    }
-    if (experienceValue && !/^\d+\s*(year|years)?$/i.test(experienceValue)) {
-      nextErrors.experience = 'Use format like "8" or "8 years".';
-    }
-
+    const nextErrors = validateStaffFields(formData);
     setValidationErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -350,6 +493,7 @@ const HRStaffProfile = () => {
     setError(null);
 
     try {
+      const text = (value) => (typeof value === "string" ? value.trim() : value);
       const experienceMatch = String(formData.experience || "").trim().match(/^(\d+)/);
       const numericExperience = experienceMatch ? Number(experienceMatch[1]) : 0;
       const sanitizedPhone = (formData.phone || "").replace(/\D/g, "").slice(0, 10);
@@ -359,28 +503,31 @@ const HRStaffProfile = () => {
       // Map frontend data back to backend structure
       const updateData = {
         personalInfo: {
-          name: formData.name,
-          role: formData.role,
-          gender: formData.gender,
-          department: formData.department,
-          email: formData.contact,
+          name: text(formData.name),
+          role: text(formData.role),
+          gender: text(formData.gender),
+          department: text(formData.department),
+          email: text(formData.contact),
           mobileNumber: sanitizedPhone,
-          address: formData.address,
+          address: text(formData.address),
           emergencyContact: sanitizedEmergency,
           username: formData.username,
           password: formData.password,
         },
-        status: formData.status,
-        qualification: formData.qualification,
+        status: text(formData.status),
+        qualification: text(formData.qualification),
         experience: numericExperience,
         joiningDate: formData.joiningDate,
         classesAssigned: formData.assignedClasses
-          ? formData.assignedClasses.split(",").map((c) => c.trim())
+          ? formData.assignedClasses
+              .split(",")
+              .map((c) => c.trim())
+              .filter(Boolean)
           : [],
         salaryDetails: {
           salary: sanitizedSalary,
           lastPayment: formData.lastPayment,
-          paymentStatus: formData.paymentStatus,
+          paymentStatus: text(formData.paymentStatus),
         },
       };
 
@@ -427,14 +574,20 @@ const HRStaffProfile = () => {
     const { name, value } = e.target;
     let nextValue = value;
 
-    if (name === "phone" || name === "emergencyContact") {
+    if (PHONE_FIELDS.includes(name)) {
       nextValue = value.replace(/\D/g, "").slice(0, 10);
     } else if (name === "salary") {
       nextValue = value.replace(/[^\d.]/g, "");
     }
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
-    setValidationErrors((prev) => ({ ...prev, [name]: "" }));
+    // Drop the key instead of blanking it, so stale messages cannot reappear.
+    setValidationErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   };
 
   const statusBadgeClasses = (status) => {
@@ -541,7 +694,15 @@ const HRStaffProfile = () => {
                 onChange={handleChange}
                 readOnly
               />
-              <EditableField label="Name" name="name" value={formData.name} onChange={handleChange} />
+              <EditableField
+                label="Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                maxLength={100}
+                error={validationErrors.name}
+              />
               <EditableField
                 label="Gender"
                 name="gender"
@@ -549,9 +710,27 @@ const HRStaffProfile = () => {
                 onChange={handleChange}
                 type="select"
                 options={["Male", "Female", "Other"]}
+                error={validationErrors.gender}
               />
-              <EditableField label="Role" name="role" value={formData.role} onChange={handleChange} />
-              <EditableField label="Department" name="department" value={formData.department} onChange={handleChange} />
+              <EditableField
+                label="Role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                maxLength={60}
+                placeholder="e.g. Teacher"
+                error={validationErrors.role}
+              />
+              <EditableField
+                label="Department"
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                required
+                maxLength={60}
+                error={validationErrors.department}
+              />
               <EditableField
                 label="Status"
                 name="status"
@@ -559,8 +738,16 @@ const HRStaffProfile = () => {
                 onChange={handleChange}
                 type="select"
                 options={["Active", "On Leave"]}
+                error={validationErrors.status}
               />
-              <EditableField label="Address" name="address" value={formData.address} onChange={handleChange} />
+              <EditableField
+                label="Address"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                maxLength={250}
+                error={validationErrors.address}
+              />
             </>
           )}
         </ProfileCard>
@@ -581,8 +768,17 @@ const HRStaffProfile = () => {
                 value={formData.joiningDate}
                 onChange={handleChange}
                 type="date"
+                error={validationErrors.joiningDate}
               />
-              <EditableField label="Assigned Classes" name="assignedClasses" value={formData.assignedClasses} onChange={handleChange} />
+              <EditableField
+                label="Assigned Classes"
+                name="assignedClasses"
+                value={formData.assignedClasses}
+                onChange={handleChange}
+                maxLength={200}
+                placeholder="Comma separated, e.g. Grade 8 A, Grade 9 B"
+                error={validationErrors.assignedClasses}
+              />
               <EditableField
                 label="Experience"
                 name="experience"
@@ -591,7 +787,14 @@ const HRStaffProfile = () => {
                 placeholder='e.g. "8 years"'
                 error={validationErrors.experience}
               />
-              <EditableField label="Qualification" name="qualification" value={formData.qualification} onChange={handleChange} />
+              <EditableField
+                label="Qualification"
+                name="qualification"
+                value={formData.qualification}
+                onChange={handleChange}
+                maxLength={100}
+                error={validationErrors.qualification}
+              />
             </>
           )}
         </ProfileCard>
@@ -609,7 +812,16 @@ const HRStaffProfile = () => {
             </>
           ) : (
             <>
-              <EditableField label="Email" name="contact" value={formData.contact} onChange={handleChange} />
+              <EditableField
+                label="Email"
+                name="contact"
+                value={formData.contact}
+                onChange={handleChange}
+                type="email"
+                required
+                maxLength={120}
+                error={validationErrors.contact}
+              />
               <EditableField
                 label="Mobile Number"
                 name="phone"
@@ -649,7 +861,7 @@ const HRStaffProfile = () => {
                 value={formData.salary}
                 onChange={handleChange}
                 inputMode="decimal"
-                pattern="^\d+(\.\d+)?$"
+                pattern="^\d{1,9}(\.\d{1,2})?$"
                 error={validationErrors.salary}
               />
               <EditableField
@@ -658,6 +870,7 @@ const HRStaffProfile = () => {
                 value={toInputDate(formData.lastPayment)}
                 onChange={handleChange}
                 type="date"
+                error={validationErrors.lastPayment}
               />
               <EditableField
                 label="Payment Status"
@@ -666,6 +879,7 @@ const HRStaffProfile = () => {
                 onChange={handleChange}
                 type="select"
                 options={["Paid", "Pending", "Unpaid"]}
+                error={validationErrors.paymentStatus}
               />
             </>
           )}
@@ -679,8 +893,22 @@ const HRStaffProfile = () => {
             </>
           ) : (
             <>
-              <EditableField label="Username" name="username" value={formData.username} onChange={handleChange} />
-              <EditableField label="Password" name="password" value={formData.password} onChange={handleChange} type="password" />
+              <EditableField
+                label="Username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                maxLength={30}
+                error={validationErrors.username}
+              />
+              <EditableField
+                label="Password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                type="password"
+                error={validationErrors.password}
+              />
             </>
           )}
         </ProfileCard>
@@ -877,6 +1105,24 @@ const HRStaffProfile = () => {
         </div>
 
         {/* Tabs */}
+        {/* Validation summary, so errors on scrolled-off fields are still visible */}
+        {isEditing && validationErrorList.length > 0 ? (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <p className="font-semibold">
+              Fix {validationErrorList.length}{" "}
+              {validationErrorList.length === 1 ? "field" : "fields"} before
+              saving:
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {validationErrorList.map(({ field, message }) => (
+                <li key={field}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="mb-8">
           <div className="bg-white rounded-xl shadow-md p-2 inline-flex space-x-2">
             <TabButton

@@ -57,6 +57,24 @@ const parentSchema = new Schema({
         type:String,
         default: "Parent"
     },
+    /** Optional third guardian, edited from the admin SIS student profile. */
+    guardian: {
+        name: { type: String, default: "" },
+        relation: { type: String, default: "" },
+        phone: { type: String, default: "" },
+        email: { type: String, default: "" },
+    },
+    /**
+     * Per-parent contact details captured on the admin SIS student profile.
+     * Kept separate from the top-level name/email/phone, which describe the
+     * account holder, and from contactDetails, which mirrors the student's.
+     */
+    fatherOccupation: { type: String, default: "" },
+    fatherPhone: { type: String, default: "" },
+    fatherEmail: { type: String, default: "" },
+    motherOccupation: { type: String, default: "" },
+    motherPhone: { type: String, default: "" },
+    motherEmail: { type: String, default: "" },
     address:{
         type:String
     },
