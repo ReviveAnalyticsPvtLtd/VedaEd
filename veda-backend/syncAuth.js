@@ -76,6 +76,7 @@ async function syncAuth() {
             password: st.personalInfo.password || "password123",
             roleId: roleDocs[rName]._id,
             refId: st._id,
+            schoolId: st.schoolId,
             status: 'active'
           });
         } catch (e) { console.warn(`Skipping staff ${st._id}: ${e.message}`); }

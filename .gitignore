@@ -6,3 +6,9 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# User-uploaded files (assignment documents, submissions, timetable uploads).
+# These are runtime data, not source: paths are persisted in the database and
+# served from disk, so they must stay on the machine but out of the repo.
+veda-backend/public/uploads/*
+!veda-backend/public/uploads/.gitkeep
