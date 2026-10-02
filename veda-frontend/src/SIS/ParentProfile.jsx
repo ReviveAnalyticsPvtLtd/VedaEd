@@ -80,16 +80,66 @@ const mapApiParentToState = (p) => {
   };
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[+]?[\d\s()-]{7,20}$/;
+
+/** Field rules for the Overview edit form. Keys match the fields sent by saveChanges. */
+const FIELD_RULES = {
+  parentId: { label: "Parent ID", required: true, maxLength: 50 },
+  name: { label: "Name", required: true, maxLength: 100 },
+  occupation: { label: "Occupation", maxLength: 100 },
+  relation: { label: "Relation", maxLength: 50 },
+  email: { label: "Email", required: true, validate: EMAIL_RE, message: "Enter a valid email address" },
+  phone: { label: "Phone", required: true, validate: PHONE_RE, message: "Enter a valid phone number" },
+  address: { label: "Address", maxLength: 250 },
+};
+
+/** Returns { field: message } for every rule the current parent state violates. */
+const validateParentFields = (values) => {
+  const errors = {};
+  Object.entries(FIELD_RULES).forEach(([field, rule]) => {
+    const raw = values?.[field];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (rule.required && !value) {
+      errors[field] = `${rule.label} is required`;
+      return;
+    }
+    if (!value) return;
+    if (rule.maxLength && value.length > rule.maxLength) {
+      errors[field] = `${rule.label} must be ${rule.maxLength} characters or fewer`;
+      return;
+    }
+    if (rule.validate && !rule.validate.test(value)) {
+      errors[field] = rule.message;
+    }
+  });
+  return errors;
+};
+
 // Input field component for editing
-const InputField = ({ label, value, onChange }) => (
+const InputField = ({ label, value, onChange, type = "text", required = false, error = "" }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
-    <p className="font-medium text-gray-500">{label}</p>
-    <input
-      type="text"
-      className="col-span-2 border rounded-lg px-3 py-1 text-sm"
-      value={value || ""}
-      onChange={onChange}
-    />
+    <p className="font-medium text-gray-500">
+      {label}
+      {required ? <span className="text-red-500"> *</span> : null}
+    </p>
+    <div className="col-span-2">
+      <input
+        type={type}
+        required={required}
+        aria-invalid={error ? "true" : undefined}
+        className={`w-full border rounded-lg px-3 py-1 text-sm ${
+          error ? "border-red-400 bg-red-50" : ""
+        }`}
+        value={value || ""}
+        onChange={onChange}
+      />
+      {error ? (
+        <p className="mt-1 text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
   </div>
 );
 
@@ -140,6 +190,7 @@ const ParentProfile = () => {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [errors, setErrors] = useState({});
   const [photoUploading, setPhotoUploading] = useState(false);
   const profilePhotoInputRef = useRef(null);
 
@@ -315,6 +366,12 @@ const ParentProfile = () => {
 
   const handleChange = (field, value) => {
     setParent({ ...parent, [field]: value });
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const saveChanges = async () => {
@@ -329,6 +386,14 @@ const ParentProfile = () => {
     if (!currentParentId) {
       console.error("No parent ID found!");
       alert("No parent ID found. Cannot save.");
+      return;
+    }
+
+    // Client-side validation: block the request when any Overview field is invalid.
+    const validationErrors = validateParentFields(parent);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      setSaveError("Please fix the highlighted fields before saving.");
       return;
     }
 
@@ -347,15 +412,16 @@ const ParentProfile = () => {
 
       // Do not send password unless you add a dedicated "change password" flow —
       // the API used to re-hash an echoed bcrypt string and break login.
+      const trim = (v) => (typeof v === "string" ? v.trim() : v);
       const updateData = {
-        name: parent.name,
-        email: parent.email,
-        phone: parent.phone,
-        parentId: parent.parentId,
+        name: trim(parent.name),
+        email: trim(parent.email),
+        phone: trim(parent.phone),
+        parentId: trim(parent.parentId),
         status: parent.status,
-        occupation: parent.occupation,
-        relation: parent.relation,
-        address: parent.address,
+        occupation: trim(parent.occupation),
+        relation: trim(parent.relation),
+        address: trim(parent.address),
       };
 
       console.log("Sending update data:", updateData);
@@ -390,6 +456,7 @@ const ParentProfile = () => {
         if (mapped) setParent(mapped);
         setIsEditing(false);
         setSaveError(null);
+        setErrors({});
         console.log("Parent updated successfully");
       }
     } catch (err) {
@@ -499,21 +566,27 @@ const ParentProfile = () => {
                 label="Parent ID"
                 value={parent.parentId}
                 onChange={(e) => handleChange("parentId", e.target.value)}
+                required
+                error={errors.parentId}
               />
               <InputField
                 label="Name"
                 value={parent.name}
                 onChange={(e) => handleChange("name", e.target.value)}
+                required
+                error={errors.name}
               />
               <InputField
                 label="Occupation"
                 value={parent.occupation}
                 onChange={(e) => handleChange("occupation", e.target.value)}
+                error={errors.occupation}
               />
               <InputField
                 label="Relation"
                 value={parent.relation}
                 onChange={(e) => handleChange("relation", e.target.value)}
+                error={errors.relation}
               />
             </>
           ) : (
@@ -600,18 +673,25 @@ const ParentProfile = () => {
             <>
               <InputField
                 label="Email"
+                type="email"
                 value={parent.email}
                 onChange={(e) => handleChange("email", e.target.value)}
+                required
+                error={errors.email}
               />
               <InputField
                 label="Phone"
+                type="tel"
                 value={parent.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
+                required
+                error={errors.phone}
               />
               <InputField
                 label="Address"
                 value={parent.address}
                 onChange={(e) => handleChange("address", e.target.value)}
+                error={errors.address}
               />
             </>
           ) : (
@@ -660,6 +740,7 @@ const ParentProfile = () => {
                 type="button"
                 onClick={() => {
                   setSaveError(null);
+                  setErrors({});
                   setIsEditing(false);
                 }}
                 className="inline-flex items-center bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400"
