@@ -80,6 +80,14 @@
   background-color: var(--primary-hover, #1D4ED8) !important;
 }
 
+/* Primary active states */
+.active\:bg-indigo-800:active,
+.active\:bg-blue-800:active,
+.active\:bg-indigo-700:active,
+.active\:bg-blue-700:active {
+  background-color: var(--primary-active, #1E40AF) !important;
+}
+
 /* Primary text & link colors */
 .text-indigo-600,
 .text-blue-600,
@@ -143,6 +151,28 @@
 .focus\:ring-setup-primary:focus {
   border-color: var(--primary-color, #2563EB) !important;
   --tw-ring-color: var(--primary-ring, rgba(37, 99, 235, 0.35)) !important;
+}
+
+/* Primary border hover states */
+.hover\:border-indigo-600:hover,
+.hover\:border-blue-600:hover,
+.hover\:border-indigo-500:hover,
+.hover\:border-blue-500:hover,
+.hover\:border-setup-primary:hover {
+  border-color: var(--primary-color, #2563EB) !important;
+}
+
+/* Dropdown & Select Elements - Dynamic Theme Focus */
+select {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+select:focus,
+select:focus-visible {
+  border-color: var(--primary-color, #2563EB) !important;
+  --tw-ring-color: var(--primary-ring, rgba(37, 99, 235, 0.35)) !important;
+  box-shadow: 0 0 0 2px var(--primary-ring, rgba(37, 99, 235, 0.35)) !important;
+  outline: none !important;
 }
 
 /* ==========================================================================
@@ -244,6 +274,11 @@ html.dark textarea {
   background-color: #1e293b !important;
   color: #f8fafc !important;
   border-color: #334155 !important;
+}
+
+html.dark select:focus {
+  border-color: var(--primary-color, #2563EB) !important;
+  box-shadow: 0 0 0 2px var(--primary-ring, rgba(37, 99, 235, 0.35)) !important;
 }
 
 html.dark input::placeholder,

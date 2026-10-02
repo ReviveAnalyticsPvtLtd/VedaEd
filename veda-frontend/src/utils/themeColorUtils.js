@@ -79,4 +79,6 @@ export function applyPrimaryColorToDOM(colorHex) {
   root.style.setProperty("--primary-contrast", contrast);
   root.style.setProperty("--setup-primary", hex);
   root.style.setProperty("--setup-theme", hex);
+  root.style.setProperty("accent-color", hex);
+  root.style.accentColor = hex;
 }

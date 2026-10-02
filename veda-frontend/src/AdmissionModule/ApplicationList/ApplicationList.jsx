@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/apiClient";
 import config from "../../config";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 
 
 export default function ApplicationList() {
@@ -142,15 +143,17 @@ const paginatedData = useMemo(() => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-            <select
-              className="border px-3 py-2 rounded-md ml-3"
+            <CustomSelect
+              className="ml-3 min-w-[140px]"
+              placeholder="Bulk Action"
+              options={[
+                { value: "", label: "Bulk Action" },
+                { value: "excel", label: "Export Excel" },
+              ]}
               onChange={(e) => {
                 if (e.target.value === "excel") exportToExcel();
               }}
-            >
-              <option>Bulk Action</option>
-              <option value="excel">Export Excel</option>
-            </select>
+            />
           </div>
 
          
@@ -262,7 +265,7 @@ const paginatedData = useMemo(() => {
   {/* NEXT */}
   <button
     onClick={() => navigate("/admission/entrance-list")}
-    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next
   </button>

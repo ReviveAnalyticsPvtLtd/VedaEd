@@ -6,6 +6,7 @@ import { getEnquiries, createEnquiry, deleteEnquiry, updateEnquiry } from "../..
 import classAPI from "../../services/classAPI";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/common/Pagination";
+import CustomSelect from "../../components/common/CustomSelect";
 export default function AdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
@@ -311,21 +312,24 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
       onChange={(e) => setSearchQuery(e.target.value)}
     />
 
-    {/* BULK ACTION – YAHAN ADD */}
-    <select
-      className="border px-3 py-2 rounded-md bg-white text-gray-700"
-      defaultValue=""
+    {/* BULK ACTION */}
+    <CustomSelect
+      className="w-full sm:w-auto min-w-[140px]"
+      placeholder="Bulk Action"
+      options={[
+        { value: "", label: "Bulk Action" },
+        { value: "reviewed", label: "Mark as Reviewed" },
+        { value: "excel", label: "Export Excel" },
+      ]}
       onChange={async (e) => {
         const val = e.target.value;
         if (!val) return;
         if (val === "excel") {
           exportToExcel();
-          e.target.value = "";
         }
         if (val === "reviewed") {
           if (selectedIds.length === 0) {
             alert("Please select at least one enquiry to mark as reviewed");
-            e.target.value = "";
             return;
           }
           try {
@@ -340,14 +344,9 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
               console.error("Error bulk updating:", error);
               alert("Failed to update some enquiries.");
           }
-          e.target.value = "";
         }
       }}
-    >
-      <option value="">Bulk Action</option>
-      <option value="reviewed">Mark as Reviewed</option>
-      <option value="excel">Export Excel</option>
-    </select>
+    />
   </div>
 
   <div className="flex gap-3 justify-end">
@@ -504,7 +503,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
   {/* NEXT BUTTON */}
   <button
     onClick={() => navigate("/admission/vacancy-setup")}
-    className="bg-green-600 text-white px-4 md:px-6 py-2 rounded-md hover:bg-green-700"
+    className="bg-blue-600 text-white px-4 md:px-6 py-2 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next
   </button>
@@ -651,27 +650,25 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                 <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
-                <select
-                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                <CustomSelect
+                  className="w-full"
                   value={formData.enquiryClass}
                   onChange={(e) =>
                     setFormData({ ...formData, enquiryClass: e.target.value })
                   }
-                  required
-                >
-                  <option value="">Select Class</option>
-                  {Array.isArray(classes) &&
-                    classes.map((cls) => {
-                      const className = typeof cls === "string" ? cls : cls?.name;
-                      const classKey = cls?._id || className;
-                      if (!className) return null;
-                      return (
-                        <option key={classKey} value={className}>
-                          {className}
-                        </option>
-                      );
-                    })}
-                </select>
+                  placeholder="Select Class"
+                  options={[
+                    { value: "", label: "Select Class" },
+                    ...(Array.isArray(classes)
+                      ? classes
+                          .map((cls) => {
+                            const className = typeof cls === "string" ? cls : cls?.name;
+                            return className ? { value: className, label: className } : null;
+                          })
+                          .filter(Boolean)
+                      : []),
+                  ]}
+                />
               </div>
 
               <div>
@@ -804,27 +801,25 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                 <label className="block mb-1 font-semibold text-gray-700 text-sm">
                   Enquiry For Class <span className="text-red-500">*</span>
                 </label>
-                <select
-                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                <CustomSelect
+                  className="w-full"
                   value={editFormData.enquiryClass}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, enquiryClass: e.target.value })
                   }
-                  required
-                >
-                  <option value="">Select Class</option>
-                  {Array.isArray(classes) &&
-                    classes.map((cls) => {
-                      const className = typeof cls === "string" ? cls : cls?.name;
-                      const classKey = cls?._id || className;
-                      if (!className) return null;
-                      return (
-                        <option key={classKey} value={className}>
-                          {className}
-                        </option>
-                      );
-                    })}
-                </select>
+                  placeholder="Select Class"
+                  options={[
+                    { value: "", label: "Select Class" },
+                    ...(Array.isArray(classes)
+                      ? classes
+                          .map((cls) => {
+                            const className = typeof cls === "string" ? cls : cls?.name;
+                            return className ? { value: className, label: className } : null;
+                          })
+                          .filter(Boolean)
+                      : []),
+                  ]}
+                />
               </div>
 
               <div>
@@ -841,16 +836,17 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
               <div>
                 <label className="block mb-1 font-semibold text-gray-700 text-sm">Status</label>
-                <select
-                  className="border rounded-md px-3 py-2 w-full text-gray-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                <CustomSelect
+                  className="w-full"
                   value={editFormData.status}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, status: e.target.value })
                   }
-                >
-                  <option value="pending">Pending</option>
-                  <option value="reviewed">Reviewed</option>
-                </select>
+                  options={[
+                    { value: "pending", label: "Pending" },
+                    { value: "reviewed", label: "Reviewed" },
+                  ]}
+                />
               </div>
             </div>
 

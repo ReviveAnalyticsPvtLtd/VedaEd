@@ -4,6 +4,7 @@ import api from "../services/apiClient";
 import config from "../config";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../components/common/Pagination";
+import CustomSelect from "../components/common/CustomSelect";
 
 export default function VacancySetup() {
    const navigate = useNavigate(); 
@@ -198,7 +199,7 @@ useEffect(() => {
             <label className="text-sm font-medium text-gray-600">
               Class
             </label>
-            <select
+            <CustomSelect
               value={form.className}
               onChange={(e) => {
                 const selectedVal = e.target.value;
@@ -216,15 +217,16 @@ useEffect(() => {
                   reservedSeats: "",
                 }));
               }}
-              className="border rounded-lg px-3 py-2 text-sm bg-white"
-            >
-              <option value="">Select Class</option>
-              {classes.map((cls) => (
-                <option key={cls._id} value={cls.name}>
-                  {cls.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Select Class"
+              options={[
+                { value: "", label: "Select Class" },
+                ...classes.map((cls) => ({
+                  value: cls.name,
+                  label: cls.name,
+                })),
+              ]}
+              className="w-full"
+            />
           </div>
 
           {/* Total Seats */}
@@ -357,8 +359,7 @@ useEffect(() => {
           </div>
 
           <div className="flex flex-col gap-1">
-           
-            <select
+            <CustomSelect
               value={filters.className}
               onChange={(e) =>
                 setFilters({
@@ -366,23 +367,25 @@ useEffect(() => {
                   className: e.target.value,
                 })
               }
-              className="border rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">All Classes</option>
-              <option>Nursery</option>
-              <option>LKG</option>
-              <option>UKG</option>
-              <option>Class 1</option>
-              <option>Class 2</option>
-              <option>Class 3</option>
-              <option>Class 4</option>
-              <option>Class 5</option>
-              <option>Class 6</option>
-              <option>Class 7</option>
-              <option>Class 8</option>
-              <option>Class 9</option>
-              <option>Class 10</option>
-            </select>
+              placeholder="All Classes"
+              options={[
+                { value: "", label: "All Classes" },
+                { value: "Nursery", label: "Nursery" },
+                { value: "LKG", label: "LKG" },
+                { value: "UKG", label: "UKG" },
+                { value: "Class 1", label: "Class 1" },
+                { value: "Class 2", label: "Class 2" },
+                { value: "Class 3", label: "Class 3" },
+                { value: "Class 4", label: "Class 4" },
+                { value: "Class 5", label: "Class 5" },
+                { value: "Class 6", label: "Class 6" },
+                { value: "Class 7", label: "Class 7" },
+                { value: "Class 8", label: "Class 8" },
+                { value: "Class 9", label: "Class 9" },
+                { value: "Class 10", label: "Class 10" },
+              ]}
+              className="w-full"
+            />
           </div>
         </div>
       
@@ -489,7 +492,7 @@ useEffect(() => {
   {/* NEXT BUTTON */}
   <button
     onClick={() => navigate("/admission/admission-form")}
-    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next
   </button>

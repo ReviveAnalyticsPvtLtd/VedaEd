@@ -12,6 +12,7 @@ import {
 import api from "../../services/apiClient";
 import ProfileAvatar from "../../components/ProfileAvatar";
 import config from "../../config";
+import CustomSelect from "../../components/common/CustomSelect";
 
 /* ================= COMMON UI COMPONENTS (SAME AS STUDENT PROFILE) ================= */
 
@@ -787,15 +788,16 @@ const handleEmailChange = (path, value) => {
         <p className="font-medium text-gray-500">Parent ID account (login)</p>
         <div className="col-span-2">
           {isEdit ? (
-            <select
-              className="w-full px-3 py-2 border rounded-md text-sm border-gray-300"
+            <CustomSelect
+              className="w-full"
               value={formData.parents?.parentIdAccountHolder || "father"}
               onChange={(e) => handleChange("parents.parentIdAccountHolder", e.target.value)}
-            >
-              <option value="father">Father</option>
-              <option value="mother">Mother</option>
-              <option value="guardian">Guardian</option>
-            </select>
+              options={[
+                { value: "father", label: "Father" },
+                { value: "mother", label: "Mother" },
+                { value: "guardian", label: "Guardian" },
+              ]}
+            />
           ) : (
             <p>
               {formData.parents?.parentIdAccountHolder === "mother"
@@ -897,7 +899,7 @@ const handleEmailChange = (path, value) => {
                 <label className="block text-sm font-medium text-gray-600 mb-1">
                   Admission Fee Status
                 </label>
-                <select
+                <CustomSelect
                   value={(formData.admissionFee?.status || formData.personalInfo?.fees || "Due")}
                   onChange={(e) => {
                     const nextStatus = e.target.value;
@@ -913,11 +915,12 @@ const handleEmailChange = (path, value) => {
                       },
                     }));
                   }}
-                  className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value="Due">Due</option>
-                  <option value="Paid">Paid</option>
-                </select>
+                  options={[
+                    { value: "Due", label: "Due" },
+                    { value: "Paid", label: "Paid" },
+                  ]}
+                  className="w-full sm:w-64"
+                />
               </div>
 
               <div className="border-b pb-3 mb-3">

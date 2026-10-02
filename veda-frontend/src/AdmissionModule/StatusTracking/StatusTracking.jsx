@@ -183,7 +183,7 @@ export default function StatusTracking() {
 
   <button
     onClick={() => navigate("/admission/final-students")}
-    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next →
   </button>

@@ -12,6 +12,7 @@ import {
 } from "react-icons/fi";
 import api from "../services/apiClient";
 import config from "../config";
+import CustomSelect from "../components/common/CustomSelect";
 
 import {
   BarChart,
@@ -180,14 +181,15 @@ export default function AdmissionDashboard() {
         <h1 className="text-2xl font-bold text-gray-800">
          
         </h1>
-        <select
+        <CustomSelect
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
-          className="px-3 py-2 border rounded-md text-sm"
-        >
-          <option value="6months">Last 6 Months</option>
-          <option value="1year">Last 1 Year</option>
-        </select>
+          options={[
+            { value: "6months", label: "Last 6 Months" },
+            { value: "1year", label: "Last 1 Year" },
+          ]}
+          className="min-w-[140px]"
+        />
       </div>
 
       {/* ===================== STAT CARDS ===================== */}
