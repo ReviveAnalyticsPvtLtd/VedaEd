@@ -907,10 +907,13 @@ Sections:
               )}
               <input
                 name="studentId"
-                placeholder="Linked Student ID"
+                placeholder="Linked Student ID (e.g. STD-2026-0001)"
                 className="border px-3 py-2 w-full rounded"
                 required
               />
+              <p className="text-xs text-gray-500 -mt-1">
+                Copy the Student ID from the Students list. Separate multiple with commas.
+              </p>
               <select name="role" className="border px-3 py-2 w-full rounded">
                 <option value="Primary Guardian">Primary Guardian</option>
                 <option value="Secondary Guardian">Secondary Guardian</option>

@@ -28,6 +28,7 @@ router.delete("/documents/:studentId/:documentId", authMiddleware, permissionMid
 router.put("/:id", authMiddleware, permissionMiddleware("edit_student"), studentController.updateStudent);
 router.delete("/:id", authMiddleware, permissionMiddleware("delete_student"), studentController.deleteStudentById);
 router.get("/:id/dashboard-stats", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentDashboardStats);
+router.get("/:id/attendance", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentAttendance);   // Real attendance summary, tenant-scoped via the student
 router.get("/:id", authMiddleware, permissionMiddleware("view_student"), studentController.getStudent);
 
 // Student Authentication

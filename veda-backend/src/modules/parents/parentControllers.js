@@ -32,6 +32,38 @@ const safeDocumentPath = (filename) => {
   return path.join(UPLOADS_DIR, normalizedFilename);
 };
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Resolve admin-entered student identifiers to Student documents.
+ *
+ * The UI shows a student by three different identifiers (the "Student ID"
+ * column, the profile URL, and the username), so accept all of them rather than
+ * only personalInfo.stdId. Values are split on commas, trimmed and matched
+ * case-insensitively, which also makes the CSV import path behave the same.
+ */
+const findStudentsByIdentifiers = async (identifiers, schoolId) => {
+  const rawList = Array.isArray(identifiers) ? identifiers : [identifiers];
+  const cleaned = rawList
+    .flatMap((value) => String(value ?? "").split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (cleaned.length === 0) return [];
+
+  const objectIds = cleaned.filter((value) => mongoose.isValidObjectId(value));
+  const idPatterns = cleaned.map((value) => new RegExp(`^${escapeRegExp(value)}$`, "i"));
+
+  return Student.find({
+    schoolId,
+    $or: [
+      { "personalInfo.stdId": { $in: idPatterns } },
+      { "personalInfo.username": { $in: idPatterns } },
+      ...(objectIds.length > 0 ? [{ _id: { $in: objectIds } }] : []),
+    ],
+  }).select("_id personalInfo.stdId");
+};
+
 // Tenant context is resolved by authMiddleware from the authenticated User
 // document. It is never read from the request payload.
 const requireSchool = (req, res) => {
@@ -320,10 +352,7 @@ exports.createParents = async (req, res) => {
     // If linkedStudentId provided → find matching students and link them
     if (linkedStudentId.length > 0) {
       console.log("Looking for students with IDs:", linkedStudentId);
-      const students = await Student.find({
-        "personalInfo.stdId": { $in: linkedStudentId },
-        schoolId,
-      });
+      const students = await findStudentsByIdentifiers(linkedStudentId, schoolId);
       console.log("Found students:", students);
 
       if (students.length > 0) {
@@ -1776,7 +1805,7 @@ exports.importParents = async (req, res) => {
         });
 
         if (linkedStudentIds.length > 0) {
-          const students = await Student.find({ "personalInfo.stdId": { $in: linkedStudentIds }, schoolId });
+          const students = await findStudentsByIdentifiers(linkedStudentIds, schoolId);
           if (students.length > 0) {
             await Student.updateMany({ _id: { $in: students.map(s => s._id) }, schoolId }, { $set: { parent: parent._id } });
             parent.children.push(...students.map(s => s._id));

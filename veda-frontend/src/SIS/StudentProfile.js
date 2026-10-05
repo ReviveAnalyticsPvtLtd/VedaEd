@@ -13,9 +13,177 @@ import {
 } from "../utils/studentProfileMedia";
 const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx";
 
+/** Attendance dates arrive as ISO strings; show a readable date, never a placeholder one. */
+const formatAttendanceDate = (value) => {
+  if (!value) return "N/A";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleDateString();
+};
+
 /** Admission applications store parent-profile uploads in `documents` with `parentProfileUpload: true` — exclude from student profile */
 const studentProfileDocumentsOnly = (docs) =>
   Array.isArray(docs) ? docs.filter((d) => d && !d.parentProfileUpload) : [];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\d{10}$/;
+const ZIP_RE = /^\d{6}$/;
+const BLOOD_GROUP_RE = /^(A|B|AB|O)(\+|-)?$/i;
+const ROLL_NO_RE = /^[A-Za-z0-9/-]{1,20}$/;
+const ACADEMIC_YEAR_RE = /^\d{4}[-/]\d{4}$/;
+const GENDER_VALUES = ["male", "female", "other"];
+
+/**
+ * DOB is free text and existing rows hold mixed formats, so parse the common
+ * ones explicitly instead of relying on Date's locale-dependent fallback.
+ * The order flag says whether the pattern is year-first or day-first.
+ */
+const DATE_PATTERNS = [
+  [/^(\d{4})-(\d{2})-(\d{2})$/, "ymd"],
+  [/^(\d{4})\/(\d{2})\/(\d{2})$/, "ymd"],
+  [/^(\d{2})\/(\d{2})\/(\d{4})$/, "dmy"],
+  [/^(\d{2})-(\d{2})-(\d{4})$/, "dmy"],
+];
+
+const parseFlexibleDate = (value) => {
+  const text = String(value).trim();
+
+  for (const [pattern, order] of DATE_PATTERNS) {
+    const match = text.match(pattern);
+    if (!match) continue;
+
+    const [year, month, day] = order === "ymd"
+      ? [Number(match[1]), Number(match[2]), Number(match[3])]
+      : [Number(match[3]), Number(match[2]), Number(match[1])];
+
+    const date = new Date(year, month - 1, day);
+    // Reject impossible dates (e.g. 31/02) that Date would silently roll over.
+    const isRealDate =
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day;
+    if (isRealDate) return date;
+  }
+
+  const fallback = new Date(text);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+/** Phone fields are restricted to digits at input time; these names drive that filter. */
+const PHONE_FIELDS = [
+  "contact",
+  "altPhone",
+  "fatherPhone",
+  "motherPhone",
+  "guardianPhone",
+  "emergencyPhone",
+];
+
+/**
+ * Rules for the Overview edit form. Keys match the student state fields used by
+ * handleSave. Only identity-critical fields are `required`; everything else is
+ * validated when present so legacy records with gaps stay saveable.
+ */
+const FIELD_RULES = {
+  name: { label: "Full Name", required: true, maxLength: 100 },
+  contact: { label: "Phone", required: true, validate: PHONE_RE, message: "Phone must be exactly 10 digits" },
+  dob: { label: "Date of Birth", date: true },
+  gender: { label: "Gender", oneOf: GENDER_VALUES },
+  bloodGroup: { label: "Blood Group", validate: BLOOD_GROUP_RE, message: "Use a valid blood group (e.g. A, B, AB, O, A+, O-)" },
+  rollNo: { label: "Roll No", validate: ROLL_NO_RE, message: "Roll No may contain letters, numbers, / and - only" },
+
+  email: { label: "Email", validate: EMAIL_RE, message: "Enter a valid email address" },
+  altPhone: { label: "Alternate Phone", validate: PHONE_RE, message: "Alternate phone must be exactly 10 digits" },
+  zip: { label: "Zip Code", validate: ZIP_RE, message: "Zip Code must be 6 digits" },
+  street: { label: "Street", maxLength: 150 },
+  city: { label: "City", maxLength: 60 },
+  state: { label: "State", maxLength: 60 },
+  address: { label: "Address", maxLength: 250 },
+
+  previousSchool: { label: "Previous School", maxLength: 120 },
+  board: { label: "Board / University", maxLength: 80 },
+  lastClass: { label: "Class Last Studied", maxLength: 40 },
+  academicYear: { label: "Academic Year", validate: ACADEMIC_YEAR_RE, message: "Use the YYYY-YYYY format" },
+
+  fatherName: { label: "Father Name", maxLength: 100 },
+  fatherOccupation: { label: "Father Occupation", maxLength: 80 },
+  fatherPhone: { label: "Father Phone", validate: PHONE_RE, message: "Father phone must be exactly 10 digits" },
+  fatherEmail: { label: "Father Email", validate: EMAIL_RE, message: "Enter a valid email address" },
+
+  motherName: { label: "Mother Name", maxLength: 100 },
+  motherOccupation: { label: "Mother Occupation", maxLength: 80 },
+  motherPhone: { label: "Mother Phone", validate: PHONE_RE, message: "Mother phone must be exactly 10 digits" },
+  motherEmail: { label: "Mother Email", validate: EMAIL_RE, message: "Enter a valid email address" },
+
+  guardianName: { label: "Guardian Name", maxLength: 100 },
+  guardianRelation: { label: "Relation", maxLength: 40 },
+  guardianPhone: { label: "Guardian Phone", validate: PHONE_RE, message: "Guardian phone must be exactly 10 digits" },
+  guardianEmail: { label: "Guardian Email", validate: EMAIL_RE, message: "Enter a valid email address" },
+
+  emergencyName: { label: "Contact Name", maxLength: 100 },
+  emergencyRelation: { label: "Relation", maxLength: 40 },
+  emergencyPhone: { label: "Phone", validate: PHONE_RE, message: "Emergency phone must be exactly 10 digits" },
+};
+
+/** Returns { field: message } for every Overview rule the student state violates. */
+const validateStudentFields = (values) => {
+  const errors = {};
+
+  Object.entries(FIELD_RULES).forEach(([field, rule]) => {
+    const raw = values?.[field];
+    const value = typeof raw === "string" ? raw.trim() : "";
+
+    if (rule.required && !value) {
+      errors[field] = `${rule.label} is required`;
+      return;
+    }
+    if (!value) return;
+
+    if (rule.maxLength && value.length > rule.maxLength) {
+      errors[field] = `${rule.label} must be ${rule.maxLength} characters or fewer`;
+      return;
+    }
+    if (rule.validate && !rule.validate.test(value)) {
+      errors[field] = rule.message;
+      return;
+    }
+    if (rule.oneOf && !rule.oneOf.includes(value.toLowerCase())) {
+      errors[field] = `${rule.label} must be one of ${rule.oneOf.join(", ")}`;
+      return;
+    }
+    if (rule.date) {
+      const parsed = parseFlexibleDate(value);
+      if (!parsed) {
+        errors[field] = `${rule.label} is not a valid date`;
+      } else if (parsed.getTime() > Date.now()) {
+        errors[field] = `${rule.label} cannot be in the future`;
+      }
+    }
+  });
+
+  return errors;
+};
+
+/** Fields shown in the Parent / Guardian card, mirrored by the backend parent sync. */
+const PARENT_SECTION_FIELDS = [
+  "fatherName",
+  "motherName",
+  "fatherOccupation",
+  "fatherPhone",
+  "fatherEmail",
+  "motherOccupation",
+  "motherPhone",
+  "motherEmail",
+  "guardianName",
+  "guardianRelation",
+  "guardianPhone",
+  "guardianEmail",
+];
+
+/** True when the admin actually edited the Parent / Guardian card. */
+const parentSectionChanged = (student, original) =>
+  PARENT_SECTION_FIELDS.some(
+    (field) => (student?.[field] || "") !== (original?.[field] || "")
+  );
 
 const mockPerformance = [
   { term: "Term 1", score: 78 },
@@ -40,9 +208,29 @@ const ProfileCard = ({ label, children, icon }) => (
   </div>
 );
 
-const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown, isPhone, countryCode, onCountryCodeChange }) => (
+const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown, isPhone, countryCode, onCountryCodeChange, error = "", inputType = "text", required = false, maxLength }) => {
+  const fieldClass = (extra = "") =>
+    `w-full border rounded-md px-2 py-1 text-gray-700 ${error ? "border-red-400 bg-red-50" : ""} ${extra}`;
+
+  const textInput = (extraClass = "") => (
+    <input
+      type={inputType}
+      required={required}
+      maxLength={maxLength}
+      inputMode={inputType === "tel" ? "numeric" : undefined}
+      aria-invalid={error ? "true" : undefined}
+      value={value || ""}
+      onChange={onChange}
+      className={fieldClass(extraClass)}
+    />
+  );
+
+  return (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
-    <p className="font-medium text-gray-500">{label}</p>
+    <p className="font-medium text-gray-500">
+      {label}
+      {required && isEditing ? <span className="text-red-500"> *</span> : null}
+    </p>
     <div className="col-span-2">
       {isEditing ? (
         isPhone ? (
@@ -53,18 +241,13 @@ const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown, is
                 onChange={onCountryCodeChange}
               />
             </div>
-            <input
-              type="text"
-              value={value || ""}
-              onChange={onChange}
-              className="flex-1 border rounded-md px-2 py-1 text-gray-700"
-            />
+            {textInput("flex-1")}
           </div>
         ) : isDropdown && options ? (
           <select
             value={value || ""}
             onChange={onChange}
-            className="w-full border rounded-md px-2 py-1 text-gray-700"
+            className={fieldClass()}
           >
             <option value="">Select {label}</option>
             {options.map((option) => (
@@ -74,19 +257,20 @@ const InfoDetail = ({ label, value, isEditing, onChange, options, isDropdown, is
             ))}
           </select>
         ) : (
-          <input
-            type="text"
-            value={value || ""}
-            onChange={onChange}
-            className="w-full border rounded-md px-2 py-1 text-gray-700"
-          />
+          textInput()
         )
       ) : (
         <p>{isPhone && countryCode ? `${countryCode} ${value}` : (value || "N/A")}</p>
       )}
+      {isEditing && error ? (
+        <p className="mt-1 text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   </div>
-);
+  );
+};
 
 const TabButton = ({ label, isActive, onClick, icon }) => (
   <button
@@ -202,7 +386,8 @@ const mapSisStudentToProfile = (studentData = {}) => {
       admissionParents.mother?.name,
       studentData.motherName
     ),
-    attendance: firstNonEmpty(studentData.attendance, "85%"),
+    // Attendance is not stored on the student document; it is derived from the
+    // Attendance records and loaded separately for the Attendance tab.
     fee: firstNonEmpty(personal.fees, studentData.fee, "Paid"),
     stdId: firstNonEmpty(personal.stdId, studentData.stdId),
     rollNo: firstNonEmpty(personal.rollNo, studentData.rollNo, "-"),
@@ -247,44 +432,54 @@ const mapSisStudentToProfile = (studentData = {}) => {
     ),
     fatherOccupation: firstNonEmpty(
       admissionParents.father?.occupation,
+      parent.fatherOccupation,
       studentData.fatherOccupation
     ),
     fatherPhone: firstNonEmpty(
       admissionParents.father?.phone,
+      parent.fatherPhone,
       parentContact.phone,
       studentData.fatherPhone
     ),
     fatherEmail: firstNonEmpty(
       admissionParents.father?.email,
+      parent.fatherEmail,
       parentContact.email,
       studentData.fatherEmail
     ),
     motherOccupation: firstNonEmpty(
       admissionParents.mother?.occupation,
+      parent.motherOccupation,
       studentData.motherOccupation
     ),
     motherPhone: firstNonEmpty(
       admissionParents.mother?.phone,
+      parent.motherPhone,
       studentData.motherPhone
     ),
     motherEmail: firstNonEmpty(
       admissionParents.mother?.email,
+      parent.motherEmail,
       studentData.motherEmail
     ),
     guardianName: firstNonEmpty(
       admissionParents.guardian?.name,
+      parent.guardian?.name,
       studentData.guardianName
     ),
     guardianRelation: firstNonEmpty(
       admissionParents.guardian?.relation,
+      parent.guardian?.relation,
       studentData.guardianRelation
     ),
     guardianPhone: firstNonEmpty(
       admissionParents.guardian?.phone,
+      parent.guardian?.phone,
       studentData.guardianPhone
     ),
     guardianEmail: firstNonEmpty(
       admissionParents.guardian?.email,
+      parent.guardian?.email,
       studentData.guardianEmail
     ),
     emergencyName: firstNonEmpty(emergencyContact.name, studentData.emergencyName),
@@ -418,6 +613,7 @@ const StudentProfile = () => {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [errors, setErrors] = useState({});
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
   const [profileSource, setProfileSource] = useState(initialSource);
@@ -425,6 +621,9 @@ const StudentProfile = () => {
   const [documents, setDocuments] = useState(() =>
     (initialMappedStudent?.documents || []).map(normalizeStudentDocumentForAvatar)
   );
+  // null = not loaded yet, {} = loaded but the student has no attendance rows.
+  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  const [attendanceError, setAttendanceError] = useState(null);
 
   // Fetch student data from backend if ID is provided
   useEffect(() => {
@@ -546,6 +745,36 @@ const StudentProfile = () => {
     fetchDocuments();
   }, [resolvedStudentId, profileSource]);
 
+  // Fetch the real attendance summary for the Attendance tab
+  useEffect(() => {
+    if (!resolvedStudentId) return;
+    let cancelled = false;
+
+    const fetchAttendance = async () => {
+      try {
+        const response = await authFetch(`/students/${resolvedStudentId}/attendance`);
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        const data = await response.json();
+        if (cancelled) return;
+        setAttendanceSummary(data?.attendance || {});
+        setAttendanceError(null);
+      } catch (err) {
+        if (cancelled) return;
+        // Surface a real failure instead of silently showing a plausible number.
+        console.error("Error fetching attendance:", err);
+        setAttendanceSummary(null);
+        setAttendanceError(
+          "Could not load attendance. Please retry or contact support."
+        );
+      }
+    };
+
+    fetchAttendance();
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedStudentId, profileSource]);
+
   // Fetch classes and sections
   useEffect(() => {
     const fetchClassesAndSections = async () => {
@@ -623,7 +852,15 @@ const StudentProfile = () => {
   }
 
   const handleChange = (field, value) => {
-    setStudent((prev) => ({ ...prev, [field]: value }));
+    // Phone fields accept digits only, so an invalid number cannot be typed in.
+    const nextValue = PHONE_FIELDS.includes(field) ? String(value).replace(/\D/g, "") : value;
+    setStudent((prev) => ({ ...prev, [field]: nextValue }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   // Handle dropdown changes specifically for class and section
@@ -650,6 +887,14 @@ const StudentProfile = () => {
   const handleSave = async () => {
     const studentId = student.id || resolvedStudentId;
     if (!studentId) return;
+
+    // Client-side validation: block the request when any Overview field is invalid.
+    const validationErrors = validateStudentFields(student);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      setSaveError("Please fix the highlighted fields before saving.");
+      return;
+    }
 
     setSaving(true);
     setSaveError(null);
@@ -688,6 +933,9 @@ const StudentProfile = () => {
   },
 
   parent: {
+    // Lets the server reject the save only when the parent card was really
+    // edited, so unrelated edits on a parentless student still work.
+    infoChanged: parentSectionChanged(student, originalStudent),
     fatherName: student.fatherName,
     motherName: student.motherName,
 
@@ -699,10 +947,12 @@ const StudentProfile = () => {
     motherPhone: student.motherPhone,
     motherEmail: student.motherEmail,
 
-    guardianName: student.guardianName,
-    guardianRelation: student.guardianRelation,
-    guardianPhone: student.guardianPhone,
-    guardianEmail: student.guardianEmail,
+    guardian: {
+      name: student.guardianName,
+      relation: student.guardianRelation,
+      phone: student.guardianPhone,
+      email: student.guardianEmail,
+    },
 
     contactDetails: {
       phone: student.contact,
@@ -815,6 +1065,7 @@ const StudentProfile = () => {
         setOriginalStudent(updatedMappedStudent);
         setIsEditing(false);
         setSaveError(null);
+        setErrors({});
         // Optionally show success message
         console.log('Student updated successfully');
       }
@@ -920,6 +1171,9 @@ const StudentProfile = () => {
           value={student.name}
           isEditing={isEditing}
           onChange={(e) => handleChange("name", e.target.value)}
+          required
+          maxLength={100}
+          error={errors.name}
         />
 
         <InfoDetail
@@ -927,6 +1181,7 @@ const StudentProfile = () => {
           value={student.dob}
           isEditing={isEditing}
           onChange={(e) => handleChange("dob", e.target.value)}
+          error={errors.dob}
         />
 
         <InfoDetail
@@ -934,6 +1189,7 @@ const StudentProfile = () => {
           value={student.gender}
           isEditing={isEditing}
           onChange={(e) => handleChange("gender", e.target.value)}
+          error={errors.gender}
         />
 
         <InfoDetail
@@ -941,6 +1197,7 @@ const StudentProfile = () => {
           value={student.bloodGroup}
           isEditing={isEditing}
           onChange={(e) => handleChange("bloodGroup", e.target.value)}
+          error={errors.bloodGroup}
         />
 
         <InfoDetail
@@ -948,6 +1205,8 @@ const StudentProfile = () => {
           value={student.nationality}
           isEditing={isEditing}
           onChange={(e) => handleChange("nationality", e.target.value)}
+          maxLength={50}
+          error={errors.nationality}
         />
 
         <InfoDetail
@@ -955,6 +1214,8 @@ const StudentProfile = () => {
           value={student.religion}
           isEditing={isEditing}
           onChange={(e) => handleChange("religion", e.target.value)}
+          maxLength={50}
+          error={errors.religion}
         />
 
         <InfoDetail
@@ -968,6 +1229,8 @@ const StudentProfile = () => {
           value={student.rollNo}
           isEditing={isEditing}
           onChange={(e) => handleChange("rollNo", e.target.value)}
+          maxLength={20}
+          error={errors.rollNo}
         />
 
         <InfoDetail
@@ -1007,6 +1270,9 @@ const StudentProfile = () => {
           value={student.email}
           isEditing={isEditing}
           onChange={(e) => handleChange("email", e.target.value)}
+          inputType="email"
+          maxLength={120}
+          error={errors.email}
         />
 
         <InfoDetail
@@ -1017,6 +1283,10 @@ const StudentProfile = () => {
           isPhone={true}
           countryCode={student.countryCode}
           onCountryCodeChange={(val) => handleChange("countryCode", val)}
+          required
+          inputType="tel"
+          maxLength={10}
+          error={errors.contact}
         />
 
         <InfoDetail
@@ -1024,6 +1294,9 @@ const StudentProfile = () => {
           value={student.altPhone}
           isEditing={isEditing}
           onChange={(e) => handleChange("altPhone", e.target.value)}
+          inputType="tel"
+          maxLength={10}
+          error={errors.altPhone}
         />
 
         <InfoDetail
@@ -1031,6 +1304,8 @@ const StudentProfile = () => {
           value={student.street}
           isEditing={isEditing}
           onChange={(e) => handleChange("street", e.target.value)}
+          maxLength={150}
+          error={errors.street}
         />
 
         <InfoDetail
@@ -1038,6 +1313,8 @@ const StudentProfile = () => {
           value={student.city}
           isEditing={isEditing}
           onChange={(e) => handleChange("city", e.target.value)}
+          maxLength={60}
+          error={errors.city}
         />
 
         <InfoDetail
@@ -1045,6 +1322,8 @@ const StudentProfile = () => {
           value={student.state}
           isEditing={isEditing}
           onChange={(e) => handleChange("state", e.target.value)}
+          maxLength={60}
+          error={errors.state}
         />
 
         <InfoDetail
@@ -1052,6 +1331,8 @@ const StudentProfile = () => {
           value={student.zip}
           isEditing={isEditing}
           onChange={(e) => handleChange("zip", e.target.value)}
+          maxLength={6}
+          error={errors.zip}
         />
 
         <InfoDetail
@@ -1059,6 +1340,8 @@ const StudentProfile = () => {
           value={student.address}
           isEditing={isEditing}
           onChange={(e) => handleChange("address", e.target.value)}
+          maxLength={250}
+          error={errors.address}
         />
       </ProfileCard>
 
@@ -1070,6 +1353,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("previousSchool", e.target.value)
           }
+          maxLength={120}
+          error={errors.previousSchool}
         />
 
         <InfoDetail
@@ -1077,6 +1362,8 @@ const StudentProfile = () => {
           value={student.board}
           isEditing={isEditing}
           onChange={(e) => handleChange("board", e.target.value)}
+          maxLength={80}
+          error={errors.board}
         />
 
         <InfoDetail
@@ -1084,6 +1371,8 @@ const StudentProfile = () => {
           value={student.lastClass}
           isEditing={isEditing}
           onChange={(e) => handleChange("lastClass", e.target.value)}
+          maxLength={40}
+          error={errors.lastClass}
         />
 
         <InfoDetail
@@ -1093,6 +1382,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("academicYear", e.target.value)
           }
+          maxLength={9}
+          error={errors.academicYear}
         />
       </ProfileCard>
     </div>
@@ -1109,6 +1400,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("fatherName", e.target.value)
           }
+          maxLength={100}
+          error={errors.fatherName}
         />
 
         <InfoDetail
@@ -1118,6 +1411,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("fatherOccupation", e.target.value)
           }
+          maxLength={80}
+          error={errors.fatherOccupation}
         />
 
         <InfoDetail
@@ -1127,6 +1422,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("fatherPhone", e.target.value)
           }
+          inputType="tel"
+          maxLength={10}
+          error={errors.fatherPhone}
         />
 
         <InfoDetail
@@ -1136,6 +1434,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("fatherEmail", e.target.value)
           }
+          inputType="email"
+          maxLength={120}
+          error={errors.fatherEmail}
         />
 
         <InfoDetail
@@ -1145,6 +1446,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("motherName", e.target.value)
           }
+          maxLength={100}
+          error={errors.motherName}
         />
 
         <InfoDetail
@@ -1154,6 +1457,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("motherOccupation", e.target.value)
           }
+          maxLength={80}
+          error={errors.motherOccupation}
         />
 
         <InfoDetail
@@ -1163,6 +1468,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("motherPhone", e.target.value)
           }
+          inputType="tel"
+          maxLength={10}
+          error={errors.motherPhone}
         />
 
         <InfoDetail
@@ -1172,6 +1480,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("motherEmail", e.target.value)
           }
+          inputType="email"
+          maxLength={120}
+          error={errors.motherEmail}
         />
 
         <InfoDetail
@@ -1181,6 +1492,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("guardianName", e.target.value)
           }
+          maxLength={100}
+          error={errors.guardianName}
         />
 
         <InfoDetail
@@ -1190,6 +1503,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("guardianRelation", e.target.value)
           }
+          maxLength={40}
+          error={errors.guardianRelation}
         />
 
         <InfoDetail
@@ -1199,6 +1514,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("guardianPhone", e.target.value)
           }
+          inputType="tel"
+          maxLength={10}
+          error={errors.guardianPhone}
         />
 
         <InfoDetail
@@ -1208,6 +1526,9 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("guardianEmail", e.target.value)
           }
+          inputType="email"
+          maxLength={120}
+          error={errors.guardianEmail}
         />
       </ProfileCard>
 
@@ -1219,6 +1540,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("emergencyName", e.target.value)
           }
+          maxLength={100}
+          error={errors.emergencyName}
         />
 
         <InfoDetail
@@ -1228,6 +1551,8 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("emergencyRelation", e.target.value)
           }
+          maxLength={40}
+          error={errors.emergencyRelation}
         />
 
         <InfoDetail
@@ -1237,18 +1562,67 @@ const StudentProfile = () => {
           onChange={(e) =>
             handleChange("emergencyPhone", e.target.value)
           }
+          inputType="tel"
+          maxLength={10}
+          error={errors.emergencyPhone}
         />
       </ProfileCard>
     </div>
   </div>
 );
 
-  const AttendanceTab = () => (
-    <ProfileCard label="Attendance" icon={<FiCalendar />}>
-      <InfoDetail label="Attendance %" value={student.attendance} isEditing={isEditing} onChange={(e) => handleChange("attendance", e.target.value)} />
-      <InfoDetail label="Last Present" value="2024-08-05" isEditing={false} />
-    </ProfileCard>
-  );
+  const AttendanceTab = () => {
+    if (attendanceError) {
+      return (
+        <ProfileCard label="Attendance" icon={<FiCalendar />}>
+          <p className="py-3 text-sm text-red-600">{attendanceError}</p>
+        </ProfileCard>
+      );
+    }
+
+    if (!attendanceSummary) {
+      return (
+        <ProfileCard label="Attendance" icon={<FiCalendar />}>
+          <p className="py-3 text-sm text-gray-500">Loading attendance...</p>
+        </ProfileCard>
+      );
+    }
+
+    const { percentage, present, late, absent, total, lastPresent } =
+      attendanceSummary;
+
+    if (!total) {
+      return (
+        <ProfileCard label="Attendance" icon={<FiCalendar />}>
+          <p className="py-3 text-sm text-gray-500">
+            No attendance has been recorded for this student yet.
+          </p>
+        </ProfileCard>
+      );
+    }
+
+    return (
+      <ProfileCard label="Attendance" icon={<FiCalendar />}>
+        {/* Derived from Attendance records, so it is read-only on purpose. */}
+        <InfoDetail
+          label="Attendance %"
+          value={typeof percentage === "number" ? `${percentage}%` : "N/A"}
+          isEditing={false}
+        />
+        <InfoDetail
+          label="Last Present"
+          value={formatAttendanceDate(lastPresent)}
+          isEditing={false}
+        />
+        <InfoDetail label="Days Recorded" value={String(total)} isEditing={false} />
+        <InfoDetail
+          label="Present / Late / Absent"
+          value={`${present} / ${late} / ${absent}`}
+          isEditing={false}
+        />
+      </ProfileCard>
+    );
+  };
 
   const FeeTab = () => (
     <ProfileCard label="Fee Details" icon={<FiDollarSign />}>
@@ -1285,6 +1659,7 @@ const StudentProfile = () => {
               onClick={() => {
                 setOriginalStudent(student);
                 setSaveError(null);
+                setErrors({});
                 setIsEditing(true);
               }}
               className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
@@ -1306,6 +1681,7 @@ const StudentProfile = () => {
                 onClick={() => {
                   setStudent(originalStudent);
                   setSaveError(null);
+                  setErrors({});
                   setIsEditing(false);
                 }}
                 className="inline-flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600"
