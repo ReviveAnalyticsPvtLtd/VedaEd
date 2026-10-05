@@ -19,13 +19,28 @@ const concernPanel = [
 export default function AdminComplaints() {
   const [activeTab, setActiveTab] = useState("raise");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
-  // Mock current user - should be replaced with real auth data
-  const currentUser = {
-    id: "68c1b2ca7fa6e0a4c8af3245", // Valid Database ID (Rohit Yung)
-    name: "System Admin",
-    model: "Admin"
-  };
+  // Current session user. Read from the persisted session instead of a
+  // hardcoded id: the backend rejects any party id that is not the caller's own
+  // (rejectForeignActor -> 403), which previously aborted the very first fetch
+  // in this component and left every dropdown empty.
+  const currentUser = useMemo(() => {
+    let stored = {};
+    try {
+      stored = JSON.parse(localStorage.getItem("user") || "{}");
+    } catch (_) {
+      stored = {};
+    }
+    const role = stored.role || localStorage.getItem("role") || "admin";
+    return {
+      // The backend accepts either the caller's own party refId or their own
+      // User._id, so mirror the documented `user.refId || user._id` order.
+      id: stored.refId || stored._id || "",
+      name: stored.name || "Admin",
+      model: role.charAt(0).toUpperCase() + role.slice(1),
+    };
+  }, []);
 
   /* ===================== FORM ===================== */
   const [form, setForm] = useState({
@@ -60,57 +75,97 @@ export default function AdminComplaints() {
   const [search, setSearch] = useState("");
 
   /* ===================== FETCH DATA ===================== */
+  // Each list loads independently on purpose. A single shared try/catch meant
+  // one failing endpoint (e.g. the permission-gated /students) silently wiped
+  // out every other list, so the staff and student dropdowns rendered empty.
   const fetchData = async () => {
+    setLoading(true);
+    const failures = [];
+
+    if (currentUser.id) {
+      try {
+        const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
+        if (myComplaintsRes?.success) {
+          setMyComplaints(myComplaintsRes.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching my complaints:", error);
+        failures.push("your complaints");
+      }
+    }
+
     try {
-      setLoading(true);
-      
-      // Fetch My Complaints
-      const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
-      if (myComplaintsRes.success) {
-        setMyComplaints(myComplaintsRes.data);
-      }
-
-      // Fetch All Complaint Logs for Admin
       const logsRes = await complaintAPI.getComplaints();
-      if (logsRes.success) {
-        setLogs(logsRes.data);
-      }
-
-      // Fetch Students
-      const studentsRes = await studentAPI.getAllStudents();
-      if (studentsRes && studentsRes.length > 0) {
-        const transformed = studentsRes.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
-          class: s.academicInfo?.class || "N/A",
-          section: s.academicInfo?.section || "N/A",
-          parentId: s.parentInfo?.parentId || "N/A",
-          parentName: s.parentInfo?.fatherName || "N/A",
-          parentPhone: s.parentInfo?.fatherPhone || "N/A",
-        }));
-        setStudentsData(transformed);
-      }
-
-      // Fetch Staff
-      const staffRes = await staffAPI.getAllStaff();
-      if (staffRes && staffRes.staff) {
-        const transformed = staffRes.staff.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.name || "N/A",
-          role: s.personalInfo?.role || "N/A"
-        }));
-        setStaffList(transformed);
+      if (logsRes?.success) {
+        setLogs(logsRes.data || []);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching complaint logs:", error);
+      failures.push("complaint logs");
     }
+
+    try {
+      const studentsRes = await studentAPI.getAllStudents();
+      // /students responds with { success, count, students }, not a bare array.
+      const students = Array.isArray(studentsRes) ? studentsRes : studentsRes?.students;
+      if (Array.isArray(students)) {
+        setStudentsData(
+          students.map((s) => {
+            // SIS students carry a populated `parent` ref; admission-pending
+            // records carry a plain `parents` object instead.
+            const parent = s.parent && typeof s.parent === "object" ? s.parent : {};
+            const parents = s.parents && typeof s.parents === "object" ? s.parents : {};
+            return {
+              id: s._id,
+              name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
+              // Class/section live under personalInfo (already populated to
+              // their names by the controller), not under `academicInfo`.
+              class: s.personalInfo?.class || "N/A",
+              section: s.personalInfo?.section || "N/A",
+              parentId: parent.parentId || parents.parentId || "N/A",
+              parentName: parent.fatherName || parents.fatherName || "N/A",
+              parentPhone:
+                parent.fatherPhone ||
+                parents.fatherPhone ||
+                parent.contactDetails?.mobileNumber ||
+                parents.contactDetails?.mobileNumber ||
+                "N/A",
+            };
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      failures.push("the student list");
+    }
+
+    try {
+      const staffRes = await staffAPI.getAllStaff();
+      if (staffRes?.staff) {
+        setStaffList(
+          staffRes.staff.map((s) => ({
+            id: s._id,
+            name: s.personalInfo?.name || "N/A",
+            role: s.personalInfo?.role || "N/A",
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+      failures.push("the staff list");
+    }
+
+    setLoadError(
+      failures.length
+        ? `Could not load ${failures.join(", ")}. The affected dropdowns will be empty.`
+        : null
+    );
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentUser]);
 
   const filteredMyComplaints = useMemo(() => {
   if (!search) return myComplaints;
@@ -288,30 +343,39 @@ const updateStatus = async (status) => {
        panel: form.complaintAgainst === "staff" ? form.panel : [],
      };
 
-     const res = await complaintAPI.createComplaint(payload);
-     if (res.success) {
-       alert("Complaint raised successfully");
-       fetchData();
-       setForm({
-         category: "",
-         type: "",
-         subject: "",
-         message: "",
-         attachment: null,
-         complaintAgainst: "",
-         class: "",
-         section: "",
-         studentId: "",
-         notifyParents: true,
-         notifyTeacher: false,
-         staffId: "",
-         panel: [],
-       });
-     }
-   } catch (error) {
-     console.error("Error submitting complaint:", error);
-     alert("Failed to submit complaint");
-   } finally {
+const res = await complaintAPI.createComplaint(payload);
+      if (res?.success) {
+        alert("Complaint raised successfully");
+        fetchData();
+        setForm({
+          category: "",
+          type: "",
+          subject: "",
+          message: "",
+          attachment: null,
+          complaintAgainst: "",
+          class: "",
+          section: "",
+          studentId: "",
+          notifyParents: true,
+          notifyTeacher: false,
+          staffId: "",
+          panel: [],
+        });
+      } else {
+        // The backend can answer 2xx with success:false, so surface the reason
+        // instead of silently doing nothing.
+        alert(res?.message || "Failed to submit complaint");
+      }
+    } catch (error) {
+      console.error("Error submitting complaint:", error);
+      alert(
+        error?.response?.data?.message ||
+          (error?.response?.status
+            ? `Failed to submit complaint (HTTP ${error.response.status})`
+            : "Failed to submit complaint")
+      );
+    } finally {
      setLoading(false);
    }
   };
@@ -353,6 +417,20 @@ const updateStatus = async (status) => {
           </button>
         ))}
       </div>
+
+      {/* ================= LOAD FAILURES (previously console-only) ================= */}
+      {loadError && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <span>{loadError}</span>
+          <button
+            onClick={() => setLoadError(null)}
+            className="shrink-0 font-semibold text-amber-900 hover:underline"
+            aria-label="Dismiss"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ================= RAISE COMPLAINT ================= */}
       {activeTab === "raise" && (

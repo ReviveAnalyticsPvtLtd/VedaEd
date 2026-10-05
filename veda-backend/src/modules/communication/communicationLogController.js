@@ -1,6 +1,27 @@
 const mongoose = require('mongoose');
 const CommunicationLog = require('./communicationLogModel');
 const { schoolId, rejectForeignActor, resolveActor, labelFor } = require('./communicationTenantScope');
+const Message = require('./messageModel');
+const Notice = require('./noticeModel');
+const Complaint = require('./complaintModel');
+const Notification = require('./notificationModel');
+const MessageTemplate = require('./messageTemplateModel');
+const User = require('../../models/User');
+
+const TARGET_REGISTRY = {
+  Message, Notice, Complaint, Notification, Template: MessageTemplate, User
+};
+
+// `target` is a refPath. Without a tenant match, populate resolves it by _id
+// alone and would return another school's record to the caller.
+const scopedTarget = (school) => ({ path: 'target', match: { schoolId: school } });
+
+async function targetInSchool(target, targetModel, school) {
+  const Model = TARGET_REGISTRY[targetModel];
+  if (!Model || !mongoose.isValidObjectId(String(target))) return false;
+  const doc = await Model.findById(target).select('schoolId').lean();
+  return !!doc && !!doc.schoolId && String(doc.schoolId) === String(school);
+}
 
 // Get communication logs
 exports.getCommunicationLogs = async (req, res) => {
@@ -24,7 +45,7 @@ exports.getCommunicationLogs = async (req, res) => {
 
     const logs = await CommunicationLog.find(query)
       .populate('user', 'personalInfo.name personalInfo.email name email')
-      .populate('target')
+      .populate(scopedTarget(school))
       .sort({ timestamp: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -80,7 +101,7 @@ exports.getUserLogs = async (req, res) => {
     }
 
     const logs = await CommunicationLog.find(query)
-      .populate('target')
+      .populate(scopedTarget(school))
       .sort({ timestamp: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -208,7 +229,7 @@ exports.getActivitySummary = async (req, res) => {
       ...scope,
       timestamp: { $gte: startDate }
     })
-      .populate('target')
+      .populate(scopedTarget(schoolObjectId))
       .sort({ timestamp: -1 })
       .limit(10);
 
@@ -265,6 +286,17 @@ exports.createLog = async (req, res) => {
     // than letting an unknown string reach the schema.
     const TARGET_MODELS = ['Message', 'Notice', 'Complaint', 'User', 'Notification', 'Template'];
     const safeTargetModel = TARGET_MODELS.includes(targetModel) ? targetModel : 'User';
+
+    // `target` is client-supplied and points at a real record. Without this the
+    // log is written under the caller's school but resolves to another school's
+    // document on read, which publishes that record to the wrong tenant.
+    if (target && !(await targetInSchool(target, safeTargetModel, school))) {
+      return res.status(403).json({
+        success: false,
+        code: 'FOREIGN_TARGET',
+        message: 'Log target is not in your school.',
+      });
+    }
 
     // The actor and the tenant are both derived from the session. A client
     // cannot write a log attributed to another school, or to another user.

@@ -16,10 +16,17 @@ const Parent = require("../parents/parentModel");
 const Staff = require("../staff/staffModels");
 const Teacher = require("../teacher/teacherModel");
 const User = require("../../models/User");
+const Class = require("../class/classSchema");
+const Section = require("../section/sectionSchema");
 
 /**
- * Every collection that holds a tenant-owned party. A polymorphic ref in the
- * Communication schemas points at one of these.
+ * Every collection that holds a tenant-owned ACTOR. A polymorphic ref to the
+ * author, sender or assignee of a communication record points at one of these.
+ *
+ * Scope differs from RECIPIENT_MODELS below: `findPartyModel` resolves an actor
+ * against this set alone, while `resolvePartySchool` searches the wider
+ * recipient set. Class and Section are legal recipient targets but never legal
+ * actors, so they are deliberately absent here.
  *
  * The stored model label is treated as a HINT, never as the only place to look:
  * the real corpus labels teacher refs "Teacher" while the document actually
@@ -33,6 +40,23 @@ const PARTY_MODELS = Object.freeze({
     Staff,
     Teacher,
     User,
+});
+
+/**
+ * Every collection that can appear as a communication RECIPIENT.
+ *
+ * A superset of PARTY_MODELS: a notification or notice may also be addressed to
+ * a Class or a Section, both of which the schemas accept as
+ * `specificTargetModel` and both of which carry `schoolId`.
+ *
+ * Kept deliberately separate from PARTY_MODELS so a Class or Section ref can
+ * never be resolved as an actor: `createdByModel`, `receiverModel` and the
+ * complaint model fields have their own enums which do not list them.
+ */
+const RECIPIENT_MODELS = Object.freeze({
+    ...PARTY_MODELS,
+    Class,
+    Section,
 });
 
 /** Roles allowed to manage each kind of communication record. */
@@ -67,7 +91,7 @@ async function resolvePartySchool(id) {
         return { schoolId: null, collection: null, ambiguous: false };
     }
     const hits = [];
-    for (const [name, Model] of Object.entries(PARTY_MODELS)) {
+    for (const [name, Model] of Object.entries(RECIPIENT_MODELS)) {
         const doc = await Model.findById(id).select("schoolId").lean();
         if (doc && doc.schoolId) hits.push({ schoolId: String(doc.schoolId), collection: name });
     }
@@ -239,6 +263,7 @@ async function logAction(req, { action, target, targetModel, details }) {
 
 module.exports = {
     PARTY_MODELS,
+    RECIPIENT_MODELS,
     MANAGEMENT_ROLES,
     schoolId,
     resolvePartySchool,

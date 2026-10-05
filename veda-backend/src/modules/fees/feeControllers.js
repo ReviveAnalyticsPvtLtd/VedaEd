@@ -527,7 +527,7 @@ exports.toggleFineStatus = async (req, res) => {
 };
 // --- Dashboard & Collection ---
 
-async function calculateStudentFees(student, year, school) {
+exports.calculateStudentFees = async function (student, year, school) {
   const gName = student.personalInfo.class?.name || (student.personalInfo.class && student.personalInfo.class.name);
   // Every configuration read here is tenant-scoped: a grade/year match in
   // another school is never this student's fee structure.

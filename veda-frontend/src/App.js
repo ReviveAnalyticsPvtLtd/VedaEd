@@ -1209,6 +1209,7 @@ function App() {
       </Route>
     </Route>
 
+     <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
      <Route path="/admin/calendar" element={<AdminCalendarLayout />}>
   
   {/* Default redirect */}
@@ -1220,6 +1221,7 @@ function App() {
   <Route path="year-setup" element={<AnnualYearSetup />} />
 
 </Route>
+     </Route>
 
 
       {/* ==== TEACHER ==== */}
