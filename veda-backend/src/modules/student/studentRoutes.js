@@ -12,6 +12,7 @@ router.post("/", authMiddleware, permissionMiddleware("create_student"), student
 router.get("/", authMiddleware, permissionMiddleware("view_student"), studentController.getAllStudents);           // Get all students
 router.get("/stats", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentStats);    // Get student statistics
 router.get("/next-id", authMiddleware, permissionMiddleware("create_student"), studentController.getNextStudentId); // Preview next auto Student ID
+router.get("/next-roll-no", authMiddleware, permissionMiddleware("view_student"), studentController.getNextRollNumber); // Preview / calculate next auto Roll Number
 // ⚠️ /import MUST be before /:id so Express doesn't treat "import" as a student ID param
 router.post("/import", authMiddleware, permissionMiddleware("create_student"), studentController.importStudents); // Bulk import from Excel
 

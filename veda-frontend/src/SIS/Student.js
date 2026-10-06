@@ -52,7 +52,12 @@ export default function Student() {
   const [sections, setSections] = useState([]);
   const [formSections, setFormSections] = useState([]);
   const [selectedClassForForm, setSelectedClassForForm] = useState("");
-const [errors, setErrors] = useState({});
+  const [selectedSectionForForm, setSelectedSectionForForm] = useState("");
+  const [formRollNo, setFormRollNo] = useState("");
+  const [autoRollNoPreview, setAutoRollNoPreview] = useState("");
+  const [isRollCalculating, setIsRollCalculating] = useState(false);
+  const [formCapacityInfo, setFormCapacityInfo] = useState(null);
+  const [errors, setErrors] = useState({});
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterSection, setFilterSection] = useState("");
@@ -218,6 +223,101 @@ const [errors, setErrors] = useState({});
     fetchNextStudentId();
   }, [showForm]);
 
+  // Fetch next available roll number and section capacity when class and section are selected
+  useEffect(() => {
+    const fetchNextRollNumber = async () => {
+      if (!showForm || !selectedClassForForm || !selectedSectionForForm) {
+        setFormRollNo("");
+        setAutoRollNoPreview("");
+        setFormCapacityInfo(null);
+        return;
+      }
+      setIsRollCalculating(true);
+      try {
+        const res = await api.get(`/students/next-roll-no`, {
+          params: {
+            className: selectedClassForForm,
+            sectionName: selectedSectionForForm,
+          },
+        });
+        if (res.data?.success) {
+          const next = res.data.nextRollNo;
+          setAutoRollNoPreview(next || "");
+          setFormRollNo(next || "");
+          setFormCapacityInfo({
+            capacity: res.data.capacity,
+            enrolledCount: res.data.enrolledCount,
+            isFull: res.data.isFull,
+            usedRollNumbers: res.data.usedRollNumbers || [],
+            message: res.data.message,
+          });
+          if (res.data.isFull) {
+            setErrors((p) => ({
+              ...p,
+              roll:
+                res.data.message ||
+                `This class/section has reached its maximum capacity of ${res.data.capacity} students. No Roll Number is available.`,
+            }));
+          } else {
+            setErrors((p) => {
+              const nextErr = { ...p };
+              delete nextErr.roll;
+              return nextErr;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching next roll number:", err);
+        const msg =
+          err.response?.data?.message || "Failed to calculate next roll number";
+        setErrors((p) => ({ ...p, roll: msg }));
+      } finally {
+        setIsRollCalculating(false);
+      }
+    };
+
+    fetchNextRollNumber();
+  }, [showForm, selectedClassForForm, selectedSectionForForm]);
+
+  const handleRollInputChange = (val) => {
+    setFormRollNo(val);
+    if (!val || !val.trim()) {
+      setErrors((p) => ({ ...p, roll: "Roll Number is required" }));
+      return;
+    }
+    const trimmed = val.trim();
+    if (!/^\d+$/.test(trimmed)) {
+      setErrors((p) => ({ ...p, roll: "Only positive numbers allowed" }));
+      return;
+    }
+    const num = parseInt(trimmed, 10);
+    if (num < 1) {
+      setErrors((p) => ({ ...p, roll: "Roll Number must be at least 1" }));
+      return;
+    }
+    if (formCapacityInfo) {
+      if (num > formCapacityInfo.capacity) {
+        setErrors((p) => ({
+          ...p,
+          roll: `Roll Number cannot exceed the maximum capacity of ${formCapacityInfo.capacity}`,
+        }));
+        return;
+      }
+      if (formCapacityInfo.usedRollNumbers.includes(num)) {
+        setErrors((p) => ({
+          ...p,
+          roll: `Roll Number ${num} is already assigned in ${selectedClassForForm} - Section ${selectedSectionForForm}`,
+        }));
+        return;
+      }
+    }
+    setErrors((p) => {
+      const nextErr = { ...p };
+      delete nextErr.roll;
+      return nextErr;
+    });
+  };
+
   // Fetch sections when class filter changes
   useEffect(() => {
     const fetchSectionsForClass = async () => {
@@ -313,17 +413,50 @@ const [errors, setErrors] = useState({});
 
     reader.readAsBinaryString(file);
   };
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setSelectedClassForForm("");
+    setSelectedSectionForForm("");
+    setFormRollNo("");
+    setAutoRollNoPreview("");
+    setFormCapacityInfo(null);
+    setNextStudentIdPreview("");
+    setErrors({});
+  };
+
   const handleAddManually = async (e) => {
     e.preventDefault();
     const form = e.target;
+
+    const classVal = selectedClassForForm || form.cls?.value.trim();
+    const sectionVal = selectedSectionForForm || form.section?.value.trim();
+    const rollVal = formRollNo ? formRollNo.trim() : form.roll?.value?.trim();
+
+    if (!classVal) {
+      setErrors((p) => ({ ...p, cls: "Class is required" }));
+      return;
+    }
+    if (!sectionVal) {
+      setErrors((p) => ({ ...p, section: "Section is required" }));
+      return;
+    }
+    if (formCapacityInfo?.isFull) {
+      setErrors((p) => ({
+        ...p,
+        roll:
+          formCapacityInfo.message ||
+          `This class/section has reached its maximum capacity of ${formCapacityInfo.capacity} students. No Roll Number is available.`,
+      }));
+      return;
+    }
 
     const newStudent = {
       autoGenerateStudentId: true,
       personalInfo: {
         name: form.name.value.trim(),
-        class: form.cls.value.trim(),
-        rollNo: form.roll.value.trim(),
-        section: form.section.value.trim(),
+        class: classVal,
+        rollNo: rollVal,
+        section: sectionVal,
         password: form.password.value || "default123",
         fees: form.fee.value || "Due",
       },
@@ -338,16 +471,15 @@ const [errors, setErrors] = useState({});
 
       if (res.data.success && res.data.student) {
         await loadStudents();
-        setShowForm(false);
-        setSelectedClassForForm("");
-        setNextStudentIdPreview("");
+        handleCloseForm();
         const assignedId = res.data.student.personalInfo?.stdId;
+        const assignedRoll = res.data.student.personalInfo?.rollNo;
         setSuccessMsg(
           assignedId
-            ? `Student added successfully. Student ID: ${assignedId} `
-            : "Student added successfully "
+            ? `Student added successfully. Student ID: ${assignedId} | Roll No: ${assignedRoll}`
+            : "Student added successfully"
         );
-        setTimeout(() => setSuccessMsg(""), 3000);
+        setTimeout(() => setSuccessMsg(""), 4000);
       } else {
         const errorMsg = res.data.message || "Failed to add student";
         console.error("❌ Error creating student:", errorMsg);
@@ -355,12 +487,16 @@ const [errors, setErrors] = useState({});
         setTimeout(() => setSuccessMsg(""), 5000);
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to add student";
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to add student";
       console.error(
         "❌ Error creating student:",
         err.response?.data || err.message
       );
-      setSuccessMsg(`Failed to add student : ${errorMessage}`);
+      setSuccessMsg(`Failed to add student ❌: ${errorMessage}`);
       setTimeout(() => setSuccessMsg(""), 5000);
     }
   };
@@ -1231,7 +1367,7 @@ Sections:
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">Add Student Manually</h3>
+            <h3 className="text-lg font-bold mb-4 text-gray-800">Add Student Manually</h3>
             {successMsg && isToastErrorMessage(successMsg) && (
               <div
                 role="alert"
@@ -1249,120 +1385,190 @@ Sections:
                     : `${nextStudentIdPreview || "Unavailable"}`}
                 </p>
               </div>
-              <input
-  name="name"
-  placeholder="Name"
-  className={`border px-3 py-2 w-full rounded ${
-    errors.name ? "border-red-500" : ""
-  }`}
-  onChange={(e) => {
-    const val = e.target.value;
 
-    // block wrong typing
-    if (!/^[a-zA-Z\s]*$/.test(val)) {
-      setErrors((p) => ({ ...p, name: "Only letters allowed" }));
-      return;
-    }
-
-    setErrors((p) => ({ ...p, name: "" }));
-  }}
-  required
-/>
-
-{errors.name && (
-  <p className="text-red-500 text-xs">{errors.name}</p>
-)}
-            <input
-  name="roll"
-  placeholder="Roll Number"
-  className={`border px-3 py-2 w-full rounded ${
-    errors.roll ? "border-red-500" : ""
-  }`}
-  onChange={(e) => {
-    const val = e.target.value;
-
-    if (!/^\d*$/.test(val)) {
-      setErrors((p) => ({ ...p, roll: "Only numbers allowed" }));
-      return;
-    }
-
-    setErrors((p) => ({ ...p, roll: "" }));
-  }}
-  required
-/>
-{errors.roll && <p className="text-red-500 text-xs">{errors.roll}</p>}
-              <select
-                name="cls"
-                value={selectedClassForForm}
-                onChange={(e) => {
-                  setSelectedClassForForm(e.target.value);
-                  // Reset section when class changes
-                  const sectionSelect = document.querySelector('select[name="section"]');
-                  if (sectionSelect) sectionSelect.value = "";
-                }}
-                className="border px-3 py-2 w-full rounded"
-                required
-              >
-                <option value="">Select Class</option>
-                {classes.map((cls) => (
-                  <option key={cls._id} value={cls.name}>
-                    {cls.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="section"
-                className="border px-3 py-2 w-full rounded"
-                required
-                disabled={!selectedClassForForm}
-              >
-                <option value="">Select Section</option>
-                {selectedClassForForm ? (
-                  (formSections.length > 0
-                    ? formSections
-                    : classes.find((c) => c.name === selectedClassForForm)?.sections || []
-                  ).map((sec) => (
-                    <option key={sec._id || sec} value={sec.name || sec}>
-                      {sec.name || sec}
-                    </option>
-                  ))
-                ) : (
-                  sections.map((sec) => (
-                    <option key={sec._id} value={sec.name}>
-                      {sec.name}
-                    </option>
-                  ))
+              <div>
+                <input
+                  name="name"
+                  placeholder="Name"
+                  className={`border px-3 py-2 w-full rounded text-sm ${
+                    errors.name ? "border-red-500 bg-red-50" : ""
+                  }`}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!/^[a-zA-Z\s]*$/.test(val)) {
+                      setErrors((p) => ({ ...p, name: "Only letters allowed" }));
+                      return;
+                    }
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.name;
+                      return next;
+                    });
+                  }}
+                  required
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
                 )}
-              </select>
-              <input
-                name="password"
-                placeholder="Password"
-                className="border px-3 py-2 w-full rounded"
-                required
-              />
-              <select
-                name="fee"
-                className="border px-3 py-2 w-full rounded"
-              >
-                <option value="Paid">Paid</option>
-                <option value="Due">Due</option>
-              </select>
-              <div className="flex justify-end space-x-2">
+              </div>
+
+              {/* Class Selection */}
+              <div>
+                <select
+                  name="cls"
+                  value={selectedClassForForm}
+                  onChange={(e) => {
+                    setSelectedClassForForm(e.target.value);
+                    setSelectedSectionForForm("");
+                    setFormRollNo("");
+                    setAutoRollNoPreview("");
+                    setFormCapacityInfo(null);
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.cls;
+                      return next;
+                    });
+                  }}
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((cls) => (
+                    <option key={cls._id} value={cls.name}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Section Selection */}
+              <div>
+                <select
+                  name="section"
+                  value={selectedSectionForForm}
+                  onChange={(e) => {
+                    setSelectedSectionForForm(e.target.value);
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.section;
+                      return next;
+                    });
+                  }}
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                  disabled={!selectedClassForForm}
+                >
+                  <option value="">Select Section</option>
+                  {selectedClassForForm &&
+                    (formSections.length > 0
+                      ? formSections
+                      : classes.find((c) => c.name === selectedClassForForm)?.sections || []
+                    ).map((sec) => (
+                      <option key={sec._id || sec} value={sec.name || sec}>
+                        {sec.name || sec}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Roll Number Input & Live Allocation/Capacity Feedback */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Roll Number
+                  </label>
+                  {isRollCalculating && (
+                    <span className="text-[11px] text-blue-600 animate-pulse">
+                      Calculating first available...
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    name="roll"
+                    value={formRollNo}
+                    placeholder={
+                      !selectedClassForForm || !selectedSectionForForm
+                        ? "Select Class & Section first"
+                        : isRollCalculating
+                        ? "Calculating first available roll number..."
+                        : "Roll Number"
+                    }
+                    disabled={!selectedClassForForm || !selectedSectionForForm || isRollCalculating}
+                    className={`border px-3 py-2 w-full rounded text-sm ${
+                      errors.roll
+                        ? "border-red-500 bg-red-50"
+                        : formCapacityInfo?.isFull
+                        ? "border-red-300 bg-gray-100 cursor-not-allowed"
+                        : ""
+                    }`}
+                    onChange={(e) => handleRollInputChange(e.target.value)}
+                    required
+                  />
+                  {formRollNo && autoRollNoPreview && formRollNo === autoRollNoPreview && !errors.roll && (
+                    <span className="absolute right-2 top-2 text-[11px] bg-blue-100 text-blue-700 font-medium px-2 py-0.5 rounded">
+                      Auto-allocated
+                    </span>
+                  )}
+                </div>
+
+                {formCapacityInfo && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-gray-500">
+                      Capacity: {formCapacityInfo.enrolledCount}/{formCapacityInfo.capacity} students
+                    </span>
+                    <span
+                      className={`font-medium ${
+                        formCapacityInfo.isFull
+                          ? "text-red-600 font-semibold"
+                          : formCapacityInfo.capacity - formCapacityInfo.enrolledCount <= 5
+                          ? "text-amber-600"
+                          : "text-green-600"
+                      }`}
+                    >
+                      {formCapacityInfo.isFull
+                        ? "Section Full"
+                        : `${formCapacityInfo.capacity - formCapacityInfo.enrolledCount} seats available`}
+                    </span>
+                  </div>
+                )}
+                {errors.roll && <p className="text-red-500 text-xs mt-1">{errors.roll}</p>}
+              </div>
+
+              <div>
+                <input
+                  name="password"
+                  placeholder="Password"
+                  defaultValue="default123"
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <select
+                  name="fee"
+                  className="border px-3 py-2 w-full rounded text-sm"
+                >
+                  <option value="Paid">Paid</option>
+                  <option value="Due">Due</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setNextStudentIdPreview("");
-                  }}
-                  className="px-4 py-2 border rounded"
+                  onClick={handleCloseForm}
+                  className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                  disabled={Boolean(formCapacityInfo?.isFull || errors.roll || isRollCalculating)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add
+                  Add Student
                 </button>
               </div>
             </form>

@@ -23,7 +23,6 @@ const StudentSchema = new Schema(
       },
       username: {
         type: String,
-        unique: true,
         trim: true,
       },
       DOB: {
@@ -173,5 +172,32 @@ const StudentSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// Compound unique index ensuring roll number uniqueness within a specific Class + Section per school
+StudentSchema.index(
+  {
+    schoolId: 1,
+    "personalInfo.class": 1,
+    "personalInfo.section": 1,
+    "personalInfo.rollNo": 1,
+  },
+  {
+    unique: true,
+    background: true,
+  }
+);
+
+StudentSchema.index(
+  { schoolId: 1, "personalInfo.username": 1 },
+  { unique: true, sparse: true, background: true }
+);
+
+StudentSchema.index(
+  { schoolId: 1, "personalInfo.stdId": 1 },
+  { unique: true, sparse: true, background: true }
+);
+
 const Student = mongoose.model("Student", StudentSchema);
 module.exports = Student;
+
+

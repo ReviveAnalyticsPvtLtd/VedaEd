@@ -18,6 +18,14 @@ const Notice = require("../communication/noticeModel");
 const User = require('../../models/User');
 const { generateStudentUsernameBase } = require("../../utils/studentUsernameGenerator");
 const { getTeacherRosterScope } = require("../../services/teacherAssignmentScope");
+const {
+  resolveClassSectionCapacity,
+  resolveClassAndSection,
+  getAssignedRollNumbers,
+  findSmallestAvailableRollNumber,
+  allocateNextRollNumber,
+  validateManualRollNumber,
+} = require("./services/rollNumberService");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
 
 /**
@@ -114,7 +122,7 @@ exports.createStudent = async (req, res) => {
   if (!schoolId) return;
   console.log("req-body", req.body);
   const {
-    personalInfo,
+    personalInfo = {},
     parent,
     curriculum,
     assignments,
@@ -124,10 +132,8 @@ exports.createStudent = async (req, res) => {
     emergencyContact,
   } = req.body;
   try {
-    const requiredFields = ["name", "class", "section", "rollNo"];
-    // class and section as id's aa rhe
+    const requiredFields = ["name", "class", "section"];
     for (let fields of requiredFields) {
-      console.log(fields);
       if (!personalInfo[fields]) {
         return res.status(400).json({
           success: false,
@@ -135,38 +141,70 @@ exports.createStudent = async (req, res) => {
         });
       }
     }
-    // Class with that name exists?
-    const { class: className, section: sectionName } = req.body.personalInfo;
 
-    const existClass = await Class.findOne({ name: className, schoolId });
-    console.log("existClass", existClass);
-    if (!existClass) {
-      return res.status(400).json({ message: "Class not found" });
+    const { class: className, section: sectionName } = personalInfo;
+
+    let classDoc = null;
+    let sectionDoc = null;
+    try {
+      const resolved = await resolveClassAndSection(schoolId, {
+        className,
+        sectionName,
+        classId: mongoose.isValidObjectId(String(className)) ? className : undefined,
+        sectionId: mongoose.isValidObjectId(String(sectionName)) ? sectionName : undefined,
+      });
+      classDoc = resolved.classDoc;
+      sectionDoc = resolved.sectionDoc;
+    } catch (resolveErr) {
+      return res.status(400).json({
+        success: false,
+        message: resolveErr.message,
+      });
     }
 
-    // Section with that name exists?
-    const existSection = await Section.findOne({ name: sectionName, schoolId }, "name");
-    console.log(existSection);
-    if (!existSection) {
-      return res.status(400).json({ message: "Section not found" });
+    // Roll number allocation / validation
+    let assignedRollNo = null;
+    const rawRoll = personalInfo.rollNo;
+    const isManualRollProvided = rawRoll !== undefined && rawRoll !== null && String(rawRoll).trim() !== "" && String(rawRoll).trim() !== "-" && String(rawRoll).trim() !== "auto";
+
+    if (isManualRollProvided) {
+      try {
+        const validated = await validateManualRollNumber(
+          schoolId,
+          classDoc._id,
+          sectionDoc._id,
+          rawRoll
+        );
+        assignedRollNo = validated.rollNo;
+      } catch (valErr) {
+        return res.status(valErr.statusCode || 400).json({
+          success: false,
+          message: valErr.message,
+        });
+      }
+    } else {
+      try {
+        const allocated = await allocateNextRollNumber(
+          schoolId,
+          classDoc._id,
+          sectionDoc._id
+        );
+        assignedRollNo = allocated.rollNo;
+      } catch (allocErr) {
+        return res.status(allocErr.statusCode || 400).json({
+          success: false,
+          message: allocErr.message,
+        });
+      }
     }
-    //CHECK IF SECTION BELONGS TO THIS CLASS
-    if (
-      !existClass.sections
-        .map((id) => id.toString())
-        .includes(existSection._id.toString())
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Section does not belong to this class" });
-    }
+
+    personalInfo.rollNo = assignedRollNo;
+
     // Student ID + login username (auto-generated from backend)
-    const stdIdClean = await generateNextStudentId();
-
-    // persist cleaned/generated stdId
+    let stdIdClean = await generateNextStudentId();
     personalInfo.stdId = stdIdClean;
 
-    const username = await generateUniqueStudentUsername(
+    let username = await generateUniqueStudentUsername(
       personalInfo.name,
       personalInfo.DOB || personalInfo.dateOfBirth,
       schoolId
@@ -192,36 +230,68 @@ exports.createStudent = async (req, res) => {
       });
     }
 
-    // const plainPassword = personalInfo.password;
-    // const hashedPassword = await bcrypt.hash(personalInfo.password, 10);
-    // personalInfo.password = hashedPassword;
+    // Create student with retry on concurrency race condition
+    let newStudent = null;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    const newStudent = await Student.create({
-      personalInfo: {
-        ...req.body.personalInfo,
-        class: existClass._id,
-        section: existSection._id,
-      },
-      schoolId,
-      parent,
-      curriculum,
-      assignments,
-      exams,
-      exams,
-      reports,
-      health,
-      ...(emergencyContact &&
-      typeof emergencyContact === "object" &&
-      (emergencyContact.phone || emergencyContact.name || emergencyContact.relation)
-        ? {
-            emergencyContact: {
-              name: emergencyContact.name || "",
-              relation: emergencyContact.relation || "",
-              phone: emergencyContact.phone || "",
-            },
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        newStudent = await Student.create({
+          personalInfo: {
+            ...personalInfo,
+            class: classDoc._id,
+            section: sectionDoc._id,
+            rollNo: assignedRollNo,
+            username,
+            stdId: stdIdClean,
+          },
+          schoolId,
+          parent,
+          curriculum,
+          assignments,
+          exams,
+          reports,
+          health,
+          ...(emergencyContact &&
+          typeof emergencyContact === "object" &&
+          (emergencyContact.phone || emergencyContact.name || emergencyContact.relation)
+            ? {
+                emergencyContact: {
+                  name: emergencyContact.name || "",
+                  relation: emergencyContact.relation || "",
+                  phone: emergencyContact.phone || "",
+                },
+              }
+            : {}),
+        });
+        break;
+      } catch (createErr) {
+        if (createErr.code === 11000 && attempts < maxAttempts) {
+          const keys = createErr.keyPattern ? Object.keys(createErr.keyPattern) : [];
+          if (keys.some((k) => k.includes("rollNo")) && !isManualRollProvided) {
+            const reAlloc = await allocateNextRollNumber(schoolId, classDoc._id, sectionDoc._id);
+            assignedRollNo = reAlloc.rollNo;
+            personalInfo.rollNo = assignedRollNo;
           }
-        : {}),
-    });
+          if (keys.some((k) => k.includes("username"))) {
+            username = await generateUniqueStudentUsername(
+              personalInfo.name,
+              personalInfo.DOB || personalInfo.dateOfBirth,
+              schoolId
+            );
+            personalInfo.username = username;
+          }
+          if (keys.some((k) => k.includes("stdId"))) {
+            stdIdClean = await generateNextStudentId();
+            personalInfo.stdId = stdIdClean;
+          }
+          continue;
+        }
+        throw createErr;
+      }
+    }
 
     // linking to parents
     if (parent) {
@@ -242,16 +312,12 @@ exports.createStudent = async (req, res) => {
 
     const studentDoc = await Student.findOne({ _id: newStudent._id, schoolId })
       .populate("parent")
-      .populate("personalInfo.class", "name") // only bring class name
-      .populate("personalInfo.section", "name"); // only bring section name
-    // convert to plain object
+      .populate("personalInfo.class", "name")
+      .populate("personalInfo.section", "name");
     const student = studentDoc.toObject();
 
-    // replace populated objects with just the `name`
     student.personalInfo.class = student.personalInfo.class?.name || null;
     student.personalInfo.section = student.personalInfo.section?.name || null;
-    // student.personalInfo.password = plainPassword;
-    // console.log("student: ", student);
 
     res.status(201).json({
       success: true,
@@ -266,7 +332,7 @@ exports.createStudent = async (req, res) => {
         await require('../../models/User').create({
           name: personalInfo.name,
           email: personalInfo.contactDetails?.email || personalInfo.username,
-          password: personalInfo.password, // bcrypt hashing is handled by User model pre-save hook
+          password: personalInfo.password,
           roleId: roleDoc._id,
           refId: newStudent._id,
           schoolId,
@@ -282,6 +348,12 @@ exports.createStudent = async (req, res) => {
     console.error("Error creating student:", error);
     if (error.code === 11000) {
       const keys = error.keyPattern ? Object.keys(error.keyPattern) : [];
+      if (keys.some((k) => k.includes("rollNo"))) {
+        return res.status(409).json({
+          success: false,
+          message: "Roll Number is already assigned in this class and section.",
+        });
+      }
       const fieldStr = keys.join(", ") || "record";
       return res.status(409).json({
         success: false,
@@ -290,7 +362,7 @@ exports.createStudent = async (req, res) => {
           : `Duplicate ${fieldStr}. This value is already registered.`,
       });
     }
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
@@ -806,59 +878,7 @@ exports.updateStudent = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const piRaw = req.body.personalInfo || {};
-    const className = normalizeClassSectionLookupName(piRaw.class);
-    const sectionName = normalizeClassSectionLookupName(piRaw.section);
-    console.log("Extracted className:", className, "sectionName:", sectionName);
-
-    let existClass = null;
-    let existSection = null;
-
-    // Only validate class and section if they are provided in the request
-    if (className) {
-      console.log("Looking for class with name:", className);
-      existClass = await Class.findOne({ name: className, schoolId });
-      console.log("existClass", existClass);
-      if (!existClass) {
-        return res.status(400).json({ message: "Class not found" });
-      }
-    } else {
-      console.log("No className provided, skipping class validation");
-    }
-
-    if (sectionName) {
-      console.log("Looking for section with name:", sectionName);
-      existSection = await Section.findOne({ name: sectionName, schoolId }, "name");
-      console.log("existSection", existSection);
-      if (!existSection) {
-        return res.status(400).json({ message: "Section not found" });
-      }
-    } else {
-      console.log("No sectionName provided, skipping section validation");
-    }
-
-    // Only validate class-section relationship if both are provided
-    if (existClass && existSection) {
-      if (
-        !existClass.sections
-          .map((id) => id.toString())
-          .includes(existSection._id.toString())
-      ) {
-        return res
-          .status(400)
-          .json({ message: "Section does not belong to this class" });
-      }
-    }
-
-    // If password is being updated, hash it
-    if (updateData.personalInfo?.password) {
-      updateData.personalInfo.password = await bcrypt.hash(
-        updateData.personalInfo.password,
-        10
-      );
-    }
-
-    // Get the existing student to preserve required fields
+    // Get the existing student
     const existingStudent = await Student.findOne({ _id: id, schoolId });
     if (!existingStudent) {
       return res.status(404).json({
@@ -879,6 +899,107 @@ exports.updateStudent = async (req, res) => {
             "Access denied. You can only update students in your assigned classes.",
         });
       }
+    }
+
+    const piRaw = req.body.personalInfo || {};
+    const className = normalizeClassSectionLookupName(piRaw.class);
+    const sectionName = normalizeClassSectionLookupName(piRaw.section);
+    console.log("Extracted className:", className, "sectionName:", sectionName);
+
+    let targetClass = null;
+    let targetSection = null;
+
+    if (className) {
+      if (mongoose.isValidObjectId(className)) {
+        targetClass = await Class.findOne({ _id: className, schoolId });
+      }
+      if (!targetClass) {
+        targetClass = await Class.findOne({ name: className, schoolId });
+      }
+      if (!targetClass) {
+        return res.status(400).json({ success: false, message: "Class not found" });
+      }
+    } else if (existingStudent.personalInfo?.class) {
+      targetClass = await Class.findOne({ _id: existingStudent.personalInfo.class, schoolId });
+    }
+
+    if (sectionName) {
+      if (mongoose.isValidObjectId(sectionName)) {
+        targetSection = await Section.findOne({ _id: sectionName, schoolId });
+      }
+      if (!targetSection && targetClass) {
+        targetSection = await Section.findOne({
+          _id: { $in: targetClass.sections || [] },
+          name: sectionName,
+          schoolId,
+        });
+      }
+      if (!targetSection) {
+        targetSection = await Section.findOne({ name: sectionName, schoolId });
+      }
+      if (!targetSection) {
+        return res.status(400).json({ success: false, message: "Section not found" });
+      }
+    } else if (existingStudent.personalInfo?.section) {
+      targetSection = await Section.findOne({ _id: existingStudent.personalInfo.section, schoolId });
+    }
+
+    if (targetClass && targetSection) {
+      const secIds = (targetClass.sections || []).map((s) => s.toString());
+      if (!secIds.includes(targetSection._id.toString())) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Section does not belong to this class" });
+      }
+    }
+
+    const isClassChanged = targetClass && targetClass._id.toString() !== existingStudent.personalInfo?.class?.toString();
+    const isSectionChanged = targetSection && targetSection._id.toString() !== existingStudent.personalInfo?.section?.toString();
+
+    // Roll number resolution
+    let finalRollNo = undefined;
+    const isExplicitRoll = piRaw.rollNo !== undefined && piRaw.rollNo !== null && String(piRaw.rollNo).trim() !== "" && String(piRaw.rollNo).trim() !== "-";
+
+    if (isExplicitRoll && targetClass && targetSection) {
+      const validated = await validateManualRollNumber(
+        schoolId,
+        targetClass._id,
+        targetSection._id,
+        piRaw.rollNo,
+        id
+      );
+      finalRollNo = validated.rollNo;
+    } else if ((isClassChanged || isSectionChanged) && targetClass && targetSection) {
+      // Student moved to new class/section without explicit new roll number
+      try {
+        const kept = await validateManualRollNumber(
+          schoolId,
+          targetClass._id,
+          targetSection._id,
+          existingStudent.personalInfo?.rollNo,
+          id
+        );
+        finalRollNo = kept.rollNo;
+      } catch (keptErr) {
+        // Existing roll is invalid/occupied in destination class+section, auto-allocate
+        const allocated = await allocateNextRollNumber(
+          schoolId,
+          targetClass._id,
+          targetSection._id,
+          id
+        );
+        finalRollNo = allocated.rollNo;
+      }
+    } else {
+      finalRollNo = piRaw.rollNo !== undefined && piRaw.rollNo !== null && String(piRaw.rollNo).trim() !== "" ? String(piRaw.rollNo).trim() : existingStudent.personalInfo?.rollNo;
+    }
+
+    // If password is being updated, hash it
+    if (updateData.personalInfo?.password) {
+      updateData.personalInfo.password = await bcrypt.hash(
+        updateData.personalInfo.password,
+        10
+      );
     }
 
     const pi = updateData.personalInfo || {};
@@ -935,7 +1056,7 @@ exports.updateStudent = async (req, res) => {
         "personalInfo.address": pick("address"),
         "personalInfo.contactDetails": mergedContactDetails,
         "personalInfo.fees": pick("fees"),
-        "personalInfo.rollNo": pick("rollNo"),
+        "personalInfo.rollNo": finalRollNo,
         "personalInfo.bloodGroup": finalBloodGroup,
       }
     };
@@ -954,11 +1075,11 @@ exports.updateStudent = async (req, res) => {
     }
 
     // Only update class and section if they are provided and valid
-    if (existClass) {
-      updateFields.$set["personalInfo.class"] = existClass._id;
+    if (targetClass) {
+      updateFields.$set["personalInfo.class"] = targetClass._id;
     }
-    if (existSection) {
-      updateFields.$set["personalInfo.section"] = existSection._id;
+    if (targetSection) {
+      updateFields.$set["personalInfo.section"] = targetSection._id;
     }
 
     if (updateData.emergencyContact !== undefined && updateData.emergencyContact !== null) {
@@ -983,12 +1104,6 @@ exports.updateStudent = async (req, res) => {
       };
     }
 
-    console.log("Existing student class:", existingStudent.personalInfo.class);
-    console.log("Existing student section:", existingStudent.personalInfo.section);
-    console.log("Existing student username:", existingStudent.personalInfo.username);
-    console.log("Username type:", typeof existingStudent.personalInfo.username);
-    console.log("Username is null?", existingStudent.personalInfo.username === null);
-    console.log("Username is undefined?", existingStudent.personalInfo.username === undefined);
     console.log("Final update data:", JSON.stringify(updateFields, null, 2));
 
     // Update student
@@ -1092,7 +1207,16 @@ exports.updateStudent = async (req, res) => {
 
   } catch (error) {
     console.error("Error updating student:", error);
-    res.status(500).json({
+    if (error.code === 11000) {
+      const keys = error.keyPattern ? Object.keys(error.keyPattern) : [];
+      if (keys.some((k) => k.includes("rollNo"))) {
+        return res.status(409).json({
+          success: false,
+          message: "Roll Number is already assigned to another student in this class and section.",
+        });
+      }
+    }
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
     });
@@ -1301,6 +1425,59 @@ exports.getNextStudentId = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getNextRollNumber = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
+  try {
+    const { classId, className, sectionId, sectionName, studentId } = req.query;
+
+    if (!classId && !className) {
+      return res.status(400).json({ success: false, message: "Class is required" });
+    }
+    if (!sectionId && !sectionName) {
+      return res.status(400).json({ success: false, message: "Section is required" });
+    }
+
+    const { classDoc, sectionDoc } = await resolveClassAndSection(schoolId, {
+      classId,
+      className,
+      sectionId,
+      sectionName,
+    });
+
+    const capacity = resolveClassSectionCapacity(classDoc, sectionDoc);
+    const { usedNumbers, totalEnrolled } = await getAssignedRollNumbers(
+      schoolId,
+      classDoc._id,
+      sectionDoc._id,
+      studentId
+    );
+
+    const nextRoll = findSmallestAvailableRollNumber(usedNumbers, capacity);
+    const isFull = nextRoll === null;
+
+    return res.status(200).json({
+      success: true,
+      className: classDoc.name,
+      sectionName: sectionDoc.name,
+      capacity,
+      enrolledCount: totalEnrolled,
+      nextRollNo: nextRoll ? String(nextRoll) : null,
+      isFull,
+      usedRollNumbers: Array.from(usedNumbers).sort((a, b) => a - b),
+      message: isFull
+        ? `This class/section has reached its maximum capacity of ${capacity} students. No Roll Number is available.`
+        : undefined,
+    });
+  } catch (error) {
+    console.error("Error fetching next roll number:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
     });
   }
 };
@@ -1699,6 +1876,9 @@ exports.importStudents = async (req, res) => {
     const Role = require('../../models/Role');
     const studentRole = await Role.findOne({ name: 'student' }).lean();
 
+    // Track batch allocated roll numbers per classId:sectionId
+    const batchRollMap = new Map();
+
     for (const stu of students) {
       try {
         const name = String(stu.personalInfo?.name || "").trim();
@@ -1712,37 +1892,49 @@ exports.importStudents = async (req, res) => {
 
         // ── Resolve Class ObjectId ──────────────────────────────────────────
         let classId = null;
+        let classDoc = null;
         if (rawClass && rawClass !== "-") {
-          // 1. Try exact match (e.g., "Class 10")
-          let cls = await Class.findOne({ name: rawClass, schoolId });
-          
-          // 2. If not found and rawClass is just a number (e.g., "10"), try "Class 10"
-          if (!cls && /^\d+$/.test(rawClass)) {
-            cls = await Class.findOne({ name: `Class ${rawClass}`, schoolId });
+          classDoc = await Class.findOne({ name: rawClass, schoolId });
+          if (!classDoc && /^\d+$/.test(rawClass)) {
+            classDoc = await Class.findOne({ name: `Grade ${rawClass}`, schoolId }) ||
+                       await Class.findOne({ name: `Class ${rawClass}`, schoolId });
           }
-
-          if (cls) {
-            classId = cls._id;
+          if (classDoc) {
+            classId = classDoc._id;
           } else {
-            console.warn(`Import: Class not found – "${rawClass}"`);
+            results.errors.push({ name, reason: `Class not found: "${rawClass}"` });
+            continue;
           }
+        } else {
+          results.errors.push({ name, reason: "Class is required" });
+          continue;
         }
 
         // ── Resolve Section ObjectId ────────────────────────────────────────
         let sectionId = null;
+        let sectionDoc = null;
         if (rawSection && rawSection !== "-") {
-          const sec = await Section.findOne({ name: rawSection, schoolId });
-          if (sec) {
-            sectionId = sec._id;
+          sectionDoc = await Section.findOne({ name: rawSection, schoolId });
+          if (sectionDoc) {
+            sectionId = sectionDoc._id;
           } else {
-            console.warn(`Import: Section not found – "${rawSection}"`);
+            results.errors.push({ name, reason: `Section not found: "${rawSection}"` });
+            continue;
           }
+        } else {
+          results.errors.push({ name, reason: "Section is required" });
+          continue;
+        }
+
+        // Verify section belongs to class
+        const secIds = (classDoc.sections || []).map((s) => s.toString());
+        if (!secIds.includes(sectionDoc._id.toString())) {
+          results.errors.push({ name, reason: `Section "${rawSection}" does not belong to Class "${rawClass}"` });
+          continue;
         }
 
         // ── Duplicate check: skip if same name + class + section exists ─────
-        const duplicateQuery = { schoolId, "personalInfo.name": name };
-        if (classId)   duplicateQuery["personalInfo.class"]   = classId;
-        if (sectionId) duplicateQuery["personalInfo.section"] = sectionId;
+        const duplicateQuery = { schoolId, "personalInfo.name": name, "personalInfo.class": classId, "personalInfo.section": sectionId };
 
         const existing = await Student.findOne(duplicateQuery).select("_id personalInfo.stdId").lean();
         if (existing) {
@@ -1751,6 +1943,47 @@ exports.importStudents = async (req, res) => {
             reason: `Student already exists (ID: ${existing.personalInfo?.stdId || existing._id})`
           });
           continue;
+        }
+
+        // ── Roll Number Allocation & Batch Conflict Tracking ────────────────
+        const batchKey = `${classId.toString()}:${sectionId.toString()}`;
+        if (!batchRollMap.has(batchKey)) {
+          const dbAssigned = await getAssignedRollNumbers(schoolId, classId, sectionId);
+          batchRollMap.set(batchKey, new Set(dbAssigned.usedNumbers));
+        }
+        const currentBatchSet = batchRollMap.get(batchKey);
+        const capacity = resolveClassSectionCapacity(classDoc, sectionDoc);
+
+        const rawRoll = stu.personalInfo?.rollNo;
+        const hasManualRoll = rawRoll !== undefined && rawRoll !== null && String(rawRoll).trim() !== "" && String(rawRoll).trim() !== "-";
+
+        let finalRollNo = null;
+        if (hasManualRoll) {
+          const parsed = parseInt(String(rawRoll).trim(), 10);
+          if (!Number.isInteger(parsed) || parsed < 1 || parsed > capacity || currentBatchSet.has(parsed)) {
+            if (!Number.isInteger(parsed) || parsed < 1) {
+              results.errors.push({ name, reason: `Invalid roll number: "${rawRoll}"` });
+              continue;
+            }
+            if (parsed > capacity) {
+              results.errors.push({ name, reason: `Roll number ${parsed} exceeds capacity of ${capacity}` });
+              continue;
+            }
+            if (currentBatchSet.has(parsed)) {
+              results.errors.push({ name, reason: `Roll number ${parsed} is already assigned in ${classDoc.name} - Section ${sectionDoc.name}` });
+              continue;
+            }
+          }
+          finalRollNo = String(parsed);
+          currentBatchSet.add(parsed);
+        } else {
+          const nextRoll = findSmallestAvailableRollNumber(currentBatchSet, capacity);
+          if (nextRoll === null) {
+            results.errors.push({ name, reason: `Class ${classDoc.name} - Section ${sectionDoc.name} reached capacity of ${capacity} students` });
+            continue;
+          }
+          finalRollNo = String(nextRoll);
+          currentBatchSet.add(nextRoll);
         }
 
         // ── Generate unique Student ID (same logic as createStudent) ────────
@@ -1770,7 +2003,7 @@ exports.importStudents = async (req, res) => {
             section: sectionId,
             stdId,
             username,
-            rollNo: String(stu.personalInfo?.rollNo || "-").trim(),
+            rollNo: finalRollNo,
             fees: (["Paid", "Due"].includes(String(stu.personalInfo?.fees || "").charAt(0).toUpperCase() + String(stu.personalInfo?.fees || "").slice(1).toLowerCase())) 
                   ? String(stu.personalInfo?.fees || "").charAt(0).toUpperCase() + String(stu.personalInfo?.fees || "").slice(1).toLowerCase() 
                   : "Due",
@@ -1785,8 +2018,9 @@ exports.importStudents = async (req, res) => {
           _id: newStudent._id,
           name,
           stdId,
-          class: rawClass || "-",
-          section: rawSection || "-",
+          rollNo: finalRollNo,
+          class: classDoc.name,
+          section: sectionDoc.name,
         });
 
         // ── Create Auth User record (background, non-blocking) ───────────────
