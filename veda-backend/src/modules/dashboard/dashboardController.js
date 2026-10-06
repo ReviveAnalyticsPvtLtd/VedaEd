@@ -130,9 +130,8 @@ exports.getAdminDashboardStats = async (req, res) => {
     const schoolId = requireSchool(req, res);
     if (!schoolId) return;
 
-    // =========================
+
     // TOTAL COUNTS
-    // =========================
 
     const totalStudents =
       await Student.countDocuments({ schoolId });
@@ -143,16 +142,12 @@ exports.getAdminDashboardStats = async (req, res) => {
     const totalClasses =
       await Class.countDocuments({ schoolId });
 
-    // =========================
     // STUDENTS BY CLASS
-    // =========================
 
     const studentsByClass =
       await Student.aggregate(buildStudentsByClassPipeline(schoolId));
 
-    // =========================
     // FINAL RESPONSE
-    // =========================
 
     res.json({
       students: totalStudents,
@@ -192,7 +187,8 @@ exports.getMasterDashboardStats = async (req, res) => {
       totalNotices,
       totalComplaints,
       totalMessages,
-      totalLogs
+      totalLogs,
+      totalEnquiries
     ] = await Promise.all([
       Student.countDocuments({ schoolId }),
       Staff.countDocuments({ schoolId }),
@@ -202,12 +198,9 @@ exports.getMasterDashboardStats = async (req, res) => {
       Notice.countDocuments({ schoolId }),
       Complaint.countDocuments({ schoolId }),
       Message.countDocuments({ schoolId }),
-      CommunicationLog.countDocuments({ schoolId })
+      CommunicationLog.countDocuments({ schoolId }),
+      AdmissionEnquiry.countDocuments({ schoolId })
     ]);
-
-    // AdmissionEnquiry declares no schoolId in its schema, so there is no field
-    // to scope by. Counting it would return every school's enquiries.
-    const totalEnquiries = 0;
 
     // Get gender ratio for students
     const genderRatio = await Student.aggregate(buildGenderRatioPipeline(schoolId));

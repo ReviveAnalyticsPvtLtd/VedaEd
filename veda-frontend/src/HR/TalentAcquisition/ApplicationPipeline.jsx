@@ -72,7 +72,7 @@ export default function ApplicationPipeline() {
         setIsDetailsModalOpen(false);
       } catch (error) {
         console.error(error);
-        alert("Error converting employee");
+        alert(error?.response?.data?.message || "Error converting employee");
       }
     }
   };

@@ -64,6 +64,11 @@ const getSchoolMessagePartyIds = async (schoolId) => {
   return [...staffIds, ...studentIds, ...parentIds, ...userIds];
 };
 
+// StaffPayroll carries no schema-level schoolId of its own, so Staff is the
+// only tenant-owned anchor available for its rows.
+const getSchoolStaffIds = async (schoolId) =>
+  Staff.find({ schoolId }).distinct("_id");
+
 const hasAnyRole = (user, roles) => {
   const role = normalizeRole(user?.role);
   return roles.includes(role);
@@ -865,7 +870,9 @@ exports.getStaffPayroll = async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid month and year are required" });
     }
 
-    let payrolls = await StaffPayroll.find({ month, year }).populate("staff", "personalInfo.name personalInfo.staffId personalInfo.role");
+    const staffIds = await getSchoolStaffIds(schoolId);
+    let payrolls = await StaffPayroll.find({ month, year, staff: { $in: staffIds } })
+      .populate("staff", "personalInfo.name personalInfo.staffId personalInfo.role");
 
     // Seed monthly payroll rows for active staff when none exist yet.
     if (payrolls.length === 0) {
@@ -891,7 +898,8 @@ exports.getStaffPayroll = async (req, res) => {
           }
         }
 
-        payrolls = await StaffPayroll.find({ month, year }).populate("staff", "personalInfo.name personalInfo.staffId personalInfo.role");
+        payrolls = await StaffPayroll.find({ month, year, staff: { $in: staffIds } })
+          .populate("staff", "personalInfo.name personalInfo.staffId personalInfo.role");
       }
     }
 
@@ -902,6 +910,51 @@ exports.getStaffPayroll = async (req, res) => {
   }
 };
 
+exports.getPayrollTrend = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
+  try {
+    const requested = Number(req.query.months);
+    const months = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 24) : 12;
+    const now = new Date();
+    const rangeStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+    const staffIds = await getSchoolStaffIds(schoolId);
+    const rows = await StaffPayroll.find({
+      staff: { $in: staffIds },
+      year: { $gte: rangeStart.getFullYear() },
+    }).select("month year basic allowances deductions").lean();
+
+    const buckets = [];
+    const bucketByKey = new Map();
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const bucket = { month: d.toLocaleString("en", { month: "short" }), amount: 0 };
+      buckets.push(bucket);
+      bucketByKey.set(key, bucket);
+    }
+
+    rows.forEach((row) => {
+      const key = `${row.year}-${String(row.month).padStart(2, "0")}`;
+      const bucket = bucketByKey.get(key);
+      if (!bucket) return;
+      bucket.amount +=
+        (Number(row.basic) || 0) +
+        (Number(row.allowances) || 0) -
+        (Number(row.deductions) || 0);
+    });
+
+    res.status(200).json({ success: true, trend: buckets });
+  } catch (error) {
+    console.error("Error building payroll trend:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
 // Update payroll status
 exports.updateStaffPayroll = async (req, res) => {
   const schoolId = requireSchool(req, res);
@@ -909,7 +962,11 @@ exports.updateStaffPayroll = async (req, res) => {
   try {
     const { id } = req.params;
     const { payStatus, note } = req.body;
-    const updated = await StaffPayroll.findByIdAndUpdate(id, { payStatus, note }, { new: true });
+    const updated = await StaffPayroll.findOneAndUpdate(
+      { _id: id, staff: { $in: await getSchoolStaffIds(schoolId) } },
+      { payStatus, note },
+      { new: true }
+    );
     if (!updated) return res.status(404).json({ success: false, message: "Payroll record not found" });
     res.status(200).json({ success: true, payroll: updated });
   } catch (error) {
@@ -946,6 +1003,8 @@ const generateStaffId = async (schoolId) => {
   const paddedSequence = String(counterDoc.sequence).padStart(3, "0");
   return `TCH-${currentYear}-${paddedSequence}`;
 };
+
+exports.generateStaffId = generateStaffId;
 
 const ensureYearCounterInitialized = async (currentYear, yearPrefix, schoolId) => {
   const hasCounter = await StaffIdCounter.exists({ year: currentYear });
@@ -1082,6 +1141,49 @@ exports.getAllStaff = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Internal Server Error"
+    });
+  }
+};
+
+exports.getHiringTrend = async (req, res) => {
+  const schoolId = requireSchool(req, res);
+  if (!schoolId) return;
+  try {
+    const requested = Number(req.query.months);
+    const months = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 24) : 12;
+    const now = new Date();
+    const rangeStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+    const staff = await Staff.find({ schoolId })
+      .select("joiningDate createdAt")
+      .lean();
+
+    const buckets = [];
+    const bucketByKey = new Map();
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const bucket = { month: d.toLocaleString("en", { month: "short" }), hires: 0 };
+      buckets.push(bucket);
+      bucketByKey.set(key, bucket);
+    }
+
+    staff.forEach((doc) => {
+      const raw = doc.joiningDate || doc.createdAt;
+      if (!raw) return;
+      const joined = new Date(raw);
+      if (Number.isNaN(joined.getTime()) || joined < rangeStart) return;
+      const key = `${joined.getFullYear()}-${String(joined.getMonth() + 1).padStart(2, "0")}`;
+      const bucket = bucketByKey.get(key);
+      if (bucket) bucket.hires += 1;
+    });
+
+    res.status(200).json({ success: true, hiringTrend: buckets });
+  } catch (error) {
+    console.error("Error building hiring trend:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 };

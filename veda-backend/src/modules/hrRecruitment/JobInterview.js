@@ -3,6 +3,13 @@ const { Schema } = mongoose;
 
 const JobInterviewSchema = new Schema(
     {
+        schoolId: {
+            type: Schema.Types.ObjectId,
+            ref: "School",
+            required: true,
+            index: true,
+            immutable: true,
+        },
         application: { type: Schema.Types.ObjectId, ref: "JobApplication", required: true },
         interviewerName: { type: String, required: true }, // Or ObjectId ref to User/Staff
         interviewDate: { type: Date, required: true },
