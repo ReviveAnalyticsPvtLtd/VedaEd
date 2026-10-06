@@ -4,8 +4,12 @@ const Staff = require("../staff/staffModels");
 const Class = require("../class/classSchema");
 const Notice = require("../communication/noticeModel");
 const Complaint = require("../communication/complaintModel");
+const Message = require("../communication/messageModel");
+const CommunicationLog = require("../communication/communicationLogModel");
 const AdmissionApplication = require("../admission/admissionApplicationModel");
 const AdmissionEnquiry = require("../admission/admissionEnquiryModel");
+const Attendance = require("../attendence/attendenceSchema");
+const { AcademicYear, FeeTransaction } = require("../fees/feeModels");
 
 /**
  * Resolves the authoritative tenant for the request.
@@ -81,6 +85,46 @@ const buildGenderRatioPipeline = (schoolId) => [
   }
 ];
 
+const currentWeekRange = () => {
+  const start = new Date();
+  start.setDate(start.getDate() + (start.getDay() === 0 ? -6 : 1 - start.getDay()));
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 4);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const buildWeeklyAttendancePipeline = (studentIds, start, end) => [
+  { $match: { student: { $in: studentIds }, date: { $gte: start, $lte: end } } },
+  {
+    $group: {
+      _id: { $dayOfWeek: "$date" },
+      total: { $sum: 1 },
+      attended: {
+        $sum: { $cond: [{ $in: ["$status", ["Present", "Late"]] }, 1, 0] }
+      }
+    }
+  }
+];
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+/**
+ * Collected = sum of Paid transactions for the active academic year.
+ * 'Cancelled' rows are excluded, matching the parent dashboard.
+ */
+const buildFeesCollectedPipeline = (schoolId, year) => [
+  {
+    $match: {
+      schoolId: new mongoose.Types.ObjectId(String(schoolId)),
+      year,
+      status: "Paid"
+    }
+  },
+  { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+];
+
 exports.getAdminDashboardStats = async (req, res) => {
   try {
     const schoolId = requireSchool(req, res);
@@ -144,36 +188,25 @@ exports.getMasterDashboardStats = async (req, res) => {
       totalStaff,
       totalClasses,
       totalApplications,
-      confirmedAdmissions
+      confirmedAdmissions,
+      totalNotices,
+      totalComplaints,
+      totalMessages,
+      totalLogs
     ] = await Promise.all([
       Student.countDocuments({ schoolId }),
       Staff.countDocuments({ schoolId }),
       Class.countDocuments({ schoolId }),
       AdmissionApplication.countDocuments({ schoolId }),
-      AdmissionApplication.countDocuments({ schoolId, status: "Approved" })
+      AdmissionApplication.countDocuments({ schoolId, status: "Approved" }),
+      Notice.countDocuments({ schoolId }),
+      Complaint.countDocuments({ schoolId }),
+      Message.countDocuments({ schoolId }),
+      CommunicationLog.countDocuments({ schoolId })
     ]);
 
-    // ---- Intentionally fail-closed communication counts --------------------
-    // Notice and Complaint are NOT counted here.
-    //
-    // Neither model declares a schoolId field, and both run with strict:true,
-    // so Mongoose silently strips schoolId from newly created documents while
-    // older documents in the database still carry one. Ownership therefore
-    // cannot be relied on: a count would be a cross-school total today and
-    // would silently start under-counting as new records arrive. Reporting 0 is
-    // a safe under-count; reporting the raw total would be a real data leak.
-    //
-    // These two metrics are pending the separate Notice/Complaint
-    // tenant-ownership fix (declare schoolId on both models, backfill, then
-    // scope). The response keys stay in place so the contract is unchanged.
-    const totalNotices = 0;
-    const totalComplaints = 0;
-
-    // ---- Intentionally fail-closed admission enquiry count ----------------
-    // AdmissionEnquiry has no schoolId on the model and none in the schema at
-    // all, so there is no field to scope by. Counting it would return every
-    // school's enquiries, so it stays at 0 until the model is made
-    // tenant-owned. Same reasoning as Notice/Complaint.
+    // AdmissionEnquiry declares no schoolId in its schema, so there is no field
+    // to scope by. Counting it would return every school's enquiries.
     const totalEnquiries = 0;
 
     // Get gender ratio for students
@@ -181,6 +214,51 @@ exports.getMasterDashboardStats = async (req, res) => {
 
     // Get students by class for pie chart
     const studentsByClass = await Student.aggregate(buildStudentsByClassPipeline(schoolId));
+
+    // One read serves both the attendance chart and the per-student fee
+    // balances below, so `personalInfo.class` is populated once here.
+    const students = await Student.find({ schoolId }).populate("personalInfo.class");
+
+    const { start, end } = currentWeekRange();
+    const attendanceRows = await Attendance.aggregate(
+      buildWeeklyAttendancePipeline(students.map((s) => s._id), start, end)
+    );
+
+    const attendanceByDay = new Map(attendanceRows.map((r) => [r._id, r]));
+    const weeklyAttendance = WEEKDAYS.map((day, i) => {
+      const row = attendanceByDay.get(i + 2);
+      if (!row || !row.total) return { day, value: null };
+      return { day, value: Math.round((row.attended / row.total) * 100) };
+    });
+
+    // =========================
+    // FEES
+    // =========================
+
+    // AcademicYear is deliberately not tenant-owned (one active session per
+    // deployment), so it is read unscoped exactly as the Fees module does.
+    const activeYear = await AcademicYear.findOne({ isActive: true })
+      .select("label")
+      .lean();
+
+    let feesCollected = 0;
+    let feesPending = 0;
+
+    if (activeYear?.label) {
+      const [collectedRow] = await FeeTransaction.aggregate(
+        buildFeesCollectedPipeline(schoolId, activeYear.label)
+      );
+      feesCollected = collectedRow?.total || 0;
+
+      // Outstanding balance is derived, never stored. It is taken from the Fees
+      // module's own calculation so this figure can never drift from the one
+      // shown on the Fees page.
+      const { calculateStudentFees } = require("../fees/feeControllers");
+      for (const student of students) {
+        const summary = await calculateStudentFees(student, activeYear.label, schoolId);
+        feesPending += summary.balance || 0;
+      }
+    }
 
     res.json({
       success: true,
@@ -190,12 +268,14 @@ exports.getMasterDashboardStats = async (req, res) => {
           totalStaff,
           totalClasses,
           studentsByClass: studentsByClass.map(item => ({ name: `Class ${item._id}`, value: item.count })),
-          genderRatio: genderRatio.map(item => ({ name: item._id || 'Unknown', value: item.count }))
+          genderRatio: genderRatio.map(item => ({ name: item._id || 'Unknown', value: item.count })),
+          weeklyAttendance
         },
         communication: {
           totalNotices,
           totalComplaints,
-          totalMessages: 0 // Placeholder until message model is confirmed
+          totalMessages,
+          totalLogs
         },
         admission: {
           totalApplications,
@@ -209,8 +289,9 @@ exports.getMasterDashboardStats = async (req, res) => {
           totalEvents: 0 // Placeholder
         },
         fees: {
-          collected: 0,
-          pending: 0
+          collected: feesCollected,
+          pending: feesPending,
+          year: activeYear?.label || null
         }
       }
     });

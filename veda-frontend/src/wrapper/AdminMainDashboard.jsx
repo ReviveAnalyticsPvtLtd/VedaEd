@@ -3,6 +3,8 @@ import api from "../services/apiClient";
 import { Link } from "react-router-dom";
 import config from "../config";
 import { canViewModule } from "../utils/adminPermissions";
+import { getAllEvents } from "../services/calendarAPI";
+import { format, isAfter } from "date-fns";
 import {
   PieChart, Pie, Cell,
   BarChart, Bar,
@@ -17,15 +19,17 @@ const COLORS = ["#4F46E5", "#22C55E", "#3B82F6", "#F59E0B", "#EF4444"];
 
 const TOP_MODULES = [
   { title: "Admin SIS", key: "Admin SIS", valueKey: "sis", path: "/admin", format: (s) => `${s?.totalStudents || 0} Students` },
-  { title: "Communication", key: "Communication", valueKey: "communication", path: "/communication", format: (s) => `${((s?.totalNotices || 0) + (s?.totalComplaints || 0))} Logs` },
-  { title: "Calendar", key: "Admin Calendar", valueKey: "calendar", path: "/admincalendar", format: (s) => `${s?.totalEvents || 0} Events` },
+  { title: "Communication", key: "Communication", valueKey: "communication", path: "/communication", format: (s) => `${s?.totalLogs || 0} Logs` },
+  { title: "Calendar", key: "Admin Calendar", valueKey: "calendar", path: "/admin/calendar/annual", format: (s) => `${s?.totalEvents || 0} Events` },
   { title: "Admission", key: "Admission", valueKey: "admission", path: "/admission", format: (s) => `${s?.confirmedAdmissions || 0} Confirmed` },
   { title: "HR Module", key: "HR Module", valueKey: "hr", path: "/hr", format: (s) => `${s?.totalStaff || 0} Staff` },
-  { title: "Fees", key: "Fees", valueKey: "fees", path: "/fees", format: (s) => `₹${s?.collected || 0} Collected` },
+  { title: "Fees", key: "Fees", valueKey: "fees", path: "/admin/fees", format: (s) => `₹${s?.collected || 0} Collected` },
 ];
 
 export default function AdminMasterDashboard() {
   const [stats, setStats] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const visibleTopModules = useMemo(() => TOP_MODULES.filter((m) => canViewModule(m.key)), []);
 
@@ -45,6 +49,31 @@ export default function AdminMasterDashboard() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await getAllEvents();
+        setEvents(Array.isArray(res?.data) ? res.data : []);
+      } catch (err) {
+        console.error("Error fetching calendar events:", err);
+      } finally {
+        setEventsLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
+
+  // Only events that have not finished yet, soonest first.
+  const UPCOMING_EVENTS = useMemo(
+    () =>
+      events
+        .map((e) => ({ ...e, start: new Date(e.startDate), end: new Date(e.endDate) }))
+        .filter((e) => !isNaN(e.start) && isAfter(e.end, new Date()))
+        .sort((a, b) => a.start - b.start)
+        .slice(0, 5),
+    [events]
+  );
+
   if (loading) {
     return <div className="p-4 text-center">Loading Dashboard...</div>;
   }
@@ -57,6 +86,10 @@ export default function AdminMasterDashboard() {
 
   const STUDENTS_BY_CLASS = sisStats.studentsByClass || [];
   const GENDER_RATIO = sisStats.genderRatio || [];
+
+  const ATTENDANCE_TREND = (sisStats.weeklyAttendance || []).filter(
+    (d) => d.value !== null && d.value !== undefined
+  );
 
   const COMM_STATS = [
     { name: "Notices", value: commStats.totalNotices || 0 },
@@ -82,7 +115,7 @@ export default function AdminMasterDashboard() {
               : mod.valueKey === "communication"
                 ? commStats
                 : mod.valueKey === "calendar"
-                  ? stats?.calendar
+                  ? { totalEvents: UPCOMING_EVENTS.length }
                   : mod.valueKey === "admission"
                     ? admissionStats
                     : mod.valueKey === "hr"
@@ -107,7 +140,7 @@ export default function AdminMasterDashboard() {
           </Card>
 
           <Card title="Weekly Attendance">
-            <BarBlock data={[ {day: 'Mon', value: 85}, {day: 'Tue', value: 90}, {day: 'Wed', value: 75}, {day: 'Thu', value: 95}, {day: 'Fri', value: 80} ]} x="day" />
+            {ATTENDANCE_TREND.length > 0 ? <BarBlock data={ATTENDANCE_TREND} x="day" /> : <div className="h-44 flex items-center justify-center text-gray-400">No attendance data</div>}
           </Card>
 
           <Card title="Gender Ratio">
@@ -128,6 +161,7 @@ export default function AdminMasterDashboard() {
               <Item to="/communication/notices">Notices ({commStats.totalNotices || 0})</Item>
               <Item to="/communication/messages">Messages ({commStats.totalMessages || 0})</Item>
               <Item to="/communication/complaints">Complaints ({commStats.totalComplaints || 0})</Item>
+              <Item to="/communication/logs">Logs ({commStats.totalLogs || 0})</Item>
             </List>
           </Card>
 
@@ -144,14 +178,30 @@ export default function AdminMasterDashboard() {
       <Section title="Calendar">
         <Grid3>
           <Card title="Upcoming Events">
-            <Muted>• PTM – 18 Feb</Muted>
-            <Muted>• Annual Day – 25 Feb</Muted>
-            <Muted>• Exam – 5 Mar</Muted>
-            <LinkText to="/admincalendar">Open Calendar</LinkText>
+            {eventsLoading ? (
+              <Muted>Loading events...</Muted>
+            ) : UPCOMING_EVENTS.length === 0 ? (
+              <Muted>No upcoming events</Muted>
+            ) : (
+              UPCOMING_EVENTS.map((ev) => (
+                <div key={ev._id} className="mb-2 last:mb-0">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">{ev.title}</span>{" "}
+                    <span className="text-gray-500">– {format(ev.start, "d MMM yyyy")}</span>
+                  </p>
+                  {ev.type && (
+                    <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                      {ev.type}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+            <LinkText to="/admin/calendar/annual" className="mt-2 block">Open Calendar</LinkText>
           </Card>
 
           <Card title="Event Summary">
-              <Big>{stats?.calendar?.totalEvents || 0}</Big>
+              <Big>{UPCOMING_EVENTS.length}</Big>
               <Muted>Upcoming Events</Muted>
           </Card>
         </Grid3>
@@ -163,7 +213,7 @@ export default function AdminMasterDashboard() {
           <Card title="Collection Summary">
             <Muted>Collected: ₹{stats?.fees?.collected || 0}</Muted>
             <Muted>Pending: ₹{stats?.fees?.pending || 0}</Muted>
-            <LinkText to="/fees">Go to Fees</LinkText>
+            <LinkText to="/admin/fees">Go to Fees</LinkText>
           </Card>
         </Grid3>
       </Section>
@@ -184,8 +234,8 @@ export default function AdminMasterDashboard() {
 
           <Card title="Quick Links">
               <List>
-                  <Item to="/admission/enquiry">Enquiries</Item>
-                  <Item to="/admission/application">Applications</Item>
+                  <Item to="/admission/admission-enquiry">Enquiries</Item>
+                  <Item to="/admission/application-list">Applications</Item>
               </List>
           </Card>
         </Grid3>
@@ -265,8 +315,8 @@ const Muted = ({ children }) => (
   <p className="text-sm text-gray-500">{children}</p>
 );
 
-const LinkText = ({ to, children }) => (
-  <Link to={to} className="text-sm text-blue-600 underline">
+const LinkText = ({ to, className = "", children }) => (
+  <Link to={to} className={`text-sm text-blue-600 underline ${className}`}>
     {children}
   </Link>
 );

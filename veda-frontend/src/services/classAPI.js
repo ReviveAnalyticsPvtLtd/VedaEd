@@ -1,13 +1,10 @@
-import axios from 'axios';
-import config from '../config';
-
-const API_URL = `${config.API_BASE_URL}/classes`;
+import api from './apiClient'
 
 const classAPI = {
     // Get all classes (includes sections)
     getAllClasses: async () => {
         try {
-            const response = await axios.get(API_URL);
+            const response = await api.get('/classes');
             return response.data;
         } catch (error) {
             console.error('Error fetching classes:', error);
@@ -18,7 +15,7 @@ const classAPI = {
     // Get data for a specific class and section (includes students)
     getClassSectionData: async (classId, sectionId) => {
         try {
-            const response = await axios.get(`${API_URL}/${classId}/sections/${sectionId}`);
+            const response = await api.get(`/classes/${classId}/sections/${sectionId}`);
             return response.data;
         } catch (error) {
             console.error('Error fetching class section data:', error);

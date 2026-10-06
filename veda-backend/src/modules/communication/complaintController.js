@@ -45,8 +45,10 @@ exports.createComplaint = async (req, res) => {
     }
 
     // A complaint is about somebody, so that somebody must be in this school.
+    // Only targetUser is a party ref and is tenant-checked. `sendTo` holds role
+    // labels ("Parent", "Class Teacher"), not user ids, so it must not go
+    // through the id validator: it rejected every label as a missing recipient.
     if (await rejectForeignRecipients(res, [targetUser].filter(Boolean), school)) return;
-    if (await rejectForeignRecipients(res, [sendTo].filter(Boolean), school)) return;
 
     // The complainant is the authenticated session, not a body field. The old
     // code accepted any complainant id, so a caller could file a complaint in
@@ -57,7 +59,7 @@ exports.createComplaint = async (req, res) => {
       // Authoritative tenant, derived from the session.
       schoolId: school,
       complainant: isAnonymous ? null : actor.id,
-      complainantModel: isAnonymous ? null : actor.model,
+      complainantModel: isAnonymous ? null : labelFor(actor.model),
       subject,
       description,
       category,

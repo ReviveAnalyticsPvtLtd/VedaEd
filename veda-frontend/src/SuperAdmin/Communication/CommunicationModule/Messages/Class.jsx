@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import classAPI from "../../../../services/classAPI";
 import CommunicationAPI from "../communicationAPI";
 
 export default function Class() {
@@ -15,13 +16,24 @@ export default function Class() {
   const [targets, setTargets] = useState({ students: false, guardians: false });
   const [isLoading, setIsLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
-  const classOptions = ["Class 1", "Class 2", "Class 3"];
-  const sections = ["A", "B", "C", "D"];
+  const [classList, setClassList] = useState([]);
+  const [sections, setSections] = useState([]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setCurrentUser(user);
+
+    const loadClasses = async () => {
+      try {
+        const response = await classAPI.getAllClasses();
+        if (response?.success) {
+          setClassList(response.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+    loadClasses();
 
     const fetchTemplates = async () => {
       try {
@@ -33,6 +45,12 @@ export default function Class() {
     };
     fetchTemplates();
   }, []);
+
+  useEffect(() => {
+    const clsObj = classList.find((c) => c._id === selectedClass);
+    setSections(clsObj?.sections || []);
+    setSelectedSections([]);
+  }, [selectedClass, classList]);
 
   const handleTemplateChange = (e) => {
     const id = e.target.value;
@@ -251,9 +269,9 @@ export default function Class() {
           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4"
         >
           <option value="">Select</option>
-          {classOptions.map((cls, idx) => (
-            <option key={idx} value={cls}>
-              {cls}
+          {classList.map((cls) => (
+            <option key={cls._id} value={cls._id}>
+              {cls.name}
             </option>
           ))}
         </select>
@@ -268,14 +286,14 @@ export default function Class() {
               <div>
                 <p className="font-medium mb-2">Section</p>
                 {sections.map((sec) => (
-                  <label key={sec} className="flex items-center gap-2 mb-1">
+                  <label key={sec._id} className="flex items-center gap-2 mb-1">
                     <input
                       type="checkbox"
                       className="w-4 h-4"
-                      checked={selectedSections.includes(sec)}
-                      onChange={() => toggleSection(sec)}
+                      checked={selectedSections.includes(sec._id)}
+                      onChange={() => toggleSection(sec._id)}
                     />{" "}
-                    {sec}
+                    {sec.name}
                   </label>
                 ))}
               </div>

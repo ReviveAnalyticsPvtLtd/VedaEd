@@ -7,7 +7,7 @@ import { clearAuthSession } from "../utils/authSession";
 const MODULES = [
   { name: "Admin SIS", path: "/admin", icon: <FiUsers /> },
   { name: "Communication", path: "/communication", icon: <FiMessageCircle /> },
-  { name: "Admin Calendar", path: "/admincalendar", icon: <FiCalendar /> },
+  { name: "Admin Calendar", path: "/admin/calendar/annual", icon: <FiCalendar /> },
   { name: "HR Module", path: "/hr", icon: <FiBriefcase /> },
   { name: "Receptionist", path: "/receptionist", icon: <FiClipboard /> },
   { name: "Admission", path: "/admission", icon: <FiBookOpen /> },
