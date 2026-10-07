@@ -2,23 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { FiX } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/apiClient";
 
 import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
 import { FiChevronDown, FiUser, FiDownload } from "react-icons/fi";
 
-import config from "../../config";
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 import Pagination from "../../components/common/Pagination";
-const token = localStorage.getItem("token");
-
-const authHeader = {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-};
-const API_BASE_URL = config.API_BASE_URL;
 
 export default function Staff() {
   const location = useLocation();
@@ -104,8 +95,8 @@ export default function Staff() {
 
   // 🔹 Fetch staff from API 
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/staff/`, authHeader)
+    api
+      .get(`/staff/`)
       .then((res) => {
         if (res.data.success && Array.isArray(res.data.staff)) {
           setStaff(res.data.staff);
@@ -128,8 +119,8 @@ export default function Staff() {
 
   useEffect(() => {
     if (!showForm) return;
-    axios
-      .get(`${API_BASE_URL}/staff/next-id`, authHeader)
+    api
+      .get(`/staff/next-id`)
       .then((res) => {
         if (res.data?.success) {
           setNextStaffIdPreview(res.data.staffId || "");
@@ -216,7 +207,7 @@ export default function Staff() {
     };
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/staff/`, newStaff, authHeader);
+      const res = await api.post(`/staff/`, newStaff);
       if (res.data.success) {
         setStaff([res.data.staff, ...staff]);
         setShowForm(false);
@@ -236,7 +227,7 @@ export default function Staff() {
   const handleDelete = async (id) => {
     try {
       if (window.confirm("Are you sure you want to delete this staff member?")) {
-        await axios.delete(`${API_BASE_URL}/staff/${id}`, authHeader);
+        await api.delete(`/staff/${id}`);
         setStaff(staff.filter((s) => s._id !== id));
         setSuccessMsg("Staff deleted ");
         setTimeout(() => setSuccessMsg(""), 3000);
@@ -263,11 +254,11 @@ export default function Staff() {
   // Update Staff Password function
   const handleUpdatePassword = async (id, newPassword) => {
     try {
-      const res = await axios.put(`${API_BASE_URL}/staff/${id}`, {
+      const res = await api.put(`/staff/${id}`, {
         personalInfo: {
           password: newPassword
         }
-      }, authHeader);
+      });
       if (res.data.success) {
         setStaff((prevStaff) => prevStaff.map((s) =>
           s._id === id ? {

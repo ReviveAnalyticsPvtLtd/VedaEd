@@ -420,7 +420,7 @@ const SuperAdminStudentProfile = () => {
     : null;
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
-  const [student, setStudent] = useState(dummyStudent);
+  const [student, setStudent] = useState(initialMappedStudent || dummyStudent);
   const [pageLoading, setPageLoading] = useState(() => Boolean(resolvedStudentId));
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -432,6 +432,21 @@ const SuperAdminStudentProfile = () => {
   const [documents, setDocuments] = useState(() =>
     (initialMappedStudent?.documents || []).map(normalizeStudentDocumentForAvatar)
   );
+
+  // Synchronize human-readable Student ID with breadcrumb
+  useEffect(() => {
+    const stdId = student?.stdId;
+    if (resolvedStudentId && stdId && stdId !== "N/A") {
+      try {
+        sessionStorage.setItem("breadcrumb_label_" + resolvedStudentId, stdId);
+      } catch (_) {}
+      window.dispatchEvent(
+        new CustomEvent("breadcrumb:update-label", {
+          detail: { segment: resolvedStudentId, label: stdId },
+        })
+      );
+    }
+  }, [resolvedStudentId, student?.stdId]);
 
   
 

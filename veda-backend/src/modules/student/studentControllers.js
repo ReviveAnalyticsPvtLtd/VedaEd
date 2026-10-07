@@ -588,6 +588,7 @@ exports.getAllStudents = async (req, res) => {
     res.status(200).json({
       success: true,
       count: mergedStudents.length,
+      data: mergedStudents,
       students: mergedStudents,
     });
   } catch (error) {

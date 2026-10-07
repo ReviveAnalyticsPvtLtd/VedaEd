@@ -237,6 +237,21 @@ const SuperAdminAdmissionFinalStudentProfile = () => {
     }
   }, [location.state, id]);
 
+  // Synchronize human-readable Student ID with breadcrumb
+  useEffect(() => {
+    const stdId = student?.stdId;
+    if (id && stdId && stdId !== "N/A") {
+      try {
+        sessionStorage.setItem("breadcrumb_label_" + id, stdId);
+      } catch (_) {}
+      window.dispatchEvent(
+        new CustomEvent("breadcrumb:update-label", {
+          detail: { segment: id, label: stdId },
+        })
+      );
+    }
+  }, [id, student?.stdId]);
+
   /* ================= EDIT FLOW ================= */
 
   const downloadReceipt = () => {

@@ -625,6 +625,21 @@ const StudentProfile = () => {
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const [attendanceError, setAttendanceError] = useState(null);
 
+  // Synchronize human-readable Student ID with breadcrumb
+  useEffect(() => {
+    const stdId = student?.stdId || student?.personalInfo?.stdId;
+    if (resolvedStudentId && stdId && stdId !== "N/A") {
+      try {
+        sessionStorage.setItem("breadcrumb_label_" + resolvedStudentId, stdId);
+      } catch (_) {}
+      window.dispatchEvent(
+        new CustomEvent("breadcrumb:update-label", {
+          detail: { segment: resolvedStudentId, label: stdId },
+        })
+      );
+    }
+  }, [resolvedStudentId, student?.stdId, student?.personalInfo?.stdId]);
+
   // Fetch student data from backend if ID is provided
   useEffect(() => {
     const ac = new AbortController();

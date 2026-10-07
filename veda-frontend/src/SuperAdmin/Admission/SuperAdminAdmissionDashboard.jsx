@@ -35,43 +35,57 @@ export default function SuperAdminAdmissionDashboard() {
   const [applications, setApplications] = useState([]);
   const [vacancies, setVacancies] = useState([]);
   const [entranceRecords, setEntranceRecords] = useState([]);
+  const [selectedStudentsCount, setSelectedStudentsCount] = useState(0);
   const [totalStudents, setTotalStudents] = useState(0);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const [enquiryRes, applicationRes, vacancyRes, entranceRes, studentsRes] =
+        const [enquiryRes, applicationRes, vacancyRes, entranceRes, studentsRes, selectedRes] =
           await Promise.allSettled([
             api.get(`${config.API_BASE_URL}/admission-enquiry`),
             api.get(`${config.API_BASE_URL}/admission/application`),
             api.get(`${config.API_BASE_URL}/admission/vacancy`),
             api.get(`${config.API_BASE_URL}/admission/entrance-exam`),
             api.get(`${config.API_BASE_URL}/students`),
+            api.get(`${config.API_BASE_URL}/admission/application/selected`),
           ]);
 
         if (enquiryRes.status === "fulfilled") {
-          setEnquiries(Array.isArray(enquiryRes.value.data) ? enquiryRes.value.data : []);
+          setEnquiries(Array.isArray(enquiryRes.value.data) ? enquiryRes.value.data : (enquiryRes.value.data?.data || []));
         }
 
         if (applicationRes.status === "fulfilled") {
-          setApplications(applicationRes.value.data?.data || []);
+          setApplications(applicationRes.value.data?.data || (Array.isArray(applicationRes.value.data) ? applicationRes.value.data : []));
         }
 
         if (vacancyRes.status === "fulfilled") {
-          setVacancies(vacancyRes.value.data?.data || []);
+          setVacancies(vacancyRes.value.data?.data || (Array.isArray(vacancyRes.value.data) ? vacancyRes.value.data : []));
         }
 
         if (entranceRes.status === "fulfilled") {
-          setEntranceRecords(entranceRes.value.data?.data || []);
+          setEntranceRecords(entranceRes.value.data?.data || (Array.isArray(entranceRes.value.data) ? entranceRes.value.data : []));
+        }
+
+        if (selectedRes.status === "fulfilled") {
+          const selectedData = selectedRes.value.data?.data || (Array.isArray(selectedRes.value.data) ? selectedRes.value.data : []);
+          setSelectedStudentsCount(selectedData.length);
         }
 
         if (studentsRes.status === "fulfilled") {
           const studentPayload = studentsRes.value.data;
           const studentsList = Array.isArray(studentPayload)
             ? studentPayload
-            : studentPayload?.data || [];
-          setTotalStudents(Array.isArray(studentsList) ? studentsList.length : 0);
+            : Array.isArray(studentPayload?.students)
+            ? studentPayload.students
+            : Array.isArray(studentPayload?.data)
+            ? studentPayload.data
+            : [];
+          const count = typeof studentPayload?.count === "number"
+            ? studentPayload.count
+            : studentsList.length;
+          setTotalStudents(count);
         }
       } catch (error) {
         console.error("Failed to load admission dashboard data:", error);
@@ -90,9 +104,13 @@ export default function SuperAdminAdmissionDashboard() {
   const rejectedCount = applications.filter(
     (a) => normalizedStatus(a.applicationStatus) === "rejected"
   ).length;
-  const selectedCount = applications.filter(
-    (a) => normalizedStatus(a.applicationStatus) === "approved"
+  const selectedFromApps = applications.filter(
+    (a) =>
+      normalizedStatus(a.documentVerificationStatus) === "verified" ||
+      normalizedStatus(a.applicationStatus) === "approved" ||
+      normalizedStatus(a.applicationStatus) === "selected"
   ).length;
+  const selectedCount = selectedStudentsCount > 0 ? selectedStudentsCount : selectedFromApps;
   const verifiedDocCount = applications.filter(
     (a) => normalizedStatus(a.documentVerificationStatus) === "verified"
   ).length;
