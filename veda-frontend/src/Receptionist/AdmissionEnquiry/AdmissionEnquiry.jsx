@@ -655,7 +655,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   <option value="">Select Class</option>
                   {Array.isArray(classes) &&
                     classes.map((cls) => {
-                      const className = typeof cls === "string" ? cls : cls?.name;
+                      const className = typeof cls === "string" ? cls : (cls?.name || cls?.className || cls?.class || cls?.label);
                       const classKey = cls?._id || className;
                       if (!className) return null;
                       return (
@@ -808,7 +808,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   <option value="">Select Class</option>
                   {Array.isArray(classes) &&
                     classes.map((cls) => {
-                      const className = typeof cls === "string" ? cls : cls?.name;
+                      const className = typeof cls === "string" ? cls : (cls?.name || cls?.className || cls?.class || cls?.label);
                       const classKey = cls?._id || className;
                       if (!className) return null;
                       return (

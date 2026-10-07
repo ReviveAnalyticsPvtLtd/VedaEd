@@ -45,9 +45,15 @@ const itemsPerPage = 10;
     const loadClasses = async () => {
       try {
         const clsList = await classAPI.getAllClasses();
-        setClasses(clsList || []);
+        const list = Array.isArray(clsList)
+          ? clsList
+          : Array.isArray(clsList?.data)
+          ? clsList.data
+          : [];
+        setClasses(list);
       } catch (err) {
         console.error("Failed to load classes in enquiries:", err);
+        setClasses([]);
       }
     };
     loadClasses();
@@ -634,11 +640,16 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   required
                 >
                   <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option key={cls._id || cls.name} value={cls.name}>
-                      {cls.name}
-                    </option>
-                  ))}
+                  {(Array.isArray(classes) ? classes : []).map((cls) => {
+                    const className = typeof cls === "string" ? cls : (cls?.name || cls?.className);
+                    const classKey = cls?._id || className;
+                    if (!className) return null;
+                    return (
+                      <option key={classKey} value={className}>
+                        {className}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -770,11 +781,16 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                   required
                 >
                   <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option key={cls._id || cls.name} value={cls.name}>
-                      {cls.name}
-                    </option>
-                  ))}
+                  {(Array.isArray(classes) ? classes : []).map((cls) => {
+                    const className = typeof cls === "string" ? cls : (cls?.name || cls?.className);
+                    const classKey = cls?._id || className;
+                    if (!className) return null;
+                    return (
+                      <option key={classKey} value={className}>
+                        {className}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

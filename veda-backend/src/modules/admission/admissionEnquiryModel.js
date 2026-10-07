@@ -3,10 +3,14 @@ const mongoose = require('mongoose');
 const admissionEnquirySchema = new mongoose.Schema({
     schoolId: {
         type: mongoose.Schema.Types.ObjectId,
+<<<<<<< HEAD
         ref: "School",
         required: true,
         index: true,
         immutable: true,
+=======
+        ref: 'School',
+>>>>>>> 171eda7 (done)
     },
     studentName: {
         type: String,

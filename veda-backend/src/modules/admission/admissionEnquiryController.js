@@ -20,6 +20,11 @@ exports.createEnquiry = async (req, res) => {
     if (!schoolId) return;
     try {
         const newEnquiry = new AdmissionEnquiry({ ...req.body, schoolId });
+        const payload = { ...req.body };
+        if (req.user?.schoolId) {
+            payload.schoolId = req.user.schoolId;
+        }
+        const newEnquiry = new AdmissionEnquiry(payload);
         const savedEnquiry = await newEnquiry.save();
         res.status(201).json(savedEnquiry);
     } catch (error) {
@@ -33,6 +38,10 @@ exports.getEnquiries = async (req, res) => {
     if (!schoolId) return;
     try {
         const enquiries = await AdmissionEnquiry.find({ schoolId }).sort({ createdAt: -1 });
+        const filter = req.user?.schoolId
+            ? { $or: [{ schoolId: req.user.schoolId }, { schoolId: { $exists: false } }] }
+            : {};
+        const enquiries = await AdmissionEnquiry.find(filter).sort({ createdAt: -1 });
         res.status(200).json(enquiries);
     } catch (error) {
         res.status(500).json({ message: error.message });
