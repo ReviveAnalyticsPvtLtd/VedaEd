@@ -8,6 +8,7 @@ const multer = require("multer");
 // Vacancies, applications, interview scorecards and recruitment dashboard
 // figures are all school-owned. Require an authenticated session for the router.
 router.use(authMiddleware);
+router.use(requireSchoolContext);
 
 // Configure Multer for basic file uploads (resumes, documents)
 const storage = multer.diskStorage({

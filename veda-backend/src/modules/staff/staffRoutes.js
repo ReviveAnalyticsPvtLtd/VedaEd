@@ -8,6 +8,7 @@ console.log("Staff routing loading...");
 router.post("/", authMiddleware, staffController.createStaff);         // Create staff member
 router.get("/", authMiddleware, staffController.getAllStaff);          // Get all staff
 router.get("/next-id", authMiddleware, staffController.getNextStaffIdPreview); // Get next staff id preview
+router.get("/hiring-trend", authMiddleware, staffController.getHiringTrend); // Monthly hiring trend (must be before /:id)
 router.post("/import", authMiddleware, staffController.importStaff);
 router.get("/:id", authMiddleware, staffController.getStaffById);      // Get staff by ID
 router.get("/:id/dashboard-stats", authMiddleware, staffController.getTeacherDashboardStats); // Teacher dashboard stats
@@ -32,6 +33,7 @@ router.put("/leave/:id", authMiddleware, staffController.updateStaffLeaveStatus)
 
 // Staff Payroll
 router.get("/payroll/list", authMiddleware, staffController.getStaffPayroll);
+router.get("/payroll/trend", authMiddleware, staffController.getPayrollTrend); // Monthly payroll totals (no seeding)
 router.put("/payroll/:id", authMiddleware, staffController.updateStaffPayroll);
 
 // Staff Authentication

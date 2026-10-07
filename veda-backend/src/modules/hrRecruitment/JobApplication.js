@@ -3,6 +3,13 @@ const { Schema } = mongoose;
 
 const JobApplicationSchema = new Schema(
     {
+        schoolId: {
+            type: Schema.Types.ObjectId,
+            ref: "School",
+            required: true,
+            index: true,
+            immutable: true,
+        },
         vacancy: { type: Schema.Types.ObjectId, ref: "JobVacancy", required: true },
         // Personal Info
         applicantName: { type: String, required: true },

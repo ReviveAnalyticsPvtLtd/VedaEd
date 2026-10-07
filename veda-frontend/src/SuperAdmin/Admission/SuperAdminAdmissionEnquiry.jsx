@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 export default function SuperAdminAdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
+  const [loadError, setLoadError] = useState(null);
   const [classes, setClasses] = useState([]);
   const totalEnquiries = enquiries.length;
 const reviewedCount = enquiries.filter(e => e.status === "reviewed").length;
@@ -55,36 +56,21 @@ const itemsPerPage = 10;
  const fetchEnquiries = async () => {
   try {
     const data = await getEnquiries();
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
     setEnquiries(
-      data.map(e => ({ ...e, status: e.status || "pending" }))
+      list.map(e => ({ ...e, status: e.status || "pending" }))
     );
+    setLoadError(null);
   } catch (error) {
-    console.warn("API failed, loading dummy data");
-
-    setEnquiries([
-      {
-        _id: "1",
-        studentName: "Aarav Sharma",
-        guardianName: "Rohit Sharma",
-        mobile: "9876543210",
-        whatsapp: "9876543210",
-        email: "aarav@gmail.com",
-        enquiryClass: "Class 5",
-        date: "2026-01-10",
-        status: "pending",
-      },
-      {
-        _id: "2",
-        studentName: "Ananya Verma",
-        guardianName: "Suresh Verma",
-        mobile: "9123456789",
-        whatsapp: "9123456789",
-        email: "ananya@gmail.com",
-        enquiryClass: "Class 8",
-        date: "2026-01-11",
-        status: "reviewed",
-      },
-    ]);
+    setEnquiries([]);
+    setLoadError(
+      error?.response?.data?.message ||
+      "Could not load enquiries. Please try again."
+    );
   }
 };
 
@@ -270,6 +256,11 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 </div>
 
 
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3" role="alert">
+          {loadError}
+        </div>
+      )}
       {/* Main content box */}
       <div className=" p-0 mb-8">
         <div className="bg-white p-4 rounded-lg shadow-sm ">
