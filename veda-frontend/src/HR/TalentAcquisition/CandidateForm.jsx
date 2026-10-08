@@ -24,7 +24,7 @@ export default function CandidateForm() {
     const fetchVacs = async () => {
       try {
         const res = await apiClient.get("/hr-recruitment/vacancies");
-        setVacancies(res.data.data.filter(v => v.status === "Published"));
+        setVacancies(res.data.data.filter(v => v.status === "Published" && !v.isFilled));
       } catch (err) {
         console.error(err);
       }
@@ -37,6 +37,16 @@ export default function CandidateForm() {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleVacancyChange = (e) => {
+    const vacancyId = e.target.value;
+    const selected = vacancies.find((v) => v._id === vacancyId);
+    setFormData((prev) => ({
+      ...prev,
+      vacancy: vacancyId,
+      roleType: selected ? selected.roleType : prev.roleType,
     }));
   };
 
@@ -109,17 +119,19 @@ export default function CandidateForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-black-700 mb-1">Applying For (Vacancy)</label>
-              <select name="vacancy" required className="w-full border rounded-lg p-2" onChange={handleChange} value={formData.vacancy}>
+              <select name="vacancy" required className="w-full border rounded-lg p-2" onChange={handleVacancyChange} value={formData.vacancy}>
                 <option value="">Select a vacancy</option>
                 {vacancies.map(v => <option key={v._id} value={v._id}>{v.jobTitle} ({v.vacancyId})</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-black-700 mb-1">Role Type</label>
-              <select name="roleType" className="w-full border rounded-lg p-2" onChange={handleChange} value={formData.roleType}>
+              <label className="block text-sm font-medium text-black-700 mb-1">Role Type (from vacancy)</label>
+              <select name="roleType" className="w-full border rounded-lg p-2 bg-gray-100" value={formData.roleType} disabled>
                 <option value="Teaching">Teaching</option>
                 <option value="Non-Teaching">Non-Teaching</option>
+                <option value="Support Staff">Support Staff</option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">Set by the selected vacancy</p>
             </div>
           </div>
         </section>

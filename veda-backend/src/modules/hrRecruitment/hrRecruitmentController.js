@@ -42,10 +42,32 @@ exports.createVacancy = async (req, res) => {
     }
 };
 
+const getJoinedCountByVacancy = async (schoolId, vacancyIds) => {
+    if (!vacancyIds.length) return {};
+    const joined = await JobApplication.find({
+        schoolId,
+        status: "Joined",
+        vacancy: { $in: vacancyIds }
+    }).select("vacancy");
+    const counts = {};
+    joined.forEach((app) => {
+        const key = String(app.vacancy);
+        counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+};
+
 exports.getVacancies = async (req, res) => {
     try {
-        const vacancies = await JobVacancy.find({ schoolId: req.user.schoolId }).sort({ createdAt: -1 });
-        res.status(200).json({ success: true, data: vacancies });
+        const schoolId = req.user.schoolId;
+        const vacancies = await JobVacancy.find({ schoolId }).sort({ createdAt: -1 });
+        const joinedCounts = await getJoinedCountByVacancy(schoolId, vacancies.map((v) => v._id));
+        const data = vacancies.map((v) => {
+            const filled = joinedCounts[String(v._id)] || 0;
+            const remaining = Math.max((v.openings || 1) - filled, 0);
+            return { ...v.toObject(), filled, remaining, isFilled: remaining <= 0 };
+        });
+        res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -179,12 +201,27 @@ exports.convertToEmployee = async (req, res) => {
             return res.status(409).json({ success: false, message: "An account with this email already exists" });
         }
 
+        if (application.vacancy) {
+            const filled = await JobApplication.countDocuments({
+                schoolId,
+                status: "Joined",
+                vacancy: application.vacancy._id
+            });
+            if (filled >= (application.vacancy.openings || 1)) {
+                return res.status(409).json({ success: false, message: "Vacancy is already filled" });
+            }
+        }
+
         const roleName = application.roleType === "Teaching" ? "teacher" : "staff";
         const roleDoc = await require("../../models/Role").findOne({ name: roleName });
         if (!roleDoc) {
             return res.status(500).json({ success: false, message: `Role "${roleName}" is not seeded` });
         }
 
+        // Support Staff conversions (guard, cleaner, sweeper...) produce a
+        // login-less Staff record whose designation is the vacancy's job
+        // title, so the person shows up in the Support Staff module.
+        const isSupportRole = application.roleType === "Support Staff";
         const staffRole = application.roleType === "Teaching" ? "Teacher" : "Other";
         const staffId = await require("../staff/staffControllers").generateStaffId(schoolId);
 
@@ -197,6 +234,7 @@ exports.convertToEmployee = async (req, res) => {
                 staffId,
                 username: `${staffRole}_${staffId}`,
                 role: staffRole,
+                ...(isSupportRole ? { designation: application.vacancy?.jobTitle || "Support Staff" } : {}),
                 department: application.vacancy?.department || "General",
                 email: application.email,
                 password: "password123",
@@ -204,20 +242,44 @@ exports.convertToEmployee = async (req, res) => {
             },
         });
 
-        const newUser = await User.create({
-            name: application.applicantName,
-            email: application.email,
-            password: "password123",
-            roleId: roleDoc._id,
-            refId: newStaff._id,
-            schoolId,
-            status: "active",
-        });
+        let newUser = null;
+        if (!isSupportRole) {
+            newUser = await User.create({
+                name: application.applicantName,
+                email: application.email,
+                password: "password123",
+                roleId: roleDoc._id,
+                refId: newStaff._id,
+                schoolId,
+                status: "active",
+            });
+        }
 
         application.status = "Joined";
         await application.save();
 
-        res.status(200).json({ success: true, message: "Converted to Employee successfully", user: newUser, staff: newStaff });
+        if (application.vacancy) {
+            const filled = await JobApplication.countDocuments({
+                schoolId,
+                status: "Joined",
+                vacancy: application.vacancy._id
+            });
+            if (filled >= (application.vacancy.openings || 1)) {
+                await JobVacancy.updateOne(
+                    { _id: application.vacancy._id, schoolId },
+                    { status: "Closed" }
+                );
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: isSupportRole
+                ? "Converted to Support Staff successfully (no login account created)"
+                : "Converted to Employee successfully",
+            user: newUser,
+            staff: newStaff,
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

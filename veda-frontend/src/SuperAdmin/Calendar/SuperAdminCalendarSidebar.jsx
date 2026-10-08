@@ -1,6 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  FiHome,
+  FiCalendar,
+  FiList,
+  FiClock,
   FiMenu,
   FiSettings,
   FiUser,
@@ -24,7 +26,9 @@ export default function SuperAdminSidebar({
   }, [isSidebarOpen]);
 
   const menuItems = [
-    { name: "Dashboard", path: "/superadmin/dashboard", icon: <FiHome /> },
+    { name: "Annual Calendar", path: "/superadmin/calendar/annual", icon: <FiCalendar /> },
+    { name: "Event Setup", path: "/superadmin/calendar/event-setup", icon: <FiList /> },
+    { name: "Year Setup", path: "/superadmin/calendar/year-setup", icon: <FiClock /> },
   ];
 
   const settingsItems = [

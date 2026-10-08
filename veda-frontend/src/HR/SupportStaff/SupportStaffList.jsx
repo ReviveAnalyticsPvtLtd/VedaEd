@@ -1,35 +1,47 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiPlus, FiSearch } from "react-icons/fi";
+import apiClient from "../../services/apiClient";
 
 const SupportStaffList = () => {
   const navigate = useNavigate();
 
-  const [staff, setStaff] = useState([
-    {
-      id: 1,
-      staffId: "SS001",
-      name: "Ramesh Kumar",
-      role: "Sweeper",
-      department: "Cleaning",
-      phone: "9876543210",
-      status: "Active",
-    },
-    {
-      id: 2,
-      staffId: "SS002",
-      name: "Suresh Yadav",
-      role: "Guard",
-      department: "Security",
-      phone: "9123456780",
-      status: "Inactive",
-    },
-  ]);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get("/support-staff");
+      const rows = res.data?.data || [];
+      // Server already scopes by school and returns only support records
+      // (role="Other" with a designation).
+      setStaff(
+        rows.map((s) => ({
+          id: s._id,
+          staffId: s.personalInfo?.staffId || "",
+          name: s.personalInfo?.name || "",
+          role: s.personalInfo?.designation || s.personalInfo?.role || "",
+          department: s.personalInfo?.department || "",
+          phone: s.personalInfo?.mobileNumber || "",
+          status: s.status || "Active",
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching support staff:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ✅ Dynamic department list
   const departments = useMemo(() => {
@@ -44,9 +56,18 @@ const SupportStaffList = () => {
     );
   };
 
-  const handleBulkDelete = () => {
-    setStaff(staff.filter((s) => !selected.includes(s.id)));
-    setSelected([]);
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Delete ${selected.length} selected staff member(s)? This also removes their login account.`)) {
+      return;
+    }
+    try {
+      await Promise.all(selected.map((id) => apiClient.delete(`/support-staff/${id}`)));
+      setStaff((prev) => prev.filter((s) => !selected.includes(s.id)));
+      setSelected([]);
+    } catch (err) {
+      console.error("Error deleting staff:", err);
+      alert(err?.response?.data?.message || "Failed to delete staff");
+    }
   };
 
   const exportCSV = () => {
@@ -126,7 +147,7 @@ const SupportStaffList = () => {
             >
               <option value="">All Status</option>
               <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="On Leave">On Leave</option>
             </select>
 
             {/* Bulk Actions */}
@@ -178,7 +199,13 @@ const SupportStaffList = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredStaff.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-500">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredStaff.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="text-center py-8 text-gray-500">
                     No Support Staff Found
@@ -213,7 +240,7 @@ const SupportStaffList = () => {
                     <td className="p-3 border">
                       <button
                         onClick={() =>
-                          navigate("/hr/support-staff/details", {
+                          navigate(`/hr/support-staff/details/${s.id}`, {
                             state: s,
                           })
                         }

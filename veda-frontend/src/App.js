@@ -1154,7 +1154,7 @@ function App() {
           />
           <Route path="support-staff" element={<SupportStaffList />} />
           <Route path="support-staff/add" element={<AddSupportStaff />} />
-          <Route path="support-staff/details" element={<SupportStaffDetails />} />
+          <Route path="support-staff/details/:id" element={<SupportStaffDetails />} />
           <Route path="talent-acquisition/vacancy" element={<VacancyDashboard />} />
           <Route path="talent-acquisition/pipeline" element={<ApplicationPipeline />} />
           <Route path="talent-acquisition/apply" element={<CandidateForm />} />
