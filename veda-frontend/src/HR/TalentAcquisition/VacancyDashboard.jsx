@@ -27,6 +27,7 @@ export default function VacancyDashboard() {
   const [filters, setFilters] = useState({
     search: "",
     roleType: "",
+    hideFilled: true,
   });
 
   useEffect(() => {
@@ -102,7 +103,8 @@ export default function VacancyDashboard() {
                           v.department.toLowerCase().includes(filters.search.toLowerCase()) ||
                           v.vacancyId.toLowerCase().includes(filters.search.toLowerCase());
       const matchRole = !filters.roleType || v.roleType === filters.roleType;
-      return matchSearch && matchRole;
+      const matchFilled = !filters.hideFilled || !v.isFilled;
+      return matchSearch && matchRole && matchFilled;
     });
   }, [vacancies, filters]);
 
@@ -141,8 +143,8 @@ export default function VacancyDashboard() {
         <div className="bg-white border rounded-lg p-4 shadow-sm flex items-center gap-3">
           <div className="p-3 bg-gray-500 text-white rounded-lg"><FiUsers size={20} /></div>
           <div>
-            <p className="text-xs text-gray-500 font-semibold">Total Openings</p>
-            <p className="text-xl font-bold text-gray-800">{vacancies.reduce((acc, curr) => acc + (curr.openings || 1), 0)}</p>
+            <p className="text-xs text-gray-500 font-semibold">Openings Left</p>
+            <p className="text-xl font-bold text-gray-800">{vacancies.reduce((acc, curr) => acc + (curr.remaining !== undefined ? curr.remaining : (curr.openings || 1)), 0)}</p>
           </div>
         </div>
       </div>
@@ -175,6 +177,7 @@ export default function VacancyDashboard() {
             >
               <option value="Teaching">Teaching</option>
               <option value="Non-Teaching">Non-Teaching</option>
+              <option value="Support Staff">Support Staff</option>
             </select>
           </div>
 
@@ -286,7 +289,18 @@ export default function VacancyDashboard() {
             <option value="">All Roles</option>
             <option value="Teaching">Teaching</option>
             <option value="Non-Teaching">Non-Teaching</option>
+            <option value="Support Staff">Support Staff</option>
           </select>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={filters.hideFilled}
+              onChange={(e) => setFilters({ ...filters, hideFilled: e.target.checked })}
+              className="rounded"
+            />
+            Hide filled vacancies
+          </label>
         </div>
       </div>
 
@@ -326,12 +340,18 @@ export default function VacancyDashboard() {
                     <div className="text-xs text-gray-500">{v.department}</div>
                   </td>
                   <td className="p-2 border">{v.roleType}</td>
-                  <td className="p-2 border font-medium">{v.openings}</td>
+                  <td className="p-2 border font-medium">
+                    {v.isFilled ? (
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600">Filled</span>
+                    ) : (
+                      <span>{v.remaining !== undefined ? v.remaining : v.openings} of {v.openings} left</span>
+                    )}
+                  </td>
                   <td className="p-2 border text-gray-600">{v.salaryRange || "Not Specified"}</td>
                   <td className="p-2 border">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-                      ${v.status === 'Published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {v.status}
+                      ${v.isFilled ? 'bg-red-100 text-red-700' : v.status === 'Published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {v.isFilled ? 'Filled' : v.status}
                     </span>
                   </td>
                   <td className="p-2 border text-center">

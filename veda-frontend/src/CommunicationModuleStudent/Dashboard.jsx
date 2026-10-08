@@ -16,7 +16,7 @@ import {
 import CommunicationAPI from "../services/communicationAPI";
 import complaintAPI from "../services/complaintAPI";
 
-const COLORS = ["#22c55e", "#ef4444"];
+const COLORS = ["#22c55e", "#ef4444", "#3b82f6"];
 
 export default function CommunicationStudentDashboard() {
   const [stats, setStats] = useState([
@@ -72,12 +72,14 @@ export default function CommunicationStudentDashboard() {
           asArray(messages).length + asArray(notifications).length;
         const noticeCount = asArray(notices).length;
         const complaintList = asArray(complaints);
+        const statusOf = (c) => String(c.status || "").toLowerCase();
         const resolvedCount = complaintList.filter((c) =>
-          ["resolved", "closed"].includes(String(c.status || "").toLowerCase())
+          ["resolved", "closed"].includes(statusOf(c))
         ).length;
         const pendingCount = complaintList.filter((c) =>
-          ["submitted", "under_review", "Pending"].includes(String(c.status || "").toLowerCase())
+          ["submitted", "under_review", "in_progress", "pending"].includes(statusOf(c))
         ).length;
+        const otherCount = complaintList.length - resolvedCount - pendingCount;
 
         setStats([
           { title: "My Messages", value: msgCount, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/student/communication/messages" },
@@ -89,6 +91,7 @@ export default function CommunicationStudentDashboard() {
         const chartData = [];
         if (resolvedCount > 0) chartData.push({ name: "Resolved", value: resolvedCount });
         if (pendingCount > 0) chartData.push({ name: "Pending", value: pendingCount });
+        if (otherCount > 0) chartData.push({ name: "In Progress", value: otherCount });
         setComplaintData(chartData);
 
         const activity = [];

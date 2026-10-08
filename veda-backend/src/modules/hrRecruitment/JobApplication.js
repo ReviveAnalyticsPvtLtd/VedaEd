@@ -55,7 +55,7 @@ const JobApplicationSchema = new Schema(
             demoClass: { type: Boolean, default: false }
         },
 
-        roleType: { type: String, enum: ["Teaching", "Non-Teaching"], required: true }
+        roleType: { type: String, enum: ["Teaching", "Non-Teaching", "Support Staff"], required: true }
     },
     { timestamps: true }
 );

@@ -2,6 +2,7 @@ const UserSettings = require('./userSettingsModel');
 const User = require('../../models/User');
 const Staff = require('../staff/staffModels');
 const Parent = require('../parents/parentModel');
+const Student = require('../student/studentModels');
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
@@ -147,7 +148,7 @@ exports.updateProfile = async (req, res) => {
 
     await user.save();
 
-    // Update Staff or Parent model based on refId
+    // Update Staff, Parent or Student model based on refId
     if (user.refId) {
       const staff = await Staff.findById(user.refId);
       if (staff) {
@@ -168,6 +169,21 @@ exports.updateProfile = async (req, res) => {
         if (department !== undefined) parent.occupation = user.department;
         if (employeeId !== undefined) parent.parentId = user.employeeId;
         await parent.save();
+      }
+
+      const student = await Student.findById(user.refId);
+      if (student) {
+        if (!student.personalInfo) student.personalInfo = {};
+        if (fullName !== undefined) student.personalInfo.name = user.name;
+        if (email !== undefined) {
+          if (!student.personalInfo.contactDetails) student.personalInfo.contactDetails = {};
+          student.personalInfo.contactDetails.email = user.email;
+        }
+        if (mobileVal !== undefined) {
+          if (!student.personalInfo.contactDetails) student.personalInfo.contactDetails = {};
+          student.personalInfo.contactDetails.mobileNumber = user.mobile;
+        }
+        await student.save();
       }
     }
 
@@ -251,6 +267,17 @@ exports.getProfile = async (req, res) => {
           employeeId: parent.parentId || profileData.employeeId,
           image: parent.profilePhoto || profileData.image,
           profilePicture: parent.profilePhoto || profileData.profilePicture
+        };
+      }
+
+      const student = await Student.findById(user.refId);
+      if (student) {
+        profileData = {
+          ...profileData,
+          fullName: student.personalInfo?.name || profileData.fullName,
+          mobile: student.personalInfo?.contactDetails?.mobileNumber || profileData.mobile,
+          image: student.personalInfo?.image || profileData.image,
+          profilePicture: student.personalInfo?.image || profileData.profilePicture
         };
       }
     }
