@@ -11,7 +11,7 @@ import {
   FiSave,
   FiX,
 } from "react-icons/fi";
-import { authFetch } from "../../services/apiClient";
+import api, { authFetch } from "../../services/apiClient";
 import ProfileAvatar from "../../components/ProfileAvatar";
 
 import {
@@ -31,33 +31,35 @@ const documentAccept = ".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.ppt,.pptx,.xls,.xl
 const mapApiParentToState = (p) => {
   if (!p) return null;
   const legacyChildren = (p.childDetails || []).map((c) => ({
-    name: c.name,
+    name: c.name || "Student",
     grade: c.class != null ? String(c.class) : "N/A",
     section: c.section != null ? String(c.section) : "N/A",
-    stdId: c.stdId,
+    stdId: c.stdId || "N/A",
   }));
   const primaryChildren =
     (p.children && p.children.length > 0
       ? p.children.map((child) => ({
-          name: child.personalInfo?.name || child.name,
+          name: child.personalInfo?.name || child.name || "Student",
           grade:
             child.personalInfo?.class?.name ||
             child.personalInfo?.class ||
-            child.grade,
+            child.grade ||
+            "N/A",
           section:
             child.personalInfo?.section?.name ||
             child.personalInfo?.section ||
-            child.section,
-          stdId: child.personalInfo?.stdId || child.stdId,
+            child.section ||
+            "N/A",
+          stdId: child.personalInfo?.stdId || child.stdId || "N/A",
         }))
       : legacyChildren) || [];
   return {
-    id: p._id,
-    parentId: p.parentId,
-    name: p.name || p.fatherName,
-    email: p.email,
-    phone: p.phone || p.fatherNumber,
-    status: p.status,
+    id: p._id || p.id,
+    parentId: p.parentId || "N/A",
+    name: p.name || p.fatherName || "Unnamed Parent",
+    email: p.email || "N/A",
+    phone: p.phone || p.fatherNumber || "N/A",
+    status: p.status || "Active",
     occupation: p.occupation || p.fatherOccupation || "Parent",
     relation: p.relation || p.role || "Parent",
     address:
@@ -118,24 +120,17 @@ const TabButton = ({ label, isActive, onClick, icon }) => (
 const SuperAdminSISParentProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { parentId } = useParams();
+  const { id, parentId } = useParams();
   const parentData = location.state || null;
-  const resolvedParentId = parentData?._id || parentData?.id || parentId;
+  const resolvedParentId = id || parentId || parentData?._id || parentData?.id;
 
-  const [parent, setParent] = useState(
-    parentData
-      ? {
-          ...parentData,
-          id: parentData._id, // Ensure id field is set from _id
-        }
-      : null
-  );
+  const [parent, setParent] = useState(() => (parentData ? mapApiParentToState(parentData) : null));
   const [engagement, setEngagement] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
-  const [pageLoading, setPageLoading] = useState(() => Boolean(resolvedParentId));
+  const [pageLoading, setPageLoading] = useState(() => !parentData && Boolean(resolvedParentId));
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -145,41 +140,31 @@ const SuperAdminSISParentProfile = () => {
   // Fetch parent data from backend if ID is provided
   useEffect(() => {
     const fetchParent = async () => {
-      console.log("useEffect triggered - ID:", resolvedParentId);
-      console.log("Current parent state:", parent);
-
       if (!resolvedParentId) {
-        console.log("No ID provided in URL params");
+        setPageLoading(false);
         return;
       }
 
-      console.log("Fetching parent with ID:", resolvedParentId);
-      setPageLoading(true);
+      if (!parentData) {
+        setPageLoading(true);
+      }
       setLoadError(null);
 
       try {
-        const response = await authFetch(`/parents/${resolvedParentId}`);
-        if (!response.ok) {
-          throw new Error("Parent not found");
-        }
-
-        const data = await response.json();
-        console.log("API Response:", data);
+        const res = await api.get(`/parents/${resolvedParentId}`);
+        const data = res.data;
 
         if (data.success && data.parent) {
           const mappedParent = mapApiParentToState(data.parent);
           if (mappedParent) {
             setParent(mappedParent);
-            console.log("Parent data loaded:", mappedParent);
-          } else {
-            throw new Error("Invalid response format");
           }
-        } else {
-          throw new Error("Invalid response format");
         }
       } catch (err) {
         console.error("Error fetching parent:", err);
-        setLoadError(err.message);
+        if (!parentData && !parent) {
+          setLoadError(err.response?.data?.message || err.message || "Parent not found");
+        }
       } finally {
         setPageLoading(false);
       }
@@ -188,9 +173,8 @@ const SuperAdminSISParentProfile = () => {
     fetchParent();
   }, [resolvedParentId]);
 
-  // Mock data for engagement, meetings (can be replaced with real API calls later)
+  // Mock data for engagement, meetings
   useEffect(() => {
-    // Set mock data for now
     setEngagement([
       { activity: "PTA Meeting", count: 3 },
       { activity: "School Events", count: 5 },
@@ -219,10 +203,9 @@ const SuperAdminSISParentProfile = () => {
       if (!resolvedParentId) return;
 
       try {
-        const response = await authFetch(`/parents/documents/${resolvedParentId}`);
-        if (response.ok) {
-          const docs = await response.json();
-          setDocuments(docs);
+        const res = await api.get(`/parents/documents/${resolvedParentId}`);
+        if (res.data && Array.isArray(res.data)) {
+          setDocuments(res.data);
         }
       } catch (err) {
         console.error("Error fetching documents:", err);
@@ -275,7 +258,7 @@ const SuperAdminSISParentProfile = () => {
     );
   }
 
-  if (loadError) {
+  if (loadError && !parent) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
@@ -284,7 +267,7 @@ const SuperAdminSISParentProfile = () => {
           </h2>
           <p className="text-gray-600 mb-4">{loadError}</p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/superadmin/sis/parents")}
             className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
           >
             <FiArrowLeft className="w-5 h-5 mr-2" /> Back
@@ -302,7 +285,7 @@ const SuperAdminSISParentProfile = () => {
             Parent Profile Not Found
           </h2>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/superadmin/sis/parents")}
             className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700"
           >
             <FiArrowLeft className="w-5 h-5 mr-2" /> Back
@@ -317,35 +300,17 @@ const SuperAdminSISParentProfile = () => {
   };
 
   const saveChanges = async () => {
-    console.log("Save button clicked!");
-    console.log("Parent data:", parent);
-    console.log("Parent ID:", parent?.id);
-    console.log("URL ID:", resolvedParentId);
-
-    // Use URL id as fallback if parent.id is not available
     const currentParentId = parent?.id || resolvedParentId;
 
     if (!currentParentId) {
-      console.error("No parent ID found!");
       alert("No parent ID found. Cannot save.");
       return;
     }
-
-    console.log("Using parent ID:", currentParentId);
 
     setSaving(true);
     setSaveError(null);
 
     try {
-      // Check if parent data exists
-      if (!parent) {
-        console.error("No parent data available!");
-        setSaveError("No parent data available. Cannot save.");
-        return;
-      }
-
-      // Do not send password unless you add a dedicated "change password" flow —
-      // the API used to re-hash an echoed bcrypt string and break login.
       const updateData = {
         name: parent.name,
         email: parent.email,
@@ -357,53 +322,30 @@ const SuperAdminSISParentProfile = () => {
         address: parent.address,
       };
 
-      console.log("Sending update data:", updateData);
-      console.log("Parent ID:", currentParentId);
+      const res = await api.put(`/parents/${currentParentId}`, updateData);
 
-      const response = await authFetch(
-        `/parents/${currentParentId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
-
-      if (!response.ok) {
-        let message = "Failed to update parent";
-        try {
-          const errorData = await response.json();
-          message = errorData.message || message;
-        } catch {
-          /* non-JSON error body */
-        }
-        console.error("Backend error:", message);
-        throw new Error(message);
-      }
-
-      const data = await response.json();
-      if (data.success && data.parent) {
-        const mapped = mapApiParentToState(data.parent);
+      if (res.data?.success && res.data?.parent) {
+        const mapped = mapApiParentToState(res.data.parent);
         if (mapped) setParent(mapped);
         setIsEditing(false);
         setSaveError(null);
-        console.log("Parent updated successfully");
       }
     } catch (err) {
       console.error("Error updating parent:", err);
-      setSaveError(err.message || "Failed to update parent");
+      setSaveError(err.response?.data?.message || err.message || "Failed to update parent");
     } finally {
       setSaving(false);
     }
   };
 
   const refreshDocuments = async (currentParentId) => {
-    const response = await authFetch(`/parents/documents/${currentParentId}`);
-    if (response.ok) {
-      const docs = await response.json();
-      setDocuments(docs);
+    try {
+      const res = await api.get(`/parents/documents/${currentParentId}`);
+      if (res.data && Array.isArray(res.data)) {
+        setDocuments(res.data);
+      }
+    } catch (err) {
+      console.error("Error refreshing documents:", err);
     }
   };
 
@@ -583,7 +525,7 @@ const SuperAdminSISParentProfile = () => {
               </div>
             ))
           ) : (
-            <p>No student linked.</p>
+            <p className="text-gray-500">No student linked.</p>
           )}
         </div>
       </div>
@@ -626,105 +568,91 @@ const SuperAdminSISParentProfile = () => {
   );
 
   return (
-    <div className="min-h-screen p-0 m-0">
-      <div className="mb-4">
-        {saveError ? (
-          <div
-            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-            role="alert"
-          >
-            {saveError}
-          </div>
-        ) : null}
-        {/* Top Bar */}
-        <div className="mb-4 flex justify-between items-center">
+    <div className="bg-gray-100 min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Back button & Breadcrumb */}
+        <div className="flex items-center justify-between">
           <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center text-gray-600 hover:text-indigo-800 font-medium"
+            onClick={() => navigate("/superadmin/sis/parents")}
+            className="inline-flex items-center bg-white text-gray-700 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 border border-gray-200"
           >
-            <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Parent Directory
+            <FiArrowLeft className="w-5 h-5 mr-2" /> Back to Parents
           </button>
-
-          {isEditing ? (
-            <div className="space-x-2">
-              <button
-                type="button"
-                onClick={saveChanges}
-                disabled={saving}
-                className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <FiSave className="mr-2" /> {saving ? "Saving…" : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSaveError(null);
-                  setIsEditing(false);
-                }}
-                className="inline-flex items-center bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400"
-              >
-                <FiX className="mr-2" /> Cancel
-              </button>
-            </div>
-          ) : null}
         </div>
 
-        {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-          <div className="flex flex-col items-center gap-2 shrink-0">
-            <ProfileAvatar
-              name={parent.name}
-              imageSrc={parent.photo}
-              sizeClassName="w-32 h-32 shrink-0"
-              textClassName="text-4xl"
-            />
-            <input
-              ref={profilePhotoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-              className="hidden"
-              onChange={handleProfilePhotoSelected}
-            />
-            <button
-              type="button"
-              disabled={photoUploading}
-              onClick={() => profilePhotoInputRef.current?.click()}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {photoUploading ? "Uploading…" : "Change photo"}
-            </button>
-          </div>
-          <div className="flex flex-1 flex-col gap-3 w-full min-w-0 text-center sm:text-left">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className="text-3xl font-bold text-gray-900 break-words">{parent.name}</h1>
-                <p className="text-lg text-indigo-600 font-medium">
-                  {parent.occupation || "Parent"}
-                </p>
-                {parent.relation ? (
-                  <p className="text-sm text-gray-500 mt-1">Relation: {parent.relation}</p>
-                ) : null}
+        {/* Profile Card Header */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="relative group">
+              <ProfileAvatar
+                name={parent.name}
+                imageSrc={parent.photo}
+                sizeClassName="w-24 h-24 text-2xl"
+              />
+              <input
+                type="file"
+                ref={profilePhotoInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfilePhotoSelected}
+              />
+              <button
+                type="button"
+                disabled={photoUploading}
+                onClick={() => profilePhotoInputRef.current?.click()}
+                className="absolute inset-0 bg-black bg-opacity-40 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold"
+              >
+                {photoUploading ? "..." : "Change"}
+              </button>
+            </div>
+
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{parent.name}</h1>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Parent ID: {parent.parentId} • {parent.relation}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 justify-center sm:justify-end">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={saveChanges}
+                        disabled={saving}
+                        className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm disabled:opacity-50"
+                      >
+                        <FiSave className="mr-2" /> {saving ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm"
+                      >
+                        <FiX className="mr-2" /> Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm"
+                    >
+                      <FiEdit3 className="mr-2" /> Edit Profile
+                    </button>
+                  )}
+                </div>
               </div>
-              {!isEditing ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSaveError(null);
-                    setIsEditing(true);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 self-center sm:self-start bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 shadow-sm whitespace-nowrap"
-                >
-                  <FiEdit3 className="w-4 h-4" />
-                  Edit Profile
-                </button>
-              ) : null}
+
+              {saveError && (
+                <div className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded-md">
+                  {saveError}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="mb-4">
-          <div className="bg-white rounded-xl shadow-md p-2 inline-flex space-x-2">
+          {/* Navigation Tabs */}
+          <div className="flex gap-2 mt-6 border-t border-gray-100 pt-4 overflow-x-auto">
             <TabButton
               label="Overview"
               isActive={activeTab === "overview"}
@@ -735,7 +663,7 @@ const SuperAdminSISParentProfile = () => {
               label="Engagement"
               isActive={activeTab === "engagement"}
               onClick={() => setActiveTab("engagement")}
-              icon={<FiUsers />}
+              icon={<FiCalendar />}
             />
             <TabButton
               label="Documents"
@@ -752,61 +680,58 @@ const SuperAdminSISParentProfile = () => {
           </div>
         </div>
 
-        {/* Tab Contents */}
+        {/* Tab Content */}
         <div>
-          {activeTab === "overview" && OverviewTab()}
+          {activeTab === "overview" && <OverviewTab />}
 
           {activeTab === "engagement" && (
-            <div className="bg-white rounded-xl shadow-md p-4">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={engagement}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="activity" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="count" fill="#4f46e5" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Engagement Activity</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={engagement}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="activity" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
           {activeTab === "documents" && (
-            <div className="bg-white rounded-xl shadow-md p-4">
-              {/* Upload Button */}
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Documents
-                </h3>
-                <label className="bg-indigo-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-indigo-700">
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Uploaded Documents</h3>
+                <label className="bg-indigo-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-indigo-700 text-sm font-medium">
                   Upload Document
                   <input
                     type="file"
-                    accept={documentAccept}
                     className="hidden"
+                    accept={documentAccept}
                     onChange={handleUploadDocument}
                   />
                 </label>
               </div>
-
-              {/* Documents List */}
               <ul className="divide-y divide-gray-200">
                 {documents.length > 0 ? (
                   documents.map((doc) => (
                     <li
-                      key={doc._id || doc.path}
+                      key={doc._id}
                       className="py-3 flex justify-between items-center"
                     >
                       <div>
                         <p className="font-medium text-gray-800">{doc.name}</p>
-                        <p className="text-gray-500">
+                        <p className="text-gray-500 text-xs mt-0.5">
                           {doc.uploadedAt
                             ? new Date(doc.uploadedAt).toLocaleDateString()
                             : "N/A"}{" "}
                           - {((doc.size || 0) / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-3 text-sm">
                         <button
                           onClick={() => openDocument(doc, "preview")}
                           className="text-blue-600 hover:underline font-semibold"
@@ -829,7 +754,7 @@ const SuperAdminSISParentProfile = () => {
                     </li>
                   ))
                 ) : (
-                  <li className="py-3 text-gray-500">
+                  <li className="py-6 text-center text-gray-500">
                     No documents uploaded yet.
                   </li>
                 )}
@@ -838,8 +763,9 @@ const SuperAdminSISParentProfile = () => {
           )}
 
           {activeTab === "meetings" && (
-            <div className="bg-white rounded-xl shadow-md p-4">
-              <table className="w-full text-left">
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Meetings</h3>
+              <table className="w-full text-left text-sm">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                   <tr>
                     <th className="px-4 py-2">Topic</th>
@@ -854,7 +780,11 @@ const SuperAdminSISParentProfile = () => {
                       <td className="px-4 py-3">{meeting.topic}</td>
                       <td className="px-4 py-3">{meeting.date}</td>
                       <td className="px-4 py-3">{meeting.notes}</td>
-                      <td className="px-4 py-3">{meeting.status}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700 font-medium">
+                          {meeting.status}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

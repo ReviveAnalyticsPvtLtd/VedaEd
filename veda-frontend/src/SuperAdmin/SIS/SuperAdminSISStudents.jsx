@@ -11,20 +11,31 @@ import {
   FiSearch,
   FiTrash2,
   FiEdit,
-  FiUser,
   FiDownload,
   FiChevronDown,
 } from "react-icons/fi";
 import Pagination from "../../components/common/Pagination";
+import ProfileAvatar from "../../components/ProfileAvatar";
+import { isToastErrorMessage, toastBannerClassName } from "../../utils/toastMessageStyle";
+import { getLatestPassportPhotoUrlFromDocs } from "../../utils/studentProfileMedia";
 
 /* =========================
    Utility
 ========================= */
 function normalizeStudentRow(s, idx = 0) {
+  const imageField = s.personalInfo?.image;
+  const profileFromImageField =
+    (typeof imageField === "string" ? imageField : "") ||
+    imageField?.url ||
+    imageField?.path ||
+    imageField?.fileUrl ||
+    "";
+  const profileFromDocuments = getLatestPassportPhotoUrlFromDocs(s.documents || []);
+
   return {
     ...s,
     id: s._id || idx + 1,
-    _id: s._id || `temp-${idx}`,
+    _id: s._id,
     source: s.source || "SIS",
     personalInfo: {
       ...(s.personalInfo || {}),
@@ -37,15 +48,8 @@ function normalizeStudentRow(s, idx = 0) {
       password: s.personalInfo?.password || "default123",
       fees: s.personalInfo?.fees || "Due",
     },
-    photo:
-      s.photo ||
-      s.personalInfo?.image?.url ||
-      "https://via.placeholder.com/80",
-    address:
-      s.address ||
-      s.personalInfo?.address ||
-      s.contactInfo?.address ||
-      "",
+    photo: s.photo || profileFromImageField || profileFromDocuments || "",
+    address: s.address || s.personalInfo?.address || s.contactInfo?.address || "",
     attendance: s.attendance || "-",
   };
 }
@@ -61,6 +65,11 @@ export default function SuperAdminSISStudents() {
   const [sections, setSections] = useState([]);
   const [formSections, setFormSections] = useState([]);
   const [selectedClassForForm, setSelectedClassForForm] = useState("");
+  const [selectedSectionForForm, setSelectedSectionForForm] = useState("");
+  const [formRollNo, setFormRollNo] = useState("");
+  const [autoRollNoPreview, setAutoRollNoPreview] = useState("");
+  const [isRollCalculating, setIsRollCalculating] = useState(false);
+  const [formCapacityInfo, setFormCapacityInfo] = useState(null);
   const [errors, setErrors] = useState({});
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("");
@@ -140,6 +149,143 @@ export default function SuperAdminSISStudents() {
     }
   }, [activeTab]);
 
+  // Fetch sections when class is selected in form
+  useEffect(() => {
+    const fetchSectionsForClass = async () => {
+      if (!selectedClassForForm) {
+        setFormSections([]);
+        return;
+      }
+
+      const selectedClass = classes.find((c) => c.name === selectedClassForForm);
+      if (selectedClass && selectedClass._id) {
+        try {
+          const res = await api.get(`/sections`, { params: { classId: selectedClass._id } });
+          if (res.data.success && Array.isArray(res.data.data)) {
+            setFormSections(res.data.data);
+          } else {
+            setFormSections([]);
+          }
+        } catch (err) {
+          console.error("Error fetching sections for class:", err);
+          setFormSections([]);
+        }
+      } else {
+        setFormSections([]);
+      }
+    };
+
+    fetchSectionsForClass();
+  }, [selectedClassForForm, classes]);
+
+  // Fetch next student ID when form opens
+  useEffect(() => {
+    const fetchNextStudentId = async () => {
+      if (!showForm) return;
+      setIsNextStudentIdLoading(true);
+      try {
+        const res = await api.get(`/students/next-id`);
+        if (res.data?.success && res.data?.nextStudentId) {
+          setNextStudentIdPreview(res.data.nextStudentId);
+        } else {
+          setNextStudentIdPreview("");
+        }
+      } catch (err) {
+        console.error("Error fetching next student ID:", err);
+        setNextStudentIdPreview("");
+      } finally {
+        setIsNextStudentIdLoading(false);
+      }
+    };
+
+    fetchNextStudentId();
+  }, [showForm]);
+
+  // Fetch next roll number & capacity when class & section are selected in form
+  useEffect(() => {
+    const fetchNextRollNumber = async () => {
+      if (!showForm || !selectedClassForForm || !selectedSectionForForm) {
+        setFormRollNo("");
+        setAutoRollNoPreview("");
+        setFormCapacityInfo(null);
+        return;
+      }
+      setIsRollCalculating(true);
+      try {
+        const res = await api.get(`/students/next-roll-no`, {
+          params: {
+            className: selectedClassForForm,
+            sectionName: selectedSectionForForm,
+          },
+        });
+        if (res.data?.success) {
+          const next = res.data.nextRollNo;
+          setAutoRollNoPreview(next || "");
+          setFormRollNo(next || "");
+          setFormCapacityInfo({
+            capacity: res.data.capacity,
+            enrolledCount: res.data.enrolledCount,
+            isFull: res.data.isFull,
+            usedRollNumbers: res.data.usedRollNumbers || [],
+            message: res.data.message,
+          });
+          if (res.data.isFull) {
+            setErrors((p) => ({
+              ...p,
+              roll:
+                res.data.message ||
+                `This class/section has reached its maximum capacity of ${res.data.capacity} students. No Roll Number is available.`,
+            }));
+          } else {
+            setErrors((p) => {
+              const nextErr = { ...p };
+              delete nextErr.roll;
+              return nextErr;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching next roll number:", err);
+        const msg = err.response?.data?.message || "Failed to calculate next roll number";
+        setErrors((p) => ({ ...p, roll: msg }));
+      } finally {
+        setIsRollCalculating(false);
+      }
+    };
+
+    fetchNextRollNumber();
+  }, [showForm, selectedClassForForm, selectedSectionForForm]);
+
+  // Fetch sections when filter class changes
+  useEffect(() => {
+    const fetchSectionsForClass = async () => {
+      if (!filterClass) {
+        setAvailableSections([]);
+        setFilterSection("");
+        return;
+      }
+
+      const selectedClass = classes.find((c) => c.name === filterClass);
+      if (selectedClass && selectedClass._id) {
+        try {
+          const res = await api.get(`/sections`, { params: { classId: selectedClass._id } });
+          if (res.data.success && Array.isArray(res.data.data)) {
+            setAvailableSections(res.data.data);
+          } else {
+            setAvailableSections([]);
+          }
+        } catch (err) {
+          console.error("Error fetching sections for class:", err);
+          setAvailableSections([]);
+        }
+      } else {
+        setAvailableSections([]);
+      }
+    };
+
+    fetchSectionsForClass();
+  }, [filterClass, classes]);
+
   /* =========================
      CLICK OUTSIDE HANDLER
   ========================= */
@@ -167,6 +313,11 @@ export default function SuperAdminSISStudents() {
     return () =>
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setLoginPage(1);
+  }, [search]);
 
   /* =========================
      FILTERS & PAGINATION
@@ -196,23 +347,226 @@ export default function SuperAdminSISStudents() {
     Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
   /* =========================
-     NAVIGATION
+     NAVIGATION & HANDLERS
   ========================= */
   const handleViewFullProfile = (studentRecord) => {
     if (!studentRecord?._id) return;
 
-    navigate(`/superadmin/student-profile/${studentRecord._id}`, {
+    navigate(`/superadmin/sis/students/${studentRecord._id}`, {
       state: studentRecord,
     });
   };
 
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setSelectedClassForForm("");
+    setSelectedSectionForForm("");
+    setFormRollNo("");
+    setAutoRollNoPreview("");
+    setFormCapacityInfo(null);
+    setNextStudentIdPreview("");
+    setErrors({});
+  };
 
+  const handleRollInputChange = (val) => {
+    setFormRollNo(val);
+    if (!val || !val.trim()) {
+      setErrors((p) => ({ ...p, roll: "Roll Number is required" }));
+      return;
+    }
+    const trimmed = val.trim();
+    if (!/^\d+$/.test(trimmed)) {
+      setErrors((p) => ({ ...p, roll: "Only positive numbers allowed" }));
+      return;
+    }
+    const num = parseInt(trimmed, 10);
+    if (num < 1) {
+      setErrors((p) => ({ ...p, roll: "Roll Number must be at least 1" }));
+      return;
+    }
+    if (formCapacityInfo) {
+      if (num > formCapacityInfo.capacity) {
+        setErrors((p) => ({
+          ...p,
+          roll: `Roll Number cannot exceed the maximum capacity of ${formCapacityInfo.capacity}`,
+        }));
+        return;
+      }
+      if (formCapacityInfo.usedRollNumbers.includes(num)) {
+        setErrors((p) => ({
+          ...p,
+          roll: `Roll Number ${num} is already assigned in ${selectedClassForForm} - Section ${selectedSectionForForm}`,
+        }));
+        return;
+      }
+    }
+    setErrors((p) => {
+      const nextErr = { ...p };
+      delete nextErr.roll;
+      return nextErr;
+    });
+  };
+
+  const handleAddManually = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    const classVal = selectedClassForForm || form.cls?.value.trim();
+    const sectionVal = selectedSectionForForm || form.section?.value.trim();
+    const rollVal = formRollNo ? formRollNo.trim() : form.roll?.value?.trim();
+
+    if (!classVal) {
+      setErrors((p) => ({ ...p, cls: "Class is required" }));
+      return;
+    }
+    if (!sectionVal) {
+      setErrors((p) => ({ ...p, section: "Section is required" }));
+      return;
+    }
+    if (formCapacityInfo?.isFull) {
+      setErrors((p) => ({
+        ...p,
+        roll:
+          formCapacityInfo.message ||
+          `This class/section has reached its maximum capacity of ${formCapacityInfo.capacity} students. No Roll Number is available.`,
+      }));
+      return;
+    }
+
+    const newStudent = {
+      autoGenerateStudentId: true,
+      personalInfo: {
+        name: form.name.value.trim(),
+        class: classVal,
+        rollNo: rollVal,
+        section: sectionVal,
+        password: form.password.value || "default123",
+        fees: form.fee.value || "Due",
+      },
+    };
+
+    try {
+      const res = await api.post(`/students`, newStudent);
+
+      if (res.data.success && res.data.student) {
+        await loadStudents();
+        handleCloseForm();
+        const assignedId = res.data.student.personalInfo?.stdId;
+        const assignedRoll = res.data.student.personalInfo?.rollNo;
+        setSuccessMsg(
+          assignedId
+            ? `Student added successfully. Student ID: ${assignedId} | Roll No: ${assignedRoll}`
+            : "Student added successfully"
+        );
+        setTimeout(() => setSuccessMsg(""), 4000);
+      } else {
+        const errorMsg = res.data.message || "Failed to add student";
+        setSuccessMsg(`Failed to add student ❌: ${errorMsg}`);
+        setTimeout(() => setSuccessMsg(""), 5000);
+      }
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to add student";
+      setSuccessMsg(`Failed to add student ❌: ${errorMessage}`);
+      setTimeout(() => setSuccessMsg(""), 5000);
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target.result;
+      const workbook = XLSX.read(bstr, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      if (data.length === 0) {
+        setSuccessMsg("Import failed ❌: The spreadsheet has no data rows.");
+        setTimeout(() => setSuccessMsg(""), 4000);
+        return;
+      }
+
+      const rows = data.map((row) => ({
+        personalInfo: {
+          name: row["Name"] || "",
+          class: row["Class"] || "-",
+          rollNo: row["Roll"] || "-",
+          section: row["Section"] || "-",
+          password: row["Password"] || "default123",
+          fees: row["Fee"] || "Due",
+          email: row["Email"] || "",
+        },
+        attendance: row["Attendance"] || "-",
+      }));
+
+      try {
+        const res = await api.post(`/students/import`, { students: rows });
+
+        if (res.data.success) {
+          await loadStudents();
+          const { imported = [], skipped = [], errors = [] } = res.data;
+          let msg = res.data.message || "Import complete";
+          if (skipped.length > 0) {
+            msg += ` | Skipped: ${skipped.map((s) => s.name).join(", ")}`;
+          }
+          if (errors.length > 0) {
+            msg += ` | Errors: ${errors.map((s) => s.name || "?").join(", ")}`;
+          }
+          setSuccessMsg(imported.length > 0 ? `✅ ${msg}` : `⚠️ ${msg}`);
+          setTimeout(() => setSuccessMsg(""), 6000);
+        } else {
+          setSuccessMsg(`Import failed ❌: ${res.data.message}`);
+          setTimeout(() => setSuccessMsg(""), 5000);
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || "Server error";
+        setSuccessMsg(`Error connecting to server ❌: ${errMsg}`);
+        setTimeout(() => setSuccessMsg(""), 5000);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleUpdatePassword = async (id, newPassword) => {
+    try {
+      const res = await api.put(`/students/${id}`, {
+        personalInfo: {
+          password: newPassword,
+        },
+      });
+      if (res.data.success) {
+        setStudents(
+          students.map((s) =>
+            s._id === id
+              ? {
+                  ...s,
+                  personalInfo: { ...s.personalInfo, password: newPassword },
+                }
+              : s
+          )
+        );
+        setSuccessMsg("Password updated successfully");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      }
+    } catch (err) {
+      console.error("Error updating password:", err);
+      setSuccessMsg("Failed to update password ❌");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
 
   const handleSelectStudent = (id) => {
     setSelectedStudents((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -225,30 +579,152 @@ export default function SuperAdminSISStudents() {
   };
 
   const handleBulkExport = () => {
-    alert("Bulk export disabled for SuperAdmin (API removed)");
-  };
-
-  const handleBulkDelete = () => {
     if (selectedStudents.length === 0) {
-      alert("No students selected");
+      setSuccessMsg("Please select students first");
+      setTimeout(() => setSuccessMsg(""), 3000);
       return;
     }
-    setStudents((prev) =>
-      prev.filter((s) => !selectedStudents.includes(s._id))
+
+    const selectedData = students.filter((s) =>
+      selectedStudents.includes(s._id)
     );
-    setSelectedStudents([]);
+
+    const exportData = selectedData.map((s) => ({
+      "Student ID": s.personalInfo?.stdId,
+      Name: s.personalInfo?.name,
+      Class: s.personalInfo?.class,
+      Section: s.personalInfo?.section,
+      Roll: s.personalInfo?.rollNo,
+      Fees: s.personalInfo?.fees,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+    XLSX.writeFile(workbook, "Selected_Students.xlsx");
+    setShowBulkActions(false);
   };
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Are you sure you want to delete?")) return;
-    setStudents((prev) => prev.filter((s) => s._id !== id));
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) {
+      setSuccessMsg("Please select students first");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Delete ${selectedStudents.length} selected students?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await Promise.all(
+        selectedStudents.map((id) => api.delete(`/students/${id}`))
+      );
+
+      setStudents((prev) =>
+        prev.filter((s) => !selectedStudents.includes(s._id))
+      );
+      setSelectedStudents([]);
+      setShowBulkActions(false);
+      setSuccessMsg("Selected students deleted successfully");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setSuccessMsg("Failed to delete selected students");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
   };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete?")) return;
+    try {
+      await api.delete(`/students/${id}`);
+      setStudents((prev) => prev.filter((s) => s._id !== id));
+      setSuccessMsg("Student deleted");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error("Error deleting student:", err);
+      setSuccessMsg("Failed to delete student ❌");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
+
+  const getFieldValue = (label) => {
+    if (!selectedStudent) return "N/A";
+
+    const personal = selectedStudent.personalInfo || {};
+    const parent = selectedStudent.parent || {};
+    const contact = personal.contactDetails || selectedStudent.contactInfo || {};
+    const parents = selectedStudent.parents || {};
+    const emergency = selectedStudent.emergencyContact || {};
+    const academic = selectedStudent.earlierAcademic || {};
+    const curriculum = selectedStudent.curriculum || {};
+
+    const safeValue = (value) => {
+      if (value === 0) return "0";
+      if (typeof value === "string" && value.trim() !== "") return value.trim();
+      if (value !== undefined && value !== null && value !== "") return String(value);
+      return "N/A";
+    };
+
+    const address = personal.address || contact.address || selectedStudent.address;
+    const dob = personal.DOB || personal.dateOfBirth;
+    const fatherName = parent.fatherName || parents.father?.name;
+    const motherName = parent.motherName || parents.mother?.name;
+    const emergencyContact = emergency.phone || contact.alternatePhone || contact.phone;
+    const contactNumber = contact.mobileNumber || contact.phone || parent.contactDetails?.phone;
+
+    const fieldMap = {
+      Gender: personal.gender,
+      "Blood Group": personal.bloodGroup,
+      "Date of Birth": dob,
+      Age: personal.age,
+      House: personal.house,
+      "Academic Year": curriculum.academicYear || academic.academicYear,
+      "Admission Type": curriculum.admissionType,
+      Father: fatherName,
+      Mother: motherName,
+      "Emergency Contact": emergencyContact,
+      Contact: contactNumber,
+      "Present Days": selectedStudent.presentDays,
+      "Last Present": selectedStudent.lastPresent,
+      "Total Fee": selectedStudent.totalFee,
+      Paid: selectedStudent.paidFee,
+      Due: selectedStudent.dueFee,
+      "Last Payment": selectedStudent.lastPayment,
+      Address: address,
+    };
+
+    return safeValue(fieldMap[label]);
+  };
+
+  const getRemainingFields = () => {
+    if (!selectedStudent) return [];
+    const personal = selectedStudent.personalInfo || {};
+    const contact = selectedStudent.contactInfo || {};
+    const academic = selectedStudent.earlierAcademic || {};
+
+    const extras = [
+      { label: "Nationality", value: personal.nationality },
+      { label: "Religion", value: personal.religion },
+      { label: "Email", value: contact.email || personal.contactDetails?.email },
+      { label: "Phone", value: contact.phone || personal.contactDetails?.mobileNumber },
+      { label: "Previous School", value: academic.schoolName },
+      { label: "Board", value: academic.board },
+      { label: "Last Class", value: academic.lastClass },
+    ];
+
+    return extras.filter((item) => item.value !== undefined && item.value !== null && item.value !== "");
+  };
+
   return (
     <div className="p-0 m-0 min-h-screen">
       {successMsg && (
         <div
           role="status"
-          className={`mb-4 px-3 py-2 rounded-md border text-sm font-semibold ${(
+          className={`mb-4 px-3 py-2 rounded-md border text-sm font-semibold ${toastBannerClassName(
             successMsg
           )}`}
         >
@@ -257,105 +733,107 @@ export default function SuperAdminSISStudents() {
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-4">
-             <h2 className="text-2xl font-bold shrink-0">Students</h2>
-     
-             <HelpInfo
-               title="Students Page Help"
-               description={`2.1 All Students Tab
-     
-     View and manage complete list of all enrolled students.
-     Display student information including name, student ID, class, section, roll number, photo, and status.
-     Search and filter students by class, section, or name.
-     Access quick actions like view profile, edit details, or delete student records.
-     Import students from Excel files or add new students manually.
-     Export student data for reporting purposes.
-     
-     Sections:
-     - Search and Filter Bar: Search students by name, ID, or class. Filter by class, section, or status.
-     - Student Table: Comprehensive table showing student details with sorting and pagination.
-     - Action Buttons: Add new student, import from Excel, export data.
-     - Student Cards/List: Visual representation of students with photos and key information.
-     
-     
-     2.2 Manage Login Tab
-     
-     Manage student login credentials and account access.
-     View login information including usernames, passwords, and account status.
-     Reset passwords, activate or deactivate accounts, and manage login permissions.
-     Search and filter students by login status (active/inactive).
-     Generate login credentials for new students or bulk reset passwords.
-     
-     Sections:
-     - Login Credentials Table: Displays student ID, name, username, password status, and account status.
-     - Search and Filter: Find students by name, ID, or login status.
-     - Password Management: Reset individual or bulk passwords.
-     - Account Status Management: Activate, deactivate, or suspend accounts.
-     - Security Settings: Configure password policies and access controls.
-     
-     
-     2.3 Others Tab
-     
-     Additional student management tools and utilities.
-     Access reports, generate ID cards, manage categories, and perform bulk operations.
-     View student statistics and export/import data.
-     
-     Sections:
-     - Reports & Analytics: Generate reports, attendance summaries, and performance analytics.
-     - Bulk Operations: Perform bulk updates, transfers, or status changes.
-     - ID Card Generation: Create and print student ID cards.
-     - Student Categories: Manage groups and classifications.
-     - Export & Import Tools: Advanced export options and import templates.
-     `}
-               steps={[
-                 "Use Search to find students",
-                 "Filter by class using dropdown",
-                 "Click Add Student to register new student",
-                 "Use action buttons for profile, attendance and fees",
-               ]}
-             />
-           </div>
-     
-           <div className="flex gap-4 sm:gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto shrink-0 pb-px">
-             <button
-               onClick={() => {
-                 setActiveTab("all");
-                 setLoginPage(1);
-               }}
-               className={`pb-2 ${activeTab === "all"
-                 ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-                 : "text-gray-500"
-                 }`}
-             >
-               All Student
-             </button>
-     
-             <button
-               onClick={() => {
-                 setActiveTab("login");
-                 setLoginPage(1);
-               }}
-               className={`pb-2 ${activeTab === "login"
-                 ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-                 : "text-gray-500"
-                 }`}
-             >
-               Manage Login
-             </button>
-     
-             <button
-               onClick={() => {
-                 setActiveTab("others");
-                 setLoginPage(1);
-               }}
-               className={`pb-2 ${activeTab === "others"
-                 ? "text-blue-600 font-semibold border-b-2 border-blue-600"
-                 : "text-gray-500"
-                 }`}
-             >
-               Others
-             </button>
-           </div>
-     
+        <h2 className="text-2xl font-bold shrink-0">Students</h2>
+
+        <HelpInfo
+          title="Students Page Help"
+          description={`2.1 All Students Tab
+
+View and manage complete list of all enrolled students.
+Display student information including name, student ID, class, section, roll number, photo, and status.
+Search and filter students by class, section, or name.
+Access quick actions like view profile, edit details, or delete student records.
+Import students from Excel files or add new students manually.
+Export student data for reporting purposes.
+
+Sections:
+- Search and Filter Bar: Search students by name, ID, or class. Filter by class, section, or status.
+- Student Table: Comprehensive table showing student details with sorting and pagination.
+- Action Buttons: Add new student, import from Excel, export data.
+- Student Cards/List: Visual representation of students with photos and key information.
+
+
+2.2 Manage Login Tab
+
+Manage student login credentials and account access.
+View login information including usernames, passwords, and account status.
+Reset passwords, activate or deactivate accounts, and manage login permissions.
+Search and filter students by login status (active/inactive).
+Generate login credentials for new students or bulk reset passwords.
+
+Sections:
+- Login Credentials Table: Displays student ID, name, username, password status, and account status.
+- Search and Filter: Find students by name, ID, or login status.
+- Password Management: Reset individual or bulk passwords.
+- Account Status Management: Activate, deactivate, or suspend accounts.
+- Security Settings: Configure password policies and access controls.
+
+
+2.3 Others Tab
+
+Additional student management tools and utilities.
+Access reports, generate ID cards, manage categories, and perform bulk operations.
+View student statistics and export/import data.
+
+Sections:
+- Reports & Analytics: Generate reports, attendance summaries, and performance analytics.
+- Bulk Operations: Perform bulk updates, transfers, or status changes.
+- ID Card Generation: Create and print student ID cards.
+- Student Categories: Manage groups and classifications.
+- Export & Import Tools: Advanced export options and import templates.
+`}
+          steps={[
+            "Use Search to find students",
+            "Filter by class using dropdown",
+            "Click Add Student to register new student",
+            "Use action buttons for profile, attendance and fees",
+          ]}
+        />
+      </div>
+
+      <div className="flex gap-4 sm:gap-6 text-sm mb-3 text-gray-600 border-b overflow-x-auto shrink-0 pb-px">
+        <button
+          onClick={() => {
+            setActiveTab("all");
+            setLoginPage(1);
+          }}
+          className={`pb-2 ${
+            activeTab === "all"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+          }`}
+        >
+          All Student
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("login");
+            setLoginPage(1);
+          }}
+          className={`pb-2 ${
+            activeTab === "login"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+          }`}
+        >
+          Manage Login
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("others");
+            setLoginPage(1);
+          }}
+          className={`pb-2 ${
+            activeTab === "others"
+              ? "text-blue-600 font-semibold border-b-2 border-blue-600"
+              : "text-gray-500"
+          }`}
+        >
+          Others
+        </button>
+      </div>
 
       {activeTab === "all" && (
         <div className="bg-white p-3 rounded-lg shadow-sm border">
@@ -365,193 +843,287 @@ export default function SuperAdminSISStudents() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full">
             <div className="flex flex-wrap items-center gap-3 min-w-0">
               <div className="flex items-center border px-3 py-2 rounded-md bg-white w-1/3 min-w-[220px]">
-              <FiSearch className="text-gray-500 mr-2 text-sm" />
-              <input
-                type="text"
-                placeholder="Search student name or ID"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full outline-none text-sm"
-              />
-            </div>
+                <FiSearch className="text-gray-500 mr-2 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Search student name or ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full outline-none text-sm"
+                />
+              </div>
 
-            {/* Class Filter */}
-            <div className="relative" ref={classDropdownRef}>
-              <button
-                onClick={() => setShowClassDropdown(!showClassDropdown)}
-                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between"
-              >
-                <span>{filterClass || "Class"}</span>
-                <FiChevronDown className="text-xs" />
-              </button>
+              {/* Class Filter */}
+              <div className="relative" ref={classDropdownRef}>
+                <button
+                  onClick={() => setShowClassDropdown(!showClassDropdown)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500"
+                >
+                  <span>{filterClass || "Class"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
 
-              {showClassDropdown && (
-                <div className="absolute mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm">
-                  <button
-                    onClick={() => {
-                      setFilterClass("");
-                      setFilterSection("");
-                      setShowClassDropdown(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    All Classes
-                  </button>
-                  {classes.map((cls) => (
+                {showClassDropdown && (
+                  <div className="absolute mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto">
                     <button
-                      key={cls._id}
                       onClick={() => {
-                        setFilterClass(cls.name);
+                        setFilterClass("");
                         setFilterSection("");
                         setShowClassDropdown(false);
+                        setShowSectionDropdown(false);
                       }}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
-                      {cls.name}
+                      All Classes
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {classes.map((cls) => (
+                      <button
+                        key={cls._id}
+                        onClick={() => {
+                          setFilterClass(cls.name);
+                          setFilterSection("");
+                          setShowClassDropdown(false);
+                          setShowSectionDropdown(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        {cls.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Bulk Actions */}
-            <div className="relative" ref={bulkActionRef}>
-              <button
-                onClick={() => setShowBulkActions(!showBulkActions)}
-                className="border px-3 py-2 rounded-md bg-white flex items-center gap-2"
-              >
-                Bulk Actions
-                <FiChevronDown className="text-xs" />
-              </button>
+              {/* Section Filter */}
+              <div className="relative" ref={sectionDropdownRef}>
+                <button
+                  onClick={() => filterClass && setShowSectionDropdown(!showSectionDropdown)}
+                  disabled={!filterClass}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 w-[120px] justify-between hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span>{filterSection || "Section"}</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
 
-              {showBulkActions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
-                  <button
-                    onClick={handleBulkExport}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    Export Excel
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
+                {showSectionDropdown && filterClass && (
+                  <div className="absolute mt-2 w-32 bg-white border rounded-md shadow-lg z-10 text-sm max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setFilterSection("");
+                        setShowSectionDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      All Sections
+                    </button>
+                    {availableSections && availableSections.length > 0 ? (
+                      availableSections.map((sec) => {
+                        const sectionName = sec.name || sec;
+                        return (
+                          <button
+                            key={sec._id || sec}
+                            onClick={() => {
+                              setFilterSection(sectionName);
+                              setShowSectionDropdown(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            {sectionName}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-2 text-gray-500 text-xs">No sections available</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Bulk Actions */}
+              <div className="relative" ref={bulkActionRef}>
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 hover:border-blue-500"
+                >
+                  <span>Bulk Actions</span>
+                  <FiChevronDown className="text-xs" />
+                </button>
+
+                {showBulkActions && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-10 text-sm">
+                    <button
+                      onClick={handleBulkExport}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <FiDownload className="text-sm" />
+                      Export Excel
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 flex items-center gap-2"
+                    >
+                      <FiTrash2 className="text-sm" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Add Student */}
             <div className="ml-auto relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-1 hover:bg-blue-700"
               >
                 <FiPlus /> Add Student
               </button>
+
+              {showOptions && (
+                <div className="absolute right-0 mt-2 w-44 bg-white border rounded-md shadow-lg z-20 text-sm">
+                  <button
+                    onClick={() => {
+                      setShowForm(true);
+                      setShowOptions(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FiPlus className="text-sm" /> Add Manually
+                  </button>
+
+                  <label className="block w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2">
+                    <FiUpload className="text-sm" /> Import Excel
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
           {/* 📋 TABLE */}
-          <table className="w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border w-[50px]">
-                  <input
-                    type="checkbox"
-                    checked={
-                      currentStudents.length > 0 &&
-                      currentStudents.every((s) =>
-                        selectedStudents.includes(s._id)
-                      )
-                    }
-                    onChange={handleSelectAllStudents}
-                  />
-                </th>
-                <th className="p-2 border">S. no.</th>
-                <th className="p-2 border">Student ID</th>
-                <th className="p-2 border">Student Name</th>
-                <th className="p-2 border">Roll num</th>
-                <th className="p-2 border">Class</th>
-                <th className="p-2 border">Section</th>
-                <th className="p-2 border">Fees</th>
-                <th className="p-2 border">Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {currentStudents.map((s, idx) => (
-                <tr key={s._id} className="text-center hover:bg-gray-50">
-                  <td className="p-2 border">
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 rounded-md border border-gray-100 sm:border-0">
+            <table className="w-full border text-sm min-w-[720px]">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 border w-[50px]">
                     <input
                       type="checkbox"
-                      checked={selectedStudents.includes(s._id)}
-                      onChange={() => handleSelectStudent(s._id)}
+                      checked={
+                        currentStudents.length > 0 &&
+                        currentStudents.every((s) =>
+                          selectedStudents.includes(s._id)
+                        )
+                      }
+                      onChange={handleSelectAllStudents}
                     />
-                  </td>
-                  <td className="p-2 border">
-                    {indexOfFirst + idx + 1}
-                  </td>
-                  <td className="p-2 border">{s.personalInfo.stdId}</td>
-                  <td className="p-2 border text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 bg-orange-500 text-white flex items-center justify-center rounded-full">
-                        {s.personalInfo.name[0]}
-                      </span>
-                      {s.personalInfo.name}
-                    </div>
-                  </td>
-                  <td className="p-2 border">{s.personalInfo.rollNo}</td>
-                  <td className="p-2 border">{s.personalInfo.class}</td>
-                  <td className="p-2 border">{s.personalInfo.section}</td>
-                  <td className="p-2 border">
-                    {s.personalInfo.fees === "Paid" ? (
-                      <span className="text-green-600 text-xs font-semibold">
-                        ● Paid
-                      </span>
-                    ) : (
-                      <span className="text-red-600 text-xs font-semibold">
-                        ● Due
-                      </span>
-                    )}
-                  </td>
-                    <td className="p-2 border">
-                    <div className="flex items-center justify-center gap-1">
-                    <button
-                      className="text-blue-500"
-                      onClick={() => setSelectedStudent(s)}
-                    >
-                      <FiSearch />
-                    </button>
-                    <button
-                      className="text-red-500"
-                      onClick={() => handleDelete(s._id)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                    </div>
-                    </td>
+                  </th>
+                  <th className="p-2 border">S. no.</th>
+                  <th className="p-2 border">Student ID</th>
+                  <th className="p-2 border">Student Name</th>
+                  <th className="p-2 border">Roll num</th>
+                  <th className="p-2 border">Class</th>
+                  <th className="p-2 border">Section</th>
+                  <th className="p-2 border">Fees</th>
+                  <th className="p-2 border">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
 
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+              <tbody>
+                {currentStudents.map((s, idx) => (
+                  <tr key={s._id} className="text-center hover:bg-gray-50">
+                    <td className="p-2 border">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.includes(s._id)}
+                        onChange={() => handleSelectStudent(s._id)}
+                      />
+                    </td>
+                    <td className="p-2 border">
+                      {indexOfFirst + idx + 1}
+                    </td>
+                    <td className="p-2 border">{s.personalInfo?.stdId}</td>
+                    <td className="p-2 border text-left">
+                      <div className="flex items-center gap-2">
+                        <ProfileAvatar
+                          name={s.personalInfo?.name || "Student"}
+                          imageSrc={s.photo || ""}
+                          sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                          textClassName="text-xs"
+                          className="ring-2 ring-indigo-100 shrink-0"
+                        />
+                        <span>{s.personalInfo?.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-2 border">{s.personalInfo?.rollNo}</td>
+                    <td className="p-2 border">{s.personalInfo?.class}</td>
+                    <td className="p-2 border">{s.personalInfo?.section}</td>
+                    <td className="p-2 border">
+                      {s.personalInfo?.fees === "Paid" ? (
+                        <span className="text-green-600 text-xs font-semibold">
+                          ● Paid
+                        </span>
+                      ) : (
+                        <span className="text-red-600 text-xs font-semibold">
+                          ● Due
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 border">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          className="text-blue-500 hover:text-blue-700"
+                          onClick={() => setSelectedStudent(s)}
+                          title="View student details"
+                        >
+                          <FiSearch />
+                        </button>
+                        <button
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDelete(s._id)}
+                          title="Delete student"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {currentStudents.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="p-4 text-center text-gray-500 text-sm">
+                      No students found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
-      )}{activeTab === "login" && (() => {
+      )}
+
+      {activeTab === "login" && (() => {
         const filteredLoginStudents = students.filter(
           (s) =>
-          ((s.personalInfo?.name?.toLowerCase() || "").includes(
-            search.toLowerCase()
-          ) ||
-            (s.personalInfo?.stdId?.toLowerCase() || "").includes(
+            ((s.personalInfo?.name?.toLowerCase() || "").includes(
               search.toLowerCase()
             ) ||
-            (s.personalInfo?.class?.toLowerCase() || "").includes(
-              search.toLowerCase()
-            ))
+              (s.personalInfo?.stdId?.toLowerCase() || "").includes(
+                search.toLowerCase()
+              ) ||
+              (s.personalInfo?.class?.toLowerCase() || "").includes(
+                search.toLowerCase()
+              ))
         );
 
         const loginIndexOfLast = loginPage * studentsPerPage;
@@ -622,105 +1194,514 @@ export default function SuperAdminSISStudents() {
               </div>
             </div>
 
-            <table className="w-full border">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">S. no.</th>
-                  <th className="p-2 border">Student ID</th>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Class</th>
-                  <th className="p-2 border">Username</th>
-                  <th className="p-2 border">Password</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentLoginStudents.map((s, idx) => (
-                  <tr key={s.id || idx} className="text-center hover:bg-gray-50">
-                    <td className="p-2 border">
-                      {loginIndexOfFirst + idx + 1}
-                    </td>
-                    <td className="p-2 border">
-                      {s.personalInfo?.stdId || "N/A"}
-                    </td>
-                    <td className="p-2 border text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 bg-orange-500 text-white flex items-center justify-center rounded-full">
-                          {s.personalInfo?.name?.[0] || "?"}
-                        </span>
-                        <span>{s.personalInfo?.name || "N/A"}</span>
-                      </div>
-                    </td>
-                    <td className="p-2 border">
-                      {s.personalInfo?.class || "N/A"}
-                    </td>
-                    <td className="p-2 border">
-                      {s.personalInfo?.username ||
-                        s.personalInfo?.stdId ||
-                        "N/A"}
-                    </td>
-                    <td className="p-2 border">
-                      {(() => {
-                        const pwKey = String(s._id ?? s.id ?? idx);
-                        const revealed = !!visibleLoginPasswords[pwKey];
-                        return (
-                          <div className="flex items-center justify-center gap-2">
-                            <span>
-                              {revealed
-                                ? s.personalInfo?.password || "N/A"
-                                : "••••••••"}
-                            </span>
-                            <button
-                              onClick={() =>
-                                setVisibleLoginPasswords((prev) => ({
-                                  ...prev,
-                                  [pwKey]: !prev[pwKey],
-                                }))
-                              }
-                              className="text-blue-500 text-xs"
-                            >
-                              {revealed ? "Hide" : "Show"}
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="p-2 border">
-                      <div className="flex items-center justify-center gap-1">
-                      <button
-                        className="text-blue-500"
-                        onClick={() => {
-                          setEditingPassword(s);
-                          setShowPasswordModal(true);
-                        }}
-                      >
-                        <FiEdit />
-                      </button>
-                      <button
-                        className="text-red-500"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              "Are you sure you want to delete this login?"
-                            )
-                          ) {
-                            handleDelete(s._id);
-                          }
-                        }}
-                      >
-                        <FiTrash2 />
-                      </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 rounded-md border border-gray-100 sm:border-0">
+              <table className="w-full border text-sm min-w-[640px]">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">S. no.</th>
+                    <th className="p-2 border">Student ID</th>
+                    <th className="p-2 border">Name</th>
+                    <th className="p-2 border">Class</th>
+                    <th className="p-2 border">Username</th>
+                    <th className="p-2 border">Password</th>
+                    <th className="p-2 border">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {currentLoginStudents.map((s, idx) => (
+                    <tr key={s.id || idx} className="text-center hover:bg-gray-50">
+                      <td className="p-2 border">
+                        {loginIndexOfFirst + idx + 1}
+                      </td>
+                      <td className="p-2 border">
+                        {s.personalInfo?.stdId || "N/A"}
+                      </td>
+                      <td className="p-2 border text-left">
+                        <div className="flex items-center gap-2">
+                          <ProfileAvatar
+                            name={s.personalInfo?.name || "Student"}
+                            imageSrc={s.photo || ""}
+                            sizeClassName="w-8 h-8 min-w-[2rem] min-h-[2rem]"
+                            textClassName="text-xs"
+                            className="ring-2 ring-indigo-100 shrink-0"
+                          />
+                          <span>{s.personalInfo?.name || "N/A"}</span>
+                        </div>
+                      </td>
+                      <td className="p-2 border">
+                        {s.personalInfo?.class || "N/A"}
+                      </td>
+                      <td className="p-2 border">
+                        {s.personalInfo?.username ||
+                          s.personalInfo?.stdId ||
+                          "N/A"}
+                      </td>
+                      <td className="p-2 border">
+                        {(() => {
+                          const pwKey = String(s._id ?? s.id ?? idx);
+                          const revealed = !!visibleLoginPasswords[pwKey];
+                          return (
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              <span
+                                className={
+                                  revealed
+                                    ? "text-gray-800 font-mono text-xs max-w-[160px] break-all text-left"
+                                    : "text-gray-500"
+                                }
+                              >
+                                {revealed
+                                  ? s.personalInfo?.password || "N/A"
+                                  : "••••••••"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVisibleLoginPasswords((prev) => ({
+                                    ...prev,
+                                    [pwKey]: !prev[pwKey],
+                                  }))
+                                }
+                                className="text-blue-500 hover:text-blue-700 text-xs shrink-0"
+                              >
+                                {revealed ? "Hide" : "Show"}
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="p-2 border">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            className="text-blue-500 hover:text-blue-700"
+                            onClick={() => {
+                              setEditingPassword(s);
+                              setShowPasswordModal(true);
+                            }}
+                            title="Edit password"
+                          >
+                            <FiEdit />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "Are you sure you want to delete this login?"
+                                )
+                              ) {
+                                handleDelete(s._id);
+                              }
+                            }}
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {currentLoginStudents.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-4 text-center text-gray-500 text-sm">
+                        No login data available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-            <Pagination currentPage={loginPage} totalPages={loginTotalPages} onPageChange={setLoginPage} />
+            <Pagination
+              currentPage={loginPage}
+              totalPages={loginTotalPages}
+              onPageChange={setLoginPage}
+            />
           </div>
         );
       })()}
+
+      {/* Add Student Manually Modal */}
+      {showForm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4 text-gray-800">Add Student Manually</h3>
+            {successMsg && isToastErrorMessage(successMsg) && (
+              <div
+                role="alert"
+                className={`mb-3 px-3 py-2 rounded-md border text-sm font-semibold ${toastBannerClassName(
+                  successMsg
+                )}`}
+              >
+                {successMsg}
+              </div>
+            )}
+            <form onSubmit={handleAddManually} className="space-y-3">
+              <div className="border border-dashed border-gray-300 bg-gray-50 px-3 py-2 rounded text-sm text-gray-700">
+                <span className="font-medium text-gray-800">Student ID</span>
+                <p className="mt-1 text-gray-600">
+                  {isNextStudentIdLoading
+                    ? "Fetching next available Student ID..."
+                    : `${nextStudentIdPreview || "Unavailable"}`}
+                </p>
+              </div>
+
+              <div>
+                <input
+                  name="name"
+                  placeholder="Name"
+                  className={`border px-3 py-2 w-full rounded text-sm ${
+                    errors.name ? "border-red-500 bg-red-50" : ""
+                  }`}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!/^[a-zA-Z\s]*$/.test(val)) {
+                      setErrors((p) => ({ ...p, name: "Only letters allowed" }));
+                      return;
+                    }
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.name;
+                      return next;
+                    });
+                  }}
+                  required
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                )}
+              </div>
+
+              {/* Class Selection */}
+              <div>
+                <select
+                  name="cls"
+                  value={selectedClassForForm}
+                  onChange={(e) => {
+                    setSelectedClassForForm(e.target.value);
+                    setSelectedSectionForForm("");
+                    setFormRollNo("");
+                    setAutoRollNoPreview("");
+                    setFormCapacityInfo(null);
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.cls;
+                      return next;
+                    });
+                  }}
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((cls) => (
+                    <option key={cls._id} value={cls.name}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Section Selection */}
+              <div>
+                <select
+                  name="section"
+                  value={selectedSectionForForm}
+                  onChange={(e) => {
+                    setSelectedSectionForForm(e.target.value);
+                    setErrors((p) => {
+                      const next = { ...p };
+                      delete next.section;
+                      return next;
+                    });
+                  }}
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                  disabled={!selectedClassForForm}
+                >
+                  <option value="">Select Section</option>
+                  {selectedClassForForm &&
+                    (formSections.length > 0
+                      ? formSections
+                      : classes.find((c) => c.name === selectedClassForForm)?.sections || []
+                    ).map((sec) => (
+                      <option key={sec._id || sec} value={sec.name || sec}>
+                        {sec.name || sec}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Roll Number Input & Live Allocation/Capacity Feedback */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Roll Number
+                  </label>
+                  {isRollCalculating && (
+                    <span className="text-[11px] text-blue-600 animate-pulse">
+                      Calculating first available...
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    name="roll"
+                    value={formRollNo}
+                    placeholder={
+                      !selectedClassForForm || !selectedSectionForForm
+                        ? "Select Class & Section first"
+                        : isRollCalculating
+                        ? "Calculating first available roll number..."
+                        : "Roll Number"
+                    }
+                    disabled={!selectedClassForForm || !selectedSectionForForm || isRollCalculating}
+                    className={`border px-3 py-2 w-full rounded text-sm ${
+                      errors.roll
+                        ? "border-red-500 bg-red-50"
+                        : formCapacityInfo?.isFull
+                        ? "border-red-300 bg-gray-100 cursor-not-allowed"
+                        : ""
+                    }`}
+                    onChange={(e) => handleRollInputChange(e.target.value)}
+                    required
+                  />
+                  {formRollNo && autoRollNoPreview && formRollNo === autoRollNoPreview && !errors.roll && (
+                    <span className="absolute right-2 top-2 text-[11px] bg-blue-100 text-blue-700 font-medium px-2 py-0.5 rounded">
+                      Auto-allocated
+                    </span>
+                  )}
+                </div>
+
+                {formCapacityInfo && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-gray-500">
+                      Capacity: {formCapacityInfo.enrolledCount}/{formCapacityInfo.capacity} students
+                    </span>
+                    <span
+                      className={`font-medium ${
+                        formCapacityInfo.isFull
+                          ? "text-red-600 font-semibold"
+                          : formCapacityInfo.capacity - formCapacityInfo.enrolledCount <= 5
+                          ? "text-amber-600"
+                          : "text-green-600"
+                      }`}
+                    >
+                      {formCapacityInfo.isFull
+                        ? "Section Full"
+                        : `${formCapacityInfo.capacity - formCapacityInfo.enrolledCount} seats available`}
+                    </span>
+                  </div>
+                )}
+                {errors.roll && <p className="text-red-500 text-xs mt-1">{errors.roll}</p>}
+              </div>
+
+              <div>
+                <input
+                  name="password"
+                  placeholder="Password"
+                  defaultValue="default123"
+                  className="border px-3 py-2 w-full rounded text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <select
+                  name="fee"
+                  className="border px-3 py-2 w-full rounded text-sm"
+                >
+                  <option value="Paid">Paid</option>
+                  <option value="Due">Due</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Boolean(formCapacityInfo?.isFull || errors.roll || isRollCalculating)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Student
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Selected Student Drawer */}
+      {selectedStudent && (
+        <div className="fixed inset-y-0 right-0 h-full w-full max-w-[380px] bg-white border-l shadow-xl z-50 overflow-y-auto">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start p-4 border-b">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <h2 className="text-xl font-semibold break-words">
+                  {selectedStudent.personalInfo?.name || "N/A"}
+                </h2>
+
+                <button
+                  onClick={() => {
+                    handleViewFullProfile(selectedStudent);
+                  }}
+                  className="text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-4 sm:px-8 py-2 sm:py-1 rounded shrink-0 self-start sm:self-auto"
+                >
+                  View Full Profile
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Student ID : {selectedStudent.personalInfo?.stdId || "N/A"}
+              </p>
+            </div>
+
+            <button
+              className="p-1 rounded hover:bg-gray-100 text-gray-500 shrink-0"
+              onClick={() => setSelectedStudent(null)}
+            >
+              <FiX className="text-xl" />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-6 text-sm">
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">
+                General Information
+              </h3>
+              <p>Gender : {getFieldValue("Gender")}</p>
+              <p>Blood Group : {getFieldValue("Blood Group")}</p>
+              <p>Address : {selectedStudent.address || "N/A"}</p>
+              <p>Date of Birth : {getFieldValue("Date of Birth")}</p>
+              <p>Age : {getFieldValue("Age")}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">
+                Academic Information
+              </h3>
+              <p>Class : {selectedStudent.personalInfo?.class || "N/A"}</p>
+              <p>Section : {selectedStudent.personalInfo?.section || "N/A"}</p>
+              <p>House : {getFieldValue("House")}</p>
+              <p>Academic Year : {getFieldValue("Academic Year")}</p>
+              <p>Admission Type : {getFieldValue("Admission Type")}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">
+                Parent / Guardian Info
+              </h3>
+              <p>Father : {getFieldValue("Father")}</p>
+              <p>Mother : {getFieldValue("Mother")}</p>
+              <p>Emergency Contact : {getFieldValue("Emergency Contact")}</p>
+              <p>Contact : {getFieldValue("Contact")}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">
+                Attendance Information
+              </h3>
+              <p>Present Days : {getFieldValue("Present Days")}</p>
+              <p>Attendance % : {selectedStudent.attendance || "N/A"}</p>
+              <p>Last Present : {getFieldValue("Last Present")}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">
+                Fee Summary
+              </h3>
+              <p>Total Fee : {getFieldValue("Total Fee")}</p>
+              <p>Paid : {getFieldValue("Paid")}</p>
+              <p>Due : {getFieldValue("Due")}</p>
+              <p>Last Payment : {getFieldValue("Last Payment")}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Other Info</h3>
+              {getRemainingFields().length > 0 ? (
+                getRemainingFields().map((f, i) => (
+                  <p key={i}>
+                    {f.label} : {f.value || "N/A"}
+                  </p>
+                ))
+              ) : (
+                <p className="text-gray-500 italic">No extra data</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Update Modal */}
+      {showPasswordModal && editingPassword && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4">
+              Update Password for {editingPassword.personalInfo?.name}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const newPassword = e.target.password.value;
+                if (newPassword) {
+                  handleUpdatePassword(editingPassword._id, newPassword);
+                  setShowPasswordModal(false);
+                  setEditingPassword(null);
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  Current Password:
+                </label>
+                <input
+                  type="text"
+                  value={editingPassword.personalInfo?.password || "N/A"}
+                  className="border px-3 py-2 w-full rounded bg-gray-100"
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  New Password:
+                </label>
+                <input
+                  name="password"
+                  type="text"
+                  placeholder="Enter new password"
+                  className="border px-3 py-2 w-full rounded"
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setEditingPassword(null);
+                  }}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                >
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
-import { FaStar } from "react-icons/fa";
-import { useNavigate , Link} from "react-router-dom";
-import config from "../../../config";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../../../services/apiClient";
 import Pagination from "../../../components/common/Pagination";
 
@@ -27,47 +25,35 @@ const SuperAdminSISAssignTeacher = () => {
   const [editClassTeacher, setEditClassTeacher] = useState(null);
   const [editSections, setEditSections] = useState([]);
 
-  useEffect(() => {
   const fetchDropdownData = async () => {
     try {
-
       // Classes fetch
-      const classRes = await fetch(`${config.API_BASE_URL}/classes`);
-      const classData = await classRes.json();
-
-      if (classData?.success && Array.isArray(classData.data)) {
-        setClasses(classData.data);
+      const classRes = await api.get(`/classes`);
+      if (classRes.data?.success && Array.isArray(classRes.data.data)) {
+        setClasses(classRes.data.data);
+      } else if (Array.isArray(classRes.data?.data)) {
+        setClasses(classRes.data.data);
       }
 
       // Staff fetch
       const staffRes = await api.get(`/staff`);
-
-      console.log("FULL STAFF RESPONSE:", staffRes.data);
-
-      if (
-        staffRes.data?.success &&
-        Array.isArray(staffRes.data.staff)
-      ) {
-
+      if (staffRes.data?.success && Array.isArray(staffRes.data.staff)) {
         // ONLY TEACHERS
         const teacherList = staffRes.data.staff.filter(
           (s) =>
             s?.personalInfo?.role &&
             s.personalInfo.role.trim().toLowerCase() === "teacher"
         );
-
-        console.log("FILTERED TEACHERS:", teacherList);
-
         setTeachers(teacherList);
       }
-
     } catch (err) {
       console.error("Error fetching dropdowns:", err);
     }
   };
 
-  fetchDropdownData();
-}, []);
+  useEffect(() => {
+    fetchDropdownData();
+  }, []);
 
   useEffect(() => {
     if (!selectedClass) {
@@ -75,83 +61,26 @@ const SuperAdminSISAssignTeacher = () => {
       setSelectedSection("");
       return;
     }
-    fetch(`${config.API_BASE_URL}/sections?classId=${selectedClass}`)
-      .then((res) => res.json())
-      .then((sectionData) => {
-        if (
-          sectionData &&
-          sectionData.success &&
-          Array.isArray(sectionData.data)
-        ) {
-          setSections(sectionData.data);
+    api
+      .get(`/sections?classId=${selectedClass}`)
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          setSections(res.data.data);
+        } else if (Array.isArray(res.data?.data)) {
+          setSections(res.data.data);
         }
       })
       .catch((err) => console.error("Error fetching sections:", err));
   }, [selectedClass]);
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
-
-  const teacherOptions = Array.isArray(teachers)
-    ? teachers.map((t) => ({
-        value: t._id,
-        label: `${t.personalInfo?.name} (${t.personalInfo?.staffId})`,
-      }))
-    : [];
-    const assignedClassTeachers = records
-  .map((r) => r.originalData?.classTeacher?._id)
-  .filter(Boolean);
-
-  const handleSave = () => {
-    if (!selectedClass || !selectedSection || selectedTeachers.length === 0 || !classTeacher) {
-      alert("Please fill all required fields including Class Teacher.");
-      return;
-    }
-    
-    // Ensure class teacher is one of the selected teachers
-    if (!selectedTeachers.includes(classTeacher)) {
-      alert("Class Teacher must be one of the selected teachers.");
-      return;
-    }
-    // Prevent duplicate class teacher
-if (assignedClassTeachers.includes(classTeacher)) {
-  alert("This teacher is already assigned as a Class Teacher.");
-  return;
-}
-    fetch(`${config.API_BASE_URL}/assignTeachers/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        classId: selectedClass,
-        sectionId: selectedSection,
-        teachers: selectedTeachers,
-        classTeacher: classTeacher,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          fetchRecords();
-          setSelectedClass("");
-          setSelectedSection("");
-          setSelectedTeachers([]);
-          setClassTeacher(null);
-        } else alert(data.message || "Error saving data");
-      })
-      .catch((err) => {
-        console.error("Error saving data:", err);
-        alert("Error saving data");
-      });
-  };
-  
-
   const fetchRecords = () => {
-    fetch(`${config.API_BASE_URL}/assignTeachers/`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          const fetchedRecords = data.data.map((item) => ({
+    api
+      .get(`/assignTeachers/`)
+      .then((res) => {
+        const data = res.data;
+        if (data && (data.success || Array.isArray(data.data))) {
+          const list = Array.isArray(data.data) ? data.data : [];
+          const fetchedRecords = list.map((item) => ({
             id: String(item._id),
             className: item.class?.name || "",
             section: item.section?.name || "",
@@ -160,8 +89,9 @@ if (assignedClassTeachers.includes(classTeacher)) {
                   (t) =>
                     `${t.personalInfo?.name} (${t.personalInfo?.staffId})${
                       item.classTeacher &&
-                      item.classTeacher?.personalInfo?.staffId ===
-                        t.personalInfo?.staffId
+                      (item.classTeacher?._id === t._id ||
+                        item.classTeacher?.personalInfo?.staffId ===
+                          t.personalInfo?.staffId)
                         ? " ⭐"
                         : ""
                     }`
@@ -175,87 +105,140 @@ if (assignedClassTeachers.includes(classTeacher)) {
       .catch((err) => console.error("Error fetching records:", err));
   };
 
+  useEffect(() => {
+    fetchRecords();
+  }, []);
+
+  const teacherOptions = Array.isArray(teachers)
+    ? teachers.map((t) => ({
+        value: t._id,
+        label: `${t.personalInfo?.name} (${t.personalInfo?.staffId})`,
+      }))
+    : [];
+  const assignedClassTeachers = records
+    .map((r) => r.originalData?.classTeacher?._id)
+    .filter(Boolean);
+
+  const handleSave = async () => {
+    if (!selectedClass || !selectedSection || selectedTeachers.length === 0 || !classTeacher) {
+      alert("Please fill all required fields including Class Teacher.");
+      return;
+    }
+
+    // Ensure class teacher is one of the selected teachers
+    if (!selectedTeachers.includes(classTeacher)) {
+      alert("Class Teacher must be one of the selected teachers.");
+      return;
+    }
+    // Prevent duplicate class teacher
+    if (assignedClassTeachers.includes(classTeacher)) {
+      alert("This teacher is already assigned as a Class Teacher.");
+      return;
+    }
+
+    try {
+      const res = await api.post(`/assignTeachers/`, {
+        classId: selectedClass,
+        sectionId: selectedSection,
+        teachers: selectedTeachers,
+        classTeacher: classTeacher,
+      });
+      if (res.data?.success) {
+        fetchRecords();
+        setSelectedClass("");
+        setSelectedSection("");
+        setSelectedTeachers([]);
+        setClassTeacher(null);
+      } else {
+        alert(res.data?.message || "Error saving data");
+      }
+    } catch (err) {
+      console.error("Error saving data:", err);
+      alert(err.response?.data?.message || "Error saving data");
+    }
+  };
+
   const handleEdit = (record) => {
     const originalData = record.originalData;
     setIsEditing(true);
     setEditingRecord(originalData);
-    setEditClass(originalData.class._id);
-    setEditSection(originalData.section._id);
-    setEditTeachers(originalData.teachers.map((t) => t._id));
-    setEditClassTeacher(originalData.classTeacher._id);
+    setEditClass(originalData.class?._id || "");
+    setEditSection(originalData.section?._id || "");
+    setEditTeachers((originalData.teachers || []).map((t) => t._id));
+    setEditClassTeacher(originalData.classTeacher?._id || null);
 
-    fetch(`${config.API_BASE_URL}/sections?classId=${originalData.class._id}`)
-      .then((res) => res.json())
-      .then((sectionData) => {
-        if (sectionData && sectionData.success && Array.isArray(sectionData.data)) {
-          setEditSections(sectionData.data);
-        }
-      })
-      .catch((err) => console.error("Error fetching sections:", err));
+    if (originalData.class?._id) {
+      api
+        .get(`/sections?classId=${originalData.class._id}`)
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            setEditSections(res.data.data);
+          } else if (Array.isArray(res.data?.data)) {
+            setEditSections(res.data.data);
+          }
+        })
+        .catch((err) => console.error("Error fetching sections:", err));
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editClass || !editSection || editTeachers.length === 0 || !editClassTeacher) {
       alert("Please fill all required fields including Class Teacher.");
       return;
     }
-    
+
     // Ensure class teacher is one of the selected teachers
     if (!editTeachers.includes(editClassTeacher)) {
       alert("Class Teacher must be one of the selected teachers.");
       return;
     }
     // Prevent duplicate class teacher while editing
-const alreadyAssigned = records.some(
-  (r) =>
-    r.originalData?.classTeacher?._id === editClassTeacher &&
-    r.originalData?._id !== editingRecord._id
-);
+    const alreadyAssigned = records.some(
+      (r) =>
+        r.originalData?.classTeacher?._id === editClassTeacher &&
+        r.originalData?._id !== editingRecord._id
+    );
 
-if (alreadyAssigned) {
-  alert("This teacher is already assigned as a Class Teacher.");
-  return;
-}
-    fetch(`${config.API_BASE_URL}/assignTeachers/${editingRecord._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    if (alreadyAssigned) {
+      alert("This teacher is already assigned as a Class Teacher.");
+      return;
+    }
+
+    try {
+      const res = await api.put(`/assignTeachers/${editingRecord._id}`, {
         classId: editClass,
         sectionId: editSection,
         teachers: editTeachers,
         classTeacher: editClassTeacher,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          fetchRecords();
-          cancelEdit();
-        } else alert(data.message || "Error updating data");
-      })
-      .catch((err) => {
-        console.error("Error updating data:", err);
-        alert("Error updating data");
       });
+      if (res.data?.success) {
+        fetchRecords();
+        cancelEdit();
+      } else {
+        alert(res.data?.message || "Error updating data");
+      }
+    } catch (err) {
+      console.error("Error updating data:", err);
+      alert(err.response?.data?.message || "Error updating data");
+    }
   };
 
-  const handleDelete = (record) => {
+  const handleDelete = async (record) => {
     if (window.confirm("Are you sure you want to delete this assignment?")) {
       const deleteId = String(
         record.id || (record.originalData && record.originalData._id)
       );
-      fetch(`${config.API_BASE_URL}/assignTeachers/${deleteId}`, {
-        method: "DELETE",
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) fetchRecords();
-          else alert(data.message || "Error deleting data");
-        })
-        .catch((err) => {
-          console.error("Error deleting data:", err);
-          alert("Error deleting data");
-        });
+      try {
+        const res = await api.delete(`/assignTeachers/${deleteId}`);
+        if (res.data?.success) {
+          fetchRecords();
+        } else {
+          alert(res.data?.message || "Error deleting data");
+        }
+      } catch (err) {
+        console.error("Error deleting data:", err);
+        alert(err.response?.data?.message || "Error deleting data");
+      }
     }
   };
 
@@ -268,140 +251,138 @@ if (alreadyAssigned) {
     setEditClassTeacher(null);
     setEditSections([]);
   };
-const [currentPage, setCurrentPage] = useState(1);
-const recordsPerPage = 5;
 
-const totalPages = Math.ceil(records.length / recordsPerPage);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 5;
 
-const paginatedRecords = records.slice(
-  (currentPage - 1) * recordsPerPage,
-  currentPage * recordsPerPage
-);
+  const totalPages = Math.ceil(records.length / recordsPerPage) || 1;
+
+  const paginatedRecords = records.slice(
+    (currentPage - 1) * recordsPerPage,
+    currentPage * recordsPerPage
+  );
 
   return (
     <div className="p-0 m-0 min-h-screen">
       {/* Add Form Card */}
       <div className="bg-white p-3 rounded-lg shadow-sm border mb-4">
         <h2 className="text-lg font-semibold mb-4">Assign Class Teacher</h2>
-<div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Class */}
+          <div className="flex flex-col">
+            <label className="block mb-2 text-sm font-medium">Class</label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="border px-3 py-2 rounded-md w-40 text-sm"
+            >
+              <option value="">Select Class</option>
+              {classes?.map((cls) => (
+                <option key={cls._id} value={cls._id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-  {/* Class */}
-  <div className="flex flex-col">
-    <label className="  block mb-2">Class</label>
-    <select
-      value={selectedClass}
-      onChange={(e) => setSelectedClass(e.target.value)}
-      className="border px-3 py-2 rounded-md  w-40"
-    >
-      <option value="">Select Class</option>
-      {classes?.map((cls) => (
-        <option key={cls._id} value={cls._id}>
-          {cls.name}
-        </option>
-      ))}
-    </select>
-  </div>
+          {/* Section */}
+          <div className="flex flex-col">
+            <label className="block mb-2 text-sm font-medium">Section</label>
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="border px-3 py-2 rounded-md text-sm w-40"
+            >
+              <option value="">Select Section</option>
+              {sections?.map((sec) => (
+                <option key={sec._id} value={sec._id}>
+                  {sec.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-  {/* Section */}
-  <div className="flex flex-col">
-    <label className="text-base block mb-2">Section</label>
-    <select
-      value={selectedSection}
-      onChange={(e) => setSelectedSection(e.target.value)}
-      className="border px-3 py-2 rounded-md text-sm w-40"
-    >
-      <option value="">Select Section</option>
-      {sections?.map((sec) => (
-        <option key={sec._id} value={sec._id}>
-          {sec.name}
-        </option>
-      ))}
-    </select>
-  </div>
+          {/* Teachers */}
+          <div className="flex flex-col w-64">
+            <label className="block mb-2 text-sm font-medium">Teachers</label>
+            <div>
+              <Select
+                isMulti
+                options={teacherOptions}
+                value={teacherOptions.filter((opt) =>
+                  selectedTeachers.includes(opt.value)
+                )}
+                onChange={(selected) => {
+                  const newTeachers = selected.map((s) => s.value);
+                  setSelectedTeachers(newTeachers);
+                  if (classTeacher && !newTeachers.includes(classTeacher)) {
+                    setClassTeacher(null);
+                  }
+                }}
+                placeholder="Select Teachers"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    minHeight: "38px",
+                    height: "auto",
+                    alignItems: "center",
+                  }),
+                  valueContainer: (base) => ({
+                    ...base,
+                    padding: "2px 8px",
+                  }),
+                  multiValue: (base) => ({
+                    ...base,
+                    margin: "2px",
+                  }),
+                }}
+              />
+            </div>
+          </div>
 
-  {/* Teachers */}
-  <div className="flex flex-col w-64">
-    <label className="text-base block mb-2">Teachers</label>
-    <div >
-      <Select
-  isMulti
-  options={teacherOptions}
-  value={teacherOptions.filter((opt) =>
-    selectedTeachers.includes(opt.value)
-  )}
-  onChange={(selected) => {
-    const newTeachers = selected.map((s) => s.value);
-    setSelectedTeachers(newTeachers);
-    if (classTeacher && !newTeachers.includes(classTeacher)) {
-      setClassTeacher(null);
-    }
-  }}
-  placeholder="Select Teachers"
-  styles={{
-    control: (base) => ({
-      ...base,
-      minHeight: "38px",
-      height: "auto",         
-      alignItems: "center",
-    }),
-    valueContainer: (base) => ({
-      ...base,
-      padding: "2px 8px",      
-    }),
-    multiValue: (base) => ({
-      ...base,
-      margin: "2px",       
-    }),
-  }}
-      />
-    </div>
-  </div>
+          {/* Class Teacher */}
+          {selectedTeachers.length > 0 && (
+            <div className="flex flex-col w-64">
+              <label className="block mb-2 text-sm font-medium">
+                Class Teacher <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={classTeacher || ""}
+                onChange={(e) => setClassTeacher(e.target.value)}
+                className="border px-3 py-2 rounded-md text-sm h-[38px]"
+              >
+                <option value="">Select Class Teacher</option>
+                {selectedTeachers.map((id) => {
+                  const t = teachers.find((x) => x._id === id);
+                  return (
+                    <option key={id} value={id}>
+                      {t?.personalInfo?.name} ({t?.personalInfo?.staffId})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
 
-  {/* Class Teacher */}
-  {selectedTeachers.length > 0 && (
-    <div className="flex flex-col w-64">
-      <label className="text-base block mb-2">
-        Class Teacher <span className="text-red-500">*</span>
-      </label>
-      <select
-        value={classTeacher || ""}
-        onChange={(e) => setClassTeacher(e.target.value)}
-        className="border px-3 py-2 rounded-md text-sm h-[38px]"
-      >
-        <option value="">Select Class Teacher</option>
-        {selectedTeachers.map((id) => {
-          const t = teachers.find((x) => x._id === id);
-          return (
-            <option key={id} value={id}>
-              {t?.personalInfo?.name} ({t?.personalInfo?.staffId})
-            </option>
-          );
-        })}
-      </select>
-    </div>
-  )}
-
-  {/* Save */}
-  <div className="flex flex-col">
-    <label className="h-8"></label> {/* Same label height for alignment */}
-    <button
-      onClick={handleSave}
-      className="bg-blue-600 text-white px-6 py-2 rounded-md text-sm"
-    >
-      Save
-    </button>
-  </div>
-
-</div>
-</div>
-
+          {/* Save */}
+          <div className="flex flex-col">
+            <label className="h-6 mb-2"></label>
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Edit Form Card */}
       {isEditing && (
         <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
           <h2 className="text-lg font-semibold mb-4">Edit Class Teacher Assignment</h2>
 
-          <label className="block  mb-1">
+          <label className="block mb-1 text-sm font-medium">
             Class <span className="text-red-500">*</span>
           </label>
           <select
@@ -411,17 +392,19 @@ const paginatedRecords = records.slice(
               setEditSection("");
               setEditSections([]);
               if (e.target.value) {
-                fetch(`${config.API_BASE_URL}/sections?classId=${e.target.value}`)
-                  .then((res) => res.json())
-                  .then((sectionData) => {
-                    if (sectionData && sectionData.success && Array.isArray(sectionData.data)) {
-                      setEditSections(sectionData.data);
+                api
+                  .get(`/sections?classId=${e.target.value}`)
+                  .then((res) => {
+                    if (res.data?.success && Array.isArray(res.data.data)) {
+                      setEditSections(res.data.data);
+                    } else if (Array.isArray(res.data?.data)) {
+                      setEditSections(res.data.data);
                     }
                   })
                   .catch((err) => console.error("Error fetching sections:", err));
               }
             }}
-            className="w-full border px-3 py-2 rounded-md mb-4 "
+            className="w-full border px-3 py-2 rounded-md mb-4 text-sm"
           >
             <option value="">Select Class</option>
             {Array.isArray(classes) &&
@@ -432,13 +415,13 @@ const paginatedRecords = records.slice(
               ))}
           </select>
 
-          <label className="block  mb-1">
+          <label className="block mb-1 text-sm font-medium">
             Section <span className="text-red-500">*</span>
           </label>
           <select
             value={editSection}
             onChange={(e) => setEditSection(e.target.value)}
-            className="w-full border px-3 py-2 rounded-md mb-4"
+            className="w-full border px-3 py-2 rounded-md mb-4 text-sm"
           >
             <option value="">Select Section</option>
             {Array.isArray(editSections) &&
@@ -449,58 +432,56 @@ const paginatedRecords = records.slice(
               ))}
           </select>
 
-          <label className="block  mb-1">
+          <label className="block mb-1 text-sm font-medium">
             Teachers <span className="text-red-500">*</span>
           </label>
-          <Select
-            isMulti
-            options={teacherOptions}
-            value={teacherOptions.filter((opt) => editTeachers.includes(opt.value))}
-            onChange={(selected) => {
-              const newTeachers = selected.map((s) => s.value);
-              setEditTeachers(newTeachers);
-              // Reset class teacher if it's not in the new selection
-              if (editClassTeacher && !newTeachers.includes(editClassTeacher)) {
-                setEditClassTeacher(null);
-              }
-            }}
-            placeholder="Search & select teachers..."
-            className="mb-4"
-          />
+          <div className="mb-4">
+            <Select
+              isMulti
+              options={teacherOptions}
+              value={teacherOptions.filter((opt) =>
+                editTeachers.includes(opt.value)
+              )}
+              onChange={(selected) => {
+                const newTeachers = selected.map((s) => s.value);
+                setEditTeachers(newTeachers);
+                if (editClassTeacher && !newTeachers.includes(editClassTeacher)) {
+                  setEditClassTeacher(null);
+                }
+              }}
+              placeholder="Select Teachers"
+            />
+          </div>
 
-          {editTeachers.length > 0 && (
-            <>
-              <label className="block  mb-1">
-                Mark Class Teacher <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={editClassTeacher || ""}
-                onChange={(e) => setEditClassTeacher(e.target.value)}
-                className="w-full border px-3 py-2 rounded-md mb-4 text-sm"
-              >
-                <option value="">Select Class Teacher</option>
-                {editTeachers.map((id) => {
-                  const t = teachers.find((x) => x._id === id);
-                  return (
-                    <option key={id} value={id}>
-                      {t?.personalInfo?.name} ({t?.personalInfo?.staffId})
-                    </option>
-                  );
-                })}
-              </select>
-            </>
-          )}
+          <label className="block mb-1 text-sm font-medium">
+            Class Teacher <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={editClassTeacher || ""}
+            onChange={(e) => setEditClassTeacher(e.target.value)}
+            className="w-full border px-3 py-2 rounded-md mb-4 text-sm"
+          >
+            <option value="">Select Class Teacher</option>
+            {editTeachers.map((id) => {
+              const t = teachers.find((x) => x._id === id);
+              return (
+                <option key={id} value={id}>
+                  {t?.personalInfo?.name} ({t?.personalInfo?.staffId})
+                </option>
+              );
+            })}
+          </select>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <button
               onClick={handleUpdate}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
             >
               Update
             </button>
             <button
               onClick={cancelEdit}
-              className="bg-gray-500 text-white px-4 py-2 rounded-md"
+              className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm"
             >
               Cancel
             </button>
@@ -508,65 +489,50 @@ const paginatedRecords = records.slice(
         </div>
       )}
 
-      {/* Records List Card */}
+      {/* Table Card */}
       <div className="bg-white p-3 rounded-lg shadow-sm border">
-        <h2 className="text-lg font-semibold mb-4">Class Teacher List</h2>
+        <h3 className="text-lg font-semibold mb-4">Assigned Teachers List</h3>
         <div className="overflow-x-auto">
-          <table className="w-full border ">
-            <thead className="bg-gray-100 text-gray-700">
+          <table className="w-full border text-sm min-w-[600px]">
+            <thead className="bg-gray-100">
               <tr>
-                <th className="p-2 border text-left">Class</th>
-                <th className="p-2 border text-left">Section</th>
-                <th className="p-2 border text-left">Teachers</th>
-                <th className="p-2 border text-center">Action</th>
+                <th className="p-2 border">Class</th>
+                <th className="p-2 border">Section</th>
+                <th className="p-2 border">Teachers</th>
+                <th className="p-2 border">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(records) && records.length > 0 ? (
-               paginatedRecords.map((r) => (
-
-                  <tr key={r.id} className="text-center hover:bg-gray-50">
-                    <td className="p-2 border text-left  text-gray-800">{r.className}</td>
-                    <td className="p-2 border text-left text-gray-700">{r.section}</td>
-                    <td className="p-2 border text-left">
-                      <div className="flex flex-wrap gap-1">
-                        {Array.isArray(r.teachers) &&
-                          r.teachers.map((t, i) => (
-                            <span
-                              key={i}
-                              className={`${
-                                t.includes("⭐")
-                                  ? "bg-yellow-100 text-yellow-700 font-semibold"
-                                  : "bg-green-100 text-green-700"
-                              } text-xs px-2 py-1 rounded-full flex items-center gap-1`}
-                            >
-                              {t.includes("⭐") && <FaStar className="text-yellow-500" />}
-                              {t.replace("⭐", "").trim()}
-                            </span>
-                          ))}
-                      </div>
-                    </td>
-                    <td className="p-2 border text-center">
+              {paginatedRecords.map((item) => (
+                <tr key={item.id} className="text-center hover:bg-gray-50">
+                  <td className="p-2 border">{item.className}</td>
+                  <td className="p-2 border">{item.section}</td>
+                  <td className="p-2 border text-left">
+                    {item.teachers.join(", ")}
+                  </td>
+                  <td className="p-2 border">
+                    <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => handleEdit(r)}
-                        className="text-blue-600 hover:text-blue-800 mx-1"
+                        onClick={() => handleEdit(item)}
+                        className="text-blue-500 hover:text-blue-700"
                         title="Edit"
                       >
                         <FiEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(r)}
-                        className="text-red-600 hover:text-red-800 mx-1"
+                        onClick={() => handleDelete(item)}
+                        className="text-red-500 hover:text-red-700"
                         title="Delete"
                       >
                         <FiTrash2 />
                       </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {paginatedRecords.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="text-center py-4 text-gray-500">
+                  <td colSpan={4} className="p-4 text-center text-gray-500">
                     No records found.
                   </td>
                 </tr>
@@ -574,28 +540,12 @@ const paginatedRecords = records.slice(
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
-<Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-      </div>
 
-
-     {/* Next button */}
-      <div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="bg-gray-500 text-white px-6 py-2 rounded-md shadow hover:bg-gray-600"
-        >
-          ← Back
-        </button>
-      
-        {/* Next Button */}
-        <Link
-         to="/superadmin/sis/classes-schedules/timetable"
-          className="bg-blue-600 text-white px-6 py-2 rounded-md shadow hover:bg-blue-700"
-        >
-          Next →
-        </Link>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

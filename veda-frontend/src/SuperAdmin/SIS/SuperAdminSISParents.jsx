@@ -954,11 +954,11 @@ Sections:
                   <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
                   <button
                     onClick={() =>
-                      navigate(`/superadmin/sis/parent-profile/${selectedParent._id}`, {
+                      navigate(`/superadmin/sis/parents/${selectedParent._id}`, {
                         state: selectedParent,
                       })
                     }
-                    className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
+                    className="rounded bg-yellow-500 hover:bg-yellow-600 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
                   >
                     View Full Profile
                   </button>
