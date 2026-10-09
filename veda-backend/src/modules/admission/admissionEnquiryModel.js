@@ -3,14 +3,10 @@ const mongoose = require('mongoose');
 const admissionEnquirySchema = new mongoose.Schema({
     schoolId: {
         type: mongoose.Schema.Types.ObjectId,
-<<<<<<< HEAD
-        ref: "School",
+        ref: 'School',
         required: true,
         index: true,
         immutable: true,
-=======
-        ref: 'School',
->>>>>>> 171eda7 (done)
     },
     studentName: {
         type: String,
@@ -40,7 +36,7 @@ const admissionEnquirySchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'pending',
-        enum: ['pending', 'reviewed', 'contacted', 'closed'] // Optional: limit values if needed, but 'pending' and 'reviewed' are the main ones currently used
+        enum: ['pending', 'reviewed', 'contacted', 'closed'],
     }
 }, { timestamps: true });
 
