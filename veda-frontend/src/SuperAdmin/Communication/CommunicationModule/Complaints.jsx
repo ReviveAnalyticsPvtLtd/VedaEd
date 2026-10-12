@@ -78,16 +78,31 @@ export default function AdminComplaints() {
 
       // Fetch Students
       const studentsRes = await studentAPI.getAllStudents();
-      if (studentsRes && studentsRes.length > 0) {
-        const transformed = studentsRes.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
-          class: s.academicInfo?.class || "N/A",
-          section: s.academicInfo?.section || "N/A",
-          parentId: s.parentInfo?.parentId || "N/A",
-          parentName: s.parentInfo?.fatherName || "N/A",
-          parentPhone: s.parentInfo?.fatherPhone || "N/A",
-        }));
+      // /students responds with { success, count, students }, not a bare array.
+      const students = Array.isArray(studentsRes) ? studentsRes : studentsRes?.students;
+      if (Array.isArray(students)) {
+        const transformed = students.map(s => {
+          // SIS students carry a populated `parent` ref; admission-pending
+          // records carry a plain `parents` object instead.
+          const parent = s.parent && typeof s.parent === "object" ? s.parent : {};
+          const parents = s.parents && typeof s.parents === "object" ? s.parents : {};
+          return {
+            id: s._id,
+            name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
+            // Class/section live under personalInfo (already populated to
+            // their names by the controller), not under `academicInfo`.
+            class: s.personalInfo?.class || "N/A",
+            section: s.personalInfo?.section || "N/A",
+            parentId: parent.parentId || parents.parentId || "N/A",
+            parentName: parent.fatherName || parents.fatherName || "N/A",
+            parentPhone:
+              parent.fatherPhone ||
+              parents.fatherPhone ||
+              parent.contactDetails?.mobileNumber ||
+              parents.contactDetails?.mobileNumber ||
+              "N/A",
+          };
+        });
         setStudentsData(transformed);
       }
 

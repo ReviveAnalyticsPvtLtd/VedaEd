@@ -63,6 +63,15 @@ export default function ApplicationPipeline() {
     }
   };
 
+  const isVacancyFull = (app) => {
+    if (!app?.vacancy) return false;
+    const openings = app.vacancy.openings || 1;
+    const filledElsewhere = applications.filter(
+      (a) => a.vacancy?._id === app.vacancy._id && a.status === "Joined" && a._id !== app._id
+    ).length;
+    return filledElsewhere >= openings;
+  };
+
   const handleConvertToEmployee = async (appId) => {
     if (window.confirm("Convert this candidate to a permanent employee?")) {
       try {
@@ -446,7 +455,7 @@ export default function ApplicationPipeline() {
               <div className="pt-4 border-t">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Change Candidate Status</label>
                 <div className="flex flex-wrap gap-2">
-                  {["Applied", "Screening", "Interview Round 1", "Interview Round 2", "Selected", "Offer Sent", "Documents Verified", "Training Started", "Joined"].map((st) => (
+                  {["Applied", "Screening", "Interview Round 1", "Interview Round 2", "Selected", "Offer Sent", "Documents Verified", "Training Started"].map((st) => (
                     <button
                       key={st}
                       type="button"
@@ -463,18 +472,32 @@ export default function ApplicationPipeline() {
               </div>
 
               {/* Joined conversion to Permanent Employee */}
-              {selectedApp.status === "Joined" && (
+              {["Selected", "Offer Sent", "Documents Verified", "Training Started", "Joined"].includes(selectedApp.status) && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 flex items-center justify-between">
                   <div>
-                    <h5 className="font-bold text-green-800 text-sm">Convert Candidate to Permanent Employee</h5>
-                    <p className="text-xs text-green-600 mt-1">This will automatically generate a staff entry and user profile in the database.</p>
+                    <h5 className="font-bold text-green-800 text-sm">
+                      {selectedApp.status === "Joined" ? "Converted to Permanent Employee" : "Convert Candidate to Permanent Employee"}
+                    </h5>
+                    <p className="text-xs text-green-600 mt-1">
+                      {selectedApp.status === "Joined"
+                        ? "This candidate has already been converted and has a staff entry and user profile."
+                        : "This will automatically generate a staff entry and user profile in the database."}
+                    </p>
                   </div>
-                  <button
-                    onClick={() => handleConvertToEmployee(selectedApp._id)}
-                    className="bg-green-600 text-white font-medium py-2 px-4 rounded hover:bg-green-700 text-xs flex items-center gap-1 shadow-sm transition"
-                  >
-                    <FiUserPlus /> Convert to Staff
-                  </button>
+                  {selectedApp.status === "Joined" ? (
+                    <span className="text-green-700 text-xs font-semibold flex items-center gap-1">
+                      <FiUserPlus /> Already Converted
+                    </span>
+                  ) : isVacancyFull(selectedApp) ? (
+                    <span className="text-red-600 text-xs font-semibold">Vacancy is already filled</span>
+                  ) : (
+                    <button
+                      onClick={() => handleConvertToEmployee(selectedApp._id)}
+                      className="bg-green-600 text-white font-medium py-2 px-4 rounded hover:bg-green-700 text-xs flex items-center gap-1 shadow-sm transition"
+                    >
+                      <FiUserPlus /> Convert to Staff
+                    </button>
+                  )}
                 </div>
               )}
             </div>

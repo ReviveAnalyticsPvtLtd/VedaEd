@@ -79,6 +79,7 @@ export default function ViewAdmin() {
           { label: "Identity & Access", to: `${BASE}/admins` },
           { label: admin.fullName },
         ]}
+        separator=" / "
         title="View Admin"
         subtitle={admin.email}
         action={

@@ -62,6 +62,7 @@ export default function InvitePreview() {
           { label: "Identity & Access", to: `${BASE}/admins` },
           { label: "Invitation Preview" },
         ]}
+        separator=" / "
         title="Invitation Email Preview"
         subtitle={`Invite sent to ${admin.email}`}
       />
