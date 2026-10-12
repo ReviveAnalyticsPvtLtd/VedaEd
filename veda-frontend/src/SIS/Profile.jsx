@@ -13,6 +13,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
+import { userSettingsAPI } from "../services/userSettingsAPI";
 
 /* ================= CARD ================= */
 const ProfileCard = ({ label, icon, children }) => (
@@ -48,33 +49,55 @@ const InfoInput = ({ label, value, onChange }) => (
 export default function AdminProfile() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editMode, setEditMode] = useState(false);
-  const [admin, setAdmin] = useState(null);
+  const [admin, setAdmin] = useState({
+    personalInfo: {
+      adminId: "",
+      name: "",
+      username: "",
+      gender: "",
+      role: "",
+      email: "",
+      mobileNumber: "",
+      address: "",
+    },
+    joiningDate: "",
+    experience: "",
+    qualification: "",
+    salaryDetails: { salary: "", lastPayment: "" },
+    documents: [],
+  });
   const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
-    setAdmin({
-      personalInfo: {
-        adminId: "ADM-001",
-        name: "System Administrator",
-        username: "admin",
-        gender: "Male",
-        role: "Administrator",
-        email: "admin@sis.com",
-        mobileNumber: "9999999999",
-        address: "Head Office, SIS Campus",
-      },
-      joiningDate: "2019-04-01",
-      experience: 10,
-      qualification: "MBA, M.Tech (IT)",
-      salaryDetails: {
-        salary: "₹80,000",
-        lastPayment: "2024-01-31",
-      },
-      documents: [
-        { name: "ID Proof.pdf", date: "2019-03-20" },
-        { name: "Appointment Letter.pdf", date: "2019-03-25" },
-      ],
-    });
+    let active = true;
+    userSettingsAPI
+      .getProfile()
+      .then((data) => {
+        if (!active) return;
+        setAdmin({
+          personalInfo: {
+            adminId: data.employeeId || "",
+            name: data.fullName || data.name || "",
+            username: "",
+            gender: "",
+            role: data.role || "",
+            email: data.email || "",
+            mobileNumber: data.mobile || "",
+            address: "",
+          },
+          joiningDate: data.createdAt || "",
+          experience: "",
+          qualification: "",
+          salaryDetails: { salary: "", lastPayment: "" },
+          documents: [],
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load admin profile:", err);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!admin) return null;
@@ -231,11 +254,15 @@ export default function AdminProfile() {
             />
             <InfoDetail
               label="Experience"
-              value={`${admin.experience} years`}
+              value={admin.experience ? `${admin.experience} years` : ""}
             />
             <InfoDetail
               label="Joining Date"
-              value={new Date(admin.joiningDate).toLocaleDateString()}
+              value={
+                admin.joiningDate
+                  ? new Date(admin.joiningDate).toLocaleDateString()
+                  : ""
+              }
             />
           </ProfileCard>
         )}
