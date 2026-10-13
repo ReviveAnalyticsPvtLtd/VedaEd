@@ -184,11 +184,19 @@ export default function AdmissionDashboard() {
   }));
 
   /* ===================== RECENT APPLICATIONS ===================== */
+  const getApplicationStatus = (app) => {
+    const docStatus = (app.documentVerificationStatus || "").toLowerCase();
+    const appStatus = (app.applicationStatus || "").toLowerCase();
+    if (appStatus === "rejected" || docStatus === "rejected") return "Rejected";
+    if (appStatus === "approved" || docStatus === "verified") return "Selected";
+    return "Pending";
+  };
+
   const recentApplications = applications.slice(0, 8).map((app) => ({
     id: app.applicationId || app._id,
     name: app.personalInfo?.name || "-",
     classApplied: app.personalInfo?.classApplied || app.earlierAcademic?.lastClass || "-",
-    status: app.applicationStatus || "Pending",
+    status: getApplicationStatus(app),
   }));
 
   return (

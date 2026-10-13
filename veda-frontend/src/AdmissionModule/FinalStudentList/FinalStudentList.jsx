@@ -169,6 +169,12 @@ export default function FinalStudentList() {
   const [availableSections, setAvailableSections] = useState([]);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
+  const [enrollTarget, setEnrollTarget] = useState(null);
+  const [enrollClass, setEnrollClass] = useState("");
+  const [enrollSection, setEnrollSection] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState("");
+
 
   const dropdownRef = useRef(null);
  
@@ -302,6 +308,52 @@ const handleDelete = (id) => {
   setStudents((prev) => prev.filter((s) => s._id !== id));
   setSuccessMsg("Student deleted ");
   setTimeout(() => setSuccessMsg(""), 3000);
+};
+
+const openEnrollModal = (student) => {
+  setEnrollTarget(student);
+  setEnrollClass(student.personalInfo?.class && student.personalInfo.class !== "-" ? student.personalInfo.class : "");
+  setEnrollSection(student.personalInfo?.section && student.personalInfo.section !== "-" ? student.personalInfo.section : "");
+  setEnrollError("");
+};
+
+const closeEnrollModal = () => {
+  if (enrolling) return;
+  setEnrollTarget(null);
+  setEnrollError("");
+};
+
+const handleEnroll = async () => {
+  if (!enrollTarget) return;
+  setEnrollError("");
+  setEnrolling(true);
+  try {
+    const res = await api.post(
+      `${config.API_BASE_URL}/admission/application/${enrollTarget._id}/admit`,
+      {
+        className: enrollClass || undefined,
+        sectionName: enrollSection || undefined,
+      }
+    );
+    if (res.data?.success) {
+      const roll =
+        res.data?.officialRollNo ||
+        res.data?.student?.personalInfo?.rollNo ||
+        "assigned";
+      setSuccessMsg(`Student enrolled successfully. Roll No: ${roll}`);
+      setTimeout(() => setSuccessMsg(""), 4000);
+      await loadStudents();
+      setEnrollTarget(null);
+    } else {
+      setEnrollError(res.data?.message || "Enrollment failed");
+    }
+  } catch (err) {
+    setEnrollError(
+      err?.response?.data?.message || err?.message || "Enrollment failed"
+    );
+  } finally {
+    setEnrolling(false);
+  }
 };
 
   const filteredStudents = students.filter(
@@ -677,6 +729,13 @@ Sections:
                       title="View"
                     >
                       <FiSearch />
+                    </button>
+                    <button
+                      className="text-green-600 ml-2 font-semibold text-xs border border-green-600 rounded px-2 py-1"
+                      onClick={() => openEnrollModal(s)}
+                      title="Admit as SIS Student"
+                    >
+                      Admit
                     </button>
                     <button
                       className="text-red-500 ml-2"
@@ -1091,6 +1150,67 @@ Sections:
           </div>
         </div>
       )}
+      {enrollTarget && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
+            <h3 className="text-lg font-bold mb-1">
+              Admit {enrollTarget.personalInfo?.name}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Enroll this admission application as an SIS Student and assign an
+              official roll number.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Class</label>
+                <input
+                  type="text"
+                  value={enrollClass}
+                  onChange={(e) => setEnrollClass(e.target.value)}
+                  placeholder="e.g. Grade 5"
+                  className="border px-3 py-2 w-full rounded"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Section</label>
+                <input
+                  type="text"
+                  value={enrollSection}
+                  onChange={(e) => setEnrollSection(e.target.value)}
+                  placeholder="e.g. A"
+                  className="border px-3 py-2 w-full rounded"
+                />
+              </div>
+              {enrollError && (
+                <div className="px-3 py-2 rounded-md border text-sm font-semibold text-red-600 border-red-200 bg-red-50">
+                  {enrollError}
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={closeEnrollModal}
+                  disabled={enrolling}
+                  className="px-4 py-2 border rounded disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEnroll}
+                  disabled={enrolling}
+                  className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                >
+                  {enrolling ? "Admitting..." : "Admit Student"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* BACK BUTTON – Status Tracking */}
 <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-8 z-40">
   <button
