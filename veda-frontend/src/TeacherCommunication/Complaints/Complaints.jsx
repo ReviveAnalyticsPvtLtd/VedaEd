@@ -119,7 +119,7 @@ export default function TeacherComplaints() {
   const isParentSelected = form.sendTo.includes("PARENT");
 
   // Derive unique classes and sections from students data
-  const classes = useMemo(() => [...new Set(studentsData.map(s => s.class))].sort(), [studentsData]);
+  const classes = useMemo(() => [...new Set(studentsData.map(s => s.class))].filter(c => c && c !== "N/A").sort(), [studentsData]);
   const sections = useMemo(() => {
     if (!form.class) return [];
     return [...new Set(studentsData.filter(s => s.class === form.class).map(s => s.section))].sort();
@@ -310,7 +310,7 @@ export default function TeacherComplaints() {
       }
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update status");
+      alert(error?.response?.data?.message || "Failed to update status");
     } finally {
       setLoading(false);
     }

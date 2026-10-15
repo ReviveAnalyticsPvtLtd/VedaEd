@@ -3,6 +3,7 @@ const Student = require("../student/studentModels");
 const Parent = require("../parents/parentModel");
 const Class = require("../class/classSchema");
 const Section = require("../section/sectionSchema");
+const SuperadminLanding = require("../superadminLanding/superadminLandingModel");
 const mongoose = require("mongoose");
 
 // Tenant context is resolved by authMiddleware from the authenticated User
@@ -25,6 +26,54 @@ const findOwnedClass = (classId, schoolId) => Class.findOne({ _id: classId, scho
 const findOwnedSection = (sectionId, schoolId) => Section.findOne({ _id: sectionId, schoolId }).select("_id");
 const findOwnedStudent = (studentId, schoolId) => Student.findOne({ _id: studentId, schoolId }).select("_id");
 const getSchoolStudentIds = async (schoolId) => (await Student.find({ schoolId }).select("_id")).map((s) => s._id);
+
+const getSchoolTimezone = async (schoolId) => {
+  if (!schoolId) return "Asia/Kolkata";
+  try {
+    const landing = await SuperadminLanding.findOne({ schoolId }).select("information.timezone").lean();
+    return landing?.information?.timezone || "Asia/Kolkata";
+  } catch (err) {
+    return "Asia/Kolkata";
+  }
+};
+
+const formatTimeInTimezone = (dateObj, timeZone = "Asia/Kolkata") => {
+  if (!dateObj) return "--";
+  try {
+    return new Date(dateObj).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: timeZone || "Asia/Kolkata",
+    });
+  } catch (err) {
+    return new Date(dateObj).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+};
+
+const resolveAdjustedTime = (r, tz = "Asia/Kolkata") => {
+  if (r.status === "Absent") return "--";
+  let timeStr = r.time;
+  if (!timeStr || timeStr === "--") {
+    return formatTimeInTimezone(r.updatedAt || r.createdAt, tz);
+  }
+  if (r.createdAt) {
+    const utcTimeString = new Date(r.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC",
+    });
+    if (String(timeStr).trim().toUpperCase() === String(utcTimeString).trim().toUpperCase()) {
+      return formatTimeInTimezone(r.createdAt, tz);
+    }
+  }
+  return timeStr;
+};
 
 /*
  * Mark attendance for an entire class (bulk insert)
@@ -65,14 +114,17 @@ exports.markClassAttendance = async (req, res) => {
     // Remove existing attendance for the same date/class/section (so teacher can re-mark)
     await Attendance.deleteMany({ class: classId, section: sectionId, date });
 
+    const tz = await getSchoolTimezone(schoolId);
+    const defaultTime = formatTimeInTimezone(new Date(), tz);
+
     // Insert all student attendance records
-    const newRecords = records.map(r => ({
+    const newRecords = records.map((r) => ({
       student: r.studentId,
       class: classId,
       section: sectionId,
       date,
       status: r.status,
-      time: r.time || null
+      time: r.status === "Absent" ? "--" : (r.time || defaultTime),
     }));
 
     const saved = await Attendance.insertMany(newRecords);
@@ -81,14 +133,12 @@ exports.markClassAttendance = async (req, res) => {
       success: true,
       message: "Attendance marked successfully",
       count: saved.length,
-      data: saved
+      data: saved,
     });
-
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
-
 
 /*
  * Get attendance by class & section for a specific date
@@ -114,6 +164,8 @@ exports.getAttendanceByClass = async (req, res) => {
       return res.status(404).json({ success: false, message: "Section not found" });
     }
 
+    const tz = await getSchoolTimezone(schoolId);
+
     // Normalize date to start/end of day
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -128,12 +180,17 @@ exports.getAttendanceByClass = async (req, res) => {
       date: { $gte: startOfDay, $lte: endOfDay },
     }).populate({ path: "student", match: { schoolId }, select: "personalInfo.name personalInfo.rollNo" });
 
-    res.status(200).json({
-      success: true,
-      count: records.length,
-      data: records,
+    const formattedRecords = records.map((r) => {
+      const obj = r.toObject();
+      obj.time = resolveAdjustedTime(r, tz);
+      return obj;
     });
 
+    res.status(200).json({
+      success: true,
+      count: formattedRecords.length,
+      data: formattedRecords,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
@@ -162,6 +219,8 @@ exports.updateAttendanceByStudent = async (req, res) => {
       });
     }
 
+    const tz = await getSchoolTimezone(schoolId);
+
     // Normalize date (start of the day)
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -169,12 +228,15 @@ exports.updateAttendanceByStudent = async (req, res) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
+    const defaultTime = formatTimeInTimezone(new Date(), tz);
+    const computedTime = status === "Absent" ? "--" : (time || defaultTime);
+
     // Find attendance for this student on that day
     let attendance = await Attendance.findOne({
       student: studentId,
       class: student.personalInfo.class,
       section: student.personalInfo.section,
-      date: { $gte: startOfDay, $lte: endOfDay }
+      date: { $gte: startOfDay, $lte: endOfDay },
     });
     if (!attendance) {
       // Create new attendance doc
@@ -184,12 +246,12 @@ exports.updateAttendanceByStudent = async (req, res) => {
         section: student.personalInfo.section,
         date: startOfDay,
         status,
-        time: status === "Absent" ? "--" : (time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))
+        time: computedTime,
       });
     } else {
       // Update existing doc
       attendance.status = status;
-      attendance.time = status === "Absent" ? "--" : (time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      attendance.time = computedTime;
     }
 
     await attendance.save();
@@ -208,32 +270,6 @@ exports.updateAttendanceByStudent = async (req, res) => {
   }
 };
 
-// Get attendance history of a student
-// exports.getAttendanceByStudent = async (req, res) => {
-//   try {
-//     const { studentId } = req.params;
-
-//     if (!studentId) {
-//       return res.status(400).json({ success: false, message: "Student ID required" });
-//     }
-
-//     const records = await Attendance.find({ student: studentId })
-//       .populate("class", "name")
-//       .populate("section", "name");
-
-//     res.status(200).json({
-//       success: true,
-//       count: records.length,
-//       data: records
-//     });
-
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: "Server error", error: err.message });
-//   }
-// };
-
-
-
 exports.getAttendanceByStudent = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -249,10 +285,10 @@ exports.getAttendanceByStudent = async (req, res) => {
 
     // RBAC check
     if (req.user) {
-      if (req.user.role === 'student' && req.user.refId !== studentId) {
+      if (req.user.role === "student" && req.user.refId !== studentId) {
         return res.status(403).json({ success: false, message: "Unauthorized access to other student's attendance" });
       }
-      if (req.user.role === 'parent') {
+      if (req.user.role === "parent") {
         const parent = await Parent.findOne({ _id: req.user.refId, schoolId });
         if (!parent || !parent.children.includes(studentId)) {
           return res.status(403).json({ success: false, message: "Unauthorized access to this student's attendance" });
@@ -267,8 +303,9 @@ exports.getAttendanceByStudent = async (req, res) => {
       });
     }
 
-    const records = await Attendance.find({ student: studentId })
+    const tz = await getSchoolTimezone(schoolId);
 
+    const records = await Attendance.find({ student: studentId })
       .populate({ path: "class", match: { schoolId }, select: "name" })
       .populate({ path: "section", match: { schoolId }, select: "name" })
       .sort({ date: -1 }); // latest first
@@ -283,12 +320,12 @@ exports.getAttendanceByStudent = async (req, res) => {
     res.status(200).json({
       success: true,
       count: records.length,
-      data: records.map(r => ({
+      data: records.map((r) => ({
         date: r.date,
         class: r.class?.name,
         section: r.section?.name,
         status: r.status,
-        time: r.time,
+        time: resolveAdjustedTime(r, tz),
       })),
     });
   } catch (err) {
@@ -305,32 +342,39 @@ exports.getAttendanceSummary = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
   try {
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    const tz = await getSchoolTimezone(schoolId);
+    const requestedDate =
+      req.query.date ||
+      new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+
+    const startOfDay = new Date(requestedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(requestedDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
     const stats = await Attendance.aggregate([
       {
         $match: {
           student: { $in: await getSchoolStudentIds(schoolId) },
-          date: { $gte: startOfDay, $lte: endOfDay }
-        }
+          date: { $gte: startOfDay, $lte: endOfDay },
+        },
       },
       {
         $group: {
           _id: "$status",
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const summary = {
       Present: 0,
       Absent: 0,
-      Late: 0
+      Late: 0,
     };
 
-    stats.forEach(stat => {
+    stats.forEach((stat) => {
       if (summary.hasOwnProperty(stat._id)) {
         summary[stat._id] = stat.count;
       }
@@ -347,8 +391,17 @@ exports.getWeeklyStats = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
   try {
-    const today = new Date();
-    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+    const tz = await getSchoolTimezone(schoolId);
+    const todayStr =
+      req.query.date ||
+      new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+    const baseDate = new Date(todayStr);
+
+    const dayOfWeek = baseDate.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+    const startOfWeek = new Date(baseDate);
+    startOfWeek.setDate(baseDate.getDate() + diffToMonday);
     startOfWeek.setHours(0, 0, 0, 0);
 
     const endOfWeek = new Date(startOfWeek);
@@ -359,25 +412,26 @@ exports.getWeeklyStats = async (req, res) => {
       {
         $match: {
           student: { $in: await getSchoolStudentIds(schoolId) },
-          date: { $gte: startOfWeek, $lte: endOfWeek }
-        }
+          date: { $gte: startOfWeek, $lte: endOfWeek },
+        },
       },
       {
         $group: {
           _id: {
             day: { $dayOfWeek: "$date" },
-            status: "$status"
+            status: "$status",
           },
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     // Map day numbers to names (1=Sun, 2=Mon...)
     const daysHead = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const trends = daysHead.map((day, index) => {
       const dayNum = index + 1;
-      const presentCount = stats.find(s => s._id.day === dayNum && s._id.status === "Present")?.count || 0;
+      const presentCount =
+        stats.find((s) => s._id.day === dayNum && s._id.status === "Present")?.count || 0;
       return { day, students: presentCount };
     });
 
@@ -392,18 +446,20 @@ exports.getRecentAttendance = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
   try {
+    const tz = await getSchoolTimezone(schoolId);
     const records = await Attendance.find({ student: { $in: await getSchoolStudentIds(schoolId) } })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, updatedAt: -1 })
       .limit(10)
       .populate({ path: "student", match: { schoolId }, select: "personalInfo.name" })
       .populate({ path: "class", match: { schoolId }, select: "name" })
       .populate({ path: "section", match: { schoolId }, select: "name" });
 
-    const formatted = records.map(r => ({
+    const formatted = records.map((r) => ({
       name: r.student?.personalInfo?.name || "Unknown",
       grade: `${r.class?.name || ""} - ${r.section?.name || ""}`,
       status: r.status,
-      time: r.time || "--"
+      time: resolveAdjustedTime(r, tz),
+      createdAt: r.createdAt,
     }));
 
     res.status(200).json({ success: true, data: formatted });
@@ -422,6 +478,8 @@ exports.getAttendanceByDate = async (req, res) => {
       return res.status(400).json({ success: false, message: "Date is required" });
     }
 
+    const tz = await getSchoolTimezone(schoolId);
+
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -430,14 +488,21 @@ exports.getAttendanceByDate = async (req, res) => {
 
     const records = await Attendance.find({
       student: { $in: await getSchoolStudentIds(schoolId) },
-      date: { $gte: startOfDay, $lte: endOfDay }
-    }).populate({ path: "student", match: { schoolId }, select: "personalInfo.name personalInfo.rollNo" })
+      date: { $gte: startOfDay, $lte: endOfDay },
+    })
+      .populate({ path: "student", match: { schoolId }, select: "personalInfo.name personalInfo.rollNo" })
       .populate({ path: "class", match: { schoolId }, select: "name" })
       .populate({ path: "section", match: { schoolId }, select: "name" });
 
+    const formattedRecords = records.map((r) => {
+      const obj = r.toObject();
+      obj.time = resolveAdjustedTime(r, tz);
+      return obj;
+    });
+
     res.status(200).json({
       success: true,
-      data: records
+      data: formattedRecords,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error", error: error.message });

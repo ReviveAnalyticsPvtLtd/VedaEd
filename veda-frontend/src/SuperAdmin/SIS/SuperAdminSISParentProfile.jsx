@@ -173,6 +173,31 @@ const SuperAdminSISParentProfile = () => {
     fetchParent();
   }, [resolvedParentId]);
 
+  // Synchronize human-readable ID with breadcrumb
+  useEffect(() => {
+    const stdId =
+      parent?.children?.[0]?.stdId ||
+      parent?.children?.[0]?.personalInfo?.stdId ||
+      parent?.stdId;
+    const displayLabel =
+      stdId && stdId !== "N/A"
+        ? stdId
+        : parent?.parentId && !parent.parentId.startsWith("PRN-ADM-")
+        ? parent.parentId
+        : stdId || parent?.parentId || resolvedParentId;
+
+    if (resolvedParentId && displayLabel) {
+      try {
+        sessionStorage.setItem("breadcrumb_label_" + resolvedParentId, displayLabel);
+      } catch (_) {}
+      window.dispatchEvent(
+        new CustomEvent("breadcrumb:update-label", {
+          detail: { segment: resolvedParentId, label: displayLabel },
+        })
+      );
+    }
+  }, [resolvedParentId, parent?.children, parent?.stdId, parent?.parentId]);
+
   // Mock data for engagement, meetings
   useEffect(() => {
     setEngagement([

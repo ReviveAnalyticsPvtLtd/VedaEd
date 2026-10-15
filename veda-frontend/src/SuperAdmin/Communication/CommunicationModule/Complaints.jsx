@@ -4,6 +4,7 @@ import { FiSearch, FiPaperclip } from "react-icons/fi";
 import complaintAPI from "../../../services/complaintAPI";
 import { studentAPI } from "../../../services/studentAPI";
 import staffAPI from "../../../services/staffAPI";
+import classAPI from "../../../services/classAPI";
 
 /* ===================== ID GENERATORS ===================== */
 const genReplyId = () =>
@@ -20,12 +21,21 @@ export default function AdminComplaints() {
   const [activeTab, setActiveTab] = useState("raise");
   const [loading, setLoading] = useState(false);
 
-  // Mock current user - should be replaced with real auth data
-  const currentUser = {
-    id: "68c1b2ca7fa6e0a4c8af3245", // Valid Database ID (Rohit Yung)
-    name: "System Admin",
-    model: "Admin"
-  };
+  // Current session user from persisted auth
+  const currentUser = useMemo(() => {
+    let stored = {};
+    try {
+      stored = JSON.parse(localStorage.getItem("user") || "{}");
+    } catch (_) {
+      stored = {};
+    }
+    const role = stored.role || localStorage.getItem("role") || "superadmin";
+    return {
+      id: stored.refId || stored._id || "",
+      name: stored.name || "Super Admin",
+      model: role.charAt(0).toUpperCase() + role.slice(1),
+    };
+  }, []);
 
   /* ===================== FORM ===================== */
   const [form, setForm] = useState({
@@ -54,6 +64,7 @@ export default function AdminComplaints() {
   const [myComplaints, setMyComplaints] = useState([]);
   const [logs, setLogs] = useState([]);
   const [studentsData, setStudentsData] = useState([]);
+  const [classList, setClassList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState("");
@@ -61,56 +72,90 @@ export default function AdminComplaints() {
 
   /* ===================== FETCH DATA ===================== */
   const fetchData = async () => {
+    setLoading(true);
+
+    if (currentUser.id) {
+      try {
+        const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
+        if (myComplaintsRes?.success) {
+          setMyComplaints(myComplaintsRes.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching my complaints:", error);
+      }
+    }
+
     try {
-      setLoading(true);
-      
-      // Fetch My Complaints
-      const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
-      if (myComplaintsRes.success) {
-        setMyComplaints(myComplaintsRes.data);
-      }
-
-      // Fetch All Complaint Logs for Admin
       const logsRes = await complaintAPI.getComplaints();
-      if (logsRes.success) {
-        setLogs(logsRes.data);
-      }
-
-      // Fetch Students
-      const studentsRes = await studentAPI.getAllStudents();
-      if (studentsRes && studentsRes.length > 0) {
-        const transformed = studentsRes.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
-          class: s.academicInfo?.class || "N/A",
-          section: s.academicInfo?.section || "N/A",
-          parentId: s.parentInfo?.parentId || "N/A",
-          parentName: s.parentInfo?.fatherName || "N/A",
-          parentPhone: s.parentInfo?.fatherPhone || "N/A",
-        }));
-        setStudentsData(transformed);
-      }
-
-      // Fetch Staff
-      const staffRes = await staffAPI.getAllStaff();
-      if (staffRes && staffRes.staff) {
-        const transformed = staffRes.staff.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.name || "N/A",
-          role: s.personalInfo?.role || "N/A"
-        }));
-        setStaffList(transformed);
+      if (logsRes?.success) {
+        setLogs(logsRes.data || []);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching complaint logs:", error);
     }
+
+    try {
+      const clsRes = await classAPI.getAllClasses();
+      const list = Array.isArray(clsRes)
+        ? clsRes
+        : Array.isArray(clsRes?.data)
+        ? clsRes.data
+        : [];
+      setClassList(list);
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+    }
+
+    try {
+      const studentsRes = await studentAPI.getAllStudents();
+      const students = Array.isArray(studentsRes) ? studentsRes : studentsRes?.students;
+      if (Array.isArray(students)) {
+        setStudentsData(
+          students.map((s) => {
+            const parent = s.parent && typeof s.parent === "object" ? s.parent : {};
+            const parents = s.parents && typeof s.parents === "object" ? s.parents : {};
+            return {
+              id: s._id,
+              name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
+              class: s.personalInfo?.class || "N/A",
+              section: s.personalInfo?.section || "N/A",
+              parentId: parent.parentId || parents.parentId || "N/A",
+              parentName: parent.fatherName || parents.fatherName || "N/A",
+              parentPhone:
+                parent.fatherPhone ||
+                parents.fatherPhone ||
+                parent.contactDetails?.mobileNumber ||
+                parents.contactDetails?.mobileNumber ||
+                "N/A",
+            };
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
+
+    try {
+      const staffRes = await staffAPI.getAllStaff();
+      if (staffRes?.staff) {
+        setStaffList(
+          staffRes.staff.map((s) => ({
+            id: s._id,
+            name: s.personalInfo?.name || "N/A",
+            role: s.personalInfo?.role || "N/A",
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentUser]);
 
   const filteredMyComplaints = useMemo(() => {
   if (!search) return myComplaints;
@@ -123,6 +168,7 @@ const summary = useMemo(() => {
   return {
     total: logs.length,
     pending: logs.filter((c) => c.status === "Pending" || c.status === "submitted").length,
+    reviewed: logs.filter((c) => c.status === "Reviewed" || c.status === "under_review").length,
     resolved: logs.filter((c) => c.status === "Resolved" || c.status === "resolved").length,
     rejected: logs.filter((c) => c.status === "Rejected" || c.status === "rejected").length,
   };
@@ -199,7 +245,7 @@ const updateStatus = async (status) => {
     }
   } catch (error) {
     console.error("Error updating status:", error);
-    alert("Failed to update status");
+    alert(error?.response?.data?.message || "Failed to update status");
   } finally {
     setLoading(false);
   }
@@ -210,11 +256,28 @@ const updateStatus = async (status) => {
     (s) => s.class === form.class && s.section === form.section
   );
 
-  const classes = useMemo(() => [...new Set(studentsData.map(s => s.class))].sort(), [studentsData]);
+  const classes = useMemo(() => {
+    const fromStudents = studentsData.map((s) => s.class).filter(Boolean);
+    const fromClasses = classList.map((c) => (typeof c === "string" ? c : c?.name || c?.className)).filter(Boolean);
+    return [...new Set([...fromClasses, ...fromStudents])].filter((c) => c && c !== "N/A").sort();
+  }, [studentsData, classList]);
+
   const sections = useMemo(() => {
     if (!form.class) return [];
-    return [...new Set(studentsData.filter(s => s.class === form.class).map(s => s.section))].sort();
-  }, [studentsData, form.class]);
+    const fromStudents = studentsData
+      .filter((s) => s.class === form.class)
+      .map((s) => s.section)
+      .filter(Boolean);
+
+    const matchingClassObj = classList.find(
+      (c) => (typeof c === "string" ? c : c?.name || c?.className) === form.class
+    );
+    const fromClassObj = matchingClassObj && Array.isArray(matchingClassObj.sections)
+      ? matchingClassObj.sections.map((sec) => (typeof sec === "string" ? sec : sec?.name)).filter(Boolean)
+      : [];
+
+    return [...new Set([...fromClassObj, ...fromStudents])].filter((s) => s && s !== "N/A").sort();
+  }, [studentsData, classList, form.class]);
 
   const selectedStudent = studentsData.find(
     (s) => s.id === form.studentId
@@ -900,7 +963,8 @@ Student Section *
             <h3 className="font-semibold text-lg text-gray-800">Complaint Logs Summary</h3>
             <p className="text-gray-600 mt-2">
               Total: <span className="font-semibold">{summary.total}</span> | Pending:{" "}
-              <span className="font-semibold text-yellow-600">{summary.pending}</span> | Resolved:{" "}
+              <span className="font-semibold text-yellow-600">{summary.pending}</span> | Reviewed:{" "}
+              <span className="font-semibold text-blue-600">{summary.reviewed}</span> | Resolved:{" "}
               <span className="font-semibold text-green-600">{summary.resolved}</span> | Rejected:{" "}
               <span className="font-semibold text-gray-600">{summary.rejected}</span>
             </p>
