@@ -1508,18 +1508,10 @@ exports.getTeacherDashboardStats = async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    // Attendance days are stored at UTC midnight of the picked date string, so
-    // the week bounds must also be UTC midnight of the local calendar dates.
-    // Comparing against local-midnight bounds would drop today's records in
-    // timezones ahead of UTC (and Monday's in those behind it).
     const utcMidnight = (d) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const weekStart = utcMidnight(monday);
-    const weekEnd = utcMidnight(tomorrow); // exclusive upper bound
+    const weekEnd = utcMidnight(tomorrow);
 
-    // Student Attendance has no schoolId; it is tenant-scoped through its
-    // class/section refs. classSectionPairs was built from ownedClassIds above,
-    // so every pair already belongs to this school. The empty guard prevents an
-    // unbounded query for a teacher with no assignments.
     const attendanceRecords = classSectionPairs.length
       ? await Attendance.find({
           date: { $gte: weekStart, $lt: weekEnd },
@@ -1532,7 +1524,6 @@ exports.getTeacherDashboardStats = async (req, res) => {
           .lean()
       : [];
 
-    // "Late" still counts as attended, so it is included with "Present".
     const isAttended = (r) => r.status === "Present" || r.status === "Late";
 
     const attendedCount = attendanceRecords.filter(isAttended).length;
@@ -1540,7 +1531,6 @@ exports.getTeacherDashboardStats = async (req, res) => {
       ? Math.round((attendedCount / attendanceRecords.length) * 100)
       : 0;
 
-    // Dates are stored at UTC midnight, so read the weekday in UTC as well.
     const utcWeekdayNames = [
       "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
     ];
