@@ -13,8 +13,34 @@ const {
 
 const COMPLAINANT_SELECT = 'personalInfo.name personalInfo.email personalInfo.fullName name email';
 
-/** Complaint statuses the write routes accept. */
-const STATUSES = ['submitted', 'under_review', 'in_progress', 'resolved', 'closed', 'rejected'];
+/** Complaint statuses the write routes accept. Supports both canonical snake_case and UI TitleCase. */
+const STATUSES = [
+  'submitted',
+  'under_review',
+  'in_progress',
+  'resolved',
+  'closed',
+  'rejected',
+  'Pending',
+  'Replied',
+  'Reviewed',
+  'Resolved',
+  'Rejected',
+  'Closed'
+];
+
+/** Map status filter to support both canonical and TitleCase in queries */
+function normalizeStatusFilter(status) {
+  if (!status) return null;
+  const s = String(status).trim().toLowerCase();
+  if (s === 'pending' || s === 'submitted') return { $in: ['Pending', 'submitted'] };
+  if (s === 'reviewed' || s === 'under_review') return { $in: ['Reviewed', 'under_review'] };
+  if (s === 'replied' || s === 'in_progress') return { $in: ['Replied', 'in_progress'] };
+  if (s === 'resolved') return { $in: ['Resolved', 'resolved'] };
+  if (s === 'rejected') return { $in: ['Rejected', 'rejected'] };
+  if (s === 'closed') return { $in: ['Closed', 'closed'] };
+  return status;
+}
 
 // Create a new complaint
 exports.createComplaint = async (req, res) => {
@@ -112,7 +138,10 @@ exports.getComplaints = async (req, res) => {
     // Tenant scope first, so no filter can widen it.
     const query = { schoolId: school };
 
-    if (status) query.status = status;
+    if (status) {
+      const filter = normalizeStatusFilter(status);
+      if (filter) query.status = filter;
+    }
     if (category) query.category = category;
     if (priority) query.priority = priority;
     if (assignedTo) query.assignedTo = assignedTo;
@@ -174,7 +203,10 @@ exports.getUserComplaints = async (req, res) => {
       }
     }
 
-    if (status) conditions.forEach((c) => { c.status = status; });
+    if (status) {
+      const filter = normalizeStatusFilter(status);
+      if (filter) conditions.forEach((c) => { c.status = filter; });
+    }
 
     // Tenant scope is ANDed with the ownership conditions, never ORed away.
     const query = { schoolId: school, $or: conditions };
@@ -256,7 +288,19 @@ exports.updateComplaintStatus = async (req, res) => {
     const { complaintId } = req.params;
     const { status } = req.body;
 
-    if (!STATUSES.includes(status)) {
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'status is required'
+      });
+    }
+
+    const trimmedStatus = status.trim();
+    const matchedStatus = STATUSES.find(
+      (s) => s.toLowerCase() === trimmedStatus.toLowerCase()
+    );
+
+    if (!matchedStatus) {
       return res.status(400).json({
         success: false,
         message: `status must be one of: ${STATUSES.join(', ')}`
@@ -271,7 +315,7 @@ exports.updateComplaintStatus = async (req, res) => {
       });
     }
 
-    complaint.status = status;
+    complaint.status = STATUSES.includes(trimmedStatus) ? trimmedStatus : matchedStatus;
     await complaint.save();
 
     res.status(200).json({
@@ -464,10 +508,10 @@ exports.getComplaintStats = async (req, res) => {
     const scope = { schoolId: school };
 
     const totalComplaints = await Complaint.countDocuments(scope);
-    const submittedComplaints = await Complaint.countDocuments({ ...scope, status: 'submitted' });
-    const underReviewComplaints = await Complaint.countDocuments({ ...scope, status: 'under_review' });
-    const inProgressComplaints = await Complaint.countDocuments({ ...scope, status: 'in_progress' });
-    const resolvedComplaints = await Complaint.countDocuments({ ...scope, status: 'resolved' });
+    const submittedComplaints = await Complaint.countDocuments({ ...scope, status: { $in: ['submitted', 'Pending'] } });
+    const underReviewComplaints = await Complaint.countDocuments({ ...scope, status: { $in: ['under_review', 'Reviewed'] } });
+    const inProgressComplaints = await Complaint.countDocuments({ ...scope, status: { $in: ['in_progress', 'Replied'] } });
+    const resolvedComplaints = await Complaint.countDocuments({ ...scope, status: { $in: ['resolved', 'Resolved'] } });
 
     // Aggregations carry the tenant $match so they cannot report global totals.
     const schoolObjectId = new mongoose.Types.ObjectId(school);

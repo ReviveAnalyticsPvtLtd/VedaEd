@@ -178,13 +178,55 @@ function legacySuffixToHolder(suffix) {
   return null;
 }
 
-/** Admission synthetic route id `adm-<applicationObjectId>` → same shape as getParentbyId uses internally. */
-function buildSyntheticParentDocFromRoute(routeId, application) {
-  if (!application || !routeId) return null;
-  const parsed = parseAdmissionSyntheticParentRouteId(routeId);
-  if (!parsed) return null;
+/** Find admission application by stdId (e.g. STD-2026-0036), synthetic adm-<id>, ObjectId, or parentId */
+async function findAdmissionApplicationByIdOrStdId(id, schoolId) {
+  if (!id || typeof id !== "string") return null;
+  const trimmed = id.trim();
 
-  const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+  // 1. Check by personalInfo.stdId (e.g. STD-2026-0036)
+  let app = await AdmissionApplication.findOne({
+    "personalInfo.stdId": trimmed,
+    schoolId,
+  });
+  if (app) return app;
+
+  // 2. Synthetic route id: adm-<applicationObjectId>
+  if (trimmed.startsWith("adm-")) {
+    const parsed = parseAdmissionSyntheticParentRouteId(trimmed);
+    if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
+      app = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      });
+      if (app) return app;
+    }
+  }
+
+  // 3. Raw MongoDB ObjectId
+  if (mongoose.Types.ObjectId.isValid(trimmed)) {
+    app = await AdmissionApplication.findOne({
+      _id: trimmed,
+      schoolId,
+    });
+    if (app) return app;
+  }
+
+  // 4. parentId (e.g. PRN-2026-0017)
+  app = await AdmissionApplication.findOne({
+    "parents.parentId": trimmed,
+    schoolId,
+  });
+  if (app) return app;
+
+  return null;
+}
+
+/** Admission synthetic route id or stdId → same shape as getParentbyId uses internally. */
+function buildSyntheticParentDocFromRoute(routeId, application) {
+  if (!application) return null;
+  const parsed = parseAdmissionSyntheticParentRouteId(routeId);
+
+  const legacyHolder = parsed ? legacySuffixToHolder(parsed.legacySuffix) : null;
   const holder = legacyHolder || normalizeParentIdAccountHolder(
     application.parents?.parentIdAccountHolder,
     application.parents || {}
@@ -199,12 +241,20 @@ function buildSyntheticParentDocFromRoute(routeId, application) {
         : (application.parents?.guardian?.name || "Guardian"));
 
   const relLabel = displayRoleForHolder(application.parents || {}, holder);
+  const stdId = application.personalInfo?.stdId;
+  const effectiveId = (stdId && stdId !== "N/A") ? stdId : (routeId || `adm-${application._id}`);
+  const parentId =
+    application.parents?.parentId ||
+    (parsed?.applicationId
+      ? `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`
+      : `PRN-ADM-${application._id.toString().slice(-6).toUpperCase()}`);
+
   return {
-    _id: routeId,
+    _id: effectiveId,
     name,
     email: person.email || application.contactInfo?.email || "",
     phone: person.phone || application.contactInfo?.phone || "",
-    parentId: application.parents?.parentId || `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`,
+    parentId,
     status: "Active",
     role: relLabel,
     relation: relLabel,
@@ -512,7 +562,7 @@ exports.getAllParents = async (req, res) => {
       }
 
       admissionParents.push({
-        _id: `adm-${app._id}`,
+        _id: (stdId && stdId !== "N/A") ? stdId : `adm-${app._id}`,
         name: String(name).trim(),
         email: person.email || "N/A",
         phone: person.phone || app.contactInfo?.phone || "N/A",
@@ -572,23 +622,21 @@ exports.getParentbyId = async (req, res) => {
       });
     }
 
-    let parentDoc;
-    if (id.startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(404).json({ success: false, message: "Invalid admission parent id" });
-      }
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
-        schoolId,
-      }).lean();
-      if (!application) {
-        return res.status(404).json({ success: false, message: "Parent not found in Admissions" });
-      }
+    let parentDoc = null;
+    // 1. Try finding in AdmissionApplication (by stdId, synthetic adm-, ObjectId, or parentId)
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
+      const appPlain = application.toObject ? application.toObject() : application;
+      parentDoc = buildSyntheticParentDocFromRoute(id, appPlain);
+    }
 
-      parentDoc = buildSyntheticParentDocFromRoute(id, application);
-    } else if (mongoose.Types.ObjectId.isValid(id)) {
-      parentDoc = await Parent.findOne({ _id: id, schoolId }).populate({
+    // 2. If not found in AdmissionApplication, try SIS Parent
+    if (!parentDoc) {
+      const sisQuery = mongoose.Types.ObjectId.isValid(id)
+        ? { _id: id, schoolId }
+        : { parentId: id, schoolId };
+
+      parentDoc = await Parent.findOne(sisQuery).populate({
         path: 'children',
         populate: [
           { path: 'personalInfo.class', select: 'name' },
@@ -598,54 +646,6 @@ exports.getParentbyId = async (req, res) => {
 
       if (parentDoc) {
         parentDoc.photo = resolveParentProfilePhotoFromParentDoc(parentDoc);
-      }
-
-      if (!parentDoc) {
-        // Try finding in AdmissionApplication
-        const application = await AdmissionApplication.findOne({ _id: id, schoolId }).lean();
-        if (application) {
-          const holder = normalizeParentIdAccountHolder(
-            application.parents?.parentIdAccountHolder,
-            application.parents || {}
-          );
-          const person = getPersonForHolder(application.parents || {}, holder);
-          const accName =
-            (person.name && String(person.name).trim()) ||
-            application.parents?.father?.name ||
-            application.personalInfo?.fatherName ||
-            "N/A";
-          const relLabel = displayRoleForHolder(application.parents || {}, holder);
-          parentDoc = {
-            _id: application._id,
-            name: accName,
-            fatherName: application.parents?.father?.name || application.personalInfo?.fatherName,
-            motherName: application.parents?.mother?.name || application.personalInfo?.motherName,
-            email: person.email || application.parents?.father?.email || application.parents?.mother?.email || application.contactInfo?.email,
-            phone: person.phone || application.parents?.father?.phone || application.parents?.mother?.phone || application.contactInfo?.phone,
-            occupation: person.occupation || "",
-            relation: relLabel,
-            role: relLabel,
-            parentId: application.parents?.parentId || `PRN-ADM-${application._id.toString().slice(-6).toUpperCase()}`,
-            password: "default123",
-            address: application.contactInfo?.address,
-            contactInfo: application.contactInfo,
-            photo: resolveParentProfilePhotoFromApplication(application),
-            children: [
-              {
-                personalInfo: {
-                  stdId: application.personalInfo?.stdId,
-                  name: application.personalInfo?.name,
-                  class:
-                    application.personalInfo?.classApplied ||
-                    application.personalInfo?.class ||
-                    "",
-                  section: application.personalInfo?.section || "",
-                  rollNo: application.personalInfo?.rollNo || "",
-                },
-              },
-            ],
-          };
-        }
       }
     }
 
@@ -686,24 +686,10 @@ exports.updateParent = async (req, res) => {
       });
     }
 
-    if (id.startsWith("adm-")) {
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
       const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
-
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
-        schoolId,
-      });
-      if (!application) {
-        return res.status(404).json({
-          success: false,
-          message: "Parent not found in Admissions",
-        });
-      }
-
-      const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+      const legacyHolder = parsed ? legacySuffixToHolder(parsed.legacySuffix) : null;
       const existingParents = application.parents?.toObject
         ? application.parents.toObject()
         : application.parents || {};
@@ -758,10 +744,8 @@ exports.updateParent = async (req, res) => {
       if (updateData.address !== undefined) mergedContact.address = updateData.address;
 
       try {
-        // The write is tenant-scoped as well, so a foreign-school application
-        // can never be mutated through this route.
         const writeResult = await AdmissionApplication.findOneAndUpdate(
-          { _id: parsed.applicationId, schoolId },
+          { _id: application._id, schoolId },
           { $set: { parents: mergedParents, contactInfo: mergedContact } },
           { new: true, runValidators: true }
         );
@@ -780,7 +764,7 @@ exports.updateParent = async (req, res) => {
       }
 
       const fresh = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+        _id: application._id,
         schoolId,
       }).lean();
       const syntheticDoc = buildSyntheticParentDocFromRoute(id, fresh);
@@ -788,7 +772,10 @@ exports.updateParent = async (req, res) => {
       return res.status(200).json({ success: true, parent: out });
     }
 
-    const parentExist = await Parent.findOne({ _id: id, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id, schoolId }
+      : { parentId: id, schoolId };
+    const parentExist = await Parent.findOne(parentQuery);
     if (!parentExist) {
       return res.status(404).json({
         success: false,
@@ -815,7 +802,7 @@ exports.updateParent = async (req, res) => {
     // A client-supplied schoolId must never move a parent between schools.
     delete updateData.schoolId;
 
-    const updatedParent = await Parent.findOneAndUpdate({ _id: id, schoolId }, updateData, {
+    const updatedParent = await Parent.findOneAndUpdate(parentQuery, updateData, {
       new: true,
       runValidators: true,
     })
@@ -934,13 +921,10 @@ exports.uploadProfilePhoto = async (req, res) => {
     const { id } = req.params;
     const fileUrl = `/uploads/${req.file.filename}`;
 
-    if (id.startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
       const updated = await AdmissionApplication.findOneAndUpdate(
-        { _id: parsed.applicationId, schoolId },
+        { _id: application._id, schoolId },
         { $set: { parentProfilePhoto: fileUrl } },
         { new: true }
       ).select("parentProfilePhoto");
@@ -954,12 +938,12 @@ exports.uploadProfilePhoto = async (req, res) => {
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid parent id" });
-    }
+    const parentQuery = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id, schoolId }
+      : { parentId: id, schoolId };
 
     const parent = await Parent.findOneAndUpdate(
-      { _id: id, schoolId },
+      parentQuery,
       { $set: { profilePhoto: fileUrl } },
       { new: true, runValidators: true }
     ).select("profilePhoto");
@@ -1010,13 +994,10 @@ exports.uploadDocument = async (req, res) => {
       fileType: req.file.mimetype || "",
     };
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
       const updated = await AdmissionApplication.findOneAndUpdate(
-        { _id: parsed.applicationId, schoolId },
+        { _id: application._id, schoolId },
         { $push: { documents: admissionDocumentData } },
         { new: true, runValidators: true }
       ).select("documents");
@@ -1031,7 +1012,10 @@ exports.uploadDocument = async (req, res) => {
       });
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery);
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
     }
@@ -1064,13 +1048,10 @@ exports.getAllDocuments = async (req, res) => {
     const { parentId } = req.params;
     console.log("Getting documents for parentId:", parentId);
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
       const app = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+        _id: application._id,
         schoolId,
       })
         .select("documents")
@@ -1084,7 +1065,10 @@ exports.getAllDocuments = async (req, res) => {
       return res.status(200).json(onlyParentUploads);
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId }).select("documents");
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery).select("documents");
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1139,19 +1123,16 @@ exports.deleteDocument = async (req, res) => {
   try {
     const { parentId, documentId } = req.params;
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
+      const appDoc = await AdmissionApplication.findOne({
+        _id: application._id,
         schoolId,
       });
-      if (!application) {
+      if (!appDoc) {
         return res.status(404).json({ success: false, message: "Admission record not found" });
       }
-      const targetDocument = application.documents.id(documentId);
+      const targetDocument = appDoc.documents.id(documentId);
       if (!targetDocument) {
         return res.status(404).json({ success: false, message: "Document not found" });
       }
@@ -1168,15 +1149,18 @@ exports.deleteDocument = async (req, res) => {
           fs.unlinkSync(filePath);
         }
       }
-      application.documents.pull({ _id: documentId });
-      await application.save();
+      appDoc.documents.pull({ _id: documentId });
+      await appDoc.save();
       return res.status(200).json({
         success: true,
         message: "Document deleted successfully",
       });
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery);
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1303,36 +1287,27 @@ exports.getParentDashboardStats = async (req, res) => {
 
     for (const c of candidates) {
       const str = String(c);
-      if (str.startsWith("adm-")) {
-        const parsed = parseAdmissionSyntheticParentRouteId(str);
-        if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
-          admissionApp = await AdmissionApplication.findOne({
-            _id: parsed.applicationId,
-            schoolId,
-          }).lean();
-          if (admissionApp) break;
-        }
-        continue;
-      }
-      if (!mongoose.Types.ObjectId.isValid(str)) continue;
-
-      parent = await Parent.findOne({ _id: str, schoolId }).populate(populateChildren).lean();
-      if (parent) break;
-
-      // Maybe the id is a User._id → resolve its refId to the Parent
-      const user = await User.findOne({ _id: str, schoolId }).lean().catch(() => null);
-      if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
-        parent = await Parent.findOne({ _id: user.refId, schoolId })
-          .populate(populateChildren)
-          .lean();
-        if (parent) break;
-      }
-
-      // Admission-linked parents use the application _id as their refId
-      const app = await AdmissionApplication.findOne({ _id: str, schoolId }).lean();
+      const app = await findAdmissionApplicationByIdOrStdId(str, schoolId);
       if (app) {
-        admissionApp = app;
+        admissionApp = app.toObject ? app.toObject() : app;
         break;
+      }
+
+      if (mongoose.Types.ObjectId.isValid(str)) {
+        parent = await Parent.findOne({ _id: str, schoolId }).populate(populateChildren).lean();
+        if (parent) break;
+
+        // Maybe the id is a User._id → resolve its refId to the Parent
+        const user = await User.findOne({ _id: str, schoolId }).lean().catch(() => null);
+        if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
+          parent = await Parent.findOne({ _id: user.refId, schoolId })
+            .populate(populateChildren)
+            .lean();
+          if (parent) break;
+        }
+      } else {
+        parent = await Parent.findOne({ parentId: str, schoolId }).populate(populateChildren).lean();
+        if (parent) break;
       }
     }
 

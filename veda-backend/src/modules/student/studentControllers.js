@@ -512,6 +512,7 @@ exports.getAllStudents = async (req, res) => {
     // Fetch all students based on the filtered query (newest first)
     const admissionQuery = {
       "personalInfo.fees": { $in: ["Paid", "paid"] },
+      enrolledStudentId: { $exists: false },
       // Add basic search/filter support for admission docs as well
       ...(keyword ? {
         $or: [

@@ -132,8 +132,28 @@ const AdmissionApplicationSchema = new Schema(
                 comment: { type: String }
             },
         ],
+        /** Reference to the enrolled Student created from this application */
+        enrolledStudentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Student",
+            sparse: true,
+            index: true,
+        },
+        enrolledAt: {
+            type: Date,
+            default: null,
+        },
+        promotedAt: {
+            type: Date,
+            default: null,
+        },
     },
     { timestamps: true }
+);
+
+AdmissionApplicationSchema.index(
+    { schoolId: 1, enrolledStudentId: 1 },
+    { sparse: true, background: true }
 );
 
 // Auto-generate applicationId

@@ -78,8 +78,12 @@ const routeRedirects = {
 };
 
 const isMongoObjectId = (str) => /^[0-9a-fA-F]{24}$/.test(String(str || "").trim());
+const isHashedId = (str) => /^(adm-)?[0-9a-fA-F]{24}(?:-[fmg])?$/i.test(String(str || "").trim());
 
 function getStandardLabel(segment) {
+  if (/^(STD|PRN|ADM|TCH|STF|EMP)-\d+/i.test(segment)) {
+    return segment.toUpperCase();
+  }
   return (
     breadcrumbLabels[segment] ||
     segment
@@ -120,13 +124,16 @@ export function Breadcrumbs() {
       const stateStdId =
         state.personalInfo?.stdId ||
         state.stdId ||
+        state.children?.[0]?.stdId ||
+        state.children?.[0]?.personalInfo?.stdId ||
         state.personalInfo?.studentId ||
         state.studentId ||
         state.student_id ||
         state.studentCode ||
-        state.admissionNumber;
+        state.admissionNumber ||
+        state.parentId;
 
-      if (stateStdId && isMongoObjectId(lastSegment)) {
+      if (stateStdId && (isMongoObjectId(lastSegment) || isHashedId(lastSegment))) {
         setDynamicLabels((prev) => ({ ...prev, [lastSegment]: stateStdId }));
         try {
           sessionStorage.setItem("breadcrumb_label_" + lastSegment, stateStdId);
@@ -135,17 +142,21 @@ export function Breadcrumbs() {
     }
   }, [location.pathname, location.state, pathSegments]);
 
-  // Auto-fetch readable student ID if segment is an ObjectId and not yet resolved
+  // Auto-fetch readable ID if segment is an ObjectId or hashed/synthetic and not yet resolved
   useEffect(() => {
     const lastSegment = pathSegments[pathSegments.length - 1];
-    if (!lastSegment || !isMongoObjectId(lastSegment)) return;
+    if (!lastSegment || (!isMongoObjectId(lastSegment) && !isHashedId(lastSegment))) return;
 
     const isStudentRoute =
       pathSegments.includes("student-profile") ||
       pathSegments.includes("final-student-profile") ||
       pathSegments.includes("students");
 
-    if (!isStudentRoute) return;
+    const isParentRoute =
+      pathSegments.includes("parent-profile") ||
+      pathSegments.includes("parents");
+
+    if (!isStudentRoute && !isParentRoute) return;
 
     // Check if already in state or sessionStorage
     if (dynamicLabels[lastSegment]) return;
@@ -158,6 +169,34 @@ export function Breadcrumbs() {
     } catch (_) {}
 
     let isMounted = true;
+
+    if (isParentRoute) {
+      const fetchParentLabel = async () => {
+        try {
+          const res = await authFetch(`/parents/${lastSegment}`);
+          if (res.ok) {
+            const data = await res.json();
+            const raw = data.parent ?? data.data ?? data;
+            const foundStdId =
+              raw?.children?.[0]?.stdId ||
+              raw?.children?.[0]?.personalInfo?.stdId ||
+              raw?.stdId ||
+              raw?.parentId;
+            if (isMounted && foundStdId) {
+              setDynamicLabels((prev) => ({ ...prev, [lastSegment]: foundStdId }));
+              try {
+                sessionStorage.setItem("breadcrumb_label_" + lastSegment, foundStdId);
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      };
+      fetchParentLabel();
+      return () => {
+        isMounted = false;
+      };
+    }
+
     const fetchStudentId = async () => {
       try {
         const res = await authFetch(`/students/${lastSegment}`);
@@ -219,8 +258,8 @@ export function Breadcrumbs() {
       if (cached) return cached;
     } catch (_) {}
 
-    // 3. If it's a mongo object ID, resolve contextually
-    if (isMongoObjectId(segment)) {
+    // 3. If it's a mongo object ID or hashed ID, resolve contextually
+    if (isMongoObjectId(segment) || isHashedId(segment)) {
       const isStudentRoute =
         pathSegments.includes("student-profile") ||
         pathSegments.includes("final-student-profile") ||
@@ -249,8 +288,13 @@ export function Breadcrumbs() {
       }
 
       if (pathSegments.includes("parent-profile") || pathSegments.includes("parents")) {
-        const stateParentId = location.state?.parentId || location.state?.name;
-        if (stateParentId) return stateParentId;
+        const stateParentLabel =
+          location.state?.children?.[0]?.stdId ||
+          location.state?.children?.[0]?.personalInfo?.stdId ||
+          location.state?.stdId ||
+          location.state?.parentId ||
+          location.state?.name;
+        if (stateParentLabel) return stateParentLabel;
         return "Parent Profile";
       }
     }

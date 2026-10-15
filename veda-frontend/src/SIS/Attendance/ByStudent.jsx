@@ -9,9 +9,14 @@ export default function ByStudent() {
   const queryParams = new URLSearchParams(location.search);
   const statusFilter = queryParams.get("status") || "";
 
+  const getLocalDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState(getLocalDateString);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -51,28 +56,32 @@ export default function ByStudent() {
   }, [date]);
 
   const markAttendance = async (id, newStatus) => {
+    const currentTime =
+      newStatus === "Absent"
+        ? "--"
+        : new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
     const updated = students.map((s) =>
       s.id === id
         ? {
             ...s,
             status: newStatus,
-            time:
-              newStatus === "Absent"
-                ? "--"
-                : new Date().toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
+            time: currentTime,
           }
         : s
     );
     setStudents(updated);
 
     try {
-      const attendanceDate = date || new Date().toISOString();
+      const attendanceDate = date || getLocalDateString();
       await api.put(`/attendance/student/${id}`, {
         status: newStatus,
         date: attendanceDate,
+        time: currentTime,
       });
     } catch (err) {
       console.error("Error updating attendance:", err);

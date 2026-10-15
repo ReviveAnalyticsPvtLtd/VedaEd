@@ -960,11 +960,15 @@ Sections:
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
                   <button
-                    onClick={() =>
-                      navigate(`/admin/parent-profile/${selectedParent._id}`, {
+                    onClick={() => {
+                      const targetId =
+                        (selectedParent.children?.[0]?.stdId && selectedParent.children[0].stdId !== "N/A")
+                          ? selectedParent.children[0].stdId
+                          : (selectedParent._id || selectedParent.parentId);
+                      navigate(`/admin/parent-profile/${targetId}`, {
                         state: selectedParent,
-                      })
-                    }
+                      });
+                    }}
                     className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
                   >
                     View Full Profile
