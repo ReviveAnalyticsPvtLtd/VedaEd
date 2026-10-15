@@ -1059,6 +1059,8 @@ exports.updateStudent = async (req, res) => {
         "personalInfo.fees": pick("fees"),
         "personalInfo.rollNo": finalRollNo,
         "personalInfo.bloodGroup": finalBloodGroup,
+        "personalInfo.nationality": pick("nationality"),
+        "personalInfo.religion": pick("religion"),
       }
     };
 
@@ -1102,6 +1104,38 @@ exports.updateStudent = async (req, res) => {
           ecIn.phone !== undefined && ecIn.phone !== null
             ? ecIn.phone
             : ec0.phone || "",
+      };
+    }
+
+    // Earlier Academic Information card. Merge onto the existing object so a
+    // partial payload cannot blank fields the client did not send.
+    const toPlain = (doc) =>
+      doc && typeof doc.toObject === "function" ? doc.toObject() : doc || {};
+
+    if (updateData.earlierAcademic !== undefined && updateData.earlierAcademic !== null) {
+      const ea0 = toPlain(existingStudent.earlierAcademic);
+      const eaIn = updateData.earlierAcademic;
+      const eaVal = (key) =>
+        eaIn[key] !== undefined && eaIn[key] !== null ? eaIn[key] : ea0[key] || "";
+      updateFields.$set.earlierAcademic = {
+        schoolName: eaVal("schoolName"),
+        board: eaVal("board"),
+        lastClass: eaVal("lastClass"),
+        academicYear: eaVal("academicYear"),
+      };
+    }
+
+    // Contact Information address parts (street / city / state / zip).
+    if (updateData.contactInfo !== undefined && updateData.contactInfo !== null) {
+      const ci0 = toPlain(existingStudent.contactInfo);
+      const ciIn = updateData.contactInfo;
+      const ciVal = (key) =>
+        ciIn[key] !== undefined && ciIn[key] !== null ? ciIn[key] : ci0[key] || "";
+      updateFields.$set.contactInfo = {
+        street: ciVal("street"),
+        city: ciVal("city"),
+        state: ciVal("state"),
+        zipCode: ciVal("zipCode"),
       };
     }
 

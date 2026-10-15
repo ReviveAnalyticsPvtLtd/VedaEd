@@ -35,6 +35,14 @@ const StudentSchema = new Schema(
       bloodGroup: {
         type: String
       },
+      nationality: {
+        type: String,
+        default: "",
+      },
+      religion: {
+        type: String,
+        default: "",
+      },
       age: {
         type: String,
       },
@@ -98,6 +106,22 @@ const StudentSchema = new Schema(
       name: { type: String, default: "" },
       relation: { type: String, default: "" },
       phone: { type: String, default: "" },
+    },
+
+    /** Admin SIS / StudentProfile — Earlier Academic Information card */
+    earlierAcademic: {
+      schoolName: { type: String, default: "" },
+      board: { type: String, default: "" },
+      lastClass: { type: String, default: "" },
+      academicYear: { type: String, default: "" },
+    },
+
+    /** Admin SIS / StudentProfile — Contact Information address parts */
+    contactInfo: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      zipCode: { type: String, default: "" },
     },
 
     //Curriculum
