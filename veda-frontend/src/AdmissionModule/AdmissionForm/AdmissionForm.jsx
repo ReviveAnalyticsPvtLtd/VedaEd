@@ -74,11 +74,26 @@ const FormField = ({
       "zipCode",
     ];
 
+    const institutionNameFields = ["previousSchoolName", "previousSchoolBoard"];
+    const classNameFields = ["previousClass"];
+    const academicYearFields = ["yearOfStudy"];
+
+    const controlKeys = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+
+    if (e.ctrlKey || e.metaKey || e.altKey || controlKeys.includes(e.key)) return;
+
     // ✅ LETTERS ONLY
     if (
       letterOnlyFields.includes(name) &&
-      !/^[a-zA-Z\s]$/.test(e.key) &&
-      !["Backspace", "Tab", "ArrowLeft", "ArrowRight"].includes(e.key)
+      !/^[a-zA-Z\s]$/.test(e.key)
     ) {
       e.preventDefault(); // ❌ TYPE NAHI HOGA
     }
@@ -86,10 +101,27 @@ const FormField = ({
     // ✅ NUMBERS ONLY
     if (
       numberOnlyFields.includes(name) &&
-      !/^\d$/.test(e.key) &&
-      !["Backspace", "Tab", "ArrowLeft", "ArrowRight"].includes(e.key)
+      !/^\d$/.test(e.key)
     ) {
       e.preventDefault(); // ❌ TYPE NAHI HOGA
+    }
+
+    // ✅ SCHOOL / BOARD NAME
+    if (
+      institutionNameFields.includes(name) &&
+      !/^[a-zA-Z0-9\s.,'()&/-]$/.test(e.key)
+    ) {
+      e.preventDefault();
+    }
+
+    // ✅ CLASS
+    if (classNameFields.includes(name) && !/^[a-zA-Z0-9\s.-]$/.test(e.key)) {
+      e.preventDefault();
+    }
+
+    // ✅ ACADEMIC YEAR
+    if (academicYearFields.includes(name) && !/^[0-9-]$/.test(e.key)) {
+      e.preventDefault();
     }
   }}
 
@@ -132,6 +164,10 @@ const SectionHeader = ({ icon, title }) => (
   </h3>
 );
 
+const INSTITUTION_NAME_REGEX = /^[A-Za-z0-9][A-Za-z0-9\s.,'()&/-]*$/;
+const CLASS_NAME_REGEX = /^[A-Za-z0-9][A-Za-z0-9\s.-]*$/;
+const ACADEMIC_YEAR_REGEX = /^\d{4}(\s*-\s*\d{2,4})?$/;
+
 const validateField = (name, value) => {
   switch (name) {
     case "email":
@@ -142,11 +178,27 @@ const validateField = (name, value) => {
         ? "Enter valid email"
         : "";
 
-        case "previousSchoolName":
-case "previousSchoolBoard":
-case "previousClass":
-case "yearOfStudy":
-  return !value ? "This field is required" : "";
+    case "previousSchoolName":
+    case "previousSchoolBoard": {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return "This field is required";
+      if (!INSTITUTION_NAME_REGEX.test(trimmed)) return "Enter a valid name";
+      return "";
+    }
+
+    case "previousClass": {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return "This field is required";
+      if (!CLASS_NAME_REGEX.test(trimmed)) return "Enter a valid class";
+      return "";
+    }
+
+    case "yearOfStudy": {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return "This field is required";
+      if (!ACADEMIC_YEAR_REGEX.test(trimmed)) return "Enter a valid year (e.g. 2024-2025)";
+      return "";
+    }
 
 
     case "phone":

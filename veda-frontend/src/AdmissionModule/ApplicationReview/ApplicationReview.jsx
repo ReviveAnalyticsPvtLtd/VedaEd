@@ -35,6 +35,10 @@ const InfoDetail = ({
   type = "text",
   error,
   onChange,
+  onKeyDown,
+  maxLength,
+  placeholder,
+  max,
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 py-2 border-b border-gray-100 last:border-b-0">
     <p className="font-medium text-gray-500">{label}</p>
@@ -46,6 +50,10 @@ const InfoDetail = ({
             type={type}
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            max={max}
             className={`w-full px-3 py-2 border rounded-md text-sm ${
               error ? "border-red-500" : "border-gray-300"
             }`}
@@ -171,6 +179,172 @@ const compressImageToSquare = (file, size = 512, quality = 0.85) =>
     reader.readAsDataURL(file);
   });
 
+/* ================= VALIDATION ================= */
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\d{10}$/;
+const ZIP_REGEX = /^\d{6}$/;
+const NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]*$/;
+const INSTITUTION_REGEX = /^[A-Za-z0-9][A-Za-z0-9\s.,'()&/-]*$/;
+const ADDRESS_REGEX = /^[A-Za-z0-9\s.,'()/#-]+$/;
+const CLASS_REGEX = /^[A-Za-z0-9][A-Za-z0-9\s.-]*$/;
+const BLOOD_GROUP_REGEX = /^(A|B|AB|O)[+-]$/i;
+const ACADEMIC_YEAR_REGEX = /^\d{4}(\s*-\s*\d{2,4})?$/;
+
+const REQUIRED_MESSAGES = {
+  "personalInfo.name": "Full name is required",
+  "personalInfo.dateOfBirth": "Date of birth is required",
+  "personalInfo.classApplied": "Class is required",
+  "earlierAcademic.schoolName": "Previous school is required",
+  "earlierAcademic.board": "Board is required",
+  "earlierAcademic.lastClass": "Last class studied is required",
+  "earlierAcademic.academicYear": "Academic year is required",
+};
+
+const getAtPath = (obj, path) =>
+  path.split(".").reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+
+const validateField = (path, rawValue) => {
+  const value = rawValue === undefined || rawValue === null ? "" : String(rawValue).trim();
+  const lowerPath = path.toLowerCase();
+
+  if (REQUIRED_MESSAGES[path] && !value) return REQUIRED_MESSAGES[path];
+
+  if (lowerPath.endsWith(".email")) {
+    return value && !EMAIL_REGEX.test(value) ? "Enter a valid email address" : "";
+  }
+
+  if (
+    path === "contactInfo.phone" ||
+    path === "contactInfo.alternatePhone" ||
+    lowerPath.endsWith(".phone")
+  ) {
+    return value && !PHONE_REGEX.test(value) ? "Enter a valid 10 digit number" : "";
+  }
+
+  if (path === "contactInfo.zipCode") {
+    return value && !ZIP_REGEX.test(value) ? "Enter a valid 6 digit zip code" : "";
+  }
+
+  if (path === "personalInfo.dateOfBirth") {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "Enter a valid date";
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (parsed > today) return "Date of birth cannot be in the future";
+    return "";
+  }
+
+  if (path === "personalInfo.bloodGroup") {
+    return value && !BLOOD_GROUP_REGEX.test(value) ? "Enter a valid blood group (e.g. O+)" : "";
+  }
+
+  if (path === "earlierAcademic.academicYear") {
+    return value && !ACADEMIC_YEAR_REGEX.test(value) ? "Enter a valid year (e.g. 2024-2025)" : "";
+  }
+
+  if (path === "earlierAcademic.schoolName" || path === "earlierAcademic.board") {
+    return value && !INSTITUTION_REGEX.test(value) ? "Contains invalid characters" : "";
+  }
+
+  if (path === "personalInfo.classApplied") {
+    return value && !CLASS_REGEX.test(value) ? "Enter a valid class" : "";
+  }
+
+  if (path === "contactInfo.address") {
+    return value && !ADDRESS_REGEX.test(value) ? "Address contains invalid characters" : "";
+  }
+
+  if (path === "admissionFee.amount") {
+    if (value === "") return "";
+    const amount = Number(value);
+    return Number.isNaN(amount) || amount < 0 ? "Enter a valid amount" : "";
+  }
+
+  if (
+    lowerPath.endsWith(".name") ||
+    lowerPath.endsWith(".occupation") ||
+    lowerPath.endsWith(".relation") ||
+    path === "personalInfo.gender" ||
+    path === "personalInfo.nationality" ||
+    path === "personalInfo.religion" ||
+    path === "contactInfo.city" ||
+    path === "contactInfo.state"
+  ) {
+    return value && !NAME_REGEX.test(value) ? "Only letters are allowed" : "";
+  }
+
+  return "";
+};
+
+const FIELD_PATHS = [
+  "personalInfo.name",
+  "personalInfo.dateOfBirth",
+  "personalInfo.gender",
+  "personalInfo.bloodGroup",
+  "personalInfo.nationality",
+  "personalInfo.religion",
+  "personalInfo.classApplied",
+  "contactInfo.phone",
+  "contactInfo.alternatePhone",
+  "contactInfo.email",
+  "contactInfo.address",
+  "contactInfo.city",
+  "contactInfo.state",
+  "contactInfo.zipCode",
+  "earlierAcademic.schoolName",
+  "earlierAcademic.board",
+  "earlierAcademic.lastClass",
+  "earlierAcademic.academicYear",
+  "parents.father.name",
+  "parents.father.occupation",
+  "parents.father.phone",
+  "parents.father.email",
+  "parents.mother.name",
+  "parents.mother.occupation",
+  "parents.mother.phone",
+  "parents.mother.email",
+  "parents.guardian.name",
+  "parents.guardian.relation",
+  "parents.guardian.phone",
+  "parents.guardian.email",
+  "admissionFee.amount",
+];
+
+const validateForm = (data) => {
+  const nextErrors = {};
+  FIELD_PATHS.forEach((path) => {
+    const message = validateField(path, getAtPath(data, path));
+    if (message) nextErrors[path] = message;
+  });
+  return nextErrors;
+};
+
+const makeKeyGuard = (regex) => (event) => {
+  const controlKeys = [
+    "Backspace",
+    "Tab",
+    "ArrowLeft",
+    "ArrowRight",
+    "Delete",
+    "Home",
+    "End",
+    "Enter",
+  ];
+  if (event.ctrlKey || event.metaKey || event.altKey || controlKeys.includes(event.key)) return;
+  if (event.key.length > 1) return;
+  if (!regex.test(event.key)) event.preventDefault();
+};
+
+const DIGITS_KEY_GUARD = makeKeyGuard(/^[0-9]$/);
+const LETTERS_KEY_GUARD = makeKeyGuard(/^[A-Za-z\s.'-]$/);
+const CLASS_KEY_GUARD = makeKeyGuard(/^[A-Za-z0-9\s.-]$/);
+const YEAR_KEY_GUARD = makeKeyGuard(/^[0-9-]$/);
+const BLOOD_KEY_GUARD = makeKeyGuard(/^[A-Za-z+-]$/);
+const INSTITUTION_KEY_GUARD = makeKeyGuard(/^[A-Za-z0-9\s.,'()&/-]$/);
+const ADDRESS_KEY_GUARD = makeKeyGuard(/^[A-Za-z0-9\s.,'()/#-]$/);
+
 /* ================= MAIN COMPONENT ================= */
 
 function ensureParentIdAccountHolderOnApp(app) {
@@ -206,6 +380,7 @@ const [formData, setFormData] = useState({
 
 
 const [errors, setErrors] = useState({});
+const [saveError, setSaveError] = useState("");
 const [documentError, setDocumentError] = useState("");
 const [previewDoc, setPreviewDoc] = useState(null);
 const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -250,6 +425,7 @@ const handleToggleEdit = () => {
     setFormData(application); // RESET DATA
     setErrors({});
   }
+  setSaveError("");
   setIsEdit(!isEdit);
 };
 
@@ -386,12 +562,26 @@ const handleChange = (path, value) => {
     obj[keys[keys.length - 1]] = value;
     return updated;
   });
+
+  setErrors((prev) => {
+    const next = { ...prev };
+    const message = validateField(path, value);
+    if (message) next[path] = message;
+    else delete next[path];
+    return next;
+  });
 };
 
 const handleSave = async () => {
-  // agar error hai toh save mat karo
-  if (Object.values(errors).some(e => e)) return;
+  // Re-validate every field so invalid data is never persisted
+  const validationErrors = validateForm(formData);
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    setSaveError("Please fix the highlighted fields before saving.");
+    return;
+  }
 
+  setSaveError("");
   try {
     await api.put(
       `${config.API_BASE_URL}/admission/application/${id}`,
@@ -399,9 +589,13 @@ const handleSave = async () => {
     );
 
     setApplication(formData); // UI update
+    setErrors({});
     setIsEdit(false);
   } catch (err) {
     console.error("Save failed", err);
+    setSaveError(
+      err?.response?.data?.message || "Failed to save changes. Please try again."
+    );
   }
 };
 const handleNumberChange = (path, value) => {
@@ -413,23 +607,10 @@ const handleNumberChange = (path, value) => {
     return; // ❌ value update hi nahi hogi
   }
 
-  setErrors(prev => ({ ...prev, [path]: "" }));
   handleChange(path, value);
 };
 const handleEmailChange = (path, value) => {
   handleChange(path, value);
-
-  if (
-    value &&
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-  ) {
-    setErrors(prev => ({
-      ...prev,
-      [path]: "Invalid email format"
-    }));
-  } else {
-    setErrors(prev => ({ ...prev, [path]: "" }));
-  }
 };
 
 
@@ -478,6 +659,12 @@ const handleEmailChange = (path, value) => {
 
 
       {/*  PROFILE HEADER */}
+      {isEdit && saveError && (
+        <div className="mb-4 p-3 rounded-md bg-red-50 text-red-600 text-sm">
+          {saveError}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-col items-center text-center gap-4 sm:flex-row sm:items-center sm:text-left sm:gap-6">
         <div className="flex flex-col items-center gap-2">
           <ProfileAvatar
@@ -566,42 +753,58 @@ const handleEmailChange = (path, value) => {
         label="Full Name"
         value={formData.personalInfo?.name}
         editable={isEdit}
+        error={errors["personalInfo.name"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("personalInfo.name", v)}
       />
       <InfoDetail
         label="Date of Birth"
+        type="date"
         value={formData.personalInfo?.dateOfBirth}
         editable={isEdit}
+        error={errors["personalInfo.dateOfBirth"]}
+        max={new Date().toISOString().split("T")[0]}
         onChange={(v) => handleChange("personalInfo.dateOfBirth", v)}
       />
       <InfoDetail
         label="Gender"
         value={formData.personalInfo?.gender}
         editable={isEdit}
+        error={errors["personalInfo.gender"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("personalInfo.gender", v)}
       />
       <InfoDetail
         label="Blood Group"
         value={formData.personalInfo?.bloodGroup}
         editable={isEdit}
+        error={errors["personalInfo.bloodGroup"]}
+        onKeyDown={BLOOD_KEY_GUARD}
+        maxLength={3}
         onChange={(v) => handleChange("personalInfo.bloodGroup", v)}
       />
       <InfoDetail
         label="Nationality"
         value={formData.personalInfo?.nationality}
         editable={isEdit}
+        error={errors["personalInfo.nationality"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("personalInfo.nationality", v)}
       />
       <InfoDetail
         label="Religion"
         value={formData.personalInfo?.religion}
         editable={isEdit}
+        error={errors["personalInfo.religion"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("personalInfo.religion", v)}
       />
       <InfoDetail
         label="Class"
         value={formData.personalInfo?.classApplied}
         editable={isEdit}
+        error={errors["personalInfo.classApplied"]}
+        onKeyDown={CLASS_KEY_GUARD}
         onChange={(v) => handleChange("personalInfo.classApplied", v)}
       />
     </ProfileCard>
@@ -617,6 +820,8 @@ const handleEmailChange = (path, value) => {
   value={formData.contactInfo?.phone || ""}
   editable={isEdit}
   error={errors["contactInfo.phone"]}
+  onKeyDown={DIGITS_KEY_GUARD}
+  maxLength={10}
   onChange={(v) => handleNumberChange("contactInfo.phone", v)}
 />
 
@@ -627,6 +832,8 @@ const handleEmailChange = (path, value) => {
   value={formData.contactInfo?.alternatePhone || ""}
   editable={isEdit}
   error={errors["contactInfo.alternatePhone"]}
+  onKeyDown={DIGITS_KEY_GUARD}
+  maxLength={10}
   onChange={(v) =>
     handleNumberChange("contactInfo.alternatePhone", v)
   }
@@ -646,24 +853,33 @@ const handleEmailChange = (path, value) => {
         label="Address"
         value={formData.contactInfo?.address}
         editable={isEdit}
+        error={errors["contactInfo.address"]}
+        onKeyDown={ADDRESS_KEY_GUARD}
         onChange={(v) => handleChange("contactInfo.address", v)}
       />
       <InfoDetail
         label="City"
         value={formData.contactInfo?.city}
         editable={isEdit}
+        error={errors["contactInfo.city"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("contactInfo.city", v)}
       />
       <InfoDetail
         label="State"
         value={formData.contactInfo?.state}
         editable={isEdit}
+        error={errors["contactInfo.state"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("contactInfo.state", v)}
       />
       <InfoDetail
         label="Zip Code"
         value={formData.contactInfo?.zipCode}
         editable={isEdit}
+        error={errors["contactInfo.zipCode"]}
+        onKeyDown={DIGITS_KEY_GUARD}
+        maxLength={6}
         onChange={(v) => handleChange("contactInfo.zipCode", v)}
       />
     </ProfileCard>
@@ -678,24 +894,32 @@ const handleEmailChange = (path, value) => {
         label="Previous School"
         value={formData.earlierAcademic?.schoolName}
         editable={isEdit}
+        error={errors["earlierAcademic.schoolName"]}
+        onKeyDown={INSTITUTION_KEY_GUARD}
         onChange={(v) => handleChange("earlierAcademic.schoolName", v)}
       />
       <InfoDetail
         label="Board"
         value={formData.earlierAcademic?.board}
         editable={isEdit}
+        error={errors["earlierAcademic.board"]}
+        onKeyDown={INSTITUTION_KEY_GUARD}
         onChange={(v) => handleChange("earlierAcademic.board", v)}
       />
       <InfoDetail
         label="Last Class Studied"
         value={formData.earlierAcademic?.lastClass}
         editable={isEdit}
+        error={errors["earlierAcademic.lastClass"]}
+        onKeyDown={CLASS_KEY_GUARD}
         onChange={(v) => handleChange("earlierAcademic.lastClass", v)}
       />
       <InfoDetail
         label="Academic Year"
         value={formData.earlierAcademic?.academicYear}
         editable={isEdit}
+        error={errors["earlierAcademic.academicYear"]}
+        onKeyDown={YEAR_KEY_GUARD}
         onChange={(v) => handleChange("earlierAcademic.academicYear", v)}
       />
     </ProfileCard>
@@ -710,12 +934,16 @@ const handleEmailChange = (path, value) => {
         label="Father Name"
         value={formData.parents?.father?.name}
         editable={isEdit}
+        error={errors["parents.father.name"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.father.name", v)}
       />
       <InfoDetail
         label="Father Occupation"
         value={formData.parents?.father?.occupation || ""}
         editable={isEdit}
+        error={errors["parents.father.occupation"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.father.occupation", v)}
       />
       <InfoDetail
@@ -723,6 +951,8 @@ const handleEmailChange = (path, value) => {
         value={formData.parents?.father?.phone || ""}
         editable={isEdit}
         error={errors["parents.father.phone"]}
+        onKeyDown={DIGITS_KEY_GUARD}
+        maxLength={10}
         onChange={(v) => handleNumberChange("parents.father.phone", v)}
       />
       <InfoDetail
@@ -736,12 +966,16 @@ const handleEmailChange = (path, value) => {
         label="Mother Name"
         value={formData.parents?.mother?.name}
         editable={isEdit}
+        error={errors["parents.mother.name"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.mother.name", v)}
       />
       <InfoDetail
         label="Mother Occupation"
         value={formData.parents?.mother?.occupation || ""}
         editable={isEdit}
+        error={errors["parents.mother.occupation"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.mother.occupation", v)}
       />
       <InfoDetail
@@ -749,6 +983,8 @@ const handleEmailChange = (path, value) => {
         value={formData.parents?.mother?.phone || ""}
         editable={isEdit}
         error={errors["parents.mother.phone"]}
+        onKeyDown={DIGITS_KEY_GUARD}
+        maxLength={10}
         onChange={(v) => handleNumberChange("parents.mother.phone", v)}
       />
       <InfoDetail
@@ -762,12 +998,16 @@ const handleEmailChange = (path, value) => {
         label="Guardian Name"
         value={formData.parents?.guardian?.name}
         editable={isEdit}
+        error={errors["parents.guardian.name"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.guardian.name", v)}
       />
       <InfoDetail
         label="Guardian Relation"
         value={formData.parents?.guardian?.relation || ""}
         editable={isEdit}
+        error={errors["parents.guardian.relation"]}
+        onKeyDown={LETTERS_KEY_GUARD}
         onChange={(v) => handleChange("parents.guardian.relation", v)}
       />
       <InfoDetail
@@ -775,6 +1015,8 @@ const handleEmailChange = (path, value) => {
         value={formData.parents?.guardian?.phone || ""}
         editable={isEdit}
         error={errors["parents.guardian.phone"]}
+        onKeyDown={DIGITS_KEY_GUARD}
+        maxLength={10}
         onChange={(v) => handleNumberChange("parents.guardian.phone", v)}
       />
       <InfoDetail
@@ -941,10 +1183,22 @@ const handleEmailChange = (path, value) => {
                         amount: raw === "" ? "" : Number(raw),
                       },
                     }));
+                    setErrors((prevErrors) => {
+                      const next = { ...prevErrors };
+                      const message = validateField("admissionFee.amount", raw);
+                      if (message) next["admissionFee.amount"] = message;
+                      else delete next["admissionFee.amount"];
+                      return next;
+                    });
                   }}
-                  className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  className={`w-full sm:w-64 px-3 py-2 border rounded-md text-sm ${
+                    errors["admissionFee.amount"] ? "border-red-500" : "border-gray-300"
+                  }`}
                   placeholder="Enter amount"
                 />
+                {errors["admissionFee.amount"] && (
+                  <p className="text-xs text-red-500 mt-1">{errors["admissionFee.amount"]}</p>
+                )}
               </div>
             </>
           ) : (

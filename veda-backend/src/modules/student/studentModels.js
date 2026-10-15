@@ -168,7 +168,15 @@ const StudentSchema = new Schema(
         size: Number,
         uploadedAt: { type: Date, default: Date.now }
       }
-    ]
+    ],
+    /** Reference to the admission application this student was created from */
+    admissionApplicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdmissionApplication",
+      sparse: true,
+      unique: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
@@ -194,6 +202,11 @@ StudentSchema.index(
 
 StudentSchema.index(
   { schoolId: 1, "personalInfo.stdId": 1 },
+  { unique: true, sparse: true, background: true }
+);
+
+StudentSchema.index(
+  { schoolId: 1, admissionApplicationId: 1 },
   { unique: true, sparse: true, background: true }
 );
 

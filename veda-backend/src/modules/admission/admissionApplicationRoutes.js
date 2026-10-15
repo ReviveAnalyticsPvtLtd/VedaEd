@@ -51,5 +51,6 @@ router.put("/:id", controller.updateApplication);
 router.put("/:id/status", controller.updateApplicationStatus);
 router.delete("/:id/document/:documentId", controller.deleteApplicationDocument);
 router.put("/:applicationId/document/:documentId/verify", controller.verifyDocumentStatus);
+router.post("/:id/admit", controller.enrollApplication);
 
 module.exports = router;
