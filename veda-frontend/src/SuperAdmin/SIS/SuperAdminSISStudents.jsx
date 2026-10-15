@@ -571,10 +571,18 @@ export default function SuperAdminSISStudents() {
   };
 
   const handleSelectAllStudents = (e) => {
+    const allFilteredStudentIds = filteredStudents
+      .map((s) => s._id)
+      .filter(Boolean);
+
     if (e.target.checked) {
-      setSelectedStudents(currentStudents.map((s) => s._id));
+      setSelectedStudents((prev) => [
+        ...new Set([...prev, ...allFilteredStudentIds]),
+      ]);
     } else {
-      setSelectedStudents([]);
+      setSelectedStudents((prev) =>
+        prev.filter((id) => !allFilteredStudentIds.includes(id))
+      );
     }
   };
 
@@ -1014,9 +1022,9 @@ Sections:
                     <input
                       type="checkbox"
                       checked={
-                        currentStudents.length > 0 &&
-                        currentStudents.every((s) =>
-                          selectedStudents.includes(s._id)
+                        filteredStudents.length > 0 &&
+                        filteredStudents.every((s) =>
+                          s._id && selectedStudents.includes(s._id)
                         )
                       }
                       onChange={handleSelectAllStudents}
