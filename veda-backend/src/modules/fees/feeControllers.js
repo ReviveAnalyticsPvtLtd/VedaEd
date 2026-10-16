@@ -527,32 +527,46 @@ exports.toggleFineStatus = async (req, res) => {
 };
 // --- Dashboard & Collection ---
 
-exports.calculateStudentFees = async function (student, year, school) {
+exports.calculateStudentFees = async function (student, year, school, ctx = {}) {
   const gName = student.personalInfo.class?.name || (student.personalInfo.class && student.personalInfo.class.name);
   // Every configuration read here is tenant-scoped: a grade/year match in
   // another school is never this student's fee structure.
-  const gf = await GradeFee.findOne({ school, year, grade: gName });
-  const transactions = await FeeTransaction.find({ schoolId: school, studentId: student._id, year, status: 'Paid' });
-  const discountRules = await DiscountRule.find({ schoolId: school, year, active: true });
-  const lateFeePolicies = await LateFeePolicy.find({ schoolId: school, year });
-  const installmentPlans = await InstallmentPlan.find({ schoolId: school, year });
+  //
+  // `ctx` is an optional bundle of data preloaded once for a whole roster (see
+  // buildFeeContext). Each field is independent and optional: when absent the
+  // helper queries exactly as it always did, so existing callers are
+  // unaffected. When present it removes the per-student round trips that made
+  // the dashboard O(students) queries.
+  const gf = ctx.gradeFees
+    ? (gName ? ctx.gradeFees.get(gName) || null : null)
+    : await GradeFee.findOne({ schoolId: school, year, grade: gName });
+  const transactions = ctx.transactions
+    ? (ctx.transactions.get(String(student._id)) || [])
+    : await FeeTransaction.find({ schoolId: school, studentId: student._id, year, status: 'Paid' });
+  const discountRules = ctx.discountRules ?? await DiscountRule.find({ schoolId: school, year, active: true });
+  const lateFeePolicies = ctx.lateFeePolicies ?? await LateFeePolicy.find({ schoolId: school, year });
+  const installmentPlans = ctx.installmentPlans ?? await InstallmentPlan.find({ schoolId: school, year });
 
 
   let transportFee = 0;
-  try {
-    const { TransportStudent, RouteStop } = require("../transport/transportModels");
-    const transportAssignment = await TransportStudent.findOne({ studentId: student._id, status: 'Active' });
-    if (transportAssignment) {
-      const routeStop = await RouteStop.findOne({
-        route: transportAssignment.routeId,
-        stop: transportAssignment.pickupPointId
-      });
-      if (routeStop && routeStop.fee) {
-        transportFee = Number(routeStop.fee) || 0;
+  if (ctx.transportFees) {
+    transportFee = ctx.transportFees.get(String(student._id)) || 0;
+  } else {
+    try {
+      const { TransportStudent, RouteStop } = require("../transport/transportModels");
+      const transportAssignment = await TransportStudent.findOne({ studentId: student._id, status: 'Active' });
+      if (transportAssignment) {
+        const routeStop = await RouteStop.findOne({
+          route: transportAssignment.routeId,
+          stop: transportAssignment.pickupPointId
+        });
+        if (routeStop && routeStop.fee) {
+          transportFee = Number(routeStop.fee) || 0;
+        }
       }
+    } catch (err) {
+      console.error("Error reading transport stop fee in helper:", err);
     }
-  } catch (err) {
-    console.error("Error reading transport stop fee in helper:", err);
   }
 
   let hostelFee = 0;
@@ -561,7 +575,7 @@ exports.calculateStudentFees = async function (student, year, school) {
   }
 
   const studentOptionalFees = student.personalInfo?.optionalFees || [];
-  const allCategories = await FeeCategory.find({ schoolId: school, year, active: true });
+  const allCategories = ctx.allCategories ?? await FeeCategory.find({ schoolId: school, year, active: true });
   const dynamicFees = new Map();
 
   if (gf && gf.fees) {
@@ -600,9 +614,21 @@ exports.calculateStudentFees = async function (student, year, school) {
   let totalFines = 0;
   let totalOverdue = 0;
 
-  const hasSibling = student.parent ? (await Student.countDocuments({ schoolId: school, parent: student.parent, _id: { $ne: student._id } })) > 0 : false;
+  const hasSibling = ctx.hasSibling
+    ? ctx.hasSibling(student)
+    : (student.parent ? (await Student.countDocuments({ schoolId: school, parent: student.parent, _id: { $ne: student._id } })) > 0 : false);
   const studentCategory = student.personalInfo.category || student.curriculum?.admissionType || "General";
   const isRTE = studentCategory.toLowerCase() === "rte";
+
+  // The active-year row depends only on `year`, not on the category being
+  // processed, so read it at most once per call instead of once per category.
+  // It is loaded lazily because a student with no fee categories never needs
+  // it, avoiding a query the original code did not make in that case.
+  let academicYearPromise = ctx.academicYear !== undefined ? Promise.resolve(ctx.academicYear) : null;
+  const loadAcademicYear = () => {
+    if (!academicYearPromise) academicYearPromise = AcademicYear.findOne({ label: year });
+    return academicYearPromise;
+  };
 
   for (let [category, amount] of dynamicFees) {
     totalExpected += amount;
@@ -655,8 +681,8 @@ exports.calculateStudentFees = async function (student, year, school) {
 
     if (plan && plan.slices && plan.slices.length > 0) {
       let allocatedPaid = paidForCategory;
-      const activeYear = await AcademicYear.findOne({ label: year });
-      const academicYearStart = activeYear ? new Date(activeYear.startDate) : new Date();
+      const academicYear = await loadAcademicYear();
+      const academicYearStart = academicYear ? new Date(academicYear.startDate) : new Date();
 
       plan.slices.forEach(slice => {
         const sliceAmount = (slice.percent / 100) * amount;
@@ -702,8 +728,8 @@ exports.calculateStudentFees = async function (student, year, school) {
         }
       });
     } else {
-      const activeYear = await AcademicYear.findOne({ label: year });
-      let dueDate = activeYear && activeYear.terms && activeYear.terms.length > 0 ? new Date(activeYear.terms[0].dueDate) : new Date();
+      const academicYear = await loadAcademicYear();
+      let dueDate = academicYear && academicYear.terms && academicYear.terms.length > 0 ? new Date(academicYear.terms[0].dueDate) : new Date();
       let fineAmount = 0;
 
       const balanceWithoutFine = Math.max(0, amount - paidForCategory - discountAmount);
@@ -749,6 +775,86 @@ exports.calculateStudentFees = async function (student, year, school) {
     overdue: totalOverdue
   };
 }
+
+// Preloads every school+year-scoped lookup calculateStudentFees performs, so a
+// caller holding a whole roster pays O(1) queries instead of O(students).
+// `students` must be the complete set for the school+year: hasSibling is
+// derived by counting parents within it. Returns the `ctx` object accepted as
+// calculateStudentFees' 4th argument.
+exports.buildFeeContext = async function (students, year, school) {
+  const studentIds = students.map((s) => s._id);
+  const { TransportStudent, RouteStop } = require("../transport/transportModels");
+
+  const [
+    gradeFeeDocs,
+    discountRules,
+    lateFeePolicies,
+    installmentPlans,
+    allCategories,
+    academicYear,
+    transactionRows,
+    transportRows,
+  ] = await Promise.all([
+    GradeFee.find({ schoolId: school, year }),
+    DiscountRule.find({ schoolId: school, year, active: true }),
+    LateFeePolicy.find({ schoolId: school, year }),
+    InstallmentPlan.find({ schoolId: school, year }),
+    FeeCategory.find({ schoolId: school, year, active: true }),
+    AcademicYear.findOne({ label: year }),
+    studentIds.length
+      ? FeeTransaction.find({ schoolId: school, studentId: { $in: studentIds }, year, status: 'Paid' })
+      : Promise.resolve([]),
+    studentIds.length
+      ? TransportStudent.find({ studentId: { $in: studentIds }, status: 'Active' })
+      : Promise.resolve([]),
+  ]);
+
+  const routeStopKeys = [...new Set(transportRows.map((t) => `${t.routeId}\u0000${t.pickupPointId}`))];
+  const routeStops = routeStopKeys.length
+    ? await RouteStop.find({
+        $or: routeStopKeys.map((k) => {
+          const [route, stop] = k.split("\u0000");
+          return { route, stop };
+        }),
+      })
+    : [];
+  const stopFees = new Map(routeStops.map((rs) => [`${rs.route}\u0000${rs.stop}`, Number(rs.fee) || 0]));
+
+  const gradeFees = new Map(gradeFeeDocs.map((d) => [d.grade, d]));
+
+  const transactions = new Map();
+  for (const row of transactionRows) {
+    const key = String(row.studentId);
+    if (!transactions.has(key)) transactions.set(key, []);
+    transactions.get(key).push(row);
+  }
+
+  const transportFees = new Map();
+  for (const t of transportRows) {
+    const fee = stopFees.get(`${t.routeId}\u0000${t.pickupPointId}`);
+    if (fee) transportFees.set(String(t.studentId), fee);
+  }
+
+  const parentCounts = new Map();
+  for (const s of students) {
+    if (s.parent) {
+      const key = String(s.parent);
+      parentCounts.set(key, (parentCounts.get(key) || 0) + 1);
+    }
+  }
+
+  return {
+    gradeFees,
+    discountRules,
+    lateFeePolicies,
+    installmentPlans,
+    allCategories,
+    academicYear,
+    transactions,
+    transportFees,
+    hasSibling: (student) => !!student.parent && (parentCounts.get(String(student.parent)) || 0) > 1,
+  };
+};
 
 exports.getFeesDashboard = async (req, res) => {
   try {

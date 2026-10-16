@@ -46,6 +46,10 @@ export default function SuperAdminMasterDashboard() {
     );
   }
 
+  const weeklyAttendance = (stats?.sis?.weeklyAttendance || []).filter(
+    (d) => d.value !== null && d.value !== undefined
+  );
+
   return (
     <div className="p-0 space-y-2 bg-gray-100 min-h-screen">
 
@@ -67,16 +71,13 @@ export default function SuperAdminMasterDashboard() {
           </Card>
 
           <Card title="Weekly Attendance">
-            <BarBlock
-              data={[
-                { day: "Mon", value: 88 },
-                { day: "Tue", value: 92 },
-                { day: "Wed", value: 80 },
-                { day: "Thu", value: 95 },
-                { day: "Fri", value: 86 },
-              ]}
-              x="day"
-            />
+            {weeklyAttendance.length > 0 ? (
+              <BarBlock data={weeklyAttendance} x="day" />
+            ) : (
+              <div className="h-44 flex items-center justify-center text-gray-400">
+                No attendance data
+              </div>
+            )}
           </Card>
 
           <Card title="Gender Ratio">
