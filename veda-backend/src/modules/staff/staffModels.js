@@ -35,14 +35,18 @@ const staffSchema = new mongoose.Schema({
         enum: ["Teacher", "Principal", "Accountant", "Admin","HR", "Other"],
         required: true,
       },
+      // Free-text job title (e.g. "Guard", "Sweeper"). Present only on
+      // support-staff records; also used to tell them apart from other
+      // role="Other" staff (HR-converted non-teaching employees have no designation).
+      designation: { type: String, trim: true },
       department: {
         type: String,
         required: true,
       },
+      // Support staff have no login account, so email/password are optional.
+      // Loginable staff (create, import, HR convert) still always supply them.
       email: {
         type: String,
-        required: true,
-        // unique: true
       },
       mobileNumber:{
         type: String
@@ -50,11 +54,17 @@ const staffSchema = new mongoose.Schema({
       emergencyContact:{
         type:String
       },
+      dob: { type: String },
+      bloodGroup: { type: String },
+      aadhaar: { type: String },
+      profession: { type: String },
+      permanentAddress: { type: String },
+      currentAddress: { type: String },
       image: {
         type: String,
       },
       address: { type: String },
-      password: { type: String, required: true }, 
+      password: { type: String },
   },
 
   joiningDate: { type: Date, default: Date.now },

@@ -119,6 +119,7 @@ export default function EditAdmin() {
           { label: "Identity & Access", to: `${BASE}/admins` },
           { label: "Edit Admin" },
         ]}
+        separator=" / "
         title="Edit Admin"
         subtitle={form.email}
       />

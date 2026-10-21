@@ -72,7 +72,7 @@ const MODULES = [
     base: "/superadmin/calendar",
     subs: [
       { label: "Annual Calendar", path: "/superadmin/calendar/annual" },
-      { label: "Event Setup", path: "/superadmin/calendar/events" },
+      { label: "Event Setup", path: "/superadmin/calendar/event-setup" },
       { label: "Year Setup", path: "/superadmin/calendar/year-setup" },
     ],
   },

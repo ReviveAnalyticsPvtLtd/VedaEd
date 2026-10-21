@@ -54,6 +54,7 @@ export default function AdminList() {
           { label: "Dashboard", to: "/superadmin-front/dashboard" },
           { label: "Identity & Access" },
         ]}
+        separator=" / "
         title="Access & Admin Management"
         subtitle="Create secure platform, school, campus, finance, academic, and support admins."
         action={

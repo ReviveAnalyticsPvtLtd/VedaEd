@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function PageHeader({
   breadcrumbs = [],
+  separator = " > ",
   title,
   subtitle,
   action,
@@ -19,7 +20,7 @@ export default function PageHeader({
               ) : (
                 <span>{crumb.label}</span>
               )}
-              {i < breadcrumbs.length - 1 && " > "}
+              {i < breadcrumbs.length - 1 && separator}
             </span>
           ))}
         </p>

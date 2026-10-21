@@ -108,6 +108,7 @@ export default function CreateAdmin() {
           { label: "Identity & Access", to: `${BASE}/admins` },
           { label: "Create Admin" },
         ]}
+        separator=" / "
         title="Create / Invite Admin"
         subtitle="Set basic details, access scope, and review permissions before sending an invite."
       />
