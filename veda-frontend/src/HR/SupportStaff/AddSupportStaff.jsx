@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../../services/apiClient";
 
 const AddSupportStaff = () => {
   const navigate = useNavigate();
 
-  const generateStaffId = () => {
-    return "SS-" + Math.floor(1000 + Math.random() * 9000);
-  };
 const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     staffId: "",
@@ -31,10 +29,17 @@ const [errors, setErrors] = useState({});
   });
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      staffId: generateStaffId(),
-    }));
+    // Server-generated SS-YYYY-NNN preview (read-only; the sequence is
+    // only consumed on successful save).
+    const fetchNextId = async () => {
+      try {
+        const res = await apiClient.get("/support-staff/next-id");
+        setFormData((prev) => ({ ...prev, staffId: res.data?.data?.staffId || "" }));
+      } catch (err) {
+        console.error("Error fetching next staff id:", err);
+      }
+    };
+    fetchNextId();
   }, []);
 
   const handleChange = (e) => {
@@ -77,7 +82,7 @@ const [errors, setErrors] = useState({});
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Age validation (18+)
@@ -89,9 +94,20 @@ const [errors, setErrors] = useState({});
       return;
     }
 
-    console.log("Saved Support Staff:", formData);
+    try {
+      const payload = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === "staffId" || value === null || value === undefined || value === "") return;
+        payload.append(key, value);
+      });
 
-    navigate("/hr/support-staff");
+      await apiClient.post("/support-staff", payload);
+      alert("Support staff added successfully!");
+      navigate("/hr/support-staff");
+    } catch (err) {
+      console.error("Error adding support staff:", err);
+      alert(err?.response?.data?.message || "Failed to add support staff");
+    }
   };
 const validateKey = (e, field) => {
   const letterOnly = ["fullName", "designation"];

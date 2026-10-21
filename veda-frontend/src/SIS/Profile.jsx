@@ -6,6 +6,8 @@ import {
   FiSave,
   FiCamera,
   FiX,
+  FiDollarSign,
+  FiFileText,
 } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
 import { userSettingsAPI } from "../services/userSettingsAPI";
@@ -153,7 +155,23 @@ const formatDateTime = (dateStr) => {
 export default function AdminProfile() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editMode, setEditMode] = useState(false);
-  const [admin, setAdmin] = useState(null);
+  const [admin, setAdmin] = useState({
+    personalInfo: {
+      adminId: "",
+      name: "",
+      username: "",
+      gender: "",
+      role: "",
+      email: "",
+      mobileNumber: "",
+      address: "",
+    },
+    joiningDate: "",
+    experience: "",
+    qualification: "",
+    salaryDetails: { salary: "", lastPayment: "" },
+    documents: [],
+  });
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -172,10 +190,12 @@ export default function AdminProfile() {
       try {
         const profile = await userSettingsAPI.getProfile();
         if (cancelled) return;
-        setAdmin({
+        setAdmin((prev) => ({
+          ...prev,
           personalInfo: {
+            ...prev.personalInfo,
             adminId: profile.employeeId || "",
-            name: profile.fullName || "",
+            name: profile.fullName || profile.name || "",
             role: profile.role || "Administrator",
             email: profile.email || "",
             mobileNumber: profile.mobile || "",
@@ -184,7 +204,9 @@ export default function AdminProfile() {
           status: profile.status || "",
           createdAt: profile.createdAt || null,
           lastLogin: profile.lastLogin || null,
-        });
+          joiningDate: profile.createdAt || prev.joiningDate || "",
+          experience: profile.experience || prev.experience || "",
+        }));
         setPhoto(profile.image || profile.profilePicture || "");
       } catch (err) {
         if (!cancelled) {
@@ -449,7 +471,7 @@ export default function AdminProfile() {
 
         {/* TABS */}
         <div className="flex gap-2 mb-4">
-          {["overview", "system"].map((t) => (
+          {["overview", "system", "salary", "documents"].map((t) => (
             <button
               key={t}
               onClick={() => setActiveTab(t)}
@@ -526,9 +548,50 @@ export default function AdminProfile() {
             <InfoDetail label="Status" value={admin.status} />
             <InfoDetail label="Joined On" value={formatDate(admin.createdAt)} />
             <InfoDetail
+              label="Experience"
+              value={admin.experience ? `${admin.experience} years` : ""}
+            />
+            <InfoDetail
+              label="Joining Date"
+              value={
+                admin.joiningDate
+                  ? new Date(admin.joiningDate).toLocaleDateString()
+                  : ""
+              }
+            />
+            <InfoDetail
               label="Last Login"
               value={formatDateTime(admin.lastLogin)}
             />
+          </ProfileCard>
+        )}
+
+        {/* SALARY */}
+        {activeTab === "salary" && (
+          <ProfileCard label="Salary Details" icon={<FiDollarSign />}>
+            <InfoDetail
+              label="Salary"
+              value={admin.salaryDetails.salary}
+            />
+            <InfoDetail
+              label="Last Payment"
+              value={admin.salaryDetails.lastPayment}
+            />
+          </ProfileCard>
+        )}
+
+        {/* DOCUMENTS */}
+        {activeTab === "documents" && (
+          <ProfileCard label="Documents" icon={<FiFileText />}>
+            {admin.documents.map((d, i) => (
+              <div
+                key={i}
+                className="flex justify-between border-b py-2 text-sm"
+              >
+                <span>{d.name}</span>
+                <span className="text-gray-500">{d.date}</span>
+              </div>
+            ))}
           </ProfileCard>
         )}
       </div>

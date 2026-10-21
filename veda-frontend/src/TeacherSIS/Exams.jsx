@@ -335,7 +335,7 @@ Manage exam schedules, create exam papers...`}
                         <span>{new Date(exam.createdAt).toLocaleDateString()}</span>
                       </div>
                       <a
-                        href={`${FILE_BASE_URL}/${exam.file}`}
+                        href={`${FILE_BASE_URL}/uploads/${exam.file.split("/").pop()}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 underline text-sm mt-1 inline-block"

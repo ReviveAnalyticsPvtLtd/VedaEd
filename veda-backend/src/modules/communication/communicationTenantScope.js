@@ -63,7 +63,7 @@ const RECIPIENT_MODELS = Object.freeze({
 const MANAGEMENT_ROLES = Object.freeze({
     notice: ["admin", "superadmin", "teacher", "staff"],
     notification: ["admin", "superadmin", "staff"],
-    template: ["admin", "superadmin"],
+    template: ["admin", "superadmin", "teacher"],
     log: ["admin", "superadmin"],
     complaint: ["admin", "superadmin", "teacher", "staff"],
 });

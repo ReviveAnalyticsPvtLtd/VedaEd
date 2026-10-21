@@ -19,7 +19,7 @@ const JobVacancySchema = new Schema(
         openings: { type: Number, required: true, default: 1 },
         lastDateToApply: { type: Date },
         status: { type: String, enum: ["Draft", "Published", "Closed"], default: "Draft" },
-        roleType: { type: String, enum: ["Teaching", "Non-Teaching"], required: true },
+        roleType: { type: String, enum: ["Teaching", "Non-Teaching", "Support Staff"], required: true },
     },
     { timestamps: true }
 );

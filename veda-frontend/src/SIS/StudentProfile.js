@@ -31,6 +31,8 @@ const BLOOD_GROUP_RE = /^(A|B|AB|O)(\+|-)?$/i;
 const ROLL_NO_RE = /^[A-Za-z0-9/-]{1,20}$/;
 const ACADEMIC_YEAR_RE = /^\d{4}[-/]\d{4}$/;
 const GENDER_VALUES = ["male", "female", "other"];
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
+const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 /**
  * DOB is free text and existing rows hold mixed formats, so parse the common
@@ -68,6 +70,15 @@ const parseFlexibleDate = (value) => {
   return Number.isNaN(fallback.getTime()) ? null : fallback;
 };
 
+/** Converts any parseable DOB into the YYYY-MM-DD string a native date input requires. */
+const toDateInputValue = (value) => {
+  const parsed = parseFlexibleDate(value);
+  if (!parsed) return "";
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${parsed.getFullYear()}-${month}-${day}`;
+};
+
 /** Phone fields are restricted to digits at input time; these names drive that filter. */
 const PHONE_FIELDS = [
   "contact",
@@ -77,6 +88,21 @@ const PHONE_FIELDS = [
   "guardianPhone",
   "emergencyPhone",
 ];
+
+/** Place- and person-name fields reject digits at input time; letters, spaces and common punctuation stay allowed. */
+const LETTERS_ONLY_FIELDS = [
+  "city",
+  "state",
+  "fatherName",
+  "motherName",
+  "guardianName",
+  "guardianRelation",
+  "emergencyName",
+  "emergencyRelation",
+];
+
+/** Occupation fields reject digits at input time but keep common occupation punctuation. */
+const OCCUPATION_FIELDS = ["fatherOccupation", "motherOccupation"];
 
 /**
  * Rules for the Overview edit form. Keys match the student state fields used by
@@ -124,40 +150,39 @@ const FIELD_RULES = {
   emergencyPhone: { label: "Phone", validate: PHONE_RE, message: "Emergency phone must be exactly 10 digits" },
 };
 
+/** Returns the error message for a single field, or "" when it passes. */
+const validateFieldValue = (field, raw) => {
+  const rule = FIELD_RULES[field];
+  if (!rule) return "";
+
+  const value = typeof raw === "string" ? raw.trim() : "";
+
+  if (rule.required && !value) return `${rule.label} is required`;
+  if (!value) return "";
+
+  if (rule.maxLength && value.length > rule.maxLength) {
+    return `${rule.label} must be ${rule.maxLength} characters or fewer`;
+  }
+  if (rule.validate && !rule.validate.test(value)) return rule.message;
+  if (rule.oneOf && !rule.oneOf.includes(value.toLowerCase())) {
+    return `${rule.label} must be one of ${rule.oneOf.join(", ")}`;
+  }
+  if (rule.date) {
+    const parsed = parseFlexibleDate(value);
+    if (!parsed) return `${rule.label} is not a valid date`;
+    if (parsed.getTime() > Date.now()) return `${rule.label} cannot be in the future`;
+  }
+
+  return "";
+};
+
 /** Returns { field: message } for every Overview rule the student state violates. */
 const validateStudentFields = (values) => {
   const errors = {};
 
-  Object.entries(FIELD_RULES).forEach(([field, rule]) => {
-    const raw = values?.[field];
-    const value = typeof raw === "string" ? raw.trim() : "";
-
-    if (rule.required && !value) {
-      errors[field] = `${rule.label} is required`;
-      return;
-    }
-    if (!value) return;
-
-    if (rule.maxLength && value.length > rule.maxLength) {
-      errors[field] = `${rule.label} must be ${rule.maxLength} characters or fewer`;
-      return;
-    }
-    if (rule.validate && !rule.validate.test(value)) {
-      errors[field] = rule.message;
-      return;
-    }
-    if (rule.oneOf && !rule.oneOf.includes(value.toLowerCase())) {
-      errors[field] = `${rule.label} must be one of ${rule.oneOf.join(", ")}`;
-      return;
-    }
-    if (rule.date) {
-      const parsed = parseFlexibleDate(value);
-      if (!parsed) {
-        errors[field] = `${rule.label} is not a valid date`;
-      } else if (parsed.getTime() > Date.now()) {
-        errors[field] = `${rule.label} cannot be in the future`;
-      }
-    }
+  Object.keys(FIELD_RULES).forEach((field) => {
+    const message = validateFieldValue(field, values?.[field]);
+    if (message) errors[field] = message;
   });
 
   return errors;
@@ -875,13 +900,22 @@ const StudentProfile = () => {
   }
 
   const handleChange = (field, value) => {
-    // Phone fields accept digits only, so an invalid number cannot be typed in.
-    const nextValue = PHONE_FIELDS.includes(field) ? String(value).replace(/\D/g, "") : value;
+    // Phone fields accept digits only; place-name fields reject digits, so
+    // invalid characters cannot be typed in at all.
+    const nextValue = PHONE_FIELDS.includes(field)
+      ? String(value).replace(/\D/g, "")
+      : LETTERS_ONLY_FIELDS.includes(field)
+        ? String(value).replace(/[^A-Za-z\s.'-]/g, "")
+        : OCCUPATION_FIELDS.includes(field)
+          ? String(value).replace(/[^A-Za-z\s.&/,'-]/g, "")
+          : value;
     setStudent((prev) => ({ ...prev, [field]: nextValue }));
+    // Validate the edited field immediately so errors surface inline, not only on save.
     setErrors((prev) => {
-      if (!prev[field]) return prev;
+      const message = validateFieldValue(field, nextValue);
       const next = { ...prev };
-      delete next[field];
+      if (message) next[field] = message;
+      else delete next[field];
       return next;
     });
   };
@@ -1255,9 +1289,10 @@ const StudentProfile = () => {
 
         <InfoDetail
           label="Date of Birth"
-          value={student.dob}
+          value={isEditing ? toDateInputValue(student.dob) : student.dob}
           isEditing={isEditing}
           onChange={(e) => handleChange("dob", e.target.value)}
+          inputType="date"
           error={errors.dob}
         />
 
@@ -1266,6 +1301,8 @@ const StudentProfile = () => {
           value={student.gender}
           isEditing={isEditing}
           onChange={(e) => handleChange("gender", e.target.value)}
+          isDropdown
+          options={GENDER_OPTIONS}
           error={errors.gender}
         />
 
@@ -1274,6 +1311,8 @@ const StudentProfile = () => {
           value={student.bloodGroup}
           isEditing={isEditing}
           onChange={(e) => handleChange("bloodGroup", e.target.value)}
+          isDropdown
+          options={BLOOD_GROUP_OPTIONS}
           error={errors.bloodGroup}
         />
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { FiChevronDown } from "react-icons/fi";
 
 /**
@@ -20,7 +21,27 @@ export default function CustomSelect({
   id,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuRect, setMenuRect] = useState(null);
   const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const toggleMenu = () => {
+    if (disabled) return;
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    const r = buttonRef.current.getBoundingClientRect();
+    const openUp = window.innerHeight - r.bottom < 240;
+    setMenuRect({
+      top: openUp ? undefined : r.bottom + 4,
+      bottom: openUp ? window.innerHeight - r.top + 4 : undefined,
+      left: r.left,
+      width: Math.max(r.width, 140),
+    });
+    setIsOpen(true);
+  };
 
   // Normalize options from either options prop or children
   const parsedOptions = useMemo(() => {
@@ -67,7 +88,9 @@ export default function CustomSelect({
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      const inContainer = containerRef.current && containerRef.current.contains(event.target);
+      const inMenu = menuRef.current && menuRef.current.contains(event.target);
+      if (!inContainer && !inMenu) {
         setIsOpen(false);
       }
     };
@@ -109,9 +132,10 @@ export default function CustomSelect({
       id={id}
     >
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleMenu}
         className={`w-full flex items-center justify-between gap-2 border px-3 py-2 rounded-lg text-sm bg-white text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
           isOpen ? "border-blue-500 ring-2 ring-blue-500" : "border-gray-300"
         } ${buttonClassName}`}
@@ -127,38 +151,48 @@ export default function CustomSelect({
         />
       </button>
 
-      {isOpen && (
-        <div
-          className={`absolute left-0 right-0 mt-1.5 w-full min-w-[140px] bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1 max-h-60 overflow-y-auto animate-fadeIn ${menuClassName}`}
-          role="listbox"
-        >
-          {parsedOptions.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-400 italic">
-              No options available
-            </div>
-          ) : (
-            parsedOptions.map((opt, idx) => {
-              const isSelected = String(opt.value) === String(value);
-              return (
-                <button
-                  key={`${opt.value}-${idx}`}
-                  type="button"
-                  onClick={() => handleSelect(opt)}
-                  className={`w-full text-left px-3.5 py-2 text-sm transition-colors flex items-center justify-between ${
-                    isSelected
-                      ? "bg-blue-600 text-white font-medium shadow-sm"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`}
-                  role="option"
-                  aria-selected={isSelected}
-                >
-                  <span className="truncate">{opt.label}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
+      {isOpen &&
+        menuRect &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className={`fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[1000] py-1 max-h-60 overflow-y-auto animate-fadeIn ${menuClassName}`}
+            style={{
+              top: menuRect.top,
+              bottom: menuRect.bottom,
+              left: menuRect.left,
+              width: menuRect.width,
+            }}
+            role="listbox"
+          >
+            {parsedOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-400 italic">
+                No options available
+              </div>
+            ) : (
+              parsedOptions.map((opt, idx) => {
+                const isSelected = String(opt.value) === String(value);
+                return (
+                  <button
+                    key={`${opt.value}-${idx}`}
+                    type="button"
+                    onClick={() => handleSelect(opt)}
+                    className={`w-full text-left px-3.5 py-2 text-sm transition-colors flex items-center justify-between ${
+                      isSelected
+                        ? "bg-blue-600 text-white font-medium shadow-sm"
+                        : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                    }`}
+                    role="option"
+                    aria-selected={isSelected}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

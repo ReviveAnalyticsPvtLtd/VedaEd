@@ -37,6 +37,17 @@ const requireSchool = (req, res) => {
 };
 
 /**
+ * Short-lived cache for the master dashboard payload.
+ */
+const MASTER_STATS_TTL_MS = 20 * 1000; 
+const masterStatsCache = new Map(); // schoolId -> { data, expiresAt }
+// schoolId -> Promise<payload>. See getOrComputeMasterStats.
+const masterStatsInFlight = new Map();
+
+// How many students' fee summaries are calculated in parallel per batch.
+const FEE_LOOKUP_CONCURRENCY = 10;
+
+/**
  * Tenant filter for the Student aggregations below.
  *
  * Mongoose casts values in ordinary queries (countDocuments, findOne, ...) but
@@ -68,19 +79,17 @@ const buildStudentsByClassPipeline = (schoolId) => [
   }
 ];
 
-/**
- * Students grouped by gender, restricted to one school.
- * Same placement rule as above: $match first, then $group.
- *
- * The Male/male/null split is a pre-existing data-quality problem in the stored
- * values. It is deliberately left alone here.
- */
-const buildGenderRatioPipeline = (schoolId) => [
+const buildStudentBreakdownPipeline = (schoolId) => [
   { $match: tenantMatchFor(schoolId) },
   {
-    $group: {
-      _id: "$personalInfo.gender",
-      count: { $sum: 1 }
+    $facet: {
+      studentsByClass: [
+        { $group: { _id: "$personalInfo.class", count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ],
+      genderRatio: [
+        { $group: { _id: "$personalInfo.gender", count: { $sum: 1 } } }
+      ]
     }
   }
 ];
@@ -171,123 +180,166 @@ exports.getAdminDashboardStats = async (req, res) => {
   }
 };
 
+/**
+ * Builds the master-stats payload for exactly one school.
+ *
+ * Every count, aggregate and fee lookup below is tenant-scoped to `schoolId`,
+ * which requireSchool() resolved from the authenticated user record — never
+ * from anything the client sent. That matters beyond a single response: the
+ * payload is cached and replayed to that school's later requests, so one
+ * unscoped value here would be stored and served as if it were school-owned.
+ */
+const computeMasterStats = async (schoolId) => {
+  const [
+    totalStudents,
+    totalStaff,
+    totalClasses,
+    totalApplications,
+    confirmedAdmissions,
+    totalNotices,
+    totalComplaints,
+    totalMessages,
+    totalLogs,
+    totalEnquiries,
+    studentBreakdown
+  ] = await Promise.all([
+    Student.countDocuments({ schoolId }),
+    Staff.countDocuments({ schoolId }),
+    Class.countDocuments({ schoolId }),
+    AdmissionApplication.countDocuments({ schoolId }),
+    AdmissionApplication.countDocuments({ schoolId, status: "Approved" }),
+    Notice.countDocuments({ schoolId }),
+    Complaint.countDocuments({ schoolId }),
+    Message.countDocuments({ schoolId }),
+    CommunicationLog.countDocuments({ schoolId }),
+    AdmissionEnquiry.countDocuments({ schoolId }),
+    Student.aggregate(buildStudentBreakdownPipeline(schoolId))
+  ]);
+
+  const genderRatio = studentBreakdown[0]?.genderRatio || [];
+  const studentsByClass = studentBreakdown[0]?.studentsByClass || [];
+
+  const students = await Student.find({ schoolId }).populate("personalInfo.class");
+
+  const { start, end } = currentWeekRange();
+  const attendanceRows = await Attendance.aggregate(
+    buildWeeklyAttendancePipeline(students.map((s) => s._id), start, end)
+  );
+
+  const attendanceByDay = new Map(attendanceRows.map((r) => [r._id, r]));
+  const weeklyAttendance = WEEKDAYS.map((day, i) => {
+    const row = attendanceByDay.get(i + 2);
+    if (!row || !row.total) return { day, value: null };
+    return { day, value: Math.round((row.attended / row.total) * 100) };
+  });
+
+
+  const activeYear = await AcademicYear.findOne({ isActive: true })
+    .select("label")
+    .lean();
+
+  let feesCollected = 0;
+  let feesPending = 0;
+
+  if (activeYear?.label) {
+    const [collectedRow] = await FeeTransaction.aggregate(
+      buildFeesCollectedPipeline(schoolId, activeYear.label)
+    );
+    feesCollected = collectedRow?.total || 0;
+    const { calculateStudentFees, buildFeeContext } = require("../fees/feeControllers");
+    const feeCtx = await buildFeeContext(students, activeYear.label, schoolId);
+    for (let i = 0; i < students.length; i += FEE_LOOKUP_CONCURRENCY) {
+      const summaries = await Promise.all(
+        students
+          .slice(i, i + FEE_LOOKUP_CONCURRENCY)
+          .map((student) => calculateStudentFees(student, activeYear.label, schoolId, feeCtx))
+      );
+      for (const summary of summaries) {
+        feesPending += summary.balance || 0;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    stats: {
+      sis: {
+        totalStudents,
+        totalStaff,
+        totalClasses,
+        studentsByClass: studentsByClass.map(item => ({ name: `Class ${item._id}`, value: item.count })),
+        genderRatio: genderRatio.map(item => ({ name: item._id || 'Unknown', value: item.count })),
+        weeklyAttendance
+      },
+      communication: {
+        totalNotices,
+        totalComplaints,
+        totalMessages,
+        totalLogs
+      },
+      admission: {
+        totalApplications,
+        totalEnquiries,
+        confirmedAdmissions
+      },
+      hr: {
+        totalStaff
+      },
+      calendar: {
+        totalEvents: 0 // Placeholder
+      },
+      fees: {
+        collected: feesCollected,
+        pending: feesPending,
+        year: activeYear?.label || null
+      }
+    }
+  };
+};
+
+/**
+ * Read-through cache with single-flight.
+ *
+ * Key is the authoritative schoolId only, so one school can never receive
+ * another school's cached payload.
+ *
+ * Single-flight: when a request arrives while another is already building this
+ * school's payload, it awaits that same promise rather than starting a second
+ * full recomputation — otherwise a busy dashboard would fire the entire query
+ * set N times in parallel, one per visitor.
+ */
+const getOrComputeMasterStats = (schoolId) => {
+  const cached = masterStatsCache.get(schoolId);
+  if (cached && Date.now() < cached.expiresAt) {
+    return Promise.resolve(cached.data);
+  }
+
+  const inFlight = masterStatsInFlight.get(schoolId);
+  if (inFlight) return inFlight;
+
+  const work = Promise.resolve()
+    .then(() => computeMasterStats(schoolId))
+    .then((payload) => {
+      masterStatsCache.set(schoolId, {
+        data: payload,
+        expiresAt: Date.now() + MASTER_STATS_TTL_MS
+      });
+      return payload;
+    })
+    .finally(() => {
+      masterStatsInFlight.delete(schoolId);
+    });
+
+  masterStatsInFlight.set(schoolId, work);
+  return work;
+};
+
 exports.getMasterDashboardStats = async (req, res) => {
   try {
     const schoolId = requireSchool(req, res);
     if (!schoolId) return;
 
-    // AdmissionApplication and AdmissionEnquiry are handled separately below
-    // because they do not have the same ownership guarantees.
-    const [
-      totalStudents,
-      totalStaff,
-      totalClasses,
-      totalApplications,
-      confirmedAdmissions,
-      totalNotices,
-      totalComplaints,
-      totalMessages,
-      totalLogs,
-      totalEnquiries
-    ] = await Promise.all([
-      Student.countDocuments({ schoolId }),
-      Staff.countDocuments({ schoolId }),
-      Class.countDocuments({ schoolId }),
-      AdmissionApplication.countDocuments({ schoolId }),
-      AdmissionApplication.countDocuments({ schoolId, status: "Approved" }),
-      Notice.countDocuments({ schoolId }),
-      Complaint.countDocuments({ schoolId }),
-      Message.countDocuments({ schoolId }),
-      CommunicationLog.countDocuments({ schoolId }),
-      AdmissionEnquiry.countDocuments({ schoolId })
-    ]);
-
-    // Get gender ratio for students
-    const genderRatio = await Student.aggregate(buildGenderRatioPipeline(schoolId));
-
-    // Get students by class for pie chart
-    const studentsByClass = await Student.aggregate(buildStudentsByClassPipeline(schoolId));
-
-    // One read serves both the attendance chart and the per-student fee
-    // balances below, so `personalInfo.class` is populated once here.
-    const students = await Student.find({ schoolId }).populate("personalInfo.class");
-
-    const { start, end } = currentWeekRange();
-    const attendanceRows = await Attendance.aggregate(
-      buildWeeklyAttendancePipeline(students.map((s) => s._id), start, end)
-    );
-
-    const attendanceByDay = new Map(attendanceRows.map((r) => [r._id, r]));
-    const weeklyAttendance = WEEKDAYS.map((day, i) => {
-      const row = attendanceByDay.get(i + 2);
-      if (!row || !row.total) return { day, value: null };
-      return { day, value: Math.round((row.attended / row.total) * 100) };
-    });
-
-    // =========================
-    // FEES
-    // =========================
-
-    // AcademicYear is deliberately not tenant-owned (one active session per
-    // deployment), so it is read unscoped exactly as the Fees module does.
-    const activeYear = await AcademicYear.findOne({ isActive: true })
-      .select("label")
-      .lean();
-
-    let feesCollected = 0;
-    let feesPending = 0;
-
-    if (activeYear?.label) {
-      const [collectedRow] = await FeeTransaction.aggregate(
-        buildFeesCollectedPipeline(schoolId, activeYear.label)
-      );
-      feesCollected = collectedRow?.total || 0;
-
-      // Outstanding balance is derived, never stored. It is taken from the Fees
-      // module's own calculation so this figure can never drift from the one
-      // shown on the Fees page.
-      const { calculateStudentFees } = require("../fees/feeControllers");
-      for (const student of students) {
-        const summary = await calculateStudentFees(student, activeYear.label, schoolId);
-        feesPending += summary.balance || 0;
-      }
-    }
-
-    res.json({
-      success: true,
-      stats: {
-        sis: {
-          totalStudents,
-          totalStaff,
-          totalClasses,
-          studentsByClass: studentsByClass.map(item => ({ name: `Class ${item._id}`, value: item.count })),
-          genderRatio: genderRatio.map(item => ({ name: item._id || 'Unknown', value: item.count })),
-          weeklyAttendance
-        },
-        communication: {
-          totalNotices,
-          totalComplaints,
-          totalMessages,
-          totalLogs
-        },
-        admission: {
-          totalApplications,
-          totalEnquiries,
-          confirmedAdmissions
-        },
-        hr: {
-          totalStaff
-        },
-        calendar: {
-          totalEvents: 0 // Placeholder
-        },
-        fees: {
-          collected: feesCollected,
-          pending: feesPending,
-          year: activeYear?.label || null
-        }
-      }
-    });
+    res.json(await getOrComputeMasterStats(schoolId));
   } catch (err) {
     console.error("Error in getMasterDashboardStats:", err);
     res.status(500).json({ success: false, error: err.message });
