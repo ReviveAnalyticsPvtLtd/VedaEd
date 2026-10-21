@@ -606,11 +606,19 @@ const mapAdmissionStudentToProfile = (admissionData = {}, fallbackId = "") => {
 };
 
 const mapAnyStudentToProfile = (rawData = {}, fallbackId = "") => {
+  const source = rawData?.source;
+  if (source === "Admission" || source === "admission") {
+    return mapAdmissionStudentToProfile(rawData, fallbackId);
+  }
+  if (source === "SIS" || source === "sis") {
+    return mapSisStudentToProfile(rawData);
+  }
+
   const hasAdmissionShape =
-    rawData?.source === "Admission" ||
-    !!rawData?.contactInfo ||
-    !!rawData?.parents ||
-    !!rawData?.personalInfo?.classApplied;
+    !!rawData?.personalInfo?.classApplied &&
+    !rawData?.personalInfo?.class &&
+    !rawData?.parent &&
+    !Array.isArray(rawData?.parent);
 
   return hasAdmissionShape
     ? mapAdmissionStudentToProfile(rawData, fallbackId)
@@ -1095,23 +1103,77 @@ const StudentProfile = () => {
 
       const data = await response.json();
       if (data.success) {
-        const raw = data.student ?? data.data;
-        const updatedMappedStudent = raw
-          ? mapAnyStudentToProfile(raw, studentId)
-          : profileSource === "Admission"
-            ? (data.data
-              ? mapAdmissionStudentToProfile(data.data, studentId)
-              : student)
-            : (data.student
-              ? mapSisStudentToProfile(data.student)
-              : { ...student, grade: className, section: sectionName });
+        const raw = data.student ?? data.data ?? null;
+
+        // Keep the current mapped shape and apply the saved values on top of
+        // it, so a save can never replace the profile with a mismapped doc.
         if (raw && (raw.source === "Admission" || raw.source === "admission")) {
           setProfileSource("Admission");
-        } else if (raw) {
-          setProfileSource("SIS");
+          const updatedMappedStudent = mapAdmissionStudentToProfile(raw, studentId);
+          setStudent(updatedMappedStudent);
+          setOriginalStudent(updatedMappedStudent);
+        } else {
+          // SIS update: merge the saved values into the existing profile.
+          setStudent((prev) => {
+            const base = prev || student || {};
+            return {
+              ...base,
+              name: base.name || student?.name,
+              stdId: base.stdId || student?.stdId,
+              gradeId: base.gradeId || student?.gradeId,
+              sectionId: base.sectionId || student?.sectionId,
+              grade: className || base.grade || student?.grade,
+              section: sectionName || base.section || student?.section,
+              contact: student?.contact ?? base.contact,
+              email: student?.email ?? base.email,
+              altPhone: student?.altPhone ?? base.altPhone,
+              countryCode: student?.countryCode ?? base.countryCode,
+              fatherName: student?.fatherName ?? base.fatherName,
+              motherName: student?.motherName ?? base.motherName,
+              fatherOccupation: student?.fatherOccupation ?? base.fatherOccupation,
+              fatherPhone: student?.fatherPhone ?? base.fatherPhone,
+              fatherEmail: student?.fatherEmail ?? base.fatherEmail,
+              motherOccupation: student?.motherOccupation ?? base.motherOccupation,
+              motherPhone: student?.motherPhone ?? base.motherPhone,
+              motherEmail: student?.motherEmail ?? base.motherEmail,
+              guardianName: student?.guardianName ?? base.guardianName,
+              guardianRelation: student?.guardianRelation ?? base.guardianRelation,
+              guardianPhone: student?.guardianPhone ?? base.guardianPhone,
+              guardianEmail: student?.guardianEmail ?? base.guardianEmail,
+              emergencyName: student?.emergencyName ?? base.emergencyName,
+              emergencyRelation: student?.emergencyRelation ?? base.emergencyRelation,
+              emergencyPhone: student?.emergencyPhone ?? base.emergencyPhone,
+              previousSchool: student?.previousSchool ?? base.previousSchool,
+              board: student?.board ?? base.board,
+              lastClass: student?.lastClass ?? base.lastClass,
+              academicYear: student?.academicYear ?? base.academicYear,
+              street: student?.street ?? base.street,
+              city: student?.city ?? base.city,
+              state: student?.state ?? base.state,
+              zip: student?.zip ?? base.zip,
+              address: student?.address ?? base.address,
+              fee: student?.fee ?? base.fee,
+              rollNo: student?.rollNo ?? base.rollNo,
+              dob: student?.dob ?? base.dob,
+              gender: student?.gender ?? base.gender,
+              bloodGroup: student?.bloodGroup ?? base.bloodGroup,
+              nationality: student?.nationality ?? base.nationality,
+              religion: student?.religion ?? base.religion,
+              id: base.id || student?.id || studentId,
+            };
+          });
+          setOriginalStudent((prev) => {
+            const base = prev || student || {};
+            return {
+              ...base,
+              grade: className || base.grade,
+              section: sectionName || base.section,
+            };
+          });
+          if (profileSource !== "Admission") {
+            setProfileSource("SIS");
+          }
         }
-        setStudent(updatedMappedStudent);
-        setOriginalStudent(updatedMappedStudent);
         setIsEditing(false);
         setSaveError(null);
         setErrors({});
@@ -1758,15 +1820,15 @@ const StudentProfile = () => {
             />
           </div>
           <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-bold text-gray-900">{student.name}</h1>
-              <p className="text-lg text-indigo-600 font-medium">
-                {student.grade} - {student.section}
-              </p>
-              {student.stdId ? (
-                <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
-              ) : null}
-            </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl font-bold text-gray-900">{student.name || "Student"}</h1>
+            <p className="text-lg text-indigo-600 font-medium">
+              {(student.grade || "-")} - {(student.section || "-")}
+            </p>
+            {student.stdId ? (
+              <p className="text-sm text-gray-500 font-medium">Student ID: {student.stdId}</p>
+            ) : null}
+          </div>
 
           </div>
         </div>
