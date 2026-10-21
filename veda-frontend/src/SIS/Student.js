@@ -539,6 +539,26 @@ export default function Student() {
       console.error("Error deleting student:", err);
     }
   };
+  const filteredStudents = students.filter(
+    (s) =>
+      ((s.personalInfo?.name?.toLowerCase() || "").includes(
+        search.toLowerCase()
+      ) ||
+        (s.personalInfo?.stdId?.toLowerCase() || "").includes(
+          search.toLowerCase()
+        ) ||
+        (s.personalInfo?.class?.toLowerCase() || "").includes(
+          search.toLowerCase()
+        )) &&
+      (filterClass ? s.personalInfo?.class === filterClass : true) &&
+      (filterSection ? s.personalInfo?.section === filterSection : true)
+  );
+
+  const indexOfLast = currentPage * studentsPerPage;
+  const indexOfFirst = indexOfLast - studentsPerPage;
+  const currentStudents = filteredStudents.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
+
 const handleSelectStudent = (studentId) => {
   setSelectedStudents((prev) =>
     prev.includes(studentId)
@@ -547,19 +567,21 @@ const handleSelectStudent = (studentId) => {
   );
 };
 const handleSelectAllStudents = () => {
-  const currentStudentIds = currentStudents.map((s) => s._id);
+  const allFilteredStudentIds = filteredStudents
+    .map((s) => s._id)
+    .filter(Boolean);
 
-  const isAllSelected = currentStudentIds.every((id) =>
-    selectedStudents.includes(id)
-  );
+  const isAllSelected =
+    allFilteredStudentIds.length > 0 &&
+    allFilteredStudentIds.every((id) => selectedStudents.includes(id));
 
   if (isAllSelected) {
     setSelectedStudents((prev) =>
-      prev.filter((id) => !currentStudentIds.includes(id))
+      prev.filter((id) => !allFilteredStudentIds.includes(id))
     );
   } else {
     setSelectedStudents((prev) => [
-      ...new Set([...prev, ...currentStudentIds]),
+      ...new Set([...prev, ...allFilteredStudentIds]),
     ]);
   }
 };
@@ -650,26 +672,6 @@ const handleBulkDelete = async () => {
     setTimeout(() => setSuccessMsg(""), 3000);
   }
 };
-  const filteredStudents = students.filter(
-    (s) =>
-      ((s.personalInfo?.name?.toLowerCase() || "").includes(
-        search.toLowerCase()
-      ) ||
-        (s.personalInfo?.stdId?.toLowerCase() || "").includes(
-          search.toLowerCase()
-        ) ||
-        (s.personalInfo?.class?.toLowerCase() || "").includes(
-          search.toLowerCase()
-        )) &&
-      (filterClass ? s.personalInfo?.class === filterClass : true) &&
-      (filterSection ? s.personalInfo?.section === filterSection : true)
-  );
-
-  
-  const indexOfLast = currentPage * studentsPerPage;
-  const indexOfFirst = indexOfLast - studentsPerPage;
-  const currentStudents = filteredStudents.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
   const getFieldValue = (label) => {
     if (!selectedStudent) return "N/A";
@@ -1038,9 +1040,9 @@ Sections:
   <input
     type="checkbox"
     checked={
-      currentStudents.length > 0 &&
-      currentStudents.every((s) =>
-        selectedStudents.includes(s._id)
+      filteredStudents.length > 0 &&
+      filteredStudents.every((s) =>
+        s._id && selectedStudents.includes(s._id)
       )
     }
     onChange={handleSelectAllStudents}

@@ -54,7 +54,7 @@ http://localhost:5000/api/communication
 - **description**: String (required)
 - **category**: String (academic/behavioral/infrastructure/staff/other)
 - **priority**: String (low/medium/high/urgent)
-- **status**: String (submitted/under_review/in_progress/resolved/closed/rejected)
+- **status**: String (submitted/under_review/in_progress/resolved/closed/rejected/Pending/Replied/Reviewed/Resolved/Rejected/Closed)
 - **assignedTo**: ObjectId (ref to Teacher/Admin)
 - **assignedToModel**: String (Teacher/Admin)
 - **attachments**: Array of file objects
@@ -292,7 +292,7 @@ PUT /complaints/:complaintId/status
 
 ```json
 {
-  "status": "submitted|under_review|in_progress|resolved|closed|rejected",
+  "status": "submitted|under_review|in_progress|resolved|closed|rejected|Pending|Replied|Reviewed|Resolved|Rejected|Closed",
   "userId": "ObjectId",
   "userModel": "string"
 }

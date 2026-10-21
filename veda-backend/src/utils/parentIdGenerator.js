@@ -69,4 +69,28 @@ async function peekNextParentId() {
   return `PRN-${year}-${String(nextSeq).padStart(4, "0")}`;
 }
 
-module.exports = { generateNextParentId, peekNextParentId };
+/**
+ * Generates a contiguous block of Parent IDs atomically in one update.
+ * Eliminates N round-trips to MongoDB during bulk imports.
+ */
+async function generateNextParentIdBlock(count) {
+  if (!count || count <= 0) return [];
+  const year = new Date().getFullYear();
+  await ensureCounterInitialized(year);
+
+  const doc = await ParentIdCounter.findOneAndUpdate(
+    { year },
+    { $inc: { seq: count } },
+    { new: true, upsert: true }
+  );
+
+  const endSeq = doc.seq;
+  const startSeq = endSeq - count + 1;
+  const ids = [];
+  for (let s = startSeq; s <= endSeq; s++) {
+    ids.push(`PRN-${year}-${String(s).padStart(4, "0")}`);
+  }
+  return ids;
+}
+
+module.exports = { generateNextParentId, peekNextParentId, generateNextParentIdBlock };

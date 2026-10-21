@@ -9,6 +9,7 @@ const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const Assignment = require("../assignment/assignment");
 const Timetable = require("../Timetable/timeTableSchema");
 const Student = require("../student/studentModels");
+const Attendance = require("../attendence/attendenceSchema");
 const Message = require("../communication/messageModel");
 const CalendarEvent = require("../calendar/calendarModel");
 const Class = require("../class/classSchema");
@@ -1504,30 +1505,43 @@ exports.getTeacherDashboardStats = async (req, res) => {
     const today = startOfLocalDay(now);
     const monday = new Date(today);
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-    // StaffAttendance has no schoolId; it is anchored through its Staff ref,
-    // and teacherId was already proven to be an in-school Staff above.
-    const attendanceRecords = await StaffAttendance.find({
-      staff: teacherId,
-      date: { $gte: monday, $lte: today },
-    });
+    const utcMidnight = (d) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const weekStart = utcMidnight(monday);
+    const weekEnd = utcMidnight(tomorrow);
 
-    const presentDays = attendanceRecords.filter(
-      (r) => r.status === "Present"
-    ).length;
+    const attendanceRecords = classSectionPairs.length
+      ? await Attendance.find({
+          date: { $gte: weekStart, $lt: weekEnd },
+          $or: classSectionPairs.map((p) => ({
+            class: p.class,
+            section: p.section,
+          })),
+        })
+          .select("date status")
+          .lean()
+      : [];
+
+    const isAttended = (r) => r.status === "Present" || r.status === "Late";
+
+    const attendedCount = attendanceRecords.filter(isAttended).length;
     const attendance = attendanceRecords.length
-      ? Math.round((presentDays / attendanceRecords.length) * 100)
+      ? Math.round((attendedCount / attendanceRecords.length) * 100)
       : 0;
 
+    const utcWeekdayNames = [
+      "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    ];
     const weeklyAttendance = weekdays.map((d) => {
       const dayRecords = attendanceRecords.filter(
-        (r) =>
-          new Date(r.date).toLocaleDateString("en-US", { weekday: "long" }) === d
+        (r) => utcWeekdayNames[new Date(r.date).getUTCDay()] === d
       );
-      const present = dayRecords.filter((r) => r.status === "Present").length;
+      const attended = dayRecords.filter(isAttended).length;
       return {
         day: d.slice(0, 3),
-        attendance: dayRecords.length ? Math.round((present / dayRecords.length) * 100) : 0,
+        attendance: dayRecords.length ? Math.round((attended / dayRecords.length) * 100) : 0,
       };
     });
 

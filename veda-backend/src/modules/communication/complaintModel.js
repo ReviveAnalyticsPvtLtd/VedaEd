@@ -52,7 +52,20 @@ const ComplaintSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['submitted', 'under_review', 'in_progress', 'resolved', 'closed', 'rejected', 'Pending', 'Replied', 'Reviewed'],
+      enum: [
+        'submitted',
+        'under_review',
+        'in_progress',
+        'resolved',
+        'closed',
+        'rejected',
+        'Pending',
+        'Replied',
+        'Reviewed',
+        'Resolved',
+        'Rejected',
+        'Closed'
+      ],
       default: 'Pending'
     },
     assignedTo: {

@@ -125,19 +125,19 @@ export default function Parents() {
       }
 
       try {
-        const res = await api.post(`/parents/import`, data);
+        const res = await api.post(`/parents/import`, data, { timeout: 300000 });
         if (res.data.success) {
           // Re-fetch parents to show new data
           const updatedRes = await api.get(`/parents`);
           setParents(updatedRes.data.parents);
 
           const { imported = [], skipped = [], errors = [] } = res.data;
-          let msg = `Import complete ✅: ${imported.length} added`;
-          if (skipped.length > 0) msg += `, ${skipped.length} skipped (exists)`;
+          let msg = `Import complete ✅: ${imported.length} processed`;
+          if (skipped.length > 0) msg += `, ${skipped.length} skipped (already exists)`;
           if (errors.length > 0) msg += `, ${errors.length} errors`;
 
           setSuccessMsg(msg);
-          setTimeout(() => setSuccessMsg(""), 5000);
+          setTimeout(() => setSuccessMsg(""), 6000);
         } else {
           setSuccessMsg(`Import failed ❌: ${res.data.message}`);
           setTimeout(() => setSuccessMsg(""), 5000);
@@ -656,7 +656,7 @@ Sections:
                     <td className="p-2 border">{p.email}</td>
                     <td className="p-2 border">{p.phone}</td>
                     <td className="p-2 border">
-                      {p.children?.length > 0 ? p.children.map((c) => c.stdId || c.personalInfo?.stdId).filter(Boolean).join(", ") : "N/A"}
+                      {(p.children?.length > 0 && p.children.map((c) => c.stdId || c.personalInfo?.stdId).filter(Boolean).join(", ")) || "N/A"}
                     </td>
                     <td className="p-2 border">{p.role || "Parent"}</td>
                     <td className="p-2 border">{p.status}</td>
@@ -960,11 +960,15 @@ Sections:
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <h2 className="text-xl font-semibold break-words">{selectedParent.name}</h2>
                   <button
-                    onClick={() =>
-                      navigate(`/admin/parent-profile/${selectedParent._id}`, {
+                    onClick={() => {
+                      const targetId =
+                        (selectedParent.children?.[0]?.stdId && selectedParent.children[0].stdId !== "N/A")
+                          ? selectedParent.children[0].stdId
+                          : (selectedParent._id || selectedParent.parentId);
+                      navigate(`/admin/parent-profile/${targetId}`, {
                         state: selectedParent,
-                      })
-                    }
+                      });
+                    }}
                     className="rounded bg-yellow-500 px-4 py-2 text-sm text-white sm:px-8 sm:py-1"
                   >
                     View Full Profile
@@ -994,7 +998,7 @@ Sections:
                 Children :{" "}
                 {selectedParent.children
                   ?.map((c) => c.stdId || c.personalInfo?.stdId)
-                  .join(", ")}
+                  .join(", ") || "N/A"}
               </p>
               <p>Status : {selectedParent.status}</p>
             </div>

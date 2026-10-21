@@ -51,19 +51,22 @@ export default function SuperAdminSISAttendanceClassDetail() {
   }, [id]);
 
   const handleAttendanceChange = async (studentId, newStatus) => {
+    const currentTime =
+      newStatus === "Present" || newStatus === "Late"
+        ? new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "--";
+
     const updatedStudents = students.map((s) =>
       s.id === studentId
         ? {
-          ...s,
-          status: newStatus,
-          time:
-            newStatus === "Present" || newStatus === "Late"
-              ? new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-              : "--",
-        }
+            ...s,
+            status: newStatus,
+            time: currentTime,
+          }
         : s
     );
     setStudents(updatedStudents);
@@ -74,7 +77,7 @@ export default function SuperAdminSISAttendanceClassDetail() {
       await authFetch(`/attendance/student/${studentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, date }),
+        body: JSON.stringify({ status: newStatus, date, time: currentTime }),
       });
     } catch (error) {
       console.error("Error updating attendance:", error);

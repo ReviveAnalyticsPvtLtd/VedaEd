@@ -4,6 +4,7 @@ import { FiSearch, FiPaperclip } from "react-icons/fi";
 import complaintAPI from "../services/complaintAPI";
 import { studentAPI } from "../services/studentAPI";
 import staffAPI from "../services/staffAPI";
+import classAPI from "../services/classAPI";
 
 /* ===================== ID GENERATORS ===================== */
 const genReplyId = () =>
@@ -69,6 +70,7 @@ export default function AdminComplaints() {
   const [myComplaints, setMyComplaints] = useState([]);
   const [logs, setLogs] = useState([]);
   const [studentsData, setStudentsData] = useState([]);
+  const [classList, setClassList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState("");
@@ -140,6 +142,18 @@ export default function AdminComplaints() {
     }
 
     try {
+      const clsRes = await classAPI.getAllClasses();
+      const list = Array.isArray(clsRes)
+        ? clsRes
+        : Array.isArray(clsRes?.data)
+        ? clsRes.data
+        : [];
+      setClassList(list);
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+    }
+
+    try {
       const staffRes = await staffAPI.getAllStaff();
       if (staffRes?.staff) {
         setStaffList(
@@ -178,6 +192,7 @@ const summary = useMemo(() => {
   return {
     total: logs.length,
     pending: logs.filter((c) => c.status === "Pending" || c.status === "submitted").length,
+    reviewed: logs.filter((c) => c.status === "Reviewed" || c.status === "under_review").length,
     resolved: logs.filter((c) => c.status === "Resolved" || c.status === "resolved").length,
     rejected: logs.filter((c) => c.status === "Rejected" || c.status === "rejected").length,
   };
@@ -254,7 +269,7 @@ const updateStatus = async (status) => {
     }
   } catch (error) {
     console.error("Error updating status:", error);
-    alert("Failed to update status");
+    alert(error?.response?.data?.message || "Failed to update status");
   } finally {
     setLoading(false);
   }
@@ -265,11 +280,28 @@ const updateStatus = async (status) => {
     (s) => s.class === form.class && s.section === form.section
   );
 
-  const classes = useMemo(() => [...new Set(studentsData.map(s => s.class))].sort(), [studentsData]);
+  const classes = useMemo(() => {
+    const fromStudents = studentsData.map((s) => s.class).filter(Boolean);
+    const fromClasses = classList.map((c) => (typeof c === "string" ? c : c?.name || c?.className)).filter(Boolean);
+    return [...new Set([...fromClasses, ...fromStudents])].filter((c) => c && c !== "N/A").sort();
+  }, [studentsData, classList]);
+
   const sections = useMemo(() => {
     if (!form.class) return [];
-    return [...new Set(studentsData.filter(s => s.class === form.class).map(s => s.section))].sort();
-  }, [studentsData, form.class]);
+    const fromStudents = studentsData
+      .filter((s) => s.class === form.class)
+      .map((s) => s.section)
+      .filter(Boolean);
+
+    const matchingClassObj = classList.find(
+      (c) => (typeof c === "string" ? c : c?.name || c?.className) === form.class
+    );
+    const fromClassObj = matchingClassObj && Array.isArray(matchingClassObj.sections)
+      ? matchingClassObj.sections.map((sec) => (typeof sec === "string" ? sec : sec?.name)).filter(Boolean)
+      : [];
+
+    return [...new Set([...fromClassObj, ...fromStudents])].filter((s) => s && s !== "N/A").sort();
+  }, [studentsData, classList, form.class]);
 
   const selectedStudent = studentsData.find(
     (s) => s.id === form.studentId
@@ -978,7 +1010,8 @@ Student Section *
             <h3 className="font-semibold text-lg text-gray-800">Complaint Logs Summary</h3>
             <p className="text-gray-600 mt-2">
               Total: <span className="font-semibold">{summary.total}</span> | Pending:{" "}
-              <span className="font-semibold text-yellow-600">{summary.pending}</span> | Resolved:{" "}
+              <span className="font-semibold text-yellow-600">{summary.pending}</span> | Reviewed:{" "}
+              <span className="font-semibold text-blue-600">{summary.reviewed}</span> | Resolved:{" "}
               <span className="font-semibold text-green-600">{summary.resolved}</span> | Rejected:{" "}
               <span className="font-semibold text-gray-600">{summary.rejected}</span>
             </p>

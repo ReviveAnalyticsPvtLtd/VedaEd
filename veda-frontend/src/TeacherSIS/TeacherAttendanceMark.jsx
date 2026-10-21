@@ -236,12 +236,13 @@ export default function TeacherAttendanceMark() {
               ? "Absent"
               : "Late",
           time:
-            attendance[stu.dbId] === "present"
-              ? new Date().toLocaleTimeString([], {
+            attendance[stu.dbId] === "absent"
+              ? "--"
+              : new Date().toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
-                })
-              : null,
+                  hour12: true,
+                }),
         })),
       };
 

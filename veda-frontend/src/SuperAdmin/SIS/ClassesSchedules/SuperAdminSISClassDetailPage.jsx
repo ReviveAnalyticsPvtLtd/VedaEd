@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams , useNavigate } from "react-router-dom";
-import config from "../../../config";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../../../services/apiClient";
 
 const SuperAdminSISClassDetailPage = () => {
   const navigate = useNavigate();
@@ -12,12 +12,9 @@ const SuperAdminSISClassDetailPage = () => {
   useEffect(() => {
     const fetchClassDetails = async () => {
       try {
-        const response = await fetch(
-          `${config.API_BASE_URL}/classes/${classId}/sections/${sectionId}`
-        );
-        const data = await response.json();
-        if (data.success) {
-          setClassInfo(data.data);
+        const response = await api.get(`/classes/${classId}/sections/${sectionId}`);
+        if (response.data && response.data.success) {
+          setClassInfo(response.data.data);
         }
       } catch (error) {
         console.error("Error fetching class details:", error);
@@ -49,18 +46,16 @@ const SuperAdminSISClassDetailPage = () => {
 
   return (
     <div className="p-0 min-h-screen">
-      
       <button
-  onClick={() => navigate("/superadmin/sis/classes-schedules/classes")}
-  className="fixed  right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg"
->
-  ← Back
-</button>
+        onClick={() => navigate("/superadmin/sis/classes-schedules/classes")}
+        className="fixed right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg"
+      >
+        ← Back
+      </button>
 
       {/* Page Title */}
       <h2 className="text-2xl font-bold mb-6">
-         {classInfo.classname?.name} - Section{" "}
-        {classInfo.sectionName?.name}
+        {classInfo.classname?.name} - Section {classInfo.sectionName?.name}
       </h2>
 
       {/* Overview */}
@@ -73,10 +68,10 @@ const SuperAdminSISClassDetailPage = () => {
           <strong>Capacity:</strong>{" "}
           {classInfo.sectionName?.capacity || classInfo.classname?.capacity || "N/A"}
         </p>
-       <p>
-  <strong>Class Teacher:</strong>{" "}
-  {classInfo.classTeacher?.personalInfo?.name || "N/A"}
-</p>
+        <p>
+          <strong>Class Teacher:</strong>{" "}
+          {classInfo.classTeacher?.personalInfo?.name || "N/A"}
+        </p>
       </section>
 
       {/* Subjects */}

@@ -3,6 +3,7 @@ const User = require('../../models/User');
 const Staff = require('../staff/staffModels');
 const Parent = require('../parents/parentModel');
 const Student = require('../student/studentModels');
+const AdmissionApplication = require('../admission/admissionApplicationModel');
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
@@ -149,6 +150,7 @@ exports.updateProfile = async (req, res) => {
     await user.save();
 
     // Update Staff, Parent or Student model based on refId
+    // Update Staff, Parent, Student, or Admission model based on refId
     if (user.refId) {
       const staff = await Staff.findById(user.refId);
       if (staff) {
@@ -163,6 +165,7 @@ exports.updateProfile = async (req, res) => {
 
       const parent = await Parent.findById(user.refId);
       if (parent) {
+        if (!parent.name && parent.fatherName) parent.fatherName = user.name;
         if (fullName !== undefined) parent.name = user.name;
         if (email !== undefined) parent.email = user.email;
         if (mobileVal !== undefined) parent.phone = user.mobile;
@@ -178,6 +181,7 @@ exports.updateProfile = async (req, res) => {
         if (email !== undefined) {
           if (!student.personalInfo.contactDetails) student.personalInfo.contactDetails = {};
           student.personalInfo.contactDetails.email = user.email;
+          student.personalInfo.email = user.email;
         }
         if (mobileVal !== undefined) {
           if (!student.personalInfo.contactDetails) student.personalInfo.contactDetails = {};
@@ -185,11 +189,34 @@ exports.updateProfile = async (req, res) => {
         }
         await student.save();
       }
+          student.personalInfo.mobileNumber = user.mobile;
+        }
+        await student.save();
+      }
+
+      const admApp = await AdmissionApplication.findById(user.refId);
+      if (admApp) {
+        if (!admApp.personalInfo) admApp.personalInfo = {};
+        if (!admApp.contactInfo) admApp.contactInfo = {};
+        if (fullName !== undefined) admApp.personalInfo.name = user.name;
+        if (email !== undefined) {
+          admApp.contactInfo.email = user.email;
+          admApp.personalInfo.email = user.email;
+        }
+        if (mobileVal !== undefined) {
+          admApp.contactInfo.phone = user.mobile;
+        }
+        await admApp.save();
+      }
     }
 
-    let roleName = user.roleId?.name || 'User';
-    if (roleName.toLowerCase() === 'superadmin') roleName = 'Super Administrator';
-    else if (roleName.toLowerCase() === 'admin') roleName = 'Administrator';
+    let roleName = user.roleId?.name || req.user?.role || 'User';
+    const rLower = String(roleName).toLowerCase();
+    if (rLower === 'superadmin' || rLower === 'super administrator') roleName = 'Super Administrator';
+    else if (rLower === 'admin' || rLower === 'administrator') roleName = 'Administrator';
+    else if (rLower === 'student') roleName = 'Student';
+    else if (rLower === 'parent') roleName = 'Parent';
+    else if (rLower === 'teacher' || rLower === 'staff') roleName = 'Teacher';
 
     res.json({
       message: 'Profile updated successfully',
@@ -226,9 +253,13 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    let roleName = user.roleId?.name || 'User';
-    if (roleName.toLowerCase() === 'superadmin') roleName = 'Super Administrator';
-    else if (roleName.toLowerCase() === 'admin') roleName = 'Administrator';
+    let roleName = user.roleId?.name || req.user?.role || 'User';
+    const rLower = String(roleName).toLowerCase();
+    if (rLower === 'superadmin' || rLower === 'super administrator') roleName = 'Super Administrator';
+    else if (rLower === 'admin' || rLower === 'administrator') roleName = 'Administrator';
+    else if (rLower === 'student') roleName = 'Student';
+    else if (rLower === 'parent') roleName = 'Parent';
+    else if (rLower === 'teacher' || rLower === 'staff') roleName = 'Teacher';
 
     let profileData = {
       fullName: user.name,
@@ -244,7 +275,7 @@ exports.getProfile = async (req, res) => {
       lastLogin: user.lastLogin || user.updatedAt || user.createdAt
     };
 
-    // Get additional details from Staff or Parent model
+    // Get additional details from Staff, Parent, Student, or Admission model
     if (user.refId) {
       const staff = await Staff.findById(user.refId);
       if (staff) {
@@ -278,6 +309,107 @@ exports.getProfile = async (req, res) => {
           mobile: student.personalInfo?.contactDetails?.mobileNumber || profileData.mobile,
           image: student.personalInfo?.image || profileData.image,
           profilePicture: student.personalInfo?.image || profileData.profilePicture
+      const student = await Student.findById(user.refId)
+        .populate('personalInfo.class', 'name')
+        .populate('personalInfo.section', 'name');
+      if (student) {
+        const studentClass = student.personalInfo?.class?.name || (typeof student.personalInfo?.class === 'string' ? student.personalInfo?.class : '');
+        const studentSection = student.personalInfo?.section?.name || (typeof student.personalInfo?.section === 'string' ? student.personalInfo?.section : '');
+        let dept = studentClass;
+        if (studentClass && studentSection) {
+          dept = `${studentClass} - ${studentSection}`;
+        } else if (studentSection) {
+          dept = `Section ${studentSection}`;
+        }
+
+        const studentImg = student.personalInfo?.image?.url || student.personalInfo?.image || '';
+        const studentMobile = student.personalInfo?.contactDetails?.mobileNumber || student.personalInfo?.mobileNumber || '';
+        const studentEmail = student.personalInfo?.contactDetails?.email || student.personalInfo?.email || '';
+
+        profileData = {
+          ...profileData,
+          fullName: student.personalInfo?.name || profileData.fullName,
+          role: 'Student',
+          department: dept || profileData.department || 'Student',
+          mobile: studentMobile || profileData.mobile,
+          email: studentEmail || (profileData.email && !profileData.email.endsWith('.invalid') ? profileData.email : ''),
+          employeeId: student.personalInfo?.stdId || profileData.employeeId,
+          image: studentImg || profileData.image,
+          profilePicture: studentImg || profileData.profilePicture,
+          createdAt: student.personalInfo?.admissionDate || student.createdAt || profileData.createdAt,
+          admissionDate: student.personalInfo?.admissionDate || student.createdAt
+        };
+      }
+
+      const admApp = await AdmissionApplication.findById(user.refId);
+      if (admApp) {
+        const admClass = admApp.personalInfo?.classApplied || '';
+        const admSec = admApp.personalInfo?.section || '';
+        let dept = admClass;
+        if (admClass && admSec) {
+          dept = `${admClass} - ${admSec}`;
+        } else if (admSec) {
+          dept = `Section ${admSec}`;
+        }
+
+        const admImg = admApp.personalInfo?.image?.url || admApp.personalInfo?.image || '';
+        const admMobile = admApp.contactInfo?.phone || admApp.personalInfo?.mobileNumber || '';
+        const admEmail = admApp.contactInfo?.email || admApp.personalInfo?.email || '';
+
+        profileData = {
+          ...profileData,
+          fullName: admApp.personalInfo?.name || profileData.fullName,
+          role: 'Student',
+          department: dept || profileData.department || 'Student',
+          mobile: admMobile || profileData.mobile,
+          email: admEmail || (profileData.email && !profileData.email.endsWith('.invalid') ? profileData.email : ''),
+          employeeId: admApp.personalInfo?.stdId || admApp.applicationId || profileData.employeeId,
+          image: admImg || profileData.image,
+          profilePicture: admImg || profileData.profilePicture,
+          createdAt: admApp.createdAt || profileData.createdAt,
+          admissionDate: admApp.createdAt
+        };
+      }
+    } else if (rLower === 'student' || !profileData.employeeId) {
+      const student = await Student.findOne({
+        $or: [
+          { "personalInfo.email": user.email },
+          { "personalInfo.contactDetails.email": user.email },
+          { "personalInfo.username": user.email },
+          { "personalInfo.stdId": user.name }
+        ]
+      })
+        .populate('personalInfo.class', 'name')
+        .populate('personalInfo.section', 'name');
+
+      if (student) {
+        user.refId = student._id;
+        await user.save().catch(() => {});
+        const studentClass = student.personalInfo?.class?.name || (typeof student.personalInfo?.class === 'string' ? student.personalInfo?.class : '');
+        const studentSection = student.personalInfo?.section?.name || (typeof student.personalInfo?.section === 'string' ? student.personalInfo?.section : '');
+        let dept = studentClass;
+        if (studentClass && studentSection) {
+          dept = `${studentClass} - ${studentSection}`;
+        } else if (studentSection) {
+          dept = `Section ${studentSection}`;
+        }
+
+        const studentImg = student.personalInfo?.image?.url || student.personalInfo?.image || '';
+        const studentMobile = student.personalInfo?.contactDetails?.mobileNumber || student.personalInfo?.mobileNumber || '';
+        const studentEmail = student.personalInfo?.contactDetails?.email || student.personalInfo?.email || '';
+
+        profileData = {
+          ...profileData,
+          fullName: student.personalInfo?.name || profileData.fullName,
+          role: 'Student',
+          department: dept || profileData.department || 'Student',
+          mobile: studentMobile || profileData.mobile,
+          email: studentEmail || (profileData.email && !profileData.email.endsWith('.invalid') ? profileData.email : ''),
+          employeeId: student.personalInfo?.stdId || profileData.employeeId,
+          image: studentImg || profileData.image,
+          profilePicture: studentImg || profileData.profilePicture,
+          createdAt: student.personalInfo?.admissionDate || student.createdAt || profileData.createdAt,
+          admissionDate: student.personalInfo?.admissionDate || student.createdAt
         };
       }
     }
@@ -323,6 +455,20 @@ exports.uploadAvatar = async (req, res) => {
       if (parent) {
         parent.profilePhoto = avatarPath;
         await parent.save();
+      }
+
+      const student = await Student.findById(user.refId);
+      if (student) {
+        if (!student.personalInfo) student.personalInfo = {};
+        student.personalInfo.image = avatarPath;
+        await student.save();
+      }
+
+      const admApp = await AdmissionApplication.findById(user.refId);
+      if (admApp) {
+        if (!admApp.personalInfo) admApp.personalInfo = {};
+        admApp.personalInfo.image = avatarPath;
+        await admApp.save();
       }
     }
 

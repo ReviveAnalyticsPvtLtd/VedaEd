@@ -24,7 +24,7 @@ const {
   displayRoleForHolder,
   validateParentAccountForHolder,
 } = require("../admission/parentAccountUtils");
-const { generateNextParentId, peekNextParentId } = require("../../utils/parentIdGenerator");
+const { generateNextParentId, peekNextParentId, generateNextParentIdBlock } = require("../../utils/parentIdGenerator");
 const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
 
 const safeDocumentPath = (filename) => {
@@ -131,10 +131,25 @@ function mapChildrenForParentProfile(children = []) {
   });
 }
 
+function resolveParentProfilePhoto(rawPath) {
+  if (!rawPath || typeof rawPath !== "string") return "";
+  const trimmed = rawPath.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const filename = path.basename(trimmed);
+  const diskPath = path.join(UPLOADS_DIR, filename);
+  try {
+    if (fs.existsSync(diskPath)) {
+      return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    }
+  } catch (_) {}
+  return "";
+}
+
 /** Admission-linked parent: only explicit `parentProfilePhoto` upload — never student passport docs. */
 function resolveParentProfilePhotoFromApplication(application) {
   const custom = application?.parentProfilePhoto && String(application.parentProfilePhoto).trim();
-  return custom || "";
+  return resolveParentProfilePhoto(custom);
 }
 
 function pickPhotoPathFromParentDocuments(parentDoc) {
@@ -158,8 +173,8 @@ function pickPhotoPathFromParentDocuments(parentDoc) {
 
 function resolveParentProfilePhotoFromParentDoc(parentDoc) {
   const custom = parentDoc?.profilePhoto && String(parentDoc.profilePhoto).trim();
-  if (custom) return custom;
-  return pickPhotoPathFromParentDocuments(parentDoc);
+  if (custom) return resolveParentProfilePhoto(custom);
+  return resolveParentProfilePhoto(pickPhotoPathFromParentDocuments(parentDoc));
 }
 
 /** Parse `adm-<mongoId>` or legacy `adm-<mongoId>-f|m|g` from parent dashboard routes. */
@@ -178,13 +193,55 @@ function legacySuffixToHolder(suffix) {
   return null;
 }
 
-/** Admission synthetic route id `adm-<applicationObjectId>` → same shape as getParentbyId uses internally. */
-function buildSyntheticParentDocFromRoute(routeId, application) {
-  if (!application || !routeId) return null;
-  const parsed = parseAdmissionSyntheticParentRouteId(routeId);
-  if (!parsed) return null;
+/** Find admission application by stdId (e.g. STD-2026-0036), synthetic adm-<id>, ObjectId, or parentId */
+async function findAdmissionApplicationByIdOrStdId(id, schoolId) {
+  if (!id || typeof id !== "string") return null;
+  const trimmed = id.trim();
 
-  const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+  // 1. Check by personalInfo.stdId (e.g. STD-2026-0036)
+  let app = await AdmissionApplication.findOne({
+    "personalInfo.stdId": trimmed,
+    schoolId,
+  });
+  if (app) return app;
+
+  // 2. Synthetic route id: adm-<applicationObjectId>
+  if (trimmed.startsWith("adm-")) {
+    const parsed = parseAdmissionSyntheticParentRouteId(trimmed);
+    if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
+      app = await AdmissionApplication.findOne({
+        _id: parsed.applicationId,
+        schoolId,
+      });
+      if (app) return app;
+    }
+  }
+
+  // 3. Raw MongoDB ObjectId
+  if (mongoose.Types.ObjectId.isValid(trimmed)) {
+    app = await AdmissionApplication.findOne({
+      _id: trimmed,
+      schoolId,
+    });
+    if (app) return app;
+  }
+
+  // 4. parentId (e.g. PRN-2026-0017)
+  app = await AdmissionApplication.findOne({
+    "parents.parentId": trimmed,
+    schoolId,
+  });
+  if (app) return app;
+
+  return null;
+}
+
+/** Admission synthetic route id or stdId → same shape as getParentbyId uses internally. */
+function buildSyntheticParentDocFromRoute(routeId, application) {
+  if (!application) return null;
+  const parsed = parseAdmissionSyntheticParentRouteId(routeId);
+
+  const legacyHolder = parsed ? legacySuffixToHolder(parsed.legacySuffix) : null;
   const holder = legacyHolder || normalizeParentIdAccountHolder(
     application.parents?.parentIdAccountHolder,
     application.parents || {}
@@ -199,12 +256,20 @@ function buildSyntheticParentDocFromRoute(routeId, application) {
         : (application.parents?.guardian?.name || "Guardian"));
 
   const relLabel = displayRoleForHolder(application.parents || {}, holder);
+  const stdId = application.personalInfo?.stdId;
+  const effectiveId = (stdId && stdId !== "N/A") ? stdId : (routeId || `adm-${application._id}`);
+  const parentId =
+    application.parents?.parentId ||
+    (parsed?.applicationId
+      ? `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`
+      : `PRN-ADM-${application._id.toString().slice(-6).toUpperCase()}`);
+
   return {
-    _id: routeId,
+    _id: effectiveId,
     name,
     email: person.email || application.contactInfo?.email || "",
     phone: person.phone || application.contactInfo?.phone || "",
-    parentId: application.parents?.parentId || `PRN-ADM-${parsed.applicationId.slice(-6).toUpperCase()}`,
+    parentId,
     status: "Active",
     role: relLabel,
     relation: relLabel,
@@ -482,9 +547,15 @@ exports.getAllParents = async (req, res) => {
       createdAt: parent.createdAt,
       updatedAt: parent.updatedAt,
       photo: resolveParentProfilePhotoFromParentDoc(parent),
-      children: parent.children.length > 0 ? parent.children.map(child => ({
-        stdId: child.personalInfo?.stdId
-      })) : []
+      children: Array.isArray(parent.children) && parent.children.length > 0
+        ? parent.children.map(child => {
+            if (!child) return null;
+            if (typeof child === "object") {
+              return { stdId: child.personalInfo?.stdId || child.stdId || "" };
+            }
+            return { stdId: String(child) };
+          }).filter(Boolean)
+        : []
     }));
 
     const admissionParents = [];
@@ -512,7 +583,7 @@ exports.getAllParents = async (req, res) => {
       }
 
       admissionParents.push({
-        _id: `adm-${app._id}`,
+        _id: (stdId && stdId !== "N/A") ? stdId : `adm-${app._id}`,
         name: String(name).trim(),
         email: person.email || "N/A",
         phone: person.phone || app.contactInfo?.phone || "N/A",
@@ -531,18 +602,18 @@ exports.getAllParents = async (req, res) => {
     // Filter admission parents by role if requested
     let filteredAdmissionParents = admissionParents;
     if (role && role !== "All Roles") {
-        const rLower = role.toLowerCase();
-        filteredAdmissionParents = admissionParents.filter(p => {
-            const pRole = p.role.toLowerCase();
-            // Map Father/Mother to Primary/Secondary if needed or just match directly
-            if (rLower === "primary guardian") {
-                return pRole === "father" || pRole === "primary guardian";
-            }
-            if (rLower === "secondary guardian") {
-                return pRole === "mother" || pRole === "secondary guardian";
-            }
-            return pRole === rLower;
-        });
+      const rLower = role.toLowerCase();
+      filteredAdmissionParents = admissionParents.filter(p => {
+        const pRole = p.role.toLowerCase();
+        // Map Father/Mother to Primary/Secondary if needed or just match directly
+        if (rLower === "primary guardian") {
+          return pRole === "father" || pRole === "primary guardian";
+        }
+        if (rLower === "secondary guardian") {
+          return pRole === "mother" || pRole === "secondary guardian";
+        }
+        return pRole === rLower;
+      });
     }
 
     const mergedParents = [...formattedSISParents, ...filteredAdmissionParents];
@@ -572,23 +643,21 @@ exports.getParentbyId = async (req, res) => {
       });
     }
 
-    let parentDoc;
-    if (id.startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(404).json({ success: false, message: "Invalid admission parent id" });
-      }
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
-        schoolId,
-      }).lean();
-      if (!application) {
-        return res.status(404).json({ success: false, message: "Parent not found in Admissions" });
-      }
+    let parentDoc = null;
+    // 1. Try finding in AdmissionApplication (by stdId, synthetic adm-, ObjectId, or parentId)
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
+      const appPlain = application.toObject ? application.toObject() : application;
+      parentDoc = buildSyntheticParentDocFromRoute(id, appPlain);
+    }
 
-      parentDoc = buildSyntheticParentDocFromRoute(id, application);
-    } else if (mongoose.Types.ObjectId.isValid(id)) {
-      parentDoc = await Parent.findOne({ _id: id, schoolId }).populate({
+    // 2. If not found in AdmissionApplication, try SIS Parent
+    if (!parentDoc) {
+      const sisQuery = mongoose.Types.ObjectId.isValid(id)
+        ? { _id: id, schoolId }
+        : { parentId: id, schoolId };
+
+      parentDoc = await Parent.findOne(sisQuery).populate({
         path: 'children',
         populate: [
           { path: 'personalInfo.class', select: 'name' },
@@ -598,54 +667,6 @@ exports.getParentbyId = async (req, res) => {
 
       if (parentDoc) {
         parentDoc.photo = resolveParentProfilePhotoFromParentDoc(parentDoc);
-      }
-
-      if (!parentDoc) {
-        // Try finding in AdmissionApplication
-        const application = await AdmissionApplication.findOne({ _id: id, schoolId }).lean();
-        if (application) {
-          const holder = normalizeParentIdAccountHolder(
-            application.parents?.parentIdAccountHolder,
-            application.parents || {}
-          );
-          const person = getPersonForHolder(application.parents || {}, holder);
-          const accName =
-            (person.name && String(person.name).trim()) ||
-            application.parents?.father?.name ||
-            application.personalInfo?.fatherName ||
-            "N/A";
-          const relLabel = displayRoleForHolder(application.parents || {}, holder);
-          parentDoc = {
-            _id: application._id,
-            name: accName,
-            fatherName: application.parents?.father?.name || application.personalInfo?.fatherName,
-            motherName: application.parents?.mother?.name || application.personalInfo?.motherName,
-            email: person.email || application.parents?.father?.email || application.parents?.mother?.email || application.contactInfo?.email,
-            phone: person.phone || application.parents?.father?.phone || application.parents?.mother?.phone || application.contactInfo?.phone,
-            occupation: person.occupation || "",
-            relation: relLabel,
-            role: relLabel,
-            parentId: application.parents?.parentId || `PRN-ADM-${application._id.toString().slice(-6).toUpperCase()}`,
-            password: "default123",
-            address: application.contactInfo?.address,
-            contactInfo: application.contactInfo,
-            photo: resolveParentProfilePhotoFromApplication(application),
-            children: [
-              {
-                personalInfo: {
-                  stdId: application.personalInfo?.stdId,
-                  name: application.personalInfo?.name,
-                  class:
-                    application.personalInfo?.classApplied ||
-                    application.personalInfo?.class ||
-                    "",
-                  section: application.personalInfo?.section || "",
-                  rollNo: application.personalInfo?.rollNo || "",
-                },
-              },
-            ],
-          };
-        }
       }
     }
 
@@ -686,24 +707,10 @@ exports.updateParent = async (req, res) => {
       });
     }
 
-    if (id.startsWith("adm-")) {
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
       const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
-
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
-        schoolId,
-      });
-      if (!application) {
-        return res.status(404).json({
-          success: false,
-          message: "Parent not found in Admissions",
-        });
-      }
-
-      const legacyHolder = legacySuffixToHolder(parsed.legacySuffix);
+      const legacyHolder = parsed ? legacySuffixToHolder(parsed.legacySuffix) : null;
       const existingParents = application.parents?.toObject
         ? application.parents.toObject()
         : application.parents || {};
@@ -758,10 +765,8 @@ exports.updateParent = async (req, res) => {
       if (updateData.address !== undefined) mergedContact.address = updateData.address;
 
       try {
-        // The write is tenant-scoped as well, so a foreign-school application
-        // can never be mutated through this route.
         const writeResult = await AdmissionApplication.findOneAndUpdate(
-          { _id: parsed.applicationId, schoolId },
+          { _id: application._id, schoolId },
           { $set: { parents: mergedParents, contactInfo: mergedContact } },
           { new: true, runValidators: true }
         );
@@ -780,7 +785,7 @@ exports.updateParent = async (req, res) => {
       }
 
       const fresh = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+        _id: application._id,
         schoolId,
       }).lean();
       const syntheticDoc = buildSyntheticParentDocFromRoute(id, fresh);
@@ -788,7 +793,10 @@ exports.updateParent = async (req, res) => {
       return res.status(200).json({ success: true, parent: out });
     }
 
-    const parentExist = await Parent.findOne({ _id: id, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id, schoolId }
+      : { parentId: id, schoolId };
+    const parentExist = await Parent.findOne(parentQuery);
     if (!parentExist) {
       return res.status(404).json({
         success: false,
@@ -815,7 +823,7 @@ exports.updateParent = async (req, res) => {
     // A client-supplied schoolId must never move a parent between schools.
     delete updateData.schoolId;
 
-    const updatedParent = await Parent.findOneAndUpdate({ _id: id, schoolId }, updateData, {
+    const updatedParent = await Parent.findOneAndUpdate(parentQuery, updateData, {
       new: true,
       runValidators: true,
     })
@@ -934,13 +942,10 @@ exports.uploadProfilePhoto = async (req, res) => {
     const { id } = req.params;
     const fileUrl = `/uploads/${req.file.filename}`;
 
-    if (id.startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(id);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(id, schoolId);
+    if (application) {
       const updated = await AdmissionApplication.findOneAndUpdate(
-        { _id: parsed.applicationId, schoolId },
+        { _id: application._id, schoolId },
         { $set: { parentProfilePhoto: fileUrl } },
         { new: true }
       ).select("parentProfilePhoto");
@@ -954,12 +959,12 @@ exports.uploadProfilePhoto = async (req, res) => {
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid parent id" });
-    }
+    const parentQuery = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id, schoolId }
+      : { parentId: id, schoolId };
 
     const parent = await Parent.findOneAndUpdate(
-      { _id: id, schoolId },
+      parentQuery,
       { $set: { profilePhoto: fileUrl } },
       { new: true, runValidators: true }
     ).select("profilePhoto");
@@ -1010,13 +1015,10 @@ exports.uploadDocument = async (req, res) => {
       fileType: req.file.mimetype || "",
     };
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
       const updated = await AdmissionApplication.findOneAndUpdate(
-        { _id: parsed.applicationId, schoolId },
+        { _id: application._id, schoolId },
         { $push: { documents: admissionDocumentData } },
         { new: true, runValidators: true }
       ).select("documents");
@@ -1031,7 +1033,10 @@ exports.uploadDocument = async (req, res) => {
       });
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery);
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
     }
@@ -1064,13 +1069,10 @@ exports.getAllDocuments = async (req, res) => {
     const { parentId } = req.params;
     console.log("Getting documents for parentId:", parentId);
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
       const app = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+        _id: application._id,
         schoolId,
       })
         .select("documents")
@@ -1084,7 +1086,10 @@ exports.getAllDocuments = async (req, res) => {
       return res.status(200).json(onlyParentUploads);
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId }).select("documents");
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery).select("documents");
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1139,19 +1144,16 @@ exports.deleteDocument = async (req, res) => {
   try {
     const { parentId, documentId } = req.params;
 
-    if (String(parentId).startsWith("adm-")) {
-      const parsed = parseAdmissionSyntheticParentRouteId(parentId);
-      if (!parsed) {
-        return res.status(400).json({ success: false, message: "Invalid admission parent id" });
-      }
-      const application = await AdmissionApplication.findOne({
-        _id: parsed.applicationId,
+    const application = await findAdmissionApplicationByIdOrStdId(parentId, schoolId);
+    if (application) {
+      const appDoc = await AdmissionApplication.findOne({
+        _id: application._id,
         schoolId,
       });
-      if (!application) {
+      if (!appDoc) {
         return res.status(404).json({ success: false, message: "Admission record not found" });
       }
-      const targetDocument = application.documents.id(documentId);
+      const targetDocument = appDoc.documents.id(documentId);
       if (!targetDocument) {
         return res.status(404).json({ success: false, message: "Document not found" });
       }
@@ -1168,15 +1170,18 @@ exports.deleteDocument = async (req, res) => {
           fs.unlinkSync(filePath);
         }
       }
-      application.documents.pull({ _id: documentId });
-      await application.save();
+      appDoc.documents.pull({ _id: documentId });
+      await appDoc.save();
       return res.status(200).json({
         success: true,
         message: "Document deleted successfully",
       });
     }
 
-    const parent = await Parent.findOne({ _id: parentId, schoolId });
+    const parentQuery = mongoose.Types.ObjectId.isValid(parentId)
+      ? { _id: parentId, schoolId }
+      : { parentId, schoolId };
+    const parent = await Parent.findOne(parentQuery);
 
     if (!parent) {
       return res.status(404).json({ success: false, message: "Parent not found" });
@@ -1303,36 +1308,27 @@ exports.getParentDashboardStats = async (req, res) => {
 
     for (const c of candidates) {
       const str = String(c);
-      if (str.startsWith("adm-")) {
-        const parsed = parseAdmissionSyntheticParentRouteId(str);
-        if (parsed && mongoose.Types.ObjectId.isValid(parsed.applicationId)) {
-          admissionApp = await AdmissionApplication.findOne({
-            _id: parsed.applicationId,
-            schoolId,
-          }).lean();
-          if (admissionApp) break;
-        }
-        continue;
-      }
-      if (!mongoose.Types.ObjectId.isValid(str)) continue;
-
-      parent = await Parent.findOne({ _id: str, schoolId }).populate(populateChildren).lean();
-      if (parent) break;
-
-      // Maybe the id is a User._id → resolve its refId to the Parent
-      const user = await User.findOne({ _id: str, schoolId }).lean().catch(() => null);
-      if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
-        parent = await Parent.findOne({ _id: user.refId, schoolId })
-          .populate(populateChildren)
-          .lean();
-        if (parent) break;
-      }
-
-      // Admission-linked parents use the application _id as their refId
-      const app = await AdmissionApplication.findOne({ _id: str, schoolId }).lean();
+      const app = await findAdmissionApplicationByIdOrStdId(str, schoolId);
       if (app) {
-        admissionApp = app;
+        admissionApp = app.toObject ? app.toObject() : app;
         break;
+      }
+
+      if (mongoose.Types.ObjectId.isValid(str)) {
+        parent = await Parent.findOne({ _id: str, schoolId }).populate(populateChildren).lean();
+        if (parent) break;
+
+        // Maybe the id is a User._id → resolve its refId to the Parent
+        const user = await User.findOne({ _id: str, schoolId }).lean().catch(() => null);
+        if (user && user.refId && mongoose.Types.ObjectId.isValid(user.refId)) {
+          parent = await Parent.findOne({ _id: user.refId, schoolId })
+            .populate(populateChildren)
+            .lean();
+          if (parent) break;
+        }
+      } else {
+        parent = await Parent.findOne({ parentId: str, schoolId }).populate(populateChildren).lean();
+        if (parent) break;
       }
     }
 
@@ -1526,10 +1522,10 @@ exports.getParentDashboardStats = async (req, res) => {
     const assignments =
       pairs.length > 0
         ? await dashSafe(
-            () =>
-              Assignment.find({ $or: pairs, status: "Active" }).lean(),
-            []
-          )
+          () =>
+            Assignment.find({ $or: pairs, status: "Active" }).lean(),
+          []
+        )
         : [];
     const childKeyByClassSection = {};
     for (const [childId, pair] of pairByChildId.entries()) {
@@ -1636,16 +1632,16 @@ exports.getParentDashboardStats = async (req, res) => {
     const complaints = await dashSafe(
       () =>
         parentRefId &&
-        mongoose.Types.ObjectId.isValid(
-          String(parentRefId).replace(/^adm-/, "")
-        )
+          mongoose.Types.ObjectId.isValid(
+            String(parentRefId).replace(/^adm-/, "")
+          )
           ? Complaint.find({
-              complainant: parentRefId,
-              complainantModel: "Parent",
-            })
-              .sort({ createdAt: -1 })
-              .limit(20)
-              .lean()
+            complainant: parentRefId,
+            complainantModel: "Parent",
+          })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean()
           : Promise.resolve([]),
       []
     );
@@ -1750,7 +1746,8 @@ exports.importParents = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
   try {
-    const parentsData = req.body;
+    const rawData = req.body;
+    const parentsData = Array.isArray(rawData) ? rawData : (rawData?.parents || []);
 
     if (!parentsData || !Array.isArray(parentsData) || parentsData.length === 0) {
       return res.status(400).json({
@@ -1765,67 +1762,286 @@ exports.importParents = async (req, res) => {
 
     const getVal = (row, keys) => {
       for (const k of keys) {
-        if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
+        if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
+          return String(row[k]).trim();
+        }
+      }
+      const rowKeyMap = {};
+      for (const rk of Object.keys(row)) {
+        const norm = rk.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!rowKeyMap[norm]) rowKeyMap[norm] = rk;
+      }
+      for (const k of keys) {
+        const normK = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (rowKeyMap[normK]) {
+          const actualKey = rowKeyMap[normK];
+          if (row[actualKey] !== undefined && row[actualKey] !== null && String(row[actualKey]).trim() !== "") {
+            return String(row[actualKey]).trim();
+          }
+        }
       }
       return "";
     };
 
+    const roleMap = {
+      "primary guardian": "Primary Guardian",
+      "secondary guardian": "Secondary Guardian",
+      "father": "Father",
+      "mother": "Mother",
+      "guardian": "Guardian"
+    };
+
+    // Cache password hashes so 500 identical passwords hash once instead of 500 times
+    const passwordHashCache = new Map();
+    const hashPasswordCached = async (plain) => {
+      const p = plain || "default123";
+      if (passwordHashCache.has(p)) return passwordHashCache.get(p);
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(p, salt);
+      passwordHashCache.set(p, hash);
+      return hash;
+    };
+
+    // Step 1: Pre-process and validate rows in-memory
+    const parsedRows = [];
+    const allIdentifiersSet = new Set();
+    const allPhonesSet = new Set();
+    const allEmailsSet = new Set();
+    const seenInBatch = new Set();
+    const seenEmailsInBatch = new Set();
+
     for (const pData of parentsData) {
-      try {
-        const name = getVal(pData, ["Name", "name", "Parent Name", "Guardian Name", "Full Name", "Father Name", "Mother Name"]);
-        const email = getVal(pData, ["Email", "email", "Email ID", "Email Address", "Contact Email"]);
-        const phone = getVal(pData, ["Phone", "phone", "Mobile", "Mobile Number", "Contact", "Phone Number", "Contact Number"]);
-        const studentIdStr = getVal(pData, ["Student ID", "StudentId", "studentId", "Student_ID", "SID"]);
-        const linkedStudentIds = studentIdStr ? studentIdStr.split(",").map(id => id.trim()) : [];
+      const name = getVal(pData, ["name", "Name", "Parent Name", "Guardian Name", "Full Name", "Father Name", "Mother Name"]);
+      const email = getVal(pData, ["email", "Email", "Email ID", "Email Address", "Contact Email"]);
+      const phone = getVal(pData, ["phone", "Phone", "Mobile", "Mobile Number", "Contact", "Phone Number", "Contact Number"]);
+      const studentIdStr = getVal(pData, [
+        "linkedStudentId",
+        "linkedStudentIds",
+        "Linked Student ID",
+        "Linked Student Id",
+        "LinkedStudentID",
+        "linked_student_id",
+        "Student ID",
+        "StudentId",
+        "studentId",
+        "Student_ID",
+        "SID"
+      ]);
+      const linkedStudentIds = studentIdStr
+        ? studentIdStr.split(",").map((id) => id.trim()).filter(Boolean)
+        : [];
 
-        if (!name || !phone) {
-          console.warn(`Import Parent failed: missing name/phone for row:`, pData);
-          results.errors.push({ name: name || "Unknown", reason: "Name and Phone are required" });
+      if (!name || !phone) {
+        results.errors.push({ name: name || "Unknown", reason: "Name and Phone are required" });
+        continue;
+      }
+
+      const batchKey = `${name.toLowerCase()}:${phone}`;
+      if (seenInBatch.has(batchKey) || (email && seenEmailsInBatch.has(email.toLowerCase()))) {
+        results.skipped.push({ name, reason: "Duplicate parent record in import file" });
+        continue;
+      }
+      seenInBatch.add(batchKey);
+      if (email) seenEmailsInBatch.add(email.toLowerCase());
+
+      const rawRole = getVal(pData, ["Role", "role", "Relation", "relation"]) || "Primary Guardian";
+      const normalizedRole = rawRole.toLowerCase().trim();
+      const role = roleMap[normalizedRole] ||
+        (["Primary Guardian", "Secondary Guardian", "Father", "Mother", "Guardian"].includes(rawRole) ? rawRole : "Guardian");
+
+      const statusRaw = getVal(pData, ["Status", "status"]) || "Active";
+      const status = statusRaw.toLowerCase() === "inactive" ? "Inactive" : "Active";
+      const password = getVal(pData, ["Password", "password", "Pass"]) || "default123";
+
+      for (const sid of linkedStudentIds) {
+        allIdentifiersSet.add(sid);
+      }
+      allPhonesSet.add(phone);
+      if (email) allEmailsSet.add(email.toLowerCase());
+
+      parsedRows.push({
+        name,
+        email,
+        phone,
+        studentIdStr,
+        linkedStudentIds,
+        role,
+        status,
+        password,
+        rawRow: pData
+      });
+    }
+
+    // Step 2: Bulk pre-fetch all students and existing parents in 2 parallel queries
+    const [matchingStudents, existingParents] = await Promise.all([
+      allIdentifiersSet.size > 0
+        ? findStudentsByIdentifiers(Array.from(allIdentifiersSet), schoolId)
+        : Promise.resolve([]),
+      Parent.find({
+        schoolId,
+        $or: [
+          { phone: { $in: Array.from(allPhonesSet) } },
+          ...(allEmailsSet.size > 0 ? [{ email: { $in: Array.from(allEmailsSet) } }] : [])
+        ]
+      })
+    ]);
+
+    const studentLookup = new Map();
+    for (const s of matchingStudents) {
+      if (s.personalInfo?.stdId) studentLookup.set(s.personalInfo.stdId.toLowerCase(), s._id);
+      if (s.personalInfo?.username) studentLookup.set(s.personalInfo.username.toLowerCase(), s._id);
+      studentLookup.set(s._id.toString(), s._id);
+    }
+
+    const existingParentMap = new Map();
+    for (const ep of existingParents) {
+      if (ep.phone) existingParentMap.set(`phone:${ep.phone}`, ep);
+      if (ep.email) existingParentMap.set(`email:${ep.email.toLowerCase()}`, ep);
+    }
+
+    // Step 3: Classify rows into repair vs create vs skip vs error
+    const parentsToCreate = [];
+    const parentsToRepair = [];
+
+    for (const row of parsedRows) {
+      let resolvedStudentIds = [];
+      if (row.linkedStudentIds.length > 0) {
+        resolvedStudentIds = row.linkedStudentIds
+          .map((id) => studentLookup.get(id.toLowerCase()))
+          .filter(Boolean);
+
+        if (resolvedStudentIds.length === 0) {
+          results.errors.push({
+            name: row.name,
+            reason: `Linked Student ID not found: "${row.studentIdStr}"`,
+          });
+          continue;
+        }
+      }
+
+      const existing = existingParentMap.get(`phone:${row.phone}`) ||
+        (row.email ? existingParentMap.get(`email:${row.email.toLowerCase()}`) : null);
+
+      if (existing) {
+        // If existing parent already has children linked, skip as true duplicate
+        if (existing.children && existing.children.length > 0) {
+          results.skipped.push({ name: row.name, reason: `Exists (ID: ${existing.parentId || existing._id})` });
           continue;
         }
 
-        const existing = await Parent.findOne({ name, phone, schoolId }).select("_id parentId").lean();
-        if (existing) {
-          results.skipped.push({ name, reason: `Exists (ID: ${existing.parentId || existing._id})` });
-          continue;
-        }
-
-        const parentId = await generateNextParentId();
-        const password = getVal(pData, ["Password", "password", "Pass"]) || "default123";
-
-        const rawRole = getVal(pData, ["Role", "role", "Relation", "relation"]) || "Primary Guardian";
-        const role = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
-
-        const parent = await Parent.create({
-          name, email, phone, parentId, password,
-          status: getVal(pData, ["Status", "status"]) || "Active",
-          role: ["Primary Guardian", "Secondary Guardian", "Father", "Mother", "Guardian"].includes(role) ? role : "Guardian",
-          schoolId,
-          children: []
+        // Existing parent was imported previously without linked children: repair relationship
+        parentsToRepair.push({
+          parent: existing,
+          resolvedStudentIds,
+          role: row.role,
+          name: row.name,
+          parentId: existing.parentId
         });
+        continue;
+      }
 
-        if (linkedStudentIds.length > 0) {
-          const students = await findStudentsByIdentifiers(linkedStudentIds, schoolId);
-          if (students.length > 0) {
-            await Student.updateMany({ _id: { $in: students.map(s => s._id) }, schoolId }, { $set: { parent: parent._id } });
-            parent.children.push(...students.map(s => s._id));
-            await parent.save();
+      parentsToCreate.push({
+        ...row,
+        resolvedStudentIds
+      });
+    }
+
+    // Step 4: Execute repairs for existing records in bulk
+    if (parentsToRepair.length > 0) {
+      const parentBulkOps = parentsToRepair.map((rep) => ({
+        updateOne: {
+          filter: { _id: rep.parent._id },
+          update: {
+            $set: {
+              children: rep.resolvedStudentIds,
+              role: rep.role
+            }
           }
         }
+      }));
+      await Parent.bulkWrite(parentBulkOps);
 
-        results.imported.push({ _id: parent._id, name, parentId });
-
-        if (parentRoleDoc) {
-          try {
-            await require('../../models/User').create({
-              name, email: email || parentId, password,
-              roleId: parentRoleDoc._id, refId: parent._id, schoolId, status: 'active'
-            });
-          } catch (e) { console.warn(`Auth creation fail for ${name}:`, e.message); }
+      const studentBulkOps = [];
+      for (const rep of parentsToRepair) {
+        if (rep.resolvedStudentIds.length > 0) {
+          studentBulkOps.push({
+            updateMany: {
+              filter: { _id: { $in: rep.resolvedStudentIds }, schoolId },
+              update: { $set: { parent: rep.parent._id } }
+            }
+          });
         }
-      } catch (rowErr) {
-        console.error(`Error processing parent row:`, rowErr.message);
-        results.errors.push({ name: pData.Name || pData.name || "Unknown", reason: rowErr.message });
+        results.imported.push({ _id: rep.parent._id, name: rep.name, parentId: rep.parentId });
+      }
+
+      if (studentBulkOps.length > 0) {
+        await Student.bulkWrite(studentBulkOps);
+      }
+    }
+
+    // Step 5: Allocate atomic ID block & bulk create new records
+    if (parentsToCreate.length > 0) {
+      const parentIds = await generateNextParentIdBlock(parentsToCreate.length);
+
+      const docsToInsert = parentsToCreate.map((row, idx) => {
+        const parentId = parentIds[idx];
+        const finalEmail = row.email || `${parentId.toLowerCase()}@parent.vedaed`;
+        return {
+          name: row.name,
+          email: finalEmail,
+          phone: row.phone,
+          parentId,
+          password: row.password,
+          status: row.status,
+          role: row.role,
+          schoolId,
+          children: row.resolvedStudentIds
+        };
+      });
+
+      const createdParents = await Parent.insertMany(docsToInsert);
+
+      // Link students to newly created parents using bulkWrite
+      const studentCreateBulkOps = [];
+      for (let i = 0; i < createdParents.length; i++) {
+        const cp = createdParents[i];
+        const resolvedStudentIds = parentsToCreate[i].resolvedStudentIds;
+        if (resolvedStudentIds.length > 0) {
+          studentCreateBulkOps.push({
+            updateMany: {
+              filter: { _id: { $in: resolvedStudentIds }, schoolId },
+              update: { $set: { parent: cp._id } }
+            }
+          });
+        }
+        results.imported.push({ _id: cp._id, name: cp.name, parentId: cp.parentId });
+      }
+
+      if (studentCreateBulkOps.length > 0) {
+        await Student.bulkWrite(studentCreateBulkOps);
+      }
+
+      // Create User login accounts with cached bcrypt hashes
+      if (parentRoleDoc) {
+        const usersToInsert = [];
+        for (let i = 0; i < createdParents.length; i++) {
+          const cp = createdParents[i];
+          const hashedPassword = await hashPasswordCached(parentsToCreate[i].password);
+          usersToInsert.push({
+            name: cp.name,
+            email: cp.email,
+            password: hashedPassword,
+            roleId: parentRoleDoc._id,
+            refId: cp._id,
+            schoolId,
+            status: "active"
+          });
+        }
+        try {
+          await User.insertMany(usersToInsert, { ordered: false });
+        } catch (e) {
+          console.warn("User auth insert note:", e.message);
+        }
       }
     }
 

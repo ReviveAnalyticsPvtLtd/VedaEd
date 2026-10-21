@@ -1,4 +1,6 @@
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { authFetch } from "../../services/apiClient";
 
 const breadcrumbLabels = {
   admin: "Admin",
@@ -11,6 +13,12 @@ const breadcrumbLabels = {
   student: "Student",
   staff: "Staff",
   parents: "Parents",
+
+  "student-profile": "Student Profile",
+  "staff-profile": "Staff Profile",
+  "parent-profile": "Parent Profile",
+  "final-student-profile": "Final Student Profile",
+  "final-student-list": "Final Student List",
 
   attendance: "Attendance",
   overview: "Overview",
@@ -45,6 +53,10 @@ const breadcrumbLabels = {
   "entrance-list": "Entrance List",
   "interview-list": "Interview List",
   "document-verification": "Document Verification",
+  "vacancy-setup": "Vacancy Setup",
+  "application-list": "Application List",
+  "status-tracking": "Status Tracking",
+  "selected-student": "Selected Student",
 
   hr: "HR",
   "staff-directory": "Staff Directory",
@@ -59,7 +71,19 @@ const breadcrumbLabels = {
   complaints: "Complaints",
 };
 
-function getLabel(segment) {
+const routeRedirects = {
+  "/admin/student-profile": "/admin/students",
+  "/superadmin/student-profile": "/superadmin/students",
+  "/admission/final-student-profile": "/admission/final-student-list",
+};
+
+const isMongoObjectId = (str) => /^[0-9a-fA-F]{24}$/.test(String(str || "").trim());
+const isHashedId = (str) => /^(adm-)?[0-9a-fA-F]{24}(?:-[fmg])?$/i.test(String(str || "").trim());
+
+function getStandardLabel(segment) {
+  if (/^(STD|PRN|ADM|TCH|STF|EMP)-\d+/i.test(segment)) {
+    return segment.toUpperCase();
+  }
   return (
     breadcrumbLabels[segment] ||
     segment
@@ -68,36 +92,239 @@ function getLabel(segment) {
   );
 }
 
-export function Breadcrumbs()  {
+export function Breadcrumbs() {
   const location = useLocation();
+  const [dynamicLabels, setDynamicLabels] = useState({});
 
-  const pathSegments = location.pathname
-    .split("/")
-    .filter(Boolean);
+  const pathSegments = useMemo(() => {
+    return location.pathname.split("/").filter(Boolean);
+  }, [location.pathname]);
+
+  // Listen to custom event dispatched by profile components
+  useEffect(() => {
+    const handleUpdate = (event) => {
+      const { segment, label } = event?.detail || {};
+      if (segment && label) {
+        setDynamicLabels((prev) => {
+          if (prev[segment] === label) return prev;
+          return { ...prev, [segment]: label };
+        });
+      }
+    };
+
+    window.addEventListener("breadcrumb:update-label", handleUpdate);
+    return () => window.removeEventListener("breadcrumb:update-label", handleUpdate);
+  }, []);
+
+  // Check location.state and session storage for student ID on path changes
+  useEffect(() => {
+    const state = location.state;
+    if (state && pathSegments.length > 0) {
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const stateStdId =
+        state.personalInfo?.stdId ||
+        state.stdId ||
+        state.children?.[0]?.stdId ||
+        state.children?.[0]?.personalInfo?.stdId ||
+        state.personalInfo?.studentId ||
+        state.studentId ||
+        state.student_id ||
+        state.studentCode ||
+        state.admissionNumber ||
+        state.parentId;
+
+      if (stateStdId && (isMongoObjectId(lastSegment) || isHashedId(lastSegment))) {
+        setDynamicLabels((prev) => ({ ...prev, [lastSegment]: stateStdId }));
+        try {
+          sessionStorage.setItem("breadcrumb_label_" + lastSegment, stateStdId);
+        } catch (_) {}
+      }
+    }
+  }, [location.pathname, location.state, pathSegments]);
+
+  // Auto-fetch readable ID if segment is an ObjectId or hashed/synthetic and not yet resolved
+  useEffect(() => {
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    if (!lastSegment || (!isMongoObjectId(lastSegment) && !isHashedId(lastSegment))) return;
+
+    const isStudentRoute =
+      pathSegments.includes("student-profile") ||
+      pathSegments.includes("final-student-profile") ||
+      pathSegments.includes("students");
+
+    const isParentRoute =
+      pathSegments.includes("parent-profile") ||
+      pathSegments.includes("parents");
+
+    if (!isStudentRoute && !isParentRoute) return;
+
+    // Check if already in state or sessionStorage
+    if (dynamicLabels[lastSegment]) return;
+    try {
+      const cached = sessionStorage.getItem("breadcrumb_label_" + lastSegment);
+      if (cached) {
+        setDynamicLabels((prev) => ({ ...prev, [lastSegment]: cached }));
+        return;
+      }
+    } catch (_) {}
+
+    let isMounted = true;
+
+    if (isParentRoute) {
+      const fetchParentLabel = async () => {
+        try {
+          const res = await authFetch(`/parents/${lastSegment}`);
+          if (res.ok) {
+            const data = await res.json();
+            const raw = data.parent ?? data.data ?? data;
+            const foundStdId =
+              raw?.children?.[0]?.stdId ||
+              raw?.children?.[0]?.personalInfo?.stdId ||
+              raw?.stdId ||
+              raw?.parentId;
+            if (isMounted && foundStdId) {
+              setDynamicLabels((prev) => ({ ...prev, [lastSegment]: foundStdId }));
+              try {
+                sessionStorage.setItem("breadcrumb_label_" + lastSegment, foundStdId);
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      };
+      fetchParentLabel();
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchStudentId = async () => {
+      try {
+        const res = await authFetch(`/students/${lastSegment}`);
+        if (res.ok) {
+          const data = await res.json();
+          const raw = data.student ?? data.data ?? data;
+          const foundStdId =
+            raw?.personalInfo?.stdId ||
+            raw?.stdId ||
+            raw?.personalInfo?.studentId ||
+            raw?.studentId ||
+            raw?.admissionNumber;
+
+          if (isMounted && foundStdId) {
+            setDynamicLabels((prev) => ({ ...prev, [lastSegment]: foundStdId }));
+            try {
+              sessionStorage.setItem("breadcrumb_label_" + lastSegment, foundStdId);
+            } catch (_) {}
+            return;
+          }
+        }
+
+        // Try admission application endpoint if SIS student not found
+        const admRes = await authFetch(`/admission/application/${lastSegment}`);
+        if (admRes.ok) {
+          const admData = await admRes.json();
+          const rawAdm = admData.data ?? admData;
+          const foundStdId =
+            rawAdm?.personalInfo?.stdId ||
+            rawAdm?.stdId ||
+            rawAdm?.personalInfo?.studentId ||
+            rawAdm?.studentId;
+
+          if (isMounted && foundStdId) {
+            setDynamicLabels((prev) => ({ ...prev, [lastSegment]: foundStdId }));
+            try {
+              sessionStorage.setItem("breadcrumb_label_" + lastSegment, foundStdId);
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    };
+
+    fetchStudentId();
+    return () => {
+      isMounted = false;
+    };
+  }, [pathSegments, dynamicLabels]);
+
+  const resolveSegmentLabel = (segment, index) => {
+    // 1. Dynamic label (from state/event/sessionStorage)
+    if (dynamicLabels[segment]) {
+      return dynamicLabels[segment];
+    }
+
+    // 2. Check session storage directly
+    try {
+      const cached = sessionStorage.getItem("breadcrumb_label_" + segment);
+      if (cached) return cached;
+    } catch (_) {}
+
+    // 3. If it's a mongo object ID or hashed ID, resolve contextually
+    if (isMongoObjectId(segment) || isHashedId(segment)) {
+      const isStudentRoute =
+        pathSegments.includes("student-profile") ||
+        pathSegments.includes("final-student-profile") ||
+        pathSegments.includes("students");
+
+      if (isStudentRoute) {
+        const stateStdId =
+          location.state?.personalInfo?.stdId ||
+          location.state?.stdId ||
+          location.state?.personalInfo?.studentId ||
+          location.state?.studentId ||
+          location.state?.studentCode ||
+          location.state?.admissionNumber;
+
+        if (stateStdId) return stateStdId;
+        return "Student Profile";
+      }
+
+      if (pathSegments.includes("staff-profile") || pathSegments.includes("staff")) {
+        const stateStaffId =
+          location.state?.staffId ||
+          location.state?.personalInfo?.staffId ||
+          location.state?.name;
+        if (stateStaffId) return stateStaffId;
+        return "Staff Profile";
+      }
+
+      if (pathSegments.includes("parent-profile") || pathSegments.includes("parents")) {
+        const stateParentLabel =
+          location.state?.children?.[0]?.stdId ||
+          location.state?.children?.[0]?.personalInfo?.stdId ||
+          location.state?.stdId ||
+          location.state?.parentId ||
+          location.state?.name;
+        if (stateParentLabel) return stateParentLabel;
+        return "Parent Profile";
+      }
+    }
+
+    // 4. Standard mapping
+    return getStandardLabel(segment);
+  };
 
   return (
     <div className="mb-4 flex items-center gap-2 text-sm">
-      {/* HOME */}
-     
-
       {pathSegments.map((segment, index) => {
-        const path = "/" + pathSegments.slice(0, index + 1).join("/");
+        const rawPath = "/" + pathSegments.slice(0, index + 1).join("/");
+        const targetPath = routeRedirects[rawPath] || rawPath;
         const isLast = index === pathSegments.length - 1;
+        const label = resolveSegmentLabel(segment, index);
 
         return (
-          <div key={path} className="flex items-center gap-2">
+          <div key={rawPath} className="flex items-center gap-2">
             <span className="text-gray-400">/</span>
 
             {isLast ? (
               <span className="font-medium text-gray-800">
-                {getLabel(segment)}
+                {label}
               </span>
             ) : (
               <Link
-                to={path}
+                to={targetPath}
                 className="text-gray-500 hover:text-blue-600 transition"
               >
-                {getLabel(segment)}
+                {label}
               </Link>
             )}
           </div>

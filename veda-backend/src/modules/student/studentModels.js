@@ -35,6 +35,14 @@ const StudentSchema = new Schema(
       bloodGroup: {
         type: String
       },
+      nationality: {
+        type: String,
+        default: "",
+      },
+      religion: {
+        type: String,
+        default: "",
+      },
       age: {
         type: String,
       },
@@ -98,6 +106,22 @@ const StudentSchema = new Schema(
       name: { type: String, default: "" },
       relation: { type: String, default: "" },
       phone: { type: String, default: "" },
+    },
+
+    /** Admin SIS / StudentProfile — Earlier Academic Information card */
+    earlierAcademic: {
+      schoolName: { type: String, default: "" },
+      board: { type: String, default: "" },
+      lastClass: { type: String, default: "" },
+      academicYear: { type: String, default: "" },
+    },
+
+    /** Admin SIS / StudentProfile — Contact Information address parts */
+    contactInfo: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      zipCode: { type: String, default: "" },
     },
 
     //Curriculum
@@ -168,7 +192,15 @@ const StudentSchema = new Schema(
         size: Number,
         uploadedAt: { type: Date, default: Date.now }
       }
-    ]
+    ],
+    /** Reference to the admission application this student was created from */
+    admissionApplicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdmissionApplication",
+      sparse: true,
+      unique: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
@@ -194,6 +226,11 @@ StudentSchema.index(
 
 StudentSchema.index(
   { schoolId: 1, "personalInfo.stdId": 1 },
+  { unique: true, sparse: true, background: true }
+);
+
+StudentSchema.index(
+  { schoolId: 1, admissionApplicationId: 1 },
   { unique: true, sparse: true, background: true }
 );
 

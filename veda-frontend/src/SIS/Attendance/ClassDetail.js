@@ -106,18 +106,21 @@ export default function ClassDetail() {
   }, [id, sectionId, selectedDate, selectedClassName, selectedSectionName]);
 
   const handleAttendanceChange = async (studentId, newStatus) => {
+    const currentTime =
+      newStatus === "Present" || newStatus === "Late"
+        ? new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "--";
+
     const updatedStudents = students.map((s) =>
       s.id === studentId
         ? {
             ...s,
             status: newStatus,
-            time:
-              newStatus === "Present" || newStatus === "Late"
-                ? new Date().toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "--",
+            time: currentTime,
           }
         : s
     );
@@ -129,7 +132,7 @@ export default function ClassDetail() {
       await authFetch(`/attendance/student/${studentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, date: formattedDate }),
+        body: JSON.stringify({ status: newStatus, date: formattedDate, time: currentTime }),
       });
     } catch (error) {
       console.error("Error updating student attendance:", error);

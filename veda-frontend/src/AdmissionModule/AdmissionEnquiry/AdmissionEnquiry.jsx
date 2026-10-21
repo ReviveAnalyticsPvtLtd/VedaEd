@@ -648,7 +648,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                     ...(Array.isArray(classes)
                       ? classes
                           .map((cls) => {
-                            const className = typeof cls === "string" ? cls : cls?.name;
+                            const className = typeof cls === "string" ? cls : (cls?.name || cls?.className || cls?.class || cls?.label);
                             return className ? { value: className, label: className } : null;
                           })
                           .filter(Boolean)
@@ -799,7 +799,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
                     ...(Array.isArray(classes)
                       ? classes
                           .map((cls) => {
-                            const className = typeof cls === "string" ? cls : cls?.name;
+                            const className = typeof cls === "string" ? cls : (cls?.name || cls?.className || cls?.class || cls?.label);
                             return className ? { value: className, label: className } : null;
                           })
                           .filter(Boolean)

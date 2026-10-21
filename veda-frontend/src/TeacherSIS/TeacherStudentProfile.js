@@ -134,6 +134,21 @@ const TeacherStudentProfile = () => {
     fetchStudent();
   }, [resolvedMongoId]);
 
+  // Synchronize human-readable Student ID with breadcrumb
+  useEffect(() => {
+    const stdId = student?.stdId;
+    if (resolvedMongoId && stdId && stdId !== "N/A") {
+      try {
+        sessionStorage.setItem("breadcrumb_label_" + resolvedMongoId, stdId);
+      } catch (_) {}
+      window.dispatchEvent(
+        new CustomEvent("breadcrumb:update-label", {
+          detail: { segment: resolvedMongoId, label: stdId },
+        })
+      );
+    }
+  }, [resolvedMongoId, student?.stdId]);
+
   const profileHeaderImageSrc = useMemo(() => {
     if (!student) return "";
     const fromDocs = getLatestPassportPhotoUrlFromDocs(documents);
