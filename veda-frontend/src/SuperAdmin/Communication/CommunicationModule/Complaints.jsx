@@ -134,28 +134,6 @@ export default function AdminComplaints() {
           };
         });
         setStudentsData(transformed);
-      const students = Array.isArray(studentsRes) ? studentsRes : studentsRes?.students;
-      if (Array.isArray(students)) {
-        setStudentsData(
-          students.map((s) => {
-            const parent = s.parent && typeof s.parent === "object" ? s.parent : {};
-            const parents = s.parents && typeof s.parents === "object" ? s.parents : {};
-            return {
-              id: s._id,
-              name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
-              class: s.personalInfo?.class || "N/A",
-              section: s.personalInfo?.section || "N/A",
-              parentId: parent.parentId || parents.parentId || "N/A",
-              parentName: parent.fatherName || parents.fatherName || "N/A",
-              parentPhone:
-                parent.fatherPhone ||
-                parents.fatherPhone ||
-                parent.contactDetails?.mobileNumber ||
-                parents.contactDetails?.mobileNumber ||
-                "N/A",
-            };
-          })
-        );
       }
     } catch (error) {
       console.error("Error fetching students:", error);
