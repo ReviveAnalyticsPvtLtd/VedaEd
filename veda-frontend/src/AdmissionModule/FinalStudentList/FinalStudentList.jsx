@@ -490,24 +490,6 @@ const handleEnroll = async () => {
         </div>
       )}
 
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => {
-            setActiveTab("all");
-            setLoginPage(1);
-          }}
-          className="hover:underline"
-        >
-          Admission 
-        </button>
-        <span>&gt;</span>
-        <span>
-          {activeTab === "all" && "All Student"}
-          {activeTab === "login" && "Manage Login"}
-          {activeTab === "others" && "Others"}
-        </span>
-      </div>
-
       <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h2 className="text-2xl font-bold">Students</h2>
 
