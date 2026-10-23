@@ -152,11 +152,6 @@ useEffect(() => {
 
   return (
     <div className="p-0 min-h-screen mb-10">
-        <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Admission</span>
-        <span>&gt;</span>
-        <span>Vacancy Setup</span>
-      </div>
       {/* HEADER */}
       <div className="mb-5">
         <h2 className="text-2xl font-bold">
