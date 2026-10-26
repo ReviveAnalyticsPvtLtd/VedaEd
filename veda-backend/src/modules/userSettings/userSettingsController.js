@@ -11,13 +11,13 @@ const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 exports.getUserSettings = async (req, res) => {
   try {
     const userId = getUserId(req);
-    
+
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
     let settings = await UserSettings.findOne({ userId });
-    
+
     // Create default settings if not exist
     if (!settings) {
       settings = await UserSettings.create({ userId });
@@ -41,7 +41,7 @@ exports.updatePreferences = async (req, res) => {
     }
 
     let settings = await UserSettings.findOne({ userId });
-    
+
     if (!settings) {
       settings = await UserSettings.create({ userId });
     }
@@ -70,7 +70,7 @@ exports.updateNotifications = async (req, res) => {
     }
 
     let settings = await UserSettings.findOne({ userId });
-    
+
     if (!settings) {
       settings = await UserSettings.create({ userId });
     }
@@ -373,7 +373,7 @@ exports.getProfile = async (req, res) => {
 
       if (student) {
         user.refId = student._id;
-        await user.save().catch(() => {});
+        await user.save().catch(() => { });
         const studentClass = student.personalInfo?.class?.name || (typeof student.personalInfo?.class === 'string' ? student.personalInfo?.class : '');
         const studentSection = student.personalInfo?.section?.name || (typeof student.personalInfo?.section === 'string' ? student.personalInfo?.section : '');
         let dept = studentClass;
@@ -484,7 +484,7 @@ exports.updateSecuritySettings = async (req, res) => {
     }
 
     let settings = await UserSettings.findOne({ userId });
-    
+
     if (!settings) {
       settings = await UserSettings.create({ userId });
     }

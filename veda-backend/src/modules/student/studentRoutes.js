@@ -6,7 +6,8 @@ const { uploadSingle } = require("../../middleware/upload");
 const authMiddleware = require("../../middleware/authMiddleware");
 const permissionMiddleware = require("../../middleware/permissionMiddleware");
 const studentHealthUpdateMiddleware = require("../../middleware/studentHealthUpdateMiddleware");
-const editStudentAccess = require("../../middleware/editStudentAccessMiddleware");
+// const editStudentAccess = require("../../middleware/editStudentAccessMiddleware");
+const editStudentAccess = permissionMiddleware("edit_student");
 
 // Student CRUD (Admin / Staff roles mostly)
 router.post("/", authMiddleware, permissionMiddleware("create_student"), studentController.createStudent);         // Create new student
