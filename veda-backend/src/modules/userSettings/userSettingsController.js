@@ -186,9 +186,6 @@ exports.updateProfile = async (req, res) => {
         if (mobileVal !== undefined) {
           if (!student.personalInfo.contactDetails) student.personalInfo.contactDetails = {};
           student.personalInfo.contactDetails.mobileNumber = user.mobile;
-        }
-        await student.save();
-      }
           student.personalInfo.mobileNumber = user.mobile;
         }
         await student.save();
@@ -301,14 +298,6 @@ exports.getProfile = async (req, res) => {
         };
       }
 
-      const student = await Student.findById(user.refId);
-      if (student) {
-        profileData = {
-          ...profileData,
-          fullName: student.personalInfo?.name || profileData.fullName,
-          mobile: student.personalInfo?.contactDetails?.mobileNumber || profileData.mobile,
-          image: student.personalInfo?.image || profileData.image,
-          profilePicture: student.personalInfo?.image || profileData.profilePicture
       const student = await Student.findById(user.refId)
         .populate('personalInfo.class', 'name')
         .populate('personalInfo.section', 'name');

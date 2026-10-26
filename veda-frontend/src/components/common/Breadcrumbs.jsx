@@ -64,11 +64,15 @@ const breadcrumbLabels = {
   "approve-leave": "Approve Leave",
 
   communication: "Communication",
+  "teacher-communication": "Communication",
   logs: "Logs",
   notices: "Notices",
   drafts: "Draft Announcements",
   messages: "Messages",
   complaints: "Complaints",
+};
+const routeRootCrumbs = {
+  "teacher-communication": { label: "Teacher", to: "/teacher" },
 };
 
 const routeRedirects = {
@@ -303,8 +307,21 @@ export function Breadcrumbs() {
     return getStandardLabel(segment);
   };
 
+  const rootCrumb = routeRootCrumbs[pathSegments[0]];
+
   return (
     <div className="mb-4 flex items-center gap-2 text-sm">
+      {rootCrumb && (
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">/</span>
+          <Link
+            to={rootCrumb.to}
+            className="text-gray-500 hover:text-blue-600 transition"
+          >
+            {rootCrumb.label}
+          </Link>
+        </div>
+      )}
       {pathSegments.map((segment, index) => {
         const rawPath = "/" + pathSegments.slice(0, index + 1).join("/");
         const targetPath = routeRedirects[rawPath] || rawPath;

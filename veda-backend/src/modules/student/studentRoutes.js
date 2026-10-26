@@ -6,6 +6,7 @@ const { uploadSingle } = require("../../middleware/upload");
 const authMiddleware = require("../../middleware/authMiddleware");
 const permissionMiddleware = require("../../middleware/permissionMiddleware");
 const studentHealthUpdateMiddleware = require("../../middleware/studentHealthUpdateMiddleware");
+const editStudentAccess = require("../../middleware/editStudentAccessMiddleware");
 
 // Student CRUD (Admin / Staff roles mostly)
 router.post("/", authMiddleware, permissionMiddleware("create_student"), studentController.createStudent);         // Create new student
@@ -26,7 +27,7 @@ router.get("/preview/:filename", authMiddleware, permissionMiddleware("view_stud
 router.get("/download/:filename", authMiddleware, permissionMiddleware("view_student"), studentController.downloadDocument);
 router.delete("/documents/:studentId/:documentId", authMiddleware, permissionMiddleware("edit_student"), studentController.deleteDocument);
 
-router.put("/:id", authMiddleware, permissionMiddleware("edit_student"), studentController.updateStudent);
+router.put("/:id", authMiddleware, editStudentAccess, studentController.updateStudent);
 router.delete("/:id", authMiddleware, permissionMiddleware("delete_student"), studentController.deleteStudentById);
 router.get("/:id/dashboard-stats", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentDashboardStats);
 router.get("/:id/attendance", authMiddleware, permissionMiddleware("view_student"), studentController.getStudentAttendance);   // Real attendance summary, tenant-scoped via the student
