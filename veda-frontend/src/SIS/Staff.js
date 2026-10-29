@@ -14,7 +14,7 @@ import { toastBannerClassName } from "../utils/toastMessageStyle";
 import Pagination from "../components/common/Pagination";
 
 export default function Staff() {
-  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("all");
@@ -276,6 +276,7 @@ export default function Staff() {
       if (window.confirm("Are you sure you want to delete this staff member?")) {
         await api.delete(`/staff/${id}`);
         setStaff(staff.filter((s) => s._id !== id));
+        setSelectedStaffIds((prev) => prev.filter((staffId) => staffId !== id));
         setSuccessMsg("Staff deleted ");
         setTimeout(() => setSuccessMsg(""), 3000);
       }
@@ -284,13 +285,43 @@ export default function Staff() {
     }
   };
 
-  const handleBulkSelect = () => {
-    console.log("Bulk select clicked");
+  const handleSelectStaff = (staffId) => {
+    setSelectedStaffIds((prev) =>
+      prev.includes(staffId)
+        ? prev.filter((id) => id !== staffId)
+        : [...prev, staffId]
+    );
+  };
+
+  const handleSelectAllStaff = () => {
+    const allFilteredStaffIds = filteredStaff
+      .map((s) => s._id)
+      .filter(Boolean);
+
+    const isAllSelected =
+      allFilteredStaffIds.length > 0 &&
+      allFilteredStaffIds.every((id) => selectedStaffIds.includes(id));
+
+    if (isAllSelected) {
+      setSelectedStaffIds((prev) =>
+        prev.filter((id) => !allFilteredStaffIds.includes(id))
+      );
+    } else {
+      setSelectedStaffIds((prev) => [
+        ...new Set([...prev, ...allFilteredStaffIds]),
+      ]);
+    }
   };
 
   const handleBulkExport = () => {
+    if (selectedStaffIds.length === 0) {
+      setSuccessMsg("Please select at least one staff");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      return;
+    }
+
     const selectedData = staff.filter((s) =>
-      selectedStudents.includes(s._id)
+      selectedStaffIds.includes(s._id)
     );
 
     if (selectedData.length === 0) {
@@ -316,35 +347,37 @@ export default function Staff() {
 
     XLSX.writeFile(workbook, "Selected_Staff.xlsx");
 
+    setShowBulkActions(false);
     setSuccessMsg("Excel exported successfully ");
     setTimeout(() => setSuccessMsg(""), 3000);
   };
 
   const handleBulkDelete = async () => {
-    if (selectedStudents.length === 0) {
+    if (selectedStaffIds.length === 0) {
       setSuccessMsg("Please select at least one staff");
       setTimeout(() => setSuccessMsg(""), 3000);
       return;
     }
 
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete selected staff?"
+      `Delete ${selectedStaffIds.length} selected staff?`
     );
 
     if (!confirmDelete) return;
 
     try {
       await Promise.all(
-        selectedStudents.map((id) =>
+        selectedStaffIds.map((id) =>
           api.delete(`/staff/${id}`)
         )
       );
 
       setStaff((prev) =>
-        prev.filter((s) => !selectedStudents.includes(s._id))
+        prev.filter((s) => !selectedStaffIds.includes(s._id))
       );
 
-      setSelectedStudents([]);
+      setSelectedStaffIds([]);
+      setShowBulkActions(false);
 
       setSuccessMsg("Selected staff deleted ");
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -667,7 +700,7 @@ Sections:
                   onClick={() => setShowBulkActions(!showBulkActions)}
                   className="border px-3 py-2 rounded-md bg-white flex items-center gap-2 min-w-[120px] hover:border-blue-500"
                 >
-                  <span>Bulk Actions</span>
+                  <span>Bulk Actions{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ""}</span>
                   <FiChevronDown className="text-xs" />
                 </button>
 
@@ -741,20 +774,16 @@ Sections:
             <table className="min-w-[920px] w-full border text-sm">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="p-2 border">
+                  <th className="p-2 border w-[50px]">
                     <input
                       type="checkbox"
                       checked={
-                        currentStaff.length > 0 &&
-                        selectedStudents.length === currentStaff.length
+                        filteredStaff.length > 0 &&
+                        filteredStaff.every((s) =>
+                          s._id && selectedStaffIds.includes(s._id)
+                        )
                       }
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedStudents(currentStaff.map((s) => s._id));
-                        } else {
-                          setSelectedStudents([]);
-                        }
-                      }}
+                      onChange={handleSelectAllStaff}
                     />
                   </th>
                   <th className="p-2 border">S. no.</th>
@@ -774,16 +803,8 @@ Sections:
                     <td className="p-2 border">
                       <input
                         type="checkbox"
-                        checked={selectedStudents.includes(s._id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedStudents((prev) => [...prev, s._id]);
-                          } else {
-                            setSelectedStudents((prev) =>
-                              prev.filter((id) => id !== s._id)
-                            );
-                          }
-                        }}
+                        checked={selectedStaffIds.includes(s._id)}
+                        onChange={() => handleSelectStaff(s._id)}
                       />
                     </td>
                     <td className="p-2 border">{indexOfFirst + idx + 1}</td>
