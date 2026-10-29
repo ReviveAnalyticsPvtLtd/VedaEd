@@ -23,24 +23,8 @@ main()
 
     const port = process.env.PORT || 5000;
 
-    const server = app.listen(port, () => {
+    app.listen(port, () => {
       console.log("Server Listening at Port: " + port);
-    });
-
-    // A second backend instance on the same port must not crash with an
-    // unhandled "error" event. Say what is wrong and exit cleanly instead.
-    server.on("error", (err) => {
-      if (err.code === "EADDRINUSE") {
-        console.error(
-          `Port ${port} is already in use by another process.\n` +
-            `Stop the other backend instance first, e.g.:\n` +
-            `  fuser -k ${port}/tcp     (or)     lsof -ti :${port} | xargs kill`
-        );
-        process.exit(1);
-      }
-
-      console.error("Server error:", err);
-      process.exit(1);
     });
   })
   .catch(err => console.log("DB Connection Error: ", err));
