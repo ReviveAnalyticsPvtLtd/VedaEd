@@ -44,14 +44,38 @@ const hrRecruitmentRoutes = require("./modules/hrRecruitment/hrRecruitmentRoutes
 
 
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://veda-ed.vercel.app",
+  "https://veda-ed-git-main-aabhishekdubey007-gmailcoms-projects.vercel.app",
+  "https://veda-lfvv29kj6-aabhishekdubey007-gmailcoms-projects.vercel.app",
+];
+
+// The configured frontend URL (see .env) is always allowed.
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/+$/, ""));
+}
+
+const isLocalOrigin = (origin) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://veda-ed.vercel.app",
-    "https://veda-ed-git-main-aabhishekdubey007-gmailcoms-projects.vercel.app",
-    "https://veda-lfvv29kj6-aabhishekdubey007-gmailcoms-projects.vercel.app"
-  ],
-  credentials: true
+  origin(origin, callback) {
+    // Same-origin / non-browser clients (curl, Postman, mobile apps) send no Origin.
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // react-scripts picks the next free port (3001, 3002, ...) when 3000 is
+    // taken. Any local dev port must still be able to reach the API.
+    if (process.env.NODE_ENV !== "production" && isLocalOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    // No Access-Control-Allow-Origin header, so the browser blocks it.
+    return callback(null, false);
+  },
+  credentials: true,
 }));
 
 
