@@ -1,21 +1,24 @@
 /* Timetable builder UI — visual parity with VedaSchool_Timetable_Final_v2.html */
 
 .ttb {
-  --bg: #f6f7fb;
+  --bg: transparent;
   --card: #fff;
-  --border: #e2e6ed;
-  --text: #16181d;
+  --border: #e5e7eb;
+  --text: #111827;
   --muted: #6b7280;
-  --purple: #7c3aed;
-  --purple-dark: #6d28d9;
-  --purple-soft: #f3edff;
-  --green: #16835f;
-  --green-soft: #eaf7f1;
-  --red: #d14343;
-  --red-soft: #fff1f1;
-  --amber: #a56509;
-  --amber-soft: #fff7e8;
-  --shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-soft: #eff6ff;
+
+  --green: #16a34a;
+  --green-soft: #dcfce7;
+  --red: #dc2626;
+  --red-soft: #fee2e2;
+  --amber: #b45309;
+  --amber-soft: #fef3c7;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   background: var(--bg);
   font-family: Inter, Segoe UI, Arial, sans-serif;
   color: var(--text);
@@ -69,8 +72,8 @@
 }
 
 .ttb .top-tab.active {
-  color: var(--purple);
-  border-bottom: 2px solid var(--purple);
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
   font-weight: 600;
 }
 
@@ -95,13 +98,13 @@
 }
 
 .ttb .btn.primary {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 
 .ttb .btn.primary:hover {
-  background: var(--purple-dark);
+  background: var(--primary-dark);
 }
 
 .ttb .btn.green {
@@ -126,9 +129,9 @@
 }
 
 .ttb .view-tabs .btn.active {
-  background: var(--purple);
+  background: var(--primary);
   color: #fff;
-  border-color: var(--purple);
+  border-color: var(--primary);
 }
 
 .ttb .card {
@@ -192,13 +195,13 @@
 
 .ttb select:focus,
 .ttb input:focus {
-  border-color: #a787ef;
-  box-shadow: 0 0 0 2px #f1eaff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px #dbeafe;
 }
 
 .ttb .context {
-  background: var(--purple-soft);
-  border: 1px solid #dccbff;
+  background: var(--primary-soft);
+  border: 1px solid #bfdbfe;
   border-radius: 7px;
   padding: 11px 12px;
   display: flex;
@@ -209,7 +212,7 @@
 }
 
 .ttb .context strong {
-  color: #5223b3;
+  color: #1e40af;
 }
 
 .ttb .subtle {
@@ -288,8 +291,8 @@
 }
 
 .ttb .step.current .step-dot {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 
@@ -345,9 +348,9 @@
 }
 
 .ttb .day.on {
-  background: var(--purple-soft);
-  border-color: #b79bf1;
-  color: #5f2abd;
+  background: var(--primary-soft);
+  border-color: #93c5fd;
+  color: #1d4ed8;
   font-weight: 600;
 }
 
@@ -395,9 +398,9 @@
 }
 
 .ttb .weekbox.on {
-  background: var(--purple-soft);
-  border-color: #b79bf1;
-  color: #5d2aba;
+  background: var(--primary-soft);
+  border-color: #93c5fd;
+  color: #1d4ed8;
   font-weight: 700;
 }
 
@@ -515,16 +518,16 @@
 
 .ttb .slot {
   height: 100%;
-  border: 1px solid #ddd2f3;
+  border: 1px solid #bfdbfe;
   border-radius: 6px;
-  background: #fcfaff;
+  background: #eff6ff;
   padding: 7px;
   cursor: pointer;
 }
 
 .ttb .slot:hover {
-  background: #f7f1ff;
-  border-color: #a987ea;
+  background: #dbeafe;
+  border-color: #60a5fa;
 }
 
 .ttb .slot.dragging {
@@ -542,7 +545,7 @@
 
 .ttb .slot .subject {
   font-weight: 650;
-  color: #47276a;
+  color: #1e40af;
 }
 
 .ttb .slot .teacher,
@@ -584,8 +587,8 @@
 }
 
 .ttb .choice:hover {
-  border-color: #ad8df0;
-  background: #fbf9ff;
+  border-color: #60a5fa;
+  background: #eff6ff;
 }
 
 .ttb .choice b {

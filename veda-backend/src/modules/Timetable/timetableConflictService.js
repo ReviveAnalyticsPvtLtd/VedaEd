@@ -467,8 +467,288 @@ const validateTimetableConflicts = async (options = {}) => {
   };
 };
 
+// Bulk equivalent of calling validateTimetableConflicts once per proposed row.
+// It runs the same class/teacher/room overlap checks, but loads the candidate
+// rows in a single query and evaluates all proposals in memory, instead of
+// issuing a separate set of queries (plus populate round trips) per row.
+const validateTimetableConflictsBulk = async (options = {}) => {
+  const {
+    schoolId,
+    classId,
+    sectionId,
+    academicYearId,
+    excludeHeaderId,
+    excludeAssignmentIds = [],
+    proposedAssignments = [],
+  } = options;
+
+  const conflicts = [];
+
+  if (!Array.isArray(proposedAssignments) || proposedAssignments.length === 0) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  const daySet = new Set();
+  const teacherIds = new Set();
+  const roomNos = new Set();
+
+  for (const prop of proposedAssignments) {
+    if (prop.day) daySet.add(prop.day);
+
+    const teacherId = prop.teacherId || prop.teacher;
+    if (isValidObjectId(teacherId)) teacherIds.add(String(teacherId));
+
+    const room = String(prop.roomNo || "").trim();
+    if (room) roomNos.add(room);
+  }
+
+  if (daySet.size === 0) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  // Preserve the ownership guard from the per-row validator. Teacher and
+  // subject ownership are checked by the caller once per request.
+  const ownershipCheck = await validateOwnership(schoolId, {
+    classId,
+    sectionId,
+    timetableHeaderId: excludeHeaderId,
+  });
+
+  if (!ownershipCheck.isValid) {
+    return {
+      hasConflicts: true,
+      conflicts: ownershipCheck.errors.map((e) => ({
+        type: "INVALID_INPUT",
+        message: e.message,
+        field: e.field,
+      })),
+    };
+  }
+
+  const queryOr = [];
+  const hasClassScope = isValidObjectId(classId) && isValidObjectId(sectionId);
+
+  if (hasClassScope) {
+    queryOr.push({ class: classId, section: sectionId });
+  }
+  if (teacherIds.size > 0) {
+    queryOr.push({ teacher: { $in: [...teacherIds] } });
+  }
+  if (roomNos.size > 0) {
+    queryOr.push({ roomNo: { $in: [...roomNos] } });
+  }
+
+  if (queryOr.length === 0) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  let assignments = await Timetable.find({
+    day: { $in: [...daySet] },
+    $or: queryOr,
+  })
+    .select(
+      "_id day timeFrom timeTo subject teacher roomNo class section timetableHeader academicYear"
+    )
+    .lean();
+
+  if (assignments.length === 0) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  // Ownership of the referenced class/section documents replaces the
+  // per-row `.populate()` calls: rows are only trusted when both sides are
+  // school-owned, and rows without a resolvable pair are kept (matching the
+  // previous populate-based filter).
+  const classIds = [...new Set(assignments.map((row) => String(row.class || "")).filter(Boolean))];
+  const sectionIds = [...new Set(assignments.map((row) => String(row.section || "")).filter(Boolean))];
+
+  const [classes, sections] = await Promise.all([
+    classIds.length
+      ? Class.find({ _id: { $in: classIds } }).select("_id schoolId").lean()
+      : [],
+    sectionIds.length
+      ? Section.find({ _id: { $in: sectionIds } }).select("_id schoolId").lean()
+      : [],
+  ]);
+
+  const classSchoolById = new Map(
+    classes.map((item) => [String(item._id), item.schoolId])
+  );
+  const sectionSchoolById = new Map(
+    sections.map((item) => [String(item._id), item.schoolId])
+  );
+
+  const excludedAssignmentIdSet = new Set(
+    (excludeAssignmentIds || []).map((id) => String(id))
+  );
+
+  assignments = assignments.filter((assignment) => {
+    if (
+      excludedAssignmentIdSet.size > 0 &&
+      excludedAssignmentIdSet.has(String(assignment._id))
+    ) {
+      return false;
+    }
+
+    if (
+      excludeHeaderId &&
+      assignment.timetableHeader &&
+      String(assignment.timetableHeader) === String(excludeHeaderId)
+    ) {
+      return false;
+    }
+
+    if (
+      academicYearId &&
+      assignment.academicYear &&
+      String(assignment.academicYear) !== String(academicYearId)
+    ) {
+      return false;
+    }
+
+    const clsSchool = classSchoolById.get(String(assignment.class || ""));
+    const secSchool = sectionSchoolById.get(String(assignment.section || ""));
+
+    if (clsSchool && secSchool) {
+      return String(clsSchool) === String(schoolId) && String(secSchool) === String(schoolId);
+    }
+
+    return true;
+  });
+
+  if (assignments.length === 0) {
+    return { hasConflicts: false, conflicts };
+  }
+
+  const rowsByDay = new Map();
+  for (const assignment of assignments) {
+    if (!rowsByDay.has(assignment.day)) rowsByDay.set(assignment.day, []);
+    rowsByDay.get(assignment.day).push(assignment);
+  }
+
+  const classIdStr = String(classId);
+  const sectionIdStr = String(sectionId);
+
+  for (const prop of proposedAssignments) {
+    const day = prop.day;
+    const startMin = toMin(prop.timeFrom);
+    const endMin = toMin(prop.timeTo);
+
+    // Invalid ranges are reported by the in-memory proposed-set validation.
+    if (endMin <= startMin) continue;
+
+    const dayRows = rowsByDay.get(day);
+    if (!dayRows || dayRows.length === 0) continue;
+
+    const propTeacher = prop.teacherId || prop.teacher;
+    const propTeacherStr = isValidObjectId(propTeacher)
+      ? String(propTeacher)
+      : null;
+    const propRoom = String(prop.roomNo || "").trim();
+
+    if (hasClassScope) {
+      const classConflicts = dayRows.filter((assignment) => {
+        if (String(assignment.class || "") !== classIdStr) return false;
+        if (String(assignment.section || "") !== sectionIdStr) return false;
+        return overlaps(
+          startMin,
+          endMin,
+          toMin(assignment.timeFrom),
+          toMin(assignment.timeTo)
+        );
+      });
+
+      if (classConflicts.length > 0) {
+        conflicts.push({
+          type: "CLASS_CONFLICT",
+          message: "Time overlaps with another period for this class/section",
+          details: { day, timeFrom: prop.timeFrom, timeTo: prop.timeTo },
+          conflictingAssignments: classConflicts.map((c) => ({
+            _id: c._id,
+            day: c.day,
+            timeFrom: c.timeFrom,
+            timeTo: c.timeTo,
+            subject: c.subject,
+            teacher: c.teacher,
+            timetableHeader: c.timetableHeader,
+          })),
+        });
+      }
+    }
+
+    if (propTeacherStr) {
+      const teacherConflicts = dayRows.filter((assignment) => {
+        if (String(assignment.teacher || "") !== propTeacherStr) return false;
+        return overlaps(
+          startMin,
+          endMin,
+          toMin(assignment.timeFrom),
+          toMin(assignment.timeTo)
+        );
+      });
+
+      if (teacherConflicts.length > 0) {
+        conflicts.push({
+          type: "TEACHER_CONFLICT",
+          message: "Teacher has another class at this time",
+          details: {
+            day,
+            timeFrom: prop.timeFrom,
+            timeTo: prop.timeTo,
+            teacherId: propTeacher,
+          },
+          conflictingAssignments: teacherConflicts.map((c) => ({
+            _id: c._id,
+            day: c.day,
+            timeFrom: c.timeFrom,
+            timeTo: c.timeTo,
+            class: c.class,
+            section: c.section,
+            timetableHeader: c.timetableHeader,
+          })),
+        });
+      }
+    }
+
+    if (propRoom) {
+      const roomConflicts = dayRows.filter((assignment) => {
+        if (String(assignment.roomNo || "").trim() !== propRoom) return false;
+        return overlaps(
+          startMin,
+          endMin,
+          toMin(assignment.timeFrom),
+          toMin(assignment.timeTo)
+        );
+      });
+
+      if (roomConflicts.length > 0) {
+        conflicts.push({
+          type: "ROOM_CONFLICT",
+          message: "Room is already booked at this time",
+          details: { day, timeFrom: prop.timeFrom, timeTo: prop.timeTo, roomNo: propRoom },
+          conflictingAssignments: roomConflicts.map((c) => ({
+            _id: c._id,
+            day: c.day,
+            timeFrom: c.timeFrom,
+            timeTo: c.timeTo,
+            class: c.class,
+            section: c.section,
+          })),
+        });
+      }
+    }
+  }
+
+  return { hasConflicts: conflicts.length > 0, conflicts };
+};
+
 module.exports = {
   validateTimetableConflicts,
+  validateTimetableConflictsBulk,
   validateOwnership,
   toMin,
   overlaps,

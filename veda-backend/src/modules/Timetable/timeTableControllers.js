@@ -11,7 +11,11 @@ const Student = require("../student/studentModels");
 const Parent = require("../parents/parentModel");
 const { AcademicYear } = require("../fees/feeModels");
 const { generateTimetable } = require("./timetableGeneratorService");
-const { validateTimetableConflicts, validateOwnership } = require("./timetableConflictService");
+const {
+  validateTimetableConflicts,
+  validateTimetableConflictsBulk,
+  validateOwnership,
+} = require("./timetableConflictService");
 const { validateTimetableForHeader } = require("./timetablePublishService");
 const { moveAssignment, moveSeries } = require("./timetableMoveService");
 const { copyFromHeader } = require("./timetableCopyService");
@@ -54,6 +58,24 @@ const findOwnedSubject = (subjectId, schoolId) =>
 
 const findOwnedStaff = (staffId, schoolId) =>
   Staff.findOne({ _id: staffId, schoolId }).select("_id");
+
+// Bulk variants used by timetable saves: one query per collection instead of
+// one query per entry.
+const findOwnedSubjectIds = async (subjectIds, schoolId) => {
+  if (!subjectIds.length) return new Set();
+  const docs = await Subject.find({ _id: { $in: subjectIds }, schoolId })
+    .select("_id")
+    .lean();
+  return new Set(docs.map((doc) => String(doc._id)));
+};
+
+const findOwnedStaffIds = async (staffIds, schoolId) => {
+  if (!staffIds.length) return new Set();
+  const docs = await Staff.find({ _id: { $in: staffIds }, schoolId })
+    .select("_id")
+    .lean();
+  return new Set(docs.map((doc) => String(doc._id)));
+};
 
 const getSchoolClassIds = async (schoolId) =>
   (await Class.find({ schoolId }).select("_id")).map((c) => c._id);
@@ -288,6 +310,8 @@ exports.createTimetableHeader = async (req, res) => {
   }
 };
 
+// Not used by the current timetable UI. Kept commented for reference.
+/*
 exports.getTimetableHeaderById = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -327,6 +351,7 @@ exports.getTimetableHeaderById = async (req, res) => {
     });
   }
 };
+*/
 
 exports.updateTimetableHeaderSchedule = async (req, res) => {
   const schoolId = requireSchool(req, res);
@@ -450,7 +475,9 @@ exports.updateTimetableHeaderSchedule = async (req, res) => {
         section: header.section,
         $or: [
           { timetableHeader: header._id },
-          { timetableHeader: { $exists: false } },
+          // `{ timetableHeader: null }` already matches rows where the field
+          // is missing, so the `$exists` clause is redundant.
+          // { timetableHeader: { $exists: false } },
           { timetableHeader: null },
         ],
       })
@@ -691,15 +718,24 @@ exports.updateTimetableRequirements = async (req, res) => {
         });
       }
 
-      if (!(await findOwnedStaff(teacherId, schoolId))) {
+      // Duplicate ownership lookup commented out: the Staff.findOne below is
+      // already scoped to schoolId and is needed for the role check.
+      // if (!(await findOwnedStaff(teacherId, schoolId))) {
+      //   return res.status(404).json({
+      //     success: false,
+      //     message: "Teacher not found",
+      //   });
+      // }
+
+      // Basic eligibility check - teacher must exist and be teacher role if possible
+      const teacher = await Staff.findOne({ _id: teacherId, schoolId });
+
+      if (!teacher) {
         return res.status(404).json({
           success: false,
           message: "Teacher not found",
         });
       }
-
-      // Basic eligibility check - teacher must exist and be teacher role if possible
-      const teacher = await Staff.findOne({ _id: teacherId, schoolId });
 
       if (
         teacher &&
@@ -786,6 +822,8 @@ exports.updateTimetableRequirements = async (req, res) => {
   }
 };
 
+// Not used by the current timetable UI. Kept commented for reference.
+/*
 exports.generateTimetableForHeader = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -886,6 +924,7 @@ exports.generateTimetableForHeader = async (req, res) => {
     });
   }
 };
+*/
 exports.copyTimetableSetup = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -933,6 +972,8 @@ exports.copyTimetableSetup = async (req, res) => {
   }
 };
 
+// Not used by the current timetable UI. Kept commented for reference.
+/*
 exports.getTimetableAuditTrail = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -977,6 +1018,7 @@ exports.getTimetableAuditTrail = async (req, res) => {
     return handleControllerError(res, error, "loading timetable audit trail");
   }
 };
+*/
 
 exports.exportTimetableHeader = async (req, res) => {
   const schoolId = requireSchool(req, res);
@@ -1030,6 +1072,9 @@ exports.exportTimetableHeader = async (req, res) => {
   }
 };
 
+// Legacy CRUD entry flow; not used by the current timetable UI.
+// Kept commented for reference.
+/*
 exports.createTimetableEntry = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -1165,6 +1210,7 @@ exports.createTimetableEntry = async (req, res) => {
     return handleControllerError(res, error, "creating timetable entry");
   }
 };
+*/
 
 exports.getTimetableEntries = async (req, res) => {
   const schoolId = requireSchool(req, res);
@@ -1284,6 +1330,9 @@ exports.getTimetableEntries = async (req, res) => {
   }
 };
 
+// Debug helper; not used by the current timetable UI.
+// Kept commented for reference.
+/*
 exports.debugTimetableData = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -1317,7 +1366,11 @@ exports.debugTimetableData = async (req, res) => {
     return handleControllerError(res, error, "debugging timetable data");
   }
 };
+*/
 
+// Legacy CRUD entry flow; not used by the current timetable UI.
+// Kept commented for reference.
+/*
 exports.updateTimetableEntry = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -1476,7 +1529,11 @@ exports.updateTimetableEntry = async (req, res) => {
     return handleControllerError(res, error, "updating timetable entry");
   }
 };
+*/
 
+// Legacy CRUD entry flow; not used by the current timetable UI.
+// Kept commented for reference.
+/*
 exports.deleteTimetableEntry = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
@@ -1515,6 +1572,7 @@ exports.deleteTimetableEntry = async (req, res) => {
     return handleControllerError(res, error, "deleting timetable entry");
   }
 };
+*/
 
 // ---------------------------------------------------------------------------
 // Header-linked timetable entries (bulk read/write used by the builder UI)
@@ -1580,12 +1638,40 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
         .json({ success: false, message: "entries must be an array" });
     }
 
+    // Set by publish flows that immediately run the full publish validation.
+    const skipConflictValidation =
+      req.body?.skipConflictValidation === true;
+
     const periods = header.periods || [];
     const periodById = new Map(periods.map((p) => [p.periodId, p]));
 
     const docs = [];
     const proposedAssignments = [];
     const seenSlots = new Set();
+
+    // Resolve subject/teacher ownership for the whole submission in two
+    // queries instead of two queries per entry.
+    const subjectIds = [
+      ...new Set(
+        entries
+          .map((item) => item.subjectId || item.subject)
+          .filter((id) => isValidObjectId(id))
+          .map((id) => String(id))
+      ),
+    ];
+    const teacherIds = [
+      ...new Set(
+        entries
+          .map((item) => item.teacherId || item.teacher)
+          .filter((id) => isValidObjectId(id))
+          .map((id) => String(id))
+      ),
+    ];
+
+    const [ownedSubjectIds, ownedTeacherIds] = await Promise.all([
+      findOwnedSubjectIds(subjectIds, schoolId),
+      findOwnedStaffIds(teacherIds, schoolId),
+    ]);
 
     for (const item of entries) {
       const subjectId = item.subjectId || item.subject;
@@ -1661,7 +1747,7 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
       }
       seenSlots.add(slotKey);
 
-      if (!(await findOwnedSubject(subjectId, schoolId))) {
+      if (!ownedSubjectIds.has(String(subjectId))) {
         return res.status(404).json({
           success: false,
           message: "Subject not found",
@@ -1671,7 +1757,7 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
         });
       }
 
-      if (!(await findOwnedStaff(teacherId, schoolId))) {
+      if (!ownedTeacherIds.has(String(teacherId))) {
         return res.status(404).json({
           success: false,
           message: "Teacher not found",
@@ -1715,7 +1801,10 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
     const legacyAssignments = await Timetable.find({
       class: header.class,
       section: header.section,
-      $or: [{ timetableHeader: { $exists: false } }, { timetableHeader: null }],
+      // `{ timetableHeader: null }` already matches rows where the field is
+      // missing, so the `$exists` clause is redundant.
+      // $or: [{ timetableHeader: { $exists: false } }, { timetableHeader: null }],
+      $or: [{ timetableHeader: null }],
     })
       .select("_id")
       .lean();
@@ -1736,22 +1825,22 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
       // Conflicts against timetables of other classes/sections. Entries that
       // belong to this same header (or replaceable legacy rows of this
       // class/section) are excluded because they are replaced.
-      for (const proposal of proposedAssignments) {
-        const result = await validateTimetableConflicts({
+      //
+      // When the caller is about to publish, this external pass is skipped
+      // because POST /headers/:id/publish performs the same checks (and more)
+      // as part of its full validation. That avoids validating twice.
+      if (!skipConflictValidation) {
+        const external = await validateTimetableConflictsBulk({
           schoolId,
           classId: header.class,
           sectionId: header.section,
-          teacherId: proposal.teacherId,
-          roomNo: proposal.roomNo,
-          day: proposal.day,
-          timeFrom: proposal.timeFrom,
-          timeTo: proposal.timeTo,
           academicYearId: header.academicYear,
           excludeHeaderId: header._id,
           excludeAssignmentIds: replaceableAssignmentIds,
+          proposedAssignments,
         });
 
-        conflicts.push(...(result.conflicts || []));
+        conflicts.push(...(external.conflicts || []));
       }
     }
 
@@ -1999,6 +2088,9 @@ exports.moveTimetableSeries = async (req, res) => {
   }
 };
 
+// Validate-only helper; the builder publishes through POST /headers/:id/publish.
+// Kept commented for reference.
+/*
 exports.validateTimetableHeader = async (req, res) => {  const schoolId = requireSchool(req, res);
   if (!schoolId) return;
 
@@ -2032,6 +2124,7 @@ exports.validateTimetableHeader = async (req, res) => {  const schoolId = requir
     return handleControllerError(res, error, "validating timetable");
   }
 };
+*/
 
 exports.publishTimetableHeader = async (req, res) => {
   const schoolId = requireSchool(req, res);
@@ -2106,6 +2199,9 @@ exports.updateTimetableHeaderStatus = async (req, res) => {
         .json({ success: false, message: "Timetable header not found" });
     }
 
+    // Publishing is handled by POST /headers/:id/publish. Kept commented for
+    // backwards reference instead of removed.
+    /*
     if (status === "PUBLISHED") {
       const { validation, published } = await publishValidatedHeader({
         header,
@@ -2129,6 +2225,17 @@ exports.updateTimetableHeaderStatus = async (req, res) => {
         canPublish: true,
         warnings: validation.warnings,
         summary: validation.summary,
+      });
+    }
+    */
+
+    // The publish branch above is disabled, so refuse PUBLISHED here instead of
+    // silently falling through and saving the timetable as a draft.
+    if (status !== "DRAFT") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "status must be DRAFT. Use POST /headers/:id/publish to publish.",
       });
     }
 

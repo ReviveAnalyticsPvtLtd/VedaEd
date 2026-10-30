@@ -105,6 +105,51 @@ const scheduleFormFromHeader = (header) => {
   };
 };
 
+const requirementsPayloadFrom = (requirementsList) => ({
+  requirements: (requirementsList || [])
+    .filter((item) => item.subjectId && item.teacherId)
+    .map((item) => ({
+      subjectId: item.subjectId,
+      teacherId: item.teacherId,
+      periodsPerWeek: Number(item.periodsPerWeek) || 0,
+      days: item.days || [],
+      preferredPeriodId: item.preferredPeriodId || null,
+    })),
+});
+
+const entriesPayloadFromSlots = (slotsMap) => ({
+  entries: Object.entries(slotsMap || {}).map(([key, slot]) => {
+    const { dayCode, periodId } = parseCellKey(key);
+    return {
+      day: DAY_NAME_BY_CODE[dayCode] || dayCode,
+      periodId,
+      subjectId: slot.subjectId,
+      teacherId: slot.teacherId,
+      roomNo: slot.roomNo || "",
+    };
+  }),
+});
+
+// Mirrors what the save call sends for a header that was just loaded, so an
+// unchanged section is not re-uploaded on every save/publish.
+const schedulePayloadFromHeader = (loadedHeader) => {
+  const form = scheduleFormFromHeader(loadedHeader);
+  return {
+    workingDays:
+      loadedHeader?.workingDays?.length > 0
+        ? normalizeWorkingDays(loadedHeader.workingDays)
+        : DEFAULT_WORKING_DAYS,
+    startTime: form.startTime,
+    defaultDurationMinutes: Number(form.defaultDurationMinutes) || 40,
+    defaultRoom: loadedHeader?.defaultRoom || "",
+    lunch: {
+      afterPeriod: Number(form.lunchAfterPeriod) || null,
+      durationMinutes: Number(form.lunchDurationMinutes) || 30,
+    },
+    periods: loadedHeader?.periods || [],
+  };
+};
+
 const Stepper = ({ step }) => (
   <div className="card">
     <div className="card-body">
@@ -178,6 +223,14 @@ const TimetableBuilder = () => {
 
   const [toastMsg, setToastMsg] = useState("");
   const toastTimer = useRef(null);
+
+  // Payload snapshots of what is already persisted, used to avoid re-sending
+  // unchanged schedule/requirements/entries on save or publish.
+  const savedSnapshotRef = useRef({
+    schedule: null,
+    requirements: null,
+    entries: null,
+  });
 
   const showToast = useCallback((message) => {
     setToastMsg(message);
@@ -493,6 +546,11 @@ const TimetableBuilder = () => {
       setPeriods([]);
       setRequirements([]);
       setSlots({});
+      savedSnapshotRef.current = {
+        schedule: null,
+        requirements: null,
+        entries: null,
+      };
       return;
     }
 
@@ -519,6 +577,11 @@ const TimetableBuilder = () => {
         setScheduleForm(defaultScheduleForm());
         setWorkingDays(DEFAULT_WORKING_DAYS);
         setDefaultRoom("");
+        savedSnapshotRef.current = {
+          schedule: null,
+          requirements: null,
+          entries: null,
+        };
         return;
       }
 
@@ -529,12 +592,31 @@ const TimetableBuilder = () => {
         api.get(`/timetables/headers/${found._id}/requirements`),
       ]);
 
-      setSlots(entriesToSlots(asList(entriesRes.data, "entries"), found.periods || []));
-      setRequirements(hydrateRequirements(asList(requirementsRes.data, "requirements")));
+      const loadedSlots = entriesToSlots(
+        asList(entriesRes.data, "entries"),
+        found.periods || []
+      );
+      const loadedRequirements = hydrateRequirements(
+        asList(requirementsRes.data, "requirements")
+      );
+
+      setSlots(loadedSlots);
+      setRequirements(loadedRequirements);
+
+      savedSnapshotRef.current = {
+        schedule: JSON.stringify(schedulePayloadFromHeader(found)),
+        requirements: JSON.stringify(requirementsPayloadFrom(loadedRequirements)),
+        entries: JSON.stringify(entriesPayloadFromSlots(loadedSlots)),
+      };
     } catch (err) {
       console.error("Error loading timetable:", err);
       setHeaderError("Failed to load timetable configuration");
       setHeader(null);
+      savedSnapshotRef.current = {
+        schedule: null,
+        requirements: null,
+        entries: null,
+      };
     } finally {
       setLoadingHeader(false);
     }
@@ -606,11 +688,17 @@ const TimetableBuilder = () => {
           },
           periods,
         };
+
+        if (savedSnapshotRef.current.schedule === JSON.stringify(payload)) {
+          return true;
+        }
+
         const res = await api.put(
           `/timetables/headers/${targetHeader._id}/schedule`,
           payload
         );
         if (res.data?.data) setHeader(res.data.data);
+        savedSnapshotRef.current.schedule = JSON.stringify(payload);
         return true;
       } catch (err) {
         showToast(err.response?.data?.message || "Failed to save schedule.");
@@ -623,21 +711,17 @@ const TimetableBuilder = () => {
   const saveRequirements = useCallback(
     async (targetHeader) => {
       try {
-        const payload = {
-          requirements: requirements
-            .filter((r) => r.subjectId && r.teacherId)
-            .map((r) => ({
-              subjectId: r.subjectId,
-              teacherId: r.teacherId,
-              periodsPerWeek: Number(r.periodsPerWeek) || 0,
-              days: r.days || [],
-              preferredPeriodId: r.preferredPeriodId || null,
-            })),
-        };
+        const payload = requirementsPayloadFrom(requirements);
+
+        if (savedSnapshotRef.current.requirements === JSON.stringify(payload)) {
+          return true;
+        }
+
         await api.put(
           `/timetables/headers/${targetHeader._id}/requirements`,
           payload
         );
+        savedSnapshotRef.current.requirements = JSON.stringify(payload);
         return true;
       } catch (err) {
         showToast(err.response?.data?.message || "Failed to save requirements.");
@@ -648,22 +732,23 @@ const TimetableBuilder = () => {
   );
 
   const saveSlots = useCallback(
-    async (targetHeader) => {
+    async (targetHeader, options = {}) => {
       try {
-        const entries = Object.entries(slots).map(([key, slot]) => {
-          const { dayCode, periodId } = parseCellKey(key);
-          return {
-            day: DAY_NAME_BY_CODE[dayCode] || dayCode,
-            periodId,
-            subjectId: slot.subjectId,
-            teacherId: slot.teacherId,
-            roomNo: slot.roomNo || "",
-          };
-        });
+        const payload = entriesPayloadFromSlots(slots);
 
-        await api.put(`/timetables/headers/${targetHeader._id}/entries`, {
-          entries,
-        });
+        if (savedSnapshotRef.current.entries === JSON.stringify(payload)) {
+          return true;
+        }
+
+        const body = options.skipConflictValidation
+          ? { ...payload, skipConflictValidation: true }
+          : payload;
+
+        await api.put(
+          `/timetables/headers/${targetHeader._id}/entries`,
+          body
+        );
+        savedSnapshotRef.current.entries = JSON.stringify(payload);
         return true;
       } catch (err) {
         const message =
@@ -680,11 +765,13 @@ const TimetableBuilder = () => {
       const entryRes = await api.get(
         `/timetables/headers/${targetHeader._id}/entries`
       );
-      setSlots(
-        entriesToSlots(
-          asList(entryRes.data, "entries"),
-          targetHeader.periods || periods
-        )
+      const loadedSlots = entriesToSlots(
+        asList(entryRes.data, "entries"),
+        targetHeader.periods || periods
+      );
+      setSlots(loadedSlots);
+      savedSnapshotRef.current.entries = JSON.stringify(
+        entriesPayloadFromSlots(loadedSlots)
       );
     },
     [entriesToSlots, periods]
@@ -1510,11 +1597,69 @@ const TimetableBuilder = () => {
       if (!target) return;
       if (!(await saveSchedule(target))) return;
       if (!(await saveRequirements(target))) return;
-      if (!(await saveSlots(target))) return;
-      if (!(await setStatus(target, "PUBLISHED"))) return;
-      await refreshAllEntries();
-      await loadHeader();
-      showToast("Timetable published.");
+      if (!(await saveSlots(target, { skipConflictValidation: true }))) return;
+
+      try {
+        // Single validate-then-publish call. The save above intentionally
+        // skipped its own external conflict pass, so validation runs once.
+        const res = await api.post(
+          `/timetables/headers/${target._id}/publish`
+        );
+        const published = res.data?.data || null;
+        if (published) setHeader(published);
+
+        // Keep the in-memory school-wide cache in sync without re-fetching
+        // every timetable in the school.
+        const targetClassId = idOf(target.class);
+        const targetSectionId = idOf(target.section);
+        const publishedEntries = entriesPayloadFromSlots(slots).entries.map(
+          (entry) => {
+            const period = periods.find(
+              (item) => String(item.periodId) === String(entry.periodId)
+            );
+            return {
+              ...entry,
+              class: targetClassId,
+              section: targetSectionId,
+              subject: entry.subjectId,
+              teacher: entry.teacherId,
+              timeFrom: period?.startTime || "",
+              timeTo: period?.endTime || "",
+              timetableHeader: target._id,
+            };
+          }
+        );
+
+        setAllEntries((prev) => [
+          ...(prev || []).filter((entry) => {
+            if (
+              String(entry.timetableHeader || "") === String(target._id)
+            ) {
+              return false;
+            }
+            if (
+              targetClassId &&
+              targetSectionId &&
+              String(idOf(entry.class)) === String(targetClassId) &&
+              String(idOf(entry.section)) === String(targetSectionId)
+            ) {
+              return false;
+            }
+            return true;
+          }),
+          ...publishedEntries,
+        ]);
+
+        setMode("view");
+        setStep(0);
+        setShowCopySetup(false);
+        setExportMenu(null);
+        showToast("Timetable published.");
+      } catch (err) {
+        showToast(
+          err.response?.data?.message || "Failed to publish timetable."
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -1523,9 +1668,8 @@ const TimetableBuilder = () => {
     saveSchedule,
     saveRequirements,
     saveSlots,
-    setStatus,
-    refreshAllEntries,
-    loadHeader,
+    periods,
+    slots,
     showToast,
   ]);
 
