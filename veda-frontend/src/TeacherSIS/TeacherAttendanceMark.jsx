@@ -17,6 +17,7 @@ export default function TeacherAttendanceMark() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [classes, setClasses] = useState([]);
+  const [classesLoaded, setClassesLoaded] = useState(false);
 
   // Restore saved filters when returning to the page
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function TeacherAttendanceMark() {
         if (response.data.success) {
           setClasses(response.data.data); // Use 'data' instead of 'classes'
         }
+        setClassesLoaded(true);
       } catch (err) {
         console.error("Error fetching classes:", err);
         setClasses([]);
@@ -62,6 +64,25 @@ export default function TeacherAttendanceMark() {
     };
     fetchClasses();
   }, []);
+
+  // The class list only holds the classes this teacher is assigned to
+  useEffect(() => {
+    if (!classesLoaded) return;
+
+    const owner = classes.find((c) => c.name === selectedClass);
+    if (!owner) {
+      setSelectedClass("");
+      setSelectedSection("");
+      return;
+    }
+
+    if (
+      selectedSection &&
+      !(owner.sections || []).some((s) => (s.name || s) === selectedSection)
+    ) {
+      setSelectedSection("");
+    }
+  }, [classesLoaded, classes]);
 
   // 🔎 Load Students
   const handleSearch = async () => {

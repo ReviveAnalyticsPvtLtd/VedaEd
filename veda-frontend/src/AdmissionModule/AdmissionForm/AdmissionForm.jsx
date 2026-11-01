@@ -582,17 +582,6 @@ if (
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <button
-          onClick={() => navigate("/students")}
-          className="hover:underline"
-        >
-          Students
-        </button>
-        <span className="mx-1">&gt;</span>
-        <span>Admission Form</span>
-      </div>
 
       <div className="flex items-center justify-between mb-4">
              <h2 className="text-2xl font-bold">Admission Form</h2>

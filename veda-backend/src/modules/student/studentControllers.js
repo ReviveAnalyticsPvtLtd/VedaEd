@@ -106,9 +106,9 @@ const teacherAssignedToStudent = async (teacherStaffId, studentDoc) => {
     const sectionId = refToId(studentDoc.personalInfo.section);
     if (!classId || !sectionId) return false;
     const n = await AssignTeacher.countDocuments({
-      teachers: teacherStaffId,
       class: classId,
       section: sectionId,
+      $or: [{ teachers: teacherStaffId }, { classTeacher: teacherStaffId }],
     });
     return n > 0;
   } catch (e) {

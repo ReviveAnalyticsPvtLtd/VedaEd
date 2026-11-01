@@ -1,5 +1,3 @@
-
-
 const mongoose = require("mongoose");
 const Class = require("./classSchema");
 const Section = require("../section/sectionSchema");
@@ -14,6 +12,7 @@ const {
   matchesGrade,
   sortClasses,
 } = require("./services/classAutomationService");
+const { getTeacherRosterScope } = require("../../services/teacherAssignmentScope");
 
 // Tenant context is resolved by authMiddleware from the authenticated User
 // document. It is never read from the request payload.
@@ -175,10 +174,30 @@ exports.getClasses = async (req, res) => {
 
     const sortedClasses = sortClasses(updatedClasses);
 
+    // Teachers only get the class/section pairs they are assigned to, so their
+    // dropdown matches exactly the roster GET /api/students returns for them.
+    // Other roles keep the full school list.
+    let scopedClasses = sortedClasses;
+    if (req.user?.role === "teacher") {
+      const { pairs } = await getTeacherRosterScope(req.user.refId, schoolId);
+      const allowedPairs = new Set(
+        pairs.map((pair) => `${pair.class}:${pair.section}`)
+      );
+
+      scopedClasses = sortedClasses
+        .map((cls) => ({
+          ...cls,
+          sections: (cls.sections || []).filter((sec) =>
+            allowedPairs.has(`${cls._id}:${sec._id}`)
+          ),
+        }))
+        .filter((cls) => cls.sections.length > 0);
+    }
+
     res.status(200).json({
       success: true,
-      count: sortedClasses.length,
-      data: sortedClasses,
+      count: scopedClasses.length,
+      data: scopedClasses,
     });
   } catch (err) {
     res.status(500).json({
