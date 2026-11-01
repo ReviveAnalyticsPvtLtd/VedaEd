@@ -75,6 +75,11 @@ const parentSchema = new Schema({
     motherOccupation: { type: String, default: "" },
     motherPhone: { type: String, default: "" },
     motherEmail: { type: String, default: "" },
+    emergencyContact: {
+        name: { type: String, default: "" },
+        relation: { type: String, default: "" },
+        phone: { type: String, default: "" },
+    },
     address:{
         type:String
     },

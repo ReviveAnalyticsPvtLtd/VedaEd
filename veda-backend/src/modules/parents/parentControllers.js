@@ -104,20 +104,27 @@ function flattenParentAddress(parentDoc) {
 function mapChildrenForParentProfile(children = []) {
   return (children || []).map((child) => {
     const pi = child.personalInfo || {};
+    // Populated Class/Section docs carry their label in `name` (the schemas have
+    // no className/sectionName); an unpopulated ref is an ObjectId, which must
+    // degrade to "N/A" rather than stringify into "[object Object]".
     const classVal = pi.class;
-    let grade = "N/A";
-    if (classVal && typeof classVal === "object" && classVal.className != null) {
-      grade = String(classVal.className);
-    } else if (classVal != null && String(classVal).trim() !== "") {
-      grade = String(classVal);
-    }
+    const classLabel =
+      classVal && typeof classVal === "object"
+        ? classVal.name ?? classVal.className
+        : classVal;
+    const grade =
+      classLabel != null && String(classLabel).trim() !== ""
+        ? String(classLabel)
+        : "N/A";
     const secVal = pi.section;
-    let section = "N/A";
-    if (secVal && typeof secVal === "object" && secVal.sectionName != null) {
-      section = String(secVal.sectionName);
-    } else if (secVal != null && String(secVal).trim() !== "") {
-      section = String(secVal);
-    }
+    const sectionLabel =
+      secVal && typeof secVal === "object"
+        ? secVal.name ?? secVal.sectionName
+        : secVal;
+    const section =
+      sectionLabel != null && String(sectionLabel).trim() !== ""
+        ? String(sectionLabel)
+        : "N/A";
     return {
       _id: child._id,
       name: pi.name || child.name || "Student",
@@ -177,7 +184,6 @@ function resolveParentProfilePhotoFromParentDoc(parentDoc) {
   return resolveParentProfilePhoto(pickPhotoPathFromParentDocuments(parentDoc));
 }
 
-/** Parse `adm-<mongoId>` or legacy `adm-<mongoId>-f|m|g` from parent dashboard routes. */
 function parseAdmissionSyntheticParentRouteId(id) {
   if (!id || typeof id !== "string" || !id.startsWith("adm-")) return null;
   const rest = id.slice(4);
@@ -350,7 +356,11 @@ function formatParentProfileApiData(parentDoc) {
     motherName: parentDoc.motherName || "N/A",
     motherOccupation: parentDoc.motherOccupation || "Home Maker",
     motherNumber: parentDoc.motherNumber || "N/A",
-    emergencyContact: parentDoc.emergencyContact || parentDoc.phone || "N/A",
+    emergencyContact:
+      (parentDoc.emergencyContact &&
+        (parentDoc.emergencyContact.name || parentDoc.emergencyContact.phone)) ||
+      parentDoc.phone ||
+      "N/A",
     permanentAddress: parentDoc.permanentAddress || {
       line1: parentDoc.address || displayAddress || "N/A",
       line2: "",
@@ -827,7 +837,13 @@ exports.updateParent = async (req, res) => {
       new: true,
       runValidators: true,
     })
-      .populate("children")
+      .populate({
+        path: "children",
+        populate: [
+          { path: "personalInfo.class", select: "name" },
+          { path: "personalInfo.section", select: "name" },
+        ],
+      })
       .lean();
     // console.log("updatedParent:", updatedParent);
 
@@ -849,7 +865,9 @@ exports.updateParent = async (req, res) => {
       occupation: updatedParent.occupation,
       relation: updatedParent.relation,
       address: updatedParent.address,
-      children: updatedParent.children,
+      // Normalized (grade/section as labels
+      // can remap the saved profile without seeing "[object Object]" or ids.
+      children: formatParentProfileApiData(updatedParent).children,
       password: unhashedPassword != null ? unhashedPassword : "",
     };
     // console.log("responseData:", responseData);
@@ -1783,6 +1801,27 @@ exports.importParents = async (req, res) => {
       return "";
     };
 
+    const getParentField = (pData, field) => {
+      const aliases = {
+        fatherName: ["fatherName", "Father Name", "FatherName", "Father"],
+        fatherOccupation: ["fatherOccupation", "Father Occupation", "Father Occupation/Profession", "Father Profession"],
+        fatherPhone: ["fatherPhone", "Father Phone", "Father Mobile", "Father Mobile Number", "Father Contact", "Father Contact Number"],
+        fatherEmail: ["fatherEmail", "Father Email", "Father Email ID"],
+        motherName: ["motherName", "Mother Name", "MotherName", "Mother"],
+        motherOccupation: ["motherOccupation", "Mother Occupation", "Mother Profession"],
+        motherPhone: ["motherPhone", "Mother Phone", "Mother Mobile", "Mother Mobile Number", "Mother Contact", "Mother Contact Number"],
+        motherEmail: ["motherEmail", "Mother Email", "Mother Email ID"],
+        guardianName: ["guardianName", "Guardian Name", "Local Guardian Name"],
+        guardianRelation: ["guardianRelation", "Guardian Relation", "Relation with Guardian"],
+        guardianPhone: ["guardianPhone", "Guardian Phone", "Guardian Mobile", "Guardian Contact"],
+        guardianEmail: ["guardianEmail", "Guardian Email", "Guardian Email ID"],
+        emergencyName: ["emergencyName", "Emergency Contact Name", "Emergency Contact"],
+        emergencyRelation: ["emergencyRelation", "Emergency Relation"],
+        emergencyPhone: ["emergencyPhone", "Emergency Phone", "Emergency Mobile", "Emergency Contact Number"]
+      };
+      return getVal(pData, aliases[field] || [field]);
+    };
+
     const roleMap = {
       "primary guardian": "Primary Guardian",
       "secondary guardian": "Secondary Guardian",
@@ -1935,30 +1974,106 @@ exports.importParents = async (req, res) => {
           resolvedStudentIds,
           role: row.role,
           name: row.name,
-          parentId: existing.parentId
+          parentId: existing.parentId,
+          fatherName: getParentField(row.rawRow, 'fatherName'),
+          fatherOccupation: getParentField(row.rawRow, 'fatherOccupation'),
+          fatherPhone: getParentField(row.rawRow, 'fatherPhone'),
+          fatherEmail: getParentField(row.rawRow, 'fatherEmail'),
+          motherName: getParentField(row.rawRow, 'motherName'),
+          motherOccupation: getParentField(row.rawRow, 'motherOccupation'),
+          motherPhone: getParentField(row.rawRow, 'motherPhone'),
+          motherEmail: getParentField(row.rawRow, 'motherEmail'),
+          guardian: {
+            name: getParentField(row.rawRow, 'guardianName'),
+            relation: getParentField(row.rawRow, 'guardianRelation'),
+            phone: getParentField(row.rawRow, 'guardianPhone'),
+            email: getParentField(row.rawRow, 'guardianEmail')
+          },
+          emergencyContact: {
+            name: getParentField(row.rawRow, 'emergencyName'),
+            relation: getParentField(row.rawRow, 'emergencyRelation'),
+            phone: getParentField(row.rawRow, 'emergencyPhone')
+          },
+          contactDetails: {
+            phone: getVal(row.rawRow, ["Contact Details Phone", "Parent Phone", "Contact Phone", "Mobile Number"]) || getParentField(row.rawRow, 'fatherPhone') || getParentField(row.rawRow, 'guardianPhone') || row.phone,
+            email: getVal(row.rawRow, ["Contact Details Email", "Parent Email"]) || getParentField(row.rawRow, 'fatherEmail') || getParentField(row.rawRow, 'guardianEmail') || row.email
+          }
         });
         continue;
       }
 
       parentsToCreate.push({
         ...row,
-        resolvedStudentIds
+        resolvedStudentIds,
+        fatherName: getParentField(row.rawRow, 'fatherName'),
+        fatherOccupation: getParentField(row.rawRow, 'fatherOccupation'),
+        fatherPhone: getParentField(row.rawRow, 'fatherPhone'),
+        fatherEmail: getParentField(row.rawRow, 'fatherEmail'),
+        motherName: getParentField(row.rawRow, 'motherName'),
+        motherOccupation: getParentField(row.rawRow, 'motherOccupation'),
+        motherPhone: getParentField(row.rawRow, 'motherPhone'),
+        motherEmail: getParentField(row.rawRow, 'motherEmail'),
+        guardian: {
+          name: getParentField(row.rawRow, 'guardianName'),
+          relation: getParentField(row.rawRow, 'guardianRelation'),
+          phone: getParentField(row.rawRow, 'guardianPhone'),
+          email: getParentField(row.rawRow, 'guardianEmail')
+        },
+        emergencyContact: {
+          name: getParentField(row.rawRow, 'emergencyName'),
+          relation: getParentField(row.rawRow, 'emergencyRelation'),
+          phone: getParentField(row.rawRow, 'emergencyPhone')
+        },
+        contactDetails: {
+          phone: getVal(row.rawRow, ["Contact Details Phone", "Parent Phone", "Contact Phone", "Mobile Number"]) || getParentField(row.rawRow, 'fatherPhone') || getParentField(row.rawRow, 'guardianPhone') || row.phone,
+          email: getVal(row.rawRow, ["Contact Details Email", "Parent Email"]) || getParentField(row.rawRow, 'fatherEmail') || getParentField(row.rawRow, 'guardianEmail') || row.email
+        }
       });
     }
 
     // Step 4: Execute repairs for existing records in bulk
     if (parentsToRepair.length > 0) {
-      const parentBulkOps = parentsToRepair.map((rep) => ({
-        updateOne: {
-          filter: { _id: rep.parent._id },
-          update: {
-            $set: {
-              children: rep.resolvedStudentIds,
-              role: rep.role
-            }
-          }
+      const parentBulkOps = parentsToRepair.map((rep) => {
+        const set = {
+          children: rep.resolvedStudentIds,
+          role: rep.role
+        };
+        if (rep.fatherName) set.fatherName = rep.fatherName;
+        if (rep.fatherOccupation) set.fatherOccupation = rep.fatherOccupation;
+        if (rep.fatherPhone) set.fatherPhone = rep.fatherPhone;
+        if (rep.fatherEmail) set.fatherEmail = rep.fatherEmail;
+        if (rep.motherName) set.motherName = rep.motherName;
+        if (rep.motherOccupation) set.motherOccupation = rep.motherOccupation;
+        if (rep.motherPhone) set.motherPhone = rep.motherPhone;
+        if (rep.motherEmail) set.motherEmail = rep.motherEmail;
+        if (rep.guardian && (rep.guardian.name || rep.guardian.relation || rep.guardian.phone || rep.guardian.email)) {
+          set.guardian = {
+            name: rep.guardian.name || "",
+            relation: rep.guardian.relation || "",
+            phone: rep.guardian.phone || "",
+            email: rep.guardian.email || ""
+          };
         }
-      }));
+        if (rep.emergencyContact && (rep.emergencyContact.name || rep.emergencyContact.phone || rep.emergencyContact.relation)) {
+          set.emergencyContact = {
+            name: rep.emergencyContact.name || "",
+            relation: rep.emergencyContact.relation || "",
+            phone: rep.emergencyContact.phone || ""
+          };
+        }
+        if (rep.contactDetails && (rep.contactDetails.phone || rep.contactDetails.email)) {
+          set.contactDetails = {
+            phone: rep.contactDetails.phone || "",
+            email: rep.contactDetails.email || ""
+          };
+        }
+        return {
+          updateOne: {
+            filter: { _id: rep.parent._id },
+            update: { $set: set }
+          }
+        };
+      });
       await Parent.bulkWrite(parentBulkOps);
 
       const studentBulkOps = [];
@@ -1968,6 +2083,22 @@ exports.importParents = async (req, res) => {
             updateMany: {
               filter: { _id: { $in: rep.resolvedStudentIds }, schoolId },
               update: { $set: { parent: rep.parent._id } }
+            }
+          });
+        }
+        if (rep.emergencyContact && rep.emergencyContact.name && rep.resolvedStudentIds.length > 0) {
+          studentBulkOps.push({
+            updateMany: {
+              filter: { _id: { $in: rep.resolvedStudentIds }, schoolId },
+              update: {
+                $set: {
+                  emergencyContact: {
+                    name: rep.emergencyContact.name || "",
+                    relation: rep.emergencyContact.relation || "",
+                    phone: rep.emergencyContact.phone || ""
+                  }
+                }
+              }
             }
           });
         }
@@ -1986,7 +2117,7 @@ exports.importParents = async (req, res) => {
       const docsToInsert = parentsToCreate.map((row, idx) => {
         const parentId = parentIds[idx];
         const finalEmail = row.email || `${parentId.toLowerCase()}@parent.vedaed`;
-        return {
+        const doc = {
           name: row.name,
           email: finalEmail,
           phone: row.phone,
@@ -1997,6 +2128,36 @@ exports.importParents = async (req, res) => {
           schoolId,
           children: row.resolvedStudentIds
         };
+        if (row.fatherName) doc.fatherName = row.fatherName;
+        if (row.fatherOccupation) doc.fatherOccupation = row.fatherOccupation;
+        if (row.fatherPhone) doc.fatherPhone = row.fatherPhone;
+        if (row.fatherEmail) doc.fatherEmail = row.fatherEmail;
+        if (row.motherName) doc.motherName = row.motherName;
+        if (row.motherOccupation) doc.motherOccupation = row.motherOccupation;
+        if (row.motherPhone) doc.motherPhone = row.motherPhone;
+        if (row.motherEmail) doc.motherEmail = row.motherEmail;
+        if (row.guardian && (row.guardian.name || row.guardian.relation || row.guardian.phone || row.guardian.email)) {
+          doc.guardian = {
+            name: row.guardian.name || "",
+            relation: row.guardian.relation || "",
+            phone: row.guardian.phone || "",
+            email: row.guardian.email || ""
+          };
+        }
+        if (row.emergencyContact && (row.emergencyContact.name || row.emergencyContact.phone || row.emergencyContact.relation)) {
+          doc.emergencyContact = {
+            name: row.emergencyContact.name || "",
+            relation: row.emergencyContact.relation || "",
+            phone: row.emergencyContact.phone || ""
+          };
+        }
+        if (row.contactDetails && (row.contactDetails.phone || row.contactDetails.email)) {
+          doc.contactDetails = {
+            phone: row.contactDetails.phone || "",
+            email: row.contactDetails.email || ""
+          };
+        }
+        return doc;
       });
 
       const createdParents = await Parent.insertMany(docsToInsert);
@@ -2011,6 +2172,22 @@ exports.importParents = async (req, res) => {
             updateMany: {
               filter: { _id: { $in: resolvedStudentIds }, schoolId },
               update: { $set: { parent: cp._id } }
+            }
+          });
+        }
+        if (parentsToCreate[i].emergencyContact && parentsToCreate[i].emergencyContact.name && resolvedStudentIds.length > 0) {
+          studentCreateBulkOps.push({
+            updateMany: {
+              filter: { _id: { $in: resolvedStudentIds }, schoolId },
+              update: {
+                $set: {
+                  emergencyContact: {
+                    name: parentsToCreate[i].emergencyContact.name || "",
+                    relation: parentsToCreate[i].emergencyContact.relation || "",
+                    phone: parentsToCreate[i].emergencyContact.phone || ""
+                  }
+                }
+              }
             }
           });
         }
