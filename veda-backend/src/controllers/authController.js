@@ -130,8 +130,6 @@ exports.login = async (req, res) => {
     const { email, password, employeeId, role } = req.body;
     const loginId = String(email || employeeId || "").trim();
 
-    console.log("LOGIN BODY:", req.body);
-
     // 1️⃣ Check login id & password exist
     if (!loginId || !password) {
       console.log("LOGIN ID OR PASSWORD MISSING");
