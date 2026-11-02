@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   getAcademicYears,
+  getActiveAcademicYear,
   createAcademicYear,
   updateAcademicYear,
   deleteAcademicYear,
@@ -71,8 +72,8 @@ const { CAP } = require("./feeTenant");
  * permission rows. Those controllers fall back to the parent's own verified
  * `children` list, matching the parent dashboard, and fail closed otherwise.
  *
- * AcademicYear is deliberately GLOBAL (it has no schoolId by design). It is
- * still gated behind auth + a valid school context, and its writes require
+ * AcademicYear is TENANT_OWNED and scoped to req.user.schoolId. It is
+ * gated behind auth + a valid school context, and its writes require
  * manage_fees, matching the admin UI that already drives this screen.
  */
 const tenant = [authMiddleware, requireSchoolContext];
@@ -80,7 +81,8 @@ const view = (permission) => [...tenant, permissionMiddleware(permission)];
 
 const academicYearRouter = express.Router();
 
-academicYearRouter.get("/", ...view(CAP.VIEW_FEES), getAcademicYears);
+academicYearRouter.get("/", ...tenant, getAcademicYears);
+academicYearRouter.get("/active", ...tenant, getActiveAcademicYear);
 academicYearRouter.post("/", ...view(CAP.MANAGE_FEES), createAcademicYear);
 academicYearRouter.put("/:id", ...view(CAP.MANAGE_FEES), updateAcademicYear);
 academicYearRouter.delete("/:id", ...view(CAP.MANAGE_FEES), deleteAcademicYear);

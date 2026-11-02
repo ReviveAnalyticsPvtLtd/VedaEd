@@ -241,7 +241,6 @@ export default function StudentProfileSettingsAccount() {
         employeeId: formData.employeeId,
       });
 
-      // Keep the navbar / session copy in sync with the edited profile.
       try {
         const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
         const updatedUser = {

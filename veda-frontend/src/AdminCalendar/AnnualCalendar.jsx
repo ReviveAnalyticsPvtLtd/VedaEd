@@ -43,10 +43,23 @@ export default function AnnualCalendar() {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
 
   useEffect(() => {
     fetchEvents();
+    fetchAcademicYear();
   }, []);
+
+  const fetchAcademicYear = async () => {
+    try {
+      const res = await calendarAPI.getAcademicYear();
+      if (res?.success && res?.data) {
+        setActiveAcademicYear(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch academic year", err);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -145,6 +158,11 @@ export default function AnnualCalendar() {
               ? format(currentDate, "yyyy")
               : format(currentDate, "MMMM yyyy")}
           </div>
+          {activeAcademicYear?.label && (
+            <div className="text-xs font-medium text-blue-600">
+              Academic Year: {activeAcademicYear.label}
+            </div>
+          )}
           {view === "day" && (
             <div className="text-sm text-gray-500">
               {format(currentDate, "EEEE, dd MMMM yyyy")}

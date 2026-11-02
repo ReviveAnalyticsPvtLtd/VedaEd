@@ -89,9 +89,52 @@ const FIELD_RULES = {
   name: { label: "Name", required: true, maxLength: 100 },
   occupation: { label: "Occupation", maxLength: 100 },
   relation: { label: "Relation", maxLength: 50 },
-  email: { label: "Email", required: true, validate: EMAIL_RE, message: "Enter a valid email address" },
+  email: { label: "Email", required: true, maxLength: 100, validate: EMAIL_RE, message: "Enter a valid email address" },
   phone: { label: "Phone", required: true, validate: PHONE_RE, message: "Enter a valid phone number" },
   address: { label: "Address", maxLength: 250 },
+};
+
+/**
+ * Input restrictions applied while typing, before the value ever reaches state.
+ * `sanitize` drops disallowed characters; when anything is dropped the matching
+ * message is shown immediately instead of waiting for Save.
+ */
+const ENTRY_FILTERS = {
+  parentId: {
+    sanitize: (v) => v.replace(/[^A-Za-z0-9_/-]/g, ""),
+    message: "Only letters, numbers, - and _ are allowed",
+  },
+  name: {
+    sanitize: (v) => v.replace(/[^A-Za-z\s]/g, ""),
+    message: "Only letters are allowed",
+  },
+  occupation: {
+    sanitize: (v) => v.replace(/[^A-Za-z\s]/g, ""),
+    message: "Only letters are allowed",
+  },
+  relation: {
+    sanitize: (v) => v.replace(/[^A-Za-z\s]/g, ""),
+    message: "Only letters are allowed",
+  },
+  phone: {
+    sanitize: (v) => v.replace(/\D/g, ""),
+    message: "Only digits are allowed",
+  },
+  address: {
+    sanitize: (v) => v.replace(/[^A-Za-z0-9\s,./\-#()]/g, ""),
+    message: "Only letters, numbers and basic punctuation are allowed",
+  },
+};
+
+/** Format checks evaluated live on every keystroke for values that cannot be character-filtered. */
+const LIVE_FORMATS = {
+  email: { validate: EMAIL_RE, message: "Enter a valid email address" },
+};
+
+/** Extra input attributes per field (maxLength comes from FIELD_RULES). */
+const INPUT_META = {
+  email: { inputMode: "email" },
+  phone: { inputMode: "numeric", maxLength: 20 },
 };
 
 /** Returns { field: message } for every rule the current parent state violates. */
@@ -117,31 +160,49 @@ const validateParentFields = (values) => {
 };
 
 // Input field component for editing
-const InputField = ({ label, value, onChange, type = "text", required = false, error = "" }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
-    <p className="font-medium text-gray-500">
-      {label}
-      {required ? <span className="text-red-500"> *</span> : null}
-    </p>
-    <div className="col-span-2">
-      <input
-        type={type}
-        required={required}
-        aria-invalid={error ? "true" : undefined}
-        className={`w-full border rounded-lg px-3 py-1 text-sm ${
-          error ? "border-red-400 bg-red-50" : ""
-        }`}
-        value={value || ""}
-        onChange={onChange}
-      />
-      {error ? (
-        <p className="mt-1 text-xs text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
+// `field` keys into FIELD_RULES/INPUT_META so maxLength and inputMode are applied automatically.
+const InputField = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  error = "",
+  field,
+  ...rest
+}) => {
+  const rule = field ? FIELD_RULES[field] : undefined;
+  const meta = field ? INPUT_META[field] : undefined;
+  const maxLength = meta?.maxLength ?? rule?.maxLength;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 py-2 border-b border-gray-100 last:border-b-0">
+      <p className="font-medium text-gray-500">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </p>
+      <div className="col-span-2">
+        <input
+          type={type}
+          required={required}
+          aria-invalid={error ? "true" : undefined}
+          className={`w-full border rounded-lg px-3 py-1 text-sm ${
+            error ? "border-red-400 bg-red-50" : ""
+          }`}
+          value={value || ""}
+          onChange={onChange}
+          maxLength={maxLength}
+          inputMode={meta?.inputMode}
+          {...rest}
+        />
+        {error ? (
+          <p className="mt-1 text-xs text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Info display component
 const InfoDetail = ({ label, value }) => (
@@ -372,12 +433,32 @@ const ParentProfile = () => {
     );
   }
 
-  const handleChange = (field, value) => {
+  const handleChange = (field, rawValue) => {
+    const rule = FIELD_RULES[field];
+    const filter = ENTRY_FILTERS[field];
+    const value = filter ? filter.sanitize(String(rawValue)) : String(rawValue);
+
     setParent({ ...parent, [field]: value });
+
+    // Work out the live error for this field: rejected characters win, then a
+    // cleared required field, then format rules such as the email pattern.
+    let nextError = "";
+    if (filter && value !== rawValue) {
+      nextError = filter.message;
+    } else if (rule?.required && !value.trim()) {
+      nextError = `${rule.label} is required`;
+    } else {
+      const live = LIVE_FORMATS[field];
+      if (live && value.trim() && !live.validate.test(value.trim())) {
+        nextError = live.message;
+      }
+    }
+
     setErrors((prev) => {
-      if (!prev[field]) return prev;
+      if (!nextError && !prev[field]) return prev;
       const next = { ...prev };
-      delete next[field];
+      if (nextError) next[field] = nextError;
+      else delete next[field];
       return next;
     });
   };
@@ -572,6 +653,7 @@ const ParentProfile = () => {
             <>
               <InputField
                 label="Parent ID"
+                field="parentId"
                 value={parent.parentId}
                 onChange={(e) => handleChange("parentId", e.target.value)}
                 required
@@ -579,6 +661,7 @@ const ParentProfile = () => {
               />
               <InputField
                 label="Name"
+                field="name"
                 value={parent.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 required
@@ -586,12 +669,14 @@ const ParentProfile = () => {
               />
               <InputField
                 label="Occupation"
+                field="occupation"
                 value={parent.occupation}
                 onChange={(e) => handleChange("occupation", e.target.value)}
                 error={errors.occupation}
               />
               <InputField
                 label="Relation"
+                field="relation"
                 value={parent.relation}
                 onChange={(e) => handleChange("relation", e.target.value)}
                 error={errors.relation}
@@ -681,6 +766,7 @@ const ParentProfile = () => {
             <>
               <InputField
                 label="Email"
+                field="email"
                 type="email"
                 value={parent.email}
                 onChange={(e) => handleChange("email", e.target.value)}
@@ -689,6 +775,7 @@ const ParentProfile = () => {
               />
               <InputField
                 label="Phone"
+                field="phone"
                 type="tel"
                 value={parent.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
@@ -697,6 +784,7 @@ const ParentProfile = () => {
               />
               <InputField
                 label="Address"
+                field="address"
                 value={parent.address}
                 onChange={(e) => handleChange("address", e.target.value)}
                 error={errors.address}

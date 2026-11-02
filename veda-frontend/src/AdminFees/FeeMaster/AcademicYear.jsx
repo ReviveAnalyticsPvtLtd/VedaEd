@@ -1,9 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
-import config from "../../config";
-
-const API_BASE = `${config.API_BASE_URL}/academic-years`;
+import api from "../../services/apiClient";
 
 export default function AcademicYear({ selectedYear, onYearChange }) {
   /* ================= DUMMY DATA ================= */
@@ -82,13 +80,22 @@ export default function AcademicYear({ selectedYear, onYearChange }) {
   });
 
   // ================= API CALL =================
-  fetch(editId ? `${API_BASE}/${editId}` : API_BASE, {
-    method: editId ? "PUT" : "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(form),
-  }).catch(() => {
-    console.log("Save API failed (dummy mode)");
-  });
+  const apiCall = editId
+    ? api.put(`/academic-years/${editId}`, form)
+    : api.post("/academic-years", form);
+
+  apiCall
+    .then((res) => {
+      if (res?.data) {
+        setYears((prev) =>
+          prev.map((y) => (y._id === editId ? res.data : y))
+        );
+      }
+      if (form.isActive && onYearChange) onYearChange();
+    })
+    .catch((err) => {
+      console.log("Save API failed", err);
+    });
 
   setShowModal(false);
 };
@@ -100,10 +107,8 @@ export default function AcademicYear({ selectedYear, onYearChange }) {
   setYears((p) => p.filter((y) => y._id !== id));
 
   // API
-  fetch(`${API_BASE}/${id}`, {
-    method: "DELETE",
-  }).catch(() => {
-    console.log("Delete API failed (dummy mode)");
+  api.delete(`/academic-years/${id}`).catch((err) => {
+    console.log("Delete API failed", err);
   });
 };
 
@@ -123,15 +128,13 @@ export default function AcademicYear({ selectedYear, onYearChange }) {
     });
 useEffect(() => {
   // GET ALL ACADEMIC YEARS
-  fetch(API_BASE)
-    .then((res) => res.json())
-    .then((data) => {
-      if (Array.isArray(data)) {
-        setYears(data);
+  api.get("/academic-years")
+    .then((res) => {
+      if (Array.isArray(res.data)) {
+        setYears(res.data);
       }
     })
     .catch(() => {
-      // backend na ho to fallback data rahe
       console.log("API not connected, showing local data");
     });
 }, []);
@@ -182,12 +185,10 @@ useEffect(() => {
     );
 
     
-    fetch(`${config.API_BASE_URL}/academic-years/${y._id}/activate`, {
-      method: "PATCH",
-    })
-    .then(() => onYearChange())
+    api.patch(`/academic-years/${y._id}/activate`)
+    .then(() => onYearChange && onYearChange())
     .catch(() => {
-      console.log("Activate API failed (dummy mode)");
+      console.log("Activate API failed");
     });
   }}
   className="border px-3 py-1 rounded text-sm"

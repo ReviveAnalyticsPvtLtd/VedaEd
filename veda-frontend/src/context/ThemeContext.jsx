@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { userSettingsAPI } from "../services/userSettingsAPI";
 import { getSetupProfile } from "../services/setupWizardAPI";
+import { isTokenExpired } from "../services/apiClient";
 import {
   applyPrimaryColorToDOM,
   normalizeHex,
@@ -174,7 +175,7 @@ export const ThemeProvider = ({ children }) => {
   // Sync with user settings and organization setup profile on initial load if logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token || isTokenExpired(token)) return;
 
     let isMounted = true;
 

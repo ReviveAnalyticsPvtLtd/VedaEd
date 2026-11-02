@@ -234,7 +234,7 @@ const computeMasterStats = async (schoolId) => {
   });
 
 
-  const activeYear = await AcademicYear.findOne({ isActive: true })
+  const activeYear = await AcademicYear.findOne({ schoolId, isActive: true })
     .select("label")
     .lean();
 

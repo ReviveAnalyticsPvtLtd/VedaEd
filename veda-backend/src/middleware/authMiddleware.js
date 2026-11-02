@@ -11,7 +11,22 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key");
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key");
+    } catch (jwtError) {
+      if (jwtError.name === "TokenExpiredError") {
+        return res.status(401).json({
+          code: "TOKEN_EXPIRED",
+          message: "Your session has expired. Please log in again.",
+          expiredAt: jwtError.expiredAt,
+        });
+      }
+      return res.status(401).json({
+        code: "INVALID_TOKEN",
+        message: "Invalid or malformed authorization token",
+      });
+    }
 
     req.user = {
       userId: decoded.userId,
@@ -68,7 +83,7 @@ const authMiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Auth Middleware Error:", error);
-    return res.status(401).json({ message: "Invalid or expired token" });
+    return res.status(500).json({ code: "AUTH_ERROR", message: "Internal authentication error" });
   }
 };
 

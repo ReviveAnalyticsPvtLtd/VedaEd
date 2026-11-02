@@ -123,9 +123,14 @@ export default function Login() {
 
       const response = await axios.post(`${config.API_BASE_URL}/auth/login`, body);
 
-      const { token, role, permissions, platformPermissions, user } = response.data;
+      const { token, refreshToken, role, permissions, platformPermissions, user } = response.data;
 
       localStorage.setItem("token", token);
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      } else {
+        localStorage.removeItem("refreshToken");
+      }
       localStorage.setItem("role", role);
       localStorage.setItem("permissions", JSON.stringify(permissions || []));
       localStorage.setItem("user", JSON.stringify(user));

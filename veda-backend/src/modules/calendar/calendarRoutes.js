@@ -23,6 +23,10 @@ router.delete('/events/:id', calendarController.deleteEvent);
 router.post('/event-types', eventTypeController.createEventType);
 router.get('/event-types', eventTypeController.getEventTypes);
 
+// Routes for Academic Year
+router.get('/academic-year', calendarController.getAcademicYear);
+router.post('/academic-year', calendarController.saveAcademicYear);
+
 // Seed defaults
 eventTypeController.seedDefaultTypes();
 
