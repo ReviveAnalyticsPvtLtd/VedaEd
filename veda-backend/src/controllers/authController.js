@@ -539,9 +539,22 @@ exports.login = async (req, res) => {
       { new: true }
     );
 
+    const { issueRefreshToken } = require("../utils/authTokens");
+    let refreshPayload = {};
+    try {
+      const refreshResult = await issueRefreshToken(user._id);
+      refreshPayload = {
+        refreshToken: refreshResult.refreshToken,
+        refreshTokenExpiresAt: refreshResult.refreshTokenExpiresAt,
+      };
+    } catch (refreshErr) {
+      console.error("Failed to issue refresh token on login:", refreshErr);
+    }
+
     const response = {
       success: true,
       token,
+      ...refreshPayload,
       role: roleName,
       permissions,
       platformPermissions,
@@ -610,6 +623,16 @@ exports.logout = async (req, res) => {
           { $set: { activeSession: null } }
         );
       }
+
+      // Also revoke refresh tokens if refreshToken was sent in body
+      const refreshToken = req.body?.refreshToken;
+      if (refreshToken && refreshToken.includes(".")) {
+        const [tokenId] = refreshToken.split(".");
+        const RefreshToken = require("../models/RefreshToken");
+        if (mongoose.isValidObjectId(tokenId)) {
+          await RefreshToken.updateOne({ _id: tokenId }, { $set: { revokedAt: new Date() } });
+        }
+      }
     }
 
     return res.json({
@@ -620,6 +643,36 @@ exports.logout = async (req, res) => {
     console.error("Logout Error:", error);
     return res.status(500).json({
       message: "Internal Server Error",
+    });
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.body?.refreshToken;
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    const { rotateRefreshToken } = require("../utils/authTokens");
+    const result = await rotateRefreshToken(refreshToken);
+
+    return res.json({
+      success: true,
+      token: result.token,
+      refreshToken: result.refreshToken,
+      refreshTokenExpiresAt: result.refreshTokenExpiresAt,
+      user: result.user,
+    });
+  } catch (error) {
+    const status = error.statusCode || 401;
+    return res.status(status).json({
+      success: false,
+      code: error.code || "REFRESH_FAILED",
+      message: error.message || "Failed to refresh token",
     });
   }
 };
