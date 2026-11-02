@@ -41,3 +41,24 @@ export const deleteEvent = async (id) => {
         throw error;
     }
 };
+
+export const getAcademicYear = async () => {
+    try {
+        const response = await api.get("/calendar/academic-year");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching academic year:", error);
+        throw error;
+    }
+};
+
+export const saveAcademicYear = async (data) => {
+    try {
+        const response = await api.post("/calendar/academic-year", data);
+        return response.data;
+    } catch (error) {
+        console.error("Error saving academic year:", error);
+        throw error;
+    }
+};
+

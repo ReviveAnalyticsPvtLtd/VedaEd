@@ -133,3 +133,107 @@ exports.deleteEvent = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// Get active academic year for the authenticated school
+exports.getAcademicYear = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
+    try {
+        const { AcademicYear } = require('../fees/feeModels');
+        let academicYear = await AcademicYear.findOne({ schoolId, isActive: true });
+        if (!academicYear) {
+            academicYear = await AcademicYear.findOne({ schoolId }).sort({ createdAt: -1 });
+        }
+        res.status(200).json({ success: true, data: academicYear });
+    } catch (error) {
+        console.error("Error fetching academic year:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Save or update academic year for the authenticated school
+exports.saveAcademicYear = async (req, res) => {
+    const schoolId = requireSchool(req, res);
+    if (!schoolId) return;
+    try {
+        stripClientSuppliedSchoolId(req);
+        const { AcademicYear } = require('../fees/feeModels');
+        const { start, end, startDate, endDate, label, id, _id } = req.body;
+        const actualStart = start || startDate;
+        const actualEnd = end || endDate;
+        const targetId = id || _id;
+
+        if (!actualStart || !actualEnd) {
+            return res.status(400).json({
+                success: false,
+                message: "Academic start and end dates are required."
+            });
+        }
+
+        const parsedStart = new Date(actualStart);
+        const parsedEnd = new Date(actualEnd);
+
+        if (isNaN(parsedStart.getTime()) || isNaN(parsedEnd.getTime())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid start or end date provided."
+            });
+        }
+
+        if (parsedStart >= parsedEnd) {
+            return res.status(400).json({
+                success: false,
+                message: "Academic start date must be before end date."
+            });
+        }
+
+        const computedLabel = label || `${parsedStart.getFullYear()}-${String(parsedEnd.getFullYear()).slice(-2)}`;
+
+        // If targetId is provided, update that specific record
+        let record = null;
+        if (targetId && mongoose.isValidObjectId(String(targetId))) {
+            record = await AcademicYear.findOne({ _id: targetId, schoolId });
+        }
+
+        // If no record found by ID, look for an active one or one with matching label for this school
+        if (!record) {
+            record = await AcademicYear.findOne({ schoolId, isActive: true });
+        }
+        if (!record) {
+            record = await AcademicYear.findOne({ schoolId, label: computedLabel });
+        }
+
+        if (record) {
+            // Deactivate any other records for this school
+            await AcademicYear.updateMany(
+                { schoolId, _id: { $ne: record._id } },
+                { isActive: false }
+            );
+
+            record.startDate = parsedStart;
+            record.endDate = parsedEnd;
+            record.label = computedLabel;
+            record.isActive = true;
+            await record.save();
+        } else {
+            // Deactivate all existing records for this school
+            await AcademicYear.updateMany({ schoolId }, { isActive: false });
+
+            record = new AcademicYear({
+                schoolId,
+                label: computedLabel,
+                startDate: parsedStart,
+                endDate: parsedEnd,
+                isActive: true,
+                terms: []
+            });
+            await record.save();
+        }
+
+        res.status(200).json({ success: true, data: record });
+    } catch (error) {
+        console.error("Error saving academic year:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+

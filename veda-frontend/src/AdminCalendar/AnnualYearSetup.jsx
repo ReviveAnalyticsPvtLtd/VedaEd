@@ -3,8 +3,10 @@ import * as calendarAPI from "../services/calendarAPI";
 
 const AnnualYearSetup = () => {
   const [academicYear, setAcademicYear] = useState({
+    id: "",
     start: "",
     end: "",
+    label: "",
   });
 
   const [yearSet, setYearSet] = useState(false);
@@ -23,8 +25,31 @@ const AnnualYearSetup = () => {
 
   // LOAD
   useEffect(() => {
+    fetchAcademicYear();
     fetchHolidays();
   }, []);
+
+  const fetchAcademicYear = async () => {
+    try {
+      const res = await calendarAPI.getAcademicYear();
+      if (res?.success && res?.data) {
+        const doc = res.data;
+        const start = doc.startDate ? doc.startDate.split("T")[0] : "";
+        const end = doc.endDate ? doc.endDate.split("T")[0] : "";
+        setAcademicYear({
+          id: doc._id || "",
+          start,
+          end,
+          label: doc.label || "",
+        });
+        if (start && end) {
+          setYearSet(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch academic year", err);
+    }
+  };
 
   const fetchHolidays = async () => {
     try {
@@ -51,12 +76,40 @@ const AnnualYearSetup = () => {
     }
   };
 
-  const handleSetYear = () => {
+  const handleSetYear = async () => {
     if (!academicYear.start || !academicYear.end) {
       alert("Select academic year");
       return;
     }
-    setYearSet(true);
+
+    if (new Date(academicYear.start) >= new Date(academicYear.end)) {
+      alert("Academic start date must be before end date");
+      return;
+    }
+
+    try {
+      const res = await calendarAPI.saveAcademicYear({
+        id: academicYear.id || undefined,
+        start: academicYear.start,
+        end: academicYear.end,
+      });
+
+      if (res?.success && res?.data) {
+        const doc = res.data;
+        setAcademicYear({
+          id: doc._id,
+          start: doc.startDate ? doc.startDate.split("T")[0] : academicYear.start,
+          end: doc.endDate ? doc.endDate.split("T")[0] : academicYear.end,
+          label: doc.label || "",
+        });
+        setYearSet(true);
+        alert("Academic year saved successfully");
+      }
+    } catch (err) {
+      console.error("Failed to save academic year", err);
+      const msg = err.response?.data?.message || "Failed to save academic year";
+      alert(msg);
+    }
   };
 
   const handleAddHoliday = async () => {
@@ -182,7 +235,7 @@ const AnnualYearSetup = () => {
         {yearSet && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6">
             <p className="text-sm font-medium text-blue-700">
-              Current Academic Year:
+              Current Academic Year:{academicYear.label ? ` (${academicYear.label})` : ""}
             </p>
             <p className="text-sm">
               {academicYear.start} → {academicYear.end}

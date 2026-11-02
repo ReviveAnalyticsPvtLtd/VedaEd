@@ -75,55 +75,88 @@ function isFeeApplicable(category, student) {
 }
 
 // --- Academic Year Controllers ---
-// AcademicYear is GLOBAL reference data and deliberately has no schoolId.
-// It is still not anonymous: reads require an authenticated school account,
-// writes require the existing `manage_fees` capability.
+// AcademicYear is TENANT_OWNED and scoped to the authenticated user's school.
 
 exports.getAcademicYears = async (req, res) => {
   try {
-    const years = await AcademicYear.find().sort({ createdAt: -1 });
+    const userSchoolId = schoolId(req);
+    const years = await AcademicYear.find({ schoolId: userSchoolId }).sort({ createdAt: -1 });
     res.json(years);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching academic years", error });
+    res.status(500).json({ message: "Error fetching academic years", error: error.message });
+  }
+};
+
+exports.getActiveAcademicYear = async (req, res) => {
+  try {
+    const userSchoolId = schoolId(req);
+    const active = await AcademicYear.findOne({ schoolId: userSchoolId, isActive: true });
+    res.json(active);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching active academic year", error: error.message });
   }
 };
 
 exports.createAcademicYear = async (req, res) => {
   try {
+    const userSchoolId = schoolId(req);
     const { label, startDate, endDate, isActive, terms } = pick(req.body, FIELDS.academicYear);
 
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "startDate and endDate are required" });
+    }
+
+    if (new Date(startDate) >= new Date(endDate)) {
+      return res.status(400).json({ message: "startDate must be before endDate" });
+    }
+
+    const computedLabel = label || `${new Date(startDate).getFullYear()}-${String(new Date(endDate).getFullYear()).slice(-2)}`;
+
     if (isActive) {
-      await AcademicYear.updateMany({}, { isActive: false });
+      await AcademicYear.updateMany({ schoolId: userSchoolId }, { isActive: false });
     }
 
     const newYear = new AcademicYear({
-      label,
+      schoolId: userSchoolId,
+      label: computedLabel,
       startDate,
       endDate,
-      isActive,
-      terms,
+      isActive: Boolean(isActive),
+      terms: Array.isArray(terms) ? terms : [],
     });
 
     await newYear.save();
     res.status(201).json(newYear);
   } catch (error) {
-    res.status(500).json({ message: "Error creating academic year", error });
+    res.status(500).json({ message: "Error creating academic year", error: error.message });
   }
 };
 
 exports.updateAcademicYear = async (req, res) => {
   try {
+    const userSchoolId = schoolId(req);
     const { id } = req.params;
     const { label, startDate, endDate, isActive, terms } = pick(req.body, FIELDS.academicYear);
 
-    if (isActive) {
-      await AcademicYear.updateMany({ _id: { $ne: id } }, { isActive: false });
+    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+      return res.status(400).json({ message: "startDate must be before endDate" });
     }
 
-    const updatedYear = await AcademicYear.findByIdAndUpdate(
-      id,
-      { label, startDate, endDate, isActive, terms },
-      { new: true }
+    if (isActive) {
+      await AcademicYear.updateMany({ schoolId: userSchoolId, _id: { $ne: id } }, { isActive: false });
+    }
+
+    const updatePayload = {};
+    if (label !== undefined) updatePayload.label = label;
+    if (startDate !== undefined) updatePayload.startDate = startDate;
+    if (endDate !== undefined) updatePayload.endDate = endDate;
+    if (isActive !== undefined) updatePayload.isActive = isActive;
+    if (terms !== undefined) updatePayload.terms = terms;
+
+    const updatedYear = await AcademicYear.findOneAndUpdate(
+      { _id: id, schoolId: userSchoolId },
+      updatePayload,
+      { new: true, runValidators: true }
     );
 
     if (!updatedYear) {
@@ -131,33 +164,35 @@ exports.updateAcademicYear = async (req, res) => {
     }
     res.json(updatedYear);
   } catch (error) {
-    res.status(500).json({ message: "Error updating academic year", error });
+    res.status(500).json({ message: "Error updating academic year", error: error.message });
   }
 };
 
 exports.deleteAcademicYear = async (req, res) => {
   try {
+    const userSchoolId = schoolId(req);
     const { id } = req.params;
-    const deletedYear = await AcademicYear.findByIdAndDelete(id);
+    const deletedYear = await AcademicYear.findOneAndDelete({ _id: id, schoolId: userSchoolId });
     if (!deletedYear) {
       return res.status(404).json({ message: "Academic year not found" });
     }
     res.json({ message: "Academic year deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting academic year", error });
+    res.status(500).json({ message: "Error deleting academic year", error: error.message });
   }
 };
 
 exports.activateAcademicYear = async (req, res) => {
   try {
+    const userSchoolId = schoolId(req);
     const { id } = req.params;
 
-    // Deactivate all
-    await AcademicYear.updateMany({}, { isActive: false });
+    // Deactivate all for this school only
+    await AcademicYear.updateMany({ schoolId: userSchoolId }, { isActive: false });
 
-    // Activate the selected one
-    const activatedYear = await AcademicYear.findByIdAndUpdate(
-      id,
+    // Activate the selected one for this school only
+    const activatedYear = await AcademicYear.findOneAndUpdate(
+      { _id: id, schoolId: userSchoolId },
       { isActive: true },
       { new: true }
     );
@@ -167,7 +202,7 @@ exports.activateAcademicYear = async (req, res) => {
     }
     res.json(activatedYear);
   } catch (error) {
-    res.status(500).json({ message: "Error activating academic year", error });
+    res.status(500).json({ message: "Error activating academic year", error: error.message });
   }
 };
 
@@ -177,7 +212,7 @@ exports.getFeeCategories = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -293,7 +328,7 @@ exports.getInstallmentPlans = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -353,7 +388,7 @@ exports.getLateFeePolicies = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -408,7 +443,7 @@ exports.getDiscountRules = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -463,7 +498,7 @@ exports.getFines = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -626,7 +661,7 @@ exports.calculateStudentFees = async function (student, year, school, ctx = {}) 
   // it, avoiding a query the original code did not make in that case.
   let academicYearPromise = ctx.academicYear !== undefined ? Promise.resolve(ctx.academicYear) : null;
   const loadAcademicYear = () => {
-    if (!academicYearPromise) academicYearPromise = AcademicYear.findOne({ label: year });
+    if (!academicYearPromise) academicYearPromise = AcademicYear.findOne(school ? { schoolId: school, label: year } : { label: year });
     return academicYearPromise;
   };
 
@@ -800,7 +835,7 @@ exports.buildFeeContext = async function (students, year, school) {
     LateFeePolicy.find({ schoolId: school, year }),
     InstallmentPlan.find({ schoolId: school, year }),
     FeeCategory.find({ schoolId: school, year, active: true }),
-    AcademicYear.findOne({ label: year }),
+    AcademicYear.findOne(school ? { schoolId: school, label: year } : { label: year }),
     studentIds.length
       ? FeeTransaction.find({ schoolId: school, studentId: { $in: studentIds }, year, status: 'Paid' })
       : Promise.resolve([]),
@@ -861,7 +896,7 @@ exports.getFeesDashboard = async (req, res) => {
     const school = schoolId(req);
     let { year } = req.query;
     if (!year) {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: school, isActive: true });
       year = active?.label;
     }
 
@@ -1049,7 +1084,7 @@ exports.getStudentFeeProfile = async (req, res) => {
     const { id } = req.params;
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: school, isActive: true });
       year = active?.label;
     }
 
@@ -1186,7 +1221,7 @@ exports.getStudentFeeProfile = async (req, res) => {
 
       if (plan && plan.slices && plan.slices.length > 0) {
         let allocatedPaid = paidForCategory;
-        const activeYear = await AcademicYear.findOne({ label: year });
+        const activeYear = await AcademicYear.findOne(school ? { schoolId: school, label: year } : { label: year });
         const academicYearStart = activeYear ? new Date(activeYear.startDate) : new Date();
 
         plan.slices.forEach(slice => {
@@ -1249,7 +1284,7 @@ exports.getStudentFeeProfile = async (req, res) => {
         });
 
       } else {
-        const activeYear = await AcademicYear.findOne({ label: year });
+        const activeYear = await AcademicYear.findOne(school ? { schoolId: school, label: year } : { label: year });
         let dueDate = activeYear && activeYear.terms && activeYear.terms.length > 0 ? new Date(activeYear.terms[0].dueDate) : new Date();
         const today = new Date();
         let fineAmount = 0;
@@ -1499,7 +1534,7 @@ exports.getStudentFeeLedger = async (req, res) => {
     const { id } = req.params;
     let { year } = req.query;
     if (!year || year === 'undefined' || year === 'null') {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
     if (!year) return res.status(400).json({ message: "Active year required" });
@@ -1599,7 +1634,7 @@ exports.getDueFees = async (req, res) => {
     const studentsList = await Student.find(studentQuery)
       .populate("personalInfo.class personalInfo.section");
 
-    const active = await AcademicYear.findOne({ isActive: true });
+    const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
     const year = active?.label;
     if (!year) return res.json([]);
 
@@ -1746,7 +1781,7 @@ exports.getClassWiseCollectionReport = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year) {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -1775,7 +1810,7 @@ exports.getPaymentModeReport = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year) {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -1800,7 +1835,7 @@ exports.getFineCollectionReport = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year) {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 
@@ -1847,7 +1882,7 @@ exports.getDiscountReport = async (req, res) => {
   try {
     let { year } = req.query;
     if (!year) {
-      const active = await AcademicYear.findOne({ isActive: true });
+      const active = await AcademicYear.findOne({ schoolId: schoolId(req), isActive: true });
       year = active?.label;
     }
 

@@ -1421,12 +1421,10 @@ exports.getParentDashboardStats = async (req, res) => {
 
     // ---- Fees ----
     const activeYear = await dashSafe(
-      () => AcademicYear.findOne({ isActive: true }).lean(),
+      () => AcademicYear.findOne({ schoolId, isActive: true }).lean(),
       null
     );
     const feeYear = activeYear && activeYear.label ? activeYear.label : null;
-    // AcademicYear is left global on purpose: it is only a shared year label and
-    // an input to this student-scoped query, so it cannot widen the tenant.
     const feeFilter = { studentId: { $in: verifiedChildIds } };
     if (feeYear) feeFilter.year = feeYear;
     const feeTxs = await dashSafe(

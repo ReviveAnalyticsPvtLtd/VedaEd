@@ -28,13 +28,24 @@ const termSchema = new mongoose.Schema({
   dueDate: String,
 });
 
+// AcademicYear is TENANT_OWNED and scoped to a school.
 const academicYearSchema = new mongoose.Schema({
+  schoolId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "School",
+    required: true,
+    index: true,
+    immutable: true
+  },
   label: { type: String, required: true },
   startDate: { type: String, required: true },
   endDate: { type: String, required: true },
   isActive: { type: Boolean, default: false },
   terms: [termSchema],
 }, { timestamps: true });
+
+academicYearSchema.index({ schoolId: 1, isActive: 1 });
+academicYearSchema.index({ schoolId: 1, label: 1 });
 
 const AcademicYear = mongoose.model("AcademicYear", academicYearSchema);
 
@@ -256,7 +267,7 @@ feeTransactionSchema.index({ schoolId: 1, studentId: 1, year: 1 });
 feeLedgerSchema.index({ schoolId: 1, studentId: 1, year: 1 });
 feeAuditLogSchema.index({ schoolId: 1, date: -1 });
 
-// AcademicYear intentionally has no tenant index: it is global reference data.
+
 
 module.exports = {
   AcademicYear,
