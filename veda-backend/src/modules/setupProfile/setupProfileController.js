@@ -3,8 +3,19 @@ const { syncClassesAndSections } = require("../class/services/classAutomationSer
 
 const PROFILE_FIELDS =
   "organizationType schoolName schoolCode establishedYear website schoolLogo " +
-  "logoFrameShape primaryThemeColor address country institutionType " +
-  "curriculumCountry curriculumBoard gradeFrom gradeTo languagePreference " +
+  "logoFrameShape primaryThemeColor address country state city postalCode " +
+  "timezone currency officialEmail phoneNumber supportEmail emergencyContact " +
+  "institutionType curriculumCountry curriculumBoard gradeFrom gradeTo languagePreference " +
+  "academicYear academicYearPattern academicYearStart academicYearEnd termStructure " +
+  "expectedStudents streams sectionMode " +
+  "attendanceMode workingDays schoolStartTime schoolEndTime halfDayCheckoutTime " +
+  "attendanceClosingTime lateArrivalAfter autoAbsentAfter minimumAttendance " +
+  "graceMinutes attendancePermissions leaveApprovalRules leaveTypes " +
+  "parentNotificationRules " +
+  "step9ExaminationGradebook feesModuleEnabled feeCollectionFrequency " +
+  "feeCategories discounts lateFeeType lateFeeValue graceDays partialPayment " +
+  "refundPolicy paymentModes feeReminders communicationChannels " +
+  "notificationTriggers announcementPermissions documentTemplates " +
   "recommendationType recommendationConfidence recommendationRules " +
   "enabledModules disabledModules maxStudentsPerSection sections";
 
@@ -18,12 +29,43 @@ const EDITABLE_FIELDS = [
   "primaryThemeColor",
   "address",
   "country",
+  "state",
+  "city",
+  "postalCode",
+  "timezone",
+  "currency",
+  "officialEmail",
+  "phoneNumber",
+  "supportEmail",
+  "emergencyContact",
   "institutionType",
   "curriculumCountry",
   "curriculumBoard",
   "gradeFrom",
   "gradeTo",
   "languagePreference",
+  "academicYear",
+  "academicYearPattern",
+  "academicYearStart",
+  "academicYearEnd",
+  "termStructure",
+  "expectedStudents",
+  "streams",
+  "sectionMode",
+  "attendanceMode",
+  "workingDays",
+  "schoolStartTime",
+  "schoolEndTime",
+  "halfDayCheckoutTime",
+  "attendanceClosingTime",
+  "lateArrivalAfter",
+  "autoAbsentAfter",
+  "minimumAttendance",
+  "graceMinutes",
+  "attendancePermissions",
+  "leaveApprovalRules",
+  "leaveTypes",
+  "parentNotificationRules",
   "enabledModules",
   "disabledModules",
   "maxStudentsPerSection",
