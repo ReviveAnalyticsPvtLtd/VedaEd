@@ -27,6 +27,7 @@ const MODULES = [
       { label: "Students", path: "/admin/students" },
       { label: "Staff", path: "/admin/staff" },
       { label: "Parents", path: "/admin/parents" },
+      { label: "Classes & Schedules", path: "/admin/classes-schedules" },
       { label: "Attendance", path: "/admin/attendance" },
       { label: "Reports", path: "/admin/reports" },
     ],

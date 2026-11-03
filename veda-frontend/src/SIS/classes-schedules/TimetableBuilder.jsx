@@ -80,7 +80,19 @@ const asList = (payload, ...keys) => {
 const idOf = (value) => (value && typeof value === "object" ? value._id : value);
 
 const normalizeWorkingDays = (days) => {
-  const set = new Set(days || []);
+  const normalized = (days || []).map((d) => {
+    if (!d) return "";
+    const upper = String(d).toUpperCase();
+    if (upper.startsWith("MON")) return "MON";
+    if (upper.startsWith("TUE")) return "TUE";
+    if (upper.startsWith("WED")) return "WED";
+    if (upper.startsWith("THU")) return "THU";
+    if (upper.startsWith("FRI")) return "FRI";
+    if (upper.startsWith("SAT")) return "SAT";
+    if (upper.startsWith("SUN")) return "SUN";
+    return upper;
+  });
+  const set = new Set(normalized);
   return DAY_DEFS.filter((day) => set.has(day.code)).map((day) => day.code);
 };
 
@@ -107,10 +119,10 @@ const scheduleFormFromHeader = (header) => {
 
 const requirementsPayloadFrom = (requirementsList) => ({
   requirements: (requirementsList || [])
-    .filter((item) => item.subjectId && item.teacherId)
+    .filter((item) => item.subjectId)
     .map((item) => ({
       subjectId: item.subjectId,
-      teacherId: item.teacherId,
+      teacherId: item.teacherId || null,
       periodsPerWeek: Number(item.periodsPerWeek) || 0,
       days: item.days || [],
       preferredPeriodId: item.preferredPeriodId || null,
@@ -826,6 +838,7 @@ const TimetableBuilder = () => {
 
   const assignRequirement = useCallback(
     (requirement, targetSlots) => {
+      if (!requirement.teacherId) return 0;
       const validDays = (requirement.days || []).filter((day) =>
         workingDays.includes(day)
       );
@@ -877,6 +890,14 @@ const TimetableBuilder = () => {
     (index) => {
       const requirement = requirements[index];
       if (!requirement) return;
+      if (!requirement.teacherId) {
+        showToast(
+          `Select a teacher for ${
+            requirement.subjectName || subjectNameOf(requirement.subjectId)
+          } first.`
+        );
+        return;
+      }
       const next = { ...slots };
       const placed = assignRequirement(requirement, next);
       setSlots(next);
@@ -956,18 +977,24 @@ const TimetableBuilder = () => {
     setShowCopySetup(true);
     setStep(0);
     setExportMenu(null);
-    setCopyClass(criteriaClass);
-    setCopySection(criteriaSection);
-    if (criteriaClass) {
+    const targetClass = criteriaClass || classes[0]?._id || "";
+    setCopyClass(targetClass);
+    if (targetClass) {
       try {
-        const list = await fetchSectionsFor(criteriaClass);
+        const list = await fetchSectionsFor(targetClass);
         setCopySections(list);
+        const otherSection = list.find((s) => s._id !== criteriaSection);
+        setCopySection(otherSection?._id || "");
       } catch (err) {
         console.error("Error loading copy sections:", err);
         setCopySections([]);
+        setCopySection("");
       }
+    } else {
+      setCopySections([]);
+      setCopySection("");
     }
-  }, [criteriaClass, criteriaSection, fetchSectionsFor]);
+  }, [criteriaClass, criteriaSection, classes, fetchSectionsFor]);
 
   const handleCopyClassChange = useCallback(
     async (classId) => {
@@ -980,13 +1007,17 @@ const TimetableBuilder = () => {
       try {
         const list = await fetchSectionsFor(classId);
         setCopySections(list);
-        setCopySection(list[0]?._id || "");
+        const defaultSec =
+          classId === criteriaClass
+            ? list.find((s) => s._id !== criteriaSection)
+            : list[0];
+        setCopySection(defaultSec?._id || "");
       } catch (err) {
         console.error("Error loading copy sections:", err);
         setCopySections([]);
       }
     },
-    [fetchSectionsFor]
+    [criteriaClass, criteriaSection, fetchSectionsFor]
   );
 
   const applyCopySetup = useCallback(async () => {
@@ -995,12 +1026,25 @@ const TimetableBuilder = () => {
       return;
     }
 
+    if (copyClass === criteriaClass && copySection === criteriaSection) {
+      showToast("Cannot copy from the same section. Please select another section.");
+      return;
+    }
+
     setBusy(true);
     try {
       const params = { classId: copyClass, sectionId: copySection };
       if (criteriaAcademicYear) params.academicYearId = criteriaAcademicYear;
-      const res = await api.get("/timetables/headers", { params });
-      const source = asList(res.data, "headers")[0] || null;
+      let res = await api.get("/timetables/headers", { params });
+      let source = asList(res.data, "headers")[0] || null;
+
+      // Fallback: if not found with academicYear filter, try without it
+      if (!source && criteriaAcademicYear) {
+        res = await api.get("/timetables/headers", {
+          params: { classId: copyClass, sectionId: copySection },
+        });
+        source = asList(res.data, "headers")[0] || null;
+      }
 
       if (!source) {
         showToast("No timetable setup found for the selected class/section.");
@@ -1039,15 +1083,13 @@ const TimetableBuilder = () => {
       setStep(2);
 
       const skipped = copyData.skippedRequirements?.length || 0;
-      const warning = copyData.warnings?.[0]?.message;
+      const skippedNote =
+        skipped > 0
+          ? ` ${skipped} subject${skipped === 1 ? "" : "s"} skipped.`
+          : "";
 
       showToast(
-        skipped > 0
-          ? `Setup copied. ${skipped} subject${
-              skipped === 1 ? "" : "s"
-            } skipped because the teacher is not assigned to this class/section.`
-          : warning ||
-              "Setup copied. Review subject days, then build timetable."
+        `Schedule copied.${skippedNote} Teachers are not copied — assign them in Step 2.`
       );
     } catch (err) {
       console.error("Error copying timetable setup:", err);
@@ -1058,6 +1100,8 @@ const TimetableBuilder = () => {
   }, [
     copyClass,
     copySection,
+    criteriaClass,
+    criteriaSection,
     criteriaAcademicYear,
     ensureHeader,
     hydrateRequirements,
@@ -1971,16 +2015,25 @@ const TimetableBuilder = () => {
               onChange={(event) => setCopySection(event.target.value)}
             >
               <option value="">Select Section</option>
-              {copySections.map((section) => (
-                <option key={section._id} value={section._id}>
-                  {section.name}
-                </option>
-              ))}
+              {copySections.map((section) => {
+                const isCurrent =
+                  copyClass === criteriaClass && section._id === criteriaSection;
+                return (
+                  <option
+                    key={section._id}
+                    value={section._id}
+                    disabled={isCurrent}
+                  >
+                    {section.name} {isCurrent ? "(current section)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
         <div className="inline-note info">
-          Copies time structure and subject-day setup. Room fields remain blank.
+          Copies the time structure and subject-day plan only. Teachers and
+          rooms are not copied — assign teachers in Step 2.
         </div>
         <div className="actions" style={{ marginTop: 12 }}>
           <button className="btn" onClick={() => setShowCopySetup(false)}>
