@@ -1,7 +1,28 @@
+import { useState } from "react";
 import { Label, Input, Select } from "../../identity-access/components/FormField";
 import { ALL_MODULES, THEME_COLOR_PRESETS, DEFAULT_PRIMARY_THEME_COLOR } from "../constants";
+import { TERM_OPTIONS, ACADEMIC_YEAR_PATTERNS, STREAM_OPTIONS, SECTION_MODE_OPTIONS } from "../../../Setup-Module/constants/academicStructure";
+import { CURRENCY_LABELS } from "../../../Setup-Module/services/localizationData";
+import {
+  ATTENDANCE_MODES,
+  WORKING_DAYS,
+  LEAVE_APPROVAL_OPTIONS,
+  LEAVE_TYPES,
+  PERMISSION_TOGGLES,
+  PARENT_NOTIFICATION_TOGGLES,
+} from "../../../Setup-Module/constants/attendanceRules";
+import OtherSettingsPanel from "./OtherSettingsPanel";
+
+const TABS = [
+  { id: "organization", label: "Organization" },
+  { id: "academics", label: "Academics" },
+  { id: "modules", label: "Modules & Setup" },
+  { id: "others", label: "Others" },
+];
 
 export default function SetupProfileForm({ form, onChange, readOnly = false }) {
+  const [activeTab, setActiveTab] = useState("organization");
+
   const set = (field, value) => onChange({ ...form, [field]: value });
 
   const toggleModule = (module, isEnabled) => {
@@ -17,8 +38,78 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
     }
   };
 
+  const toggleStream = (stream) => {
+    if (readOnly) return;
+    const streams = form.streams || [];
+    set(
+      "streams",
+      streams.includes(stream)
+        ? streams.filter((s) => s !== stream)
+        : [...streams, stream]
+    );
+  };
+
+  const currencyOptions = Object.values(CURRENCY_LABELS);
+
+  const setNested = (field, key, value) => {
+    if (readOnly) return;
+    set(field, { ...(form[field] || {}), [key]: value });
+  };
+
+  const toggleNested = (field, key) =>
+    setNested(field, key, !(form[field] || {})[key]);
+
+  const toggleInArray = (field, value) => {
+    if (readOnly) return;
+    const current = form[field] || [];
+    set(
+      field,
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+    );
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-1.5">
+        <div
+          role="tablist"
+          aria-label="Setup profile sections"
+          className="flex flex-wrap gap-1"
+        >
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`setup-profile-tab-${tab.id}`}
+                aria-selected={isActive}
+                aria-controls={`setup-profile-panel-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        role="tabpanel"
+        id={`setup-profile-panel-${activeTab}`}
+        aria-labelledby={`setup-profile-tab-${activeTab}`}
+        className="space-y-2"
+      >
+      {activeTab === "organization" && (
+      <>
       {/* ===== Organization Details ===== */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
         <h3 className="text-base font-semibold text-indigo-900 mb-4">
@@ -288,15 +379,174 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
               ))}
             </Select>
           </div>
+          <div>
+            <Label>State / Province</Label>
+            <Input
+              value={form.state || ""}
+              onChange={(e) => set("state", e.target.value)}
+              placeholder="Madhya Pradesh"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>City</Label>
+            <Input
+              value={form.city || ""}
+              onChange={(e) => set("city", e.target.value)}
+              placeholder="Bhopal"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Postal Code</Label>
+            <Input
+              value={form.postalCode || ""}
+              onChange={(e) => set("postalCode", e.target.value)}
+              placeholder="462001"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Time Zone</Label>
+            <Input
+              value={form.timezone || ""}
+              onChange={(e) => set("timezone", e.target.value)}
+              placeholder="Asia/Kolkata"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Currency</Label>
+            <Select
+              value={form.currency || ""}
+              onChange={(e) => set("currency", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select currency</option>
+              {form.currency && !currencyOptions.includes(form.currency) && (
+                <option value={form.currency}>{form.currency}</option>
+              )}
+              {currencyOptions.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Official Email</Label>
+            <Input
+              type="email"
+              value={form.officialEmail || ""}
+              onChange={(e) => set("officialEmail", e.target.value)}
+              placeholder="admin@school.com"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Phone Number</Label>
+            <Input
+              type="tel"
+              value={form.phoneNumber || ""}
+              onChange={(e) => set("phoneNumber", e.target.value)}
+              placeholder="+91 98765 43210"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Support Email</Label>
+            <Input
+              type="email"
+              value={form.supportEmail || ""}
+              onChange={(e) => set("supportEmail", e.target.value)}
+              placeholder="support@school.com"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Emergency Contact</Label>
+            <Input
+              type="tel"
+              value={form.emergencyContact || ""}
+              onChange={(e) => set("emergencyContact", e.target.value)}
+              placeholder="+91 98765 43211"
+              disabled={readOnly}
+            />
+          </div>
         </div>
       </section>
 
+      </>
+      )}
+
+      {activeTab === "academics" && (
+      <>
       {/* ===== Academic Configuration ===== */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="text-base font-semibold text-indigo-900 mb-4">
           Academic Configuration
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Academic Year</Label>
+            <Input
+              value={form.academicYear || ""}
+              onChange={(e) => set("academicYear", e.target.value)}
+              placeholder="2026-2027"
+              disabled={readOnly}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Active academic session for the school.
+            </p>
+          </div>
+          <div>
+            <Label>Terms / Semesters</Label>
+            <Select
+              value={form.termStructure || ""}
+              onChange={(e) => set("termStructure", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select term structure</option>
+              {TERM_OPTIONS.map((term) => (
+                <option key={term} value={term}>
+                  {term}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Academic Year Pattern</Label>
+            <Select
+              value={form.academicYearPattern || ""}
+              onChange={(e) => set("academicYearPattern", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select pattern</option>
+              {ACADEMIC_YEAR_PATTERNS.map((pattern) => (
+                <option key={pattern.value} value={pattern.value}>
+                  {pattern.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Academic Year Start</Label>
+            <Input
+              type="date"
+              value={form.academicYearStart || ""}
+              onChange={(e) => set("academicYearStart", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Academic Year End</Label>
+            <Input
+              type="date"
+              value={form.academicYearEnd || ""}
+              onChange={(e) => set("academicYearEnd", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
           <div>
             <Label required>Institution Type</Label>
             <Select
@@ -448,16 +698,325 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
               Number of sections (A, B, C…) per class.
             </p>
           </div>
+          <div>
+            <Label>Expected Students</Label>
+            <Input
+              type="number"
+              value={form.expectedStudents ?? ""}
+              onChange={(e) => set("expectedStudents", e.target.value)}
+              placeholder="1200"
+              disabled={readOnly}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Total students expected across all classes.
+            </p>
+          </div>
+          <div>
+            <Label>Section Mode</Label>
+            <Select
+              value={form.sectionMode || ""}
+              onChange={(e) => set("sectionMode", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select section mode</option>
+              {SECTION_MODE_OPTIONS.map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.title}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="md:col-span-2">
+            <Label>Streams (Grade 11–12)</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {STREAM_OPTIONS.map((stream) => {
+                const selected = (form.streams || []).includes(stream);
+                return (
+                  <button
+                    key={stream}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => toggleStream(stream)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      selected
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        : "bg-white text-gray-600 border-gray-300 hover:border-indigo-300 hover:text-indigo-600"
+                    } ${readOnly ? "cursor-default" : ""}`}
+                  >
+                    {stream}
+                    {selected && <span className="font-bold">×</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Only applies when the school includes Grade 11–12.
+            </p>
+          </div>
         </div>
       </section>
 
+      {/* ===== Attendance ===== */}
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 className="text-base font-semibold text-indigo-900">Attendance</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          Rules captured in Step 8. Changes apply to future attendance.
+        </p>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Attendance Mode</Label>
+            <Select
+              value={form.attendanceMode || ""}
+              onChange={(e) => set("attendanceMode", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select attendance mode</option>
+              {ATTENDANCE_MODES.map((mode) => (
+                <option key={mode.key} value={mode.key}>
+                  {mode.title}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Minimum Attendance (%)</Label>
+            <Input
+              type="number"
+              min="50"
+              max="100"
+              value={form.minimumAttendance ?? ""}
+              onChange={(e) => set("minimumAttendance", e.target.value)}
+              placeholder="75"
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>School Start Time</Label>
+            <Input
+              type="time"
+              value={form.schoolStartTime || ""}
+              onChange={(e) => set("schoolStartTime", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>School End Time</Label>
+            <Input
+              type="time"
+              value={form.schoolEndTime || ""}
+              onChange={(e) => set("schoolEndTime", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Late Arrival After</Label>
+            <Input
+              type="time"
+              value={form.lateArrivalAfter || ""}
+              onChange={(e) => set("lateArrivalAfter", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Auto Absent After</Label>
+            <Input
+              type="time"
+              value={form.autoAbsentAfter || ""}
+              onChange={(e) => set("autoAbsentAfter", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Attendance Closing Time</Label>
+            <Input
+              type="time"
+              value={form.attendanceClosingTime || ""}
+              onChange={(e) => set("attendanceClosingTime", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Half Day Checkout Time</Label>
+            <Input
+              type="time"
+              value={form.halfDayCheckoutTime || ""}
+              onChange={(e) => set("halfDayCheckoutTime", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Grace Minutes</Label>
+            <Input
+              type="number"
+              min="0"
+              value={form.graceMinutes ?? ""}
+              onChange={(e) => set("graceMinutes", e.target.value)}
+              placeholder="10"
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Label>Working Days</Label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {WORKING_DAYS.map((day) => {
+              const active = (form.workingDays || []).includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => toggleInArray("workingDays", day)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-indigo-300 hover:text-indigo-600"
+                  } ${readOnly ? "cursor-default" : ""}`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Label>Leave Types</Label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {LEAVE_TYPES.map((leaveType) => {
+              const active = (form.leaveTypes || []).includes(leaveType);
+              return (
+                <button
+                  key={leaveType}
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => toggleInArray("leaveTypes", leaveType)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-indigo-300 hover:text-indigo-600"
+                  } ${readOnly ? "cursor-default" : ""}`}
+                >
+                  {leaveType}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Student Leave Approval</Label>
+            <Select
+              value={form.leaveApprovalRules?.studentLeaveApproval || ""}
+              onChange={(e) =>
+                setNested(
+                  "leaveApprovalRules",
+                  "studentLeaveApproval",
+                  e.target.value
+                )
+              }
+              disabled={readOnly}
+            >
+              <option value="">Select approval</option>
+              {LEAVE_APPROVAL_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Staff Leave Approval</Label>
+            <Select
+              value={form.leaveApprovalRules?.staffLeaveApproval || ""}
+              onChange={(e) =>
+                setNested(
+                  "leaveApprovalRules",
+                  "staffLeaveApproval",
+                  e.target.value
+                )
+              }
+              disabled={readOnly}
+            >
+              <option value="">Select approval</option>
+              {LEAVE_APPROVAL_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Attendance Permissions</Label>
+            <div className="mt-1 space-y-2">
+              {PERMISSION_TOGGLES.map((permission) => (
+                <label
+                  key={permission.key}
+                  className="flex items-center gap-2 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={Boolean(
+                      form.attendancePermissions?.[permission.key]
+                    )}
+                    onChange={() =>
+                      toggleNested("attendancePermissions", permission.key)
+                    }
+                    disabled={readOnly}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  {permission.title}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Parent Notifications</Label>
+            <div className="mt-1 space-y-2">
+              {PARENT_NOTIFICATION_TOGGLES.map((notification) => (
+                <label
+                  key={notification.key}
+                  className="flex items-center gap-2 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={Boolean(
+                      form.parentNotificationRules?.[notification.key]
+                    )}
+                    onChange={() =>
+                      toggleNested(
+                        "parentNotificationRules",
+                        notification.key
+                      )
+                    }
+                    disabled={readOnly}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  {notification.title}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      </>
+      )}
+
+      {activeTab === "modules" && (
+      <>
       {/* ===== Recommendations (Read-Only) ===== */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="text-base font-semibold text-indigo-900 mb-4">
           Recommendations
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+          <div className="md:col-span-2 max-w-md">
             <Label>Recommendation Type</Label>
             <Input
               value={form.recommendationType || ""}
@@ -468,20 +1027,6 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
             <p className="mt-1 text-xs text-gray-500">
               Generated by the setup wizard recommendation engine.
             </p>
-          </div>
-          <div>
-            <Label>Recommendation Confidence</Label>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-indigo-600"
-                  style={{ width: `${form.recommendationConfidence || 0}%` }}
-                />
-              </div>
-              <span className="text-sm font-semibold text-gray-800">
-                {form.recommendationConfidence || 0}%
-              </span>
-            </div>
           </div>
         </div>
         {(form.recommendationRules || []).length > 0 && (
@@ -580,6 +1125,11 @@ export default function SetupProfileForm({ form, onChange, readOnly = false }) {
           on a disabled module to enable it.
         </p>
       )}
+      </>
+      )}
+
+      {activeTab === "others" && <OtherSettingsPanel form={form} />}
+      </div>
     </div>
   );
 }
