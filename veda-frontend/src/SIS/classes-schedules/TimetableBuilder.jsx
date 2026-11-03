@@ -119,10 +119,10 @@ const scheduleFormFromHeader = (header) => {
 
 const requirementsPayloadFrom = (requirementsList) => ({
   requirements: (requirementsList || [])
-    .filter((item) => item.subjectId && item.teacherId)
+    .filter((item) => item.subjectId)
     .map((item) => ({
       subjectId: item.subjectId,
-      teacherId: item.teacherId,
+      teacherId: item.teacherId || null,
       periodsPerWeek: Number(item.periodsPerWeek) || 0,
       days: item.days || [],
       preferredPeriodId: item.preferredPeriodId || null,
@@ -838,6 +838,7 @@ const TimetableBuilder = () => {
 
   const assignRequirement = useCallback(
     (requirement, targetSlots) => {
+      if (!requirement.teacherId) return 0;
       const validDays = (requirement.days || []).filter((day) =>
         workingDays.includes(day)
       );
@@ -889,6 +890,14 @@ const TimetableBuilder = () => {
     (index) => {
       const requirement = requirements[index];
       if (!requirement) return;
+      if (!requirement.teacherId) {
+        showToast(
+          `Select a teacher for ${
+            requirement.subjectName || subjectNameOf(requirement.subjectId)
+          } first.`
+        );
+        return;
+      }
       const next = { ...slots };
       const placed = assignRequirement(requirement, next);
       setSlots(next);
@@ -1074,15 +1083,13 @@ const TimetableBuilder = () => {
       setStep(2);
 
       const skipped = copyData.skippedRequirements?.length || 0;
-      const warning = copyData.warnings?.[0]?.message;
+      const skippedNote =
+        skipped > 0
+          ? ` ${skipped} subject${skipped === 1 ? "" : "s"} skipped.`
+          : "";
 
       showToast(
-        skipped > 0
-          ? `Setup copied. ${skipped} subject${
-              skipped === 1 ? "" : "s"
-            } skipped because the teacher is not assigned to this class/section.`
-          : warning ||
-              "Setup copied. Review subject days, then build timetable."
+        `Schedule copied.${skippedNote} Teachers are not copied — assign them in Step 2.`
       );
     } catch (err) {
       console.error("Error copying timetable setup:", err);
@@ -2025,7 +2032,8 @@ const TimetableBuilder = () => {
           </div>
         </div>
         <div className="inline-note info">
-          Copies time structure and subject-day setup. Room fields remain blank.
+          Copies the time structure and subject-day plan only. Teachers and
+          rooms are not copied — assign teachers in Step 2.
         </div>
         <div className="actions" style={{ marginTop: 12 }}>
           <button className="btn" onClick={() => setShowCopySetup(false)}>

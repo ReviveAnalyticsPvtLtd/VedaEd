@@ -1,23 +1,13 @@
 const Timetable = require("./timeTableSchema");
 const TimetableHeader = require("./timetableHeaderSchema");
 const TimetableRequirement = require("./timetableRequirementSchema");
-const AssignTeacher = require("../assignTeachersToClass/assignTeacherSchema");
 const { recordTimetableAudit } = require("./timetableAuditSchema");
 
 const isValidObjectId = (id) =>
   Boolean(id) && require("mongoose").isValidObjectId(String(id));
 
-const teacherIdOf = (teacher) =>
-  teacher?._id ? String(teacher._id) : teacher ? String(teacher) : null;
-
 const subjectIdOf = (subject) =>
   subject?._id ? String(subject._id) : subject ? String(subject) : null;
-
-const nameOfTeacher = (teacher) =>
-  teacher?.personalInfo?.name || teacher?.name || "This teacher";
-
-const nameOfSubject = (subject) =>
-  subject?.subjectName || subject?.name || "This subject";
 
 const normalizeDayCode = (d) => {
   if (!d) return null;
@@ -71,31 +61,6 @@ const resolveSourceHeader = async ({ schoolId, body }) => {
   return found;
 };
 
-// The target class/section only lists the teachers that may teach it. A
-// requirement copied from another section is kept only when its teacher is in
-// that list. When the target has no teacher assignments configured yet there
-// is nothing to validate against, so the copy is kept and reported as needing
-// review instead of silently dropping everything.
-const loadTargetTeacherScope = async ({ header }) => {
-  const assignments = await AssignTeacher.find({
-    class: header.class,
-    section: header.section,
-  })
-    .select("teachers teacher")
-    .lean();
-
-  const allowed = new Set();
-
-  for (const assignment of assignments) {
-    for (const teacher of assignment.teachers || []) {
-      if (teacher) allowed.add(String(teacher));
-    }
-    if (assignment.teacher) allowed.add(String(assignment.teacher));
-  }
-
-  return { isConfigured: assignments.length > 0, allowed };
-};
-
 const copyFromHeader = async ({
   targetHeader,
   schoolId,
@@ -133,7 +98,6 @@ const copyFromHeader = async ({
     timetableHeader: sourceHeader._id,
   })
     .populate({ path: "subject", match: { schoolId } })
-    .populate({ path: "teacher", match: { schoolId } })
     .sort({ createdAt: 1 });
 
   // If sourceHeader has no explicit TimetableRequirement docs, check entries in Timetable collection
@@ -143,9 +107,7 @@ const copyFromHeader = async ({
         { timetableHeader: sourceHeader._id },
         { class: sourceHeader.class, section: sourceHeader.section },
       ],
-    })
-      .populate({ path: "subject", match: { schoolId } })
-      .populate({ path: "teacher", match: { schoolId } });
+    }).populate({ path: "subject", match: { schoolId } });
 
     if (sourceEntries.length > 0) {
       const bySubject = new Map();
@@ -156,7 +118,6 @@ const copyFromHeader = async ({
         if (!bySubject.has(sId)) {
           bySubject.set(sId, {
             subject: entry.subject,
-            teacher: entry.teacher,
             days: new Set(),
             count: 0,
           });
@@ -168,7 +129,6 @@ const copyFromHeader = async ({
 
       sourceRequirements = Array.from(bySubject.values()).map((item) => ({
         subject: item.subject,
-        teacher: item.teacher,
         periodsPerWeek: item.count || 1,
         days: Array.from(item.days),
         preferredPeriodId: null,
@@ -176,68 +136,20 @@ const copyFromHeader = async ({
     }
   }
 
-  const { isConfigured, allowed } = await loadTargetTeacherScope({
-    header: targetHeader,
-  });
-
   const copiedRequirements = [];
   const skippedRequirements = [];
-  const warnings = [];
-
-  if (sourceRequirements.length > 0 && !isConfigured) {
-    warnings.push({
-      type: "TEACHER_ASSIGNMENTS_NOT_CONFIGURED",
-      message:
-        "No teachers are assigned to the target class/section, so copied teachers could not be revalidated. Review the copied requirements.",
-    });
-  }
 
   for (const requirement of sourceRequirements) {
     const subjectId = subjectIdOf(requirement.subject);
-    const teacherId = teacherIdOf(requirement.teacher);
 
     if (!requirement.subject || !subjectId) {
       skippedRequirements.push({
         requirementId: requirement._id,
         subjectId: requirement.subject || null,
-        teacherId: teacherId,
         reason: "INVALID_SUBJECT",
         message: "The source requirement references a subject that is not in this school.",
       });
       continue;
-    }
-
-    let assignedTeacherId = requirement.teacher?._id || requirement.teacher;
-    if (!assignedTeacherId) {
-      if (allowed.size > 0) {
-        assignedTeacherId = [...allowed][0];
-      } else {
-        skippedRequirements.push({
-          requirementId: requirement._id,
-          subjectId,
-          subjectName: nameOfSubject(requirement.subject),
-          teacherId: null,
-          reason: "MISSING_TEACHER",
-          message: `${nameOfSubject(requirement.subject)} has no teacher in the source timetable.`,
-        });
-        continue;
-      }
-    }
-
-    if (isConfigured && !allowed.has(String(assignedTeacherId))) {
-      // Reassign to available teacher in target scope if possible, or keep and warn
-      if (allowed.size > 0) {
-        assignedTeacherId = [...allowed][0];
-        warnings.push({
-          type: "TEACHER_REASSIGNED",
-          message: `${nameOfTeacher(requirement.teacher)} was not assigned to target section. Reassigned for review in Step 2.`,
-        });
-      } else {
-        warnings.push({
-          type: "TEACHER_NOT_ASSIGNED_TO_TARGET_CLASS",
-          message: `${nameOfTeacher(requirement.teacher)} is not assigned to target class/section. Review in Step 2.`,
-        });
-      }
     }
 
     const normDays = (requirement.days || [])
@@ -248,7 +160,7 @@ const copyFromHeader = async ({
       schoolId,
       timetableHeader: targetHeader._id,
       subject: requirement.subject._id || requirement.subject,
-      teacher: assignedTeacherId,
+      teacher: null,
       periodsPerWeek: requirement.periodsPerWeek || 1,
       days: normDays.length > 0 ? normDays : ["MON", "TUE", "WED", "THU", "FRI"],
       preferredPeriodId: requirement.preferredPeriodId || null,
@@ -322,7 +234,6 @@ const copyFromHeader = async ({
       copiedRequirements: copiedRequirements.length,
       skippedRequirements,
       removedAssignments: removedAssignments.deletedCount || 0,
-      warnings,
     },
   };
 };

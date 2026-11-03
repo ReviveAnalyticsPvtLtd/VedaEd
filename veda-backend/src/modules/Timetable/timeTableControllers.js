@@ -678,7 +678,6 @@ exports.updateTimetableRequirements = async (req, res) => {
 
       if (
         !subjectId ||
-        !teacherId ||
         periodsPerWeek === undefined ||
         !Array.isArray(days)
       ) {
@@ -688,10 +687,17 @@ exports.updateTimetableRequirements = async (req, res) => {
         });
       }
 
-      if (!isValidObjectId(subjectId) || !isValidObjectId(teacherId)) {
+      if (!isValidObjectId(subjectId)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid subjectId or teacherId",
+          message: "Invalid subjectId",
+        });
+      }
+
+      if (teacherId && !isValidObjectId(teacherId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid teacherId",
         });
       }
 
@@ -718,41 +724,34 @@ exports.updateTimetableRequirements = async (req, res) => {
         });
       }
 
-      // Duplicate ownership lookup commented out: the Staff.findOne below is
-      // already scoped to schoolId and is needed for the role check.
-      // if (!(await findOwnedStaff(teacherId, schoolId))) {
-      //   return res.status(404).json({
-      //     success: false,
-      //     message: "Teacher not found",
-      //   });
-      // }
-
       // Basic eligibility check - teacher must exist and be teacher role if possible
-      const teacher = await Staff.findOne({ _id: teacherId, schoolId });
+      if (teacherId) {
+        const teacher = await Staff.findOne({ _id: teacherId, schoolId });
 
-      if (!teacher) {
-        return res.status(404).json({
-          success: false,
-          message: "Teacher not found",
-        });
-      }
+        if (!teacher) {
+          return res.status(404).json({
+            success: false,
+            message: "Teacher not found",
+          });
+        }
 
-      if (
-        teacher &&
-        teacher.personalInfo?.role &&
-        teacher.personalInfo.role !== "Teacher"
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Selected staff is not a Teacher",
-        });
+        if (
+          teacher &&
+          teacher.personalInfo?.role &&
+          teacher.personalInfo.role !== "Teacher"
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Selected staff is not a Teacher",
+          });
+        }
       }
 
       validated.push({
         schoolId,
         timetableHeader: id,
         subject: subjectId,
-        teacher: teacherId,
+        teacher: teacherId || null,
         periodsPerWeek,
         days,
         preferredPeriodId: preferredPeriodId || null,
