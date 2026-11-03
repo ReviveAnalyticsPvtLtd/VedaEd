@@ -368,19 +368,21 @@ export default function Student() {
         return;
       }
 
-      // Send raw row data to the backend – NO client-side IDs.
-      // The backend will auto-generate unique Student IDs and skip duplicates.
+      // Send full row data to the backend with all student & parent columns preserved.
+      // The backend will auto-generate unique Student IDs, match/create parents, and skip duplicates.
       const rows = data.map((row) => ({
+        ...row,
         personalInfo: {
-          name:     row["Name"]     || "",
-          class:    row["Class"]    || "-",
-          rollNo:   row["Roll"]     || "-",
-          section:  row["Section"]  || "-",
-          password: row["Password"] || "default123",
-          fees:     row["Fee"]      || "Due",
-          email:    row["Email"]    || "",
+          ...row,
+          name:     row["Name"]     || row["Student Name"] || row["Full Name"] || row.name || "",
+          class:    row["Class"]    || row["Grade"] || row.class || "-",
+          rollNo:   row["Roll"]     || row["Roll No"] || row["Roll Number"] || row.rollNo || "-",
+          section:  row["Section"]  || row.section || "-",
+          password: row["Password"] || row.password || "default123",
+          fees:     row["Fee"]      || row["Fees"] || row.fees || "Paid",
+          email:    row["Email"]    || row["Student Email"] || row.email || "",
         },
-        attendance: row["Attendance"] || "-",
+        attendance: row["Attendance"] || row.attendance || "-",
       }));
 
       try {

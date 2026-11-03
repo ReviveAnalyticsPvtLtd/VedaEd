@@ -177,11 +177,13 @@ const mapSisStudentToProfile = (studentData = {}) => {
     ),
     fatherName: firstNonEmpty(
       parent.fatherName,
+      parent.role === "Father" ? parent.name : "",
       admissionParents.father?.name,
       studentData.fatherName
     ),
     motherName: firstNonEmpty(
       parent.motherName,
+      parent.role === "Mother" ? parent.name : "",
       admissionParents.mother?.name,
       studentData.motherName
     ),
@@ -230,49 +232,66 @@ const mapSisStudentToProfile = (studentData = {}) => {
     ),
     fatherOccupation: firstNonEmpty(
       admissionParents.father?.occupation,
+      parent.fatherOccupation,
       studentData.fatherOccupation
     ),
     fatherPhone: firstNonEmpty(
       admissionParents.father?.phone,
+      parent.fatherPhone,
+      parent.role === "Father" ? parent.phone : "",
       parentContact.phone,
       studentData.fatherPhone
     ),
     fatherEmail: firstNonEmpty(
       admissionParents.father?.email,
+      parent.fatherEmail,
+      parent.role === "Father" ? parent.email : "",
       parentContact.email,
       studentData.fatherEmail
     ),
     motherOccupation: firstNonEmpty(
       admissionParents.mother?.occupation,
+      parent.motherOccupation,
       studentData.motherOccupation
     ),
     motherPhone: firstNonEmpty(
       admissionParents.mother?.phone,
+      parent.motherPhone,
+      parent.role === "Mother" ? parent.phone : "",
       studentData.motherPhone
     ),
     motherEmail: firstNonEmpty(
       admissionParents.mother?.email,
+      parent.motherEmail,
+      parent.role === "Mother" ? parent.email : "",
       studentData.motherEmail
     ),
     guardianName: firstNonEmpty(
       admissionParents.guardian?.name,
+      parent.guardian?.name,
+      parent.role === "Guardian" ? parent.name : "",
       studentData.guardianName
     ),
     guardianRelation: firstNonEmpty(
       admissionParents.guardian?.relation,
+      parent.guardian?.relation,
       studentData.guardianRelation
     ),
     guardianPhone: firstNonEmpty(
       admissionParents.guardian?.phone,
+      parent.guardian?.phone,
+      parent.role === "Guardian" ? parent.phone : "",
       studentData.guardianPhone
     ),
     guardianEmail: firstNonEmpty(
       admissionParents.guardian?.email,
+      parent.guardian?.email,
+      parent.role === "Guardian" ? parent.email : "",
       studentData.guardianEmail
     ),
-    emergencyName: firstNonEmpty(emergencyContact.name, studentData.emergencyName),
-    emergencyRelation: firstNonEmpty(emergencyContact.relation, studentData.emergencyRelation),
-    emergencyPhone: firstNonEmpty(emergencyContact.phone, studentData.emergencyPhone),
+    emergencyName: firstNonEmpty(emergencyContact.name, parent.emergencyContact?.name, studentData.emergencyName),
+    emergencyRelation: firstNonEmpty(emergencyContact.relation, parent.emergencyContact?.relation, studentData.emergencyRelation),
+    emergencyPhone: firstNonEmpty(emergencyContact.phone, parent.emergencyContact?.phone, studentData.emergencyPhone),
     documents: studentProfileDocumentsOnly(studentData.documents),
   };
 };
@@ -369,11 +388,19 @@ const mapAdmissionStudentToProfile = (admissionData = {}, fallbackId = "") => {
 };
 
 const mapAnyStudentToProfile = (rawData = {}, fallbackId = "") => {
+  const source = rawData?.source;
+  if (source === "Admission" || source === "admission") {
+    return mapAdmissionStudentToProfile(rawData, fallbackId);
+  }
+  if (source === "SIS" || source === "sis") {
+    return mapSisStudentToProfile(rawData);
+  }
+
   const hasAdmissionShape =
-    rawData?.source === "Admission" ||
-    !!rawData?.contactInfo ||
-    !!rawData?.parents ||
-    !!rawData?.personalInfo?.classApplied;
+    !!rawData?.personalInfo?.classApplied &&
+    !rawData?.personalInfo?.class &&
+    !rawData?.parent &&
+    !Array.isArray(rawData?.parent);
 
   return hasAdmissionShape
     ? mapAdmissionStudentToProfile(rawData, fallbackId)

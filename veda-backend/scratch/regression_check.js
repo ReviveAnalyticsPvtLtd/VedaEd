@@ -2,7 +2,7 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const API_BASE = 'http://localhost:5000/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_change_in_production';

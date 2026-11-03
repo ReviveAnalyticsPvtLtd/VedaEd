@@ -495,16 +495,18 @@ export default function SuperAdminSISStudents() {
       }
 
       const rows = data.map((row) => ({
+        ...row,
         personalInfo: {
-          name: row["Name"] || "",
-          class: row["Class"] || "-",
-          rollNo: row["Roll"] || "-",
-          section: row["Section"] || "-",
-          password: row["Password"] || "default123",
-          fees: row["Fee"] || "Due",
-          email: row["Email"] || "",
+          ...row,
+          name: row["Name"] || row["Student Name"] || row["Full Name"] || row.name || "",
+          class: row["Class"] || row["Grade"] || row.class || "-",
+          rollNo: row["Roll"] || row["Roll No"] || row["Roll Number"] || row.rollNo || "-",
+          section: row["Section"] || row.section || "-",
+          password: row["Password"] || row.password || "default123",
+          fees: row["Fee"] || row["Fees"] || row.fees || "Paid",
+          email: row["Email"] || row["Student Email"] || row.email || "",
         },
-        attendance: row["Attendance"] || "-",
+        attendance: row["Attendance"] || row.attendance || "-",
       }));
 
       try {

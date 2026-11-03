@@ -403,11 +403,13 @@ const mapSisStudentToProfile = (studentData = {}) => {
     ),
     fatherName: firstNonEmpty(
       parent.fatherName,
+      parent.role === "Father" ? parent.name : "",
       admissionParents.father?.name,
       studentData.fatherName
     ),
     motherName: firstNonEmpty(
       parent.motherName,
+      parent.role === "Mother" ? parent.name : "",
       admissionParents.mother?.name,
       studentData.motherName
     ),
@@ -507,9 +509,9 @@ const mapSisStudentToProfile = (studentData = {}) => {
       parent.guardian?.email,
       studentData.guardianEmail
     ),
-    emergencyName: firstNonEmpty(emergencyContact.name, studentData.emergencyName),
-    emergencyRelation: firstNonEmpty(emergencyContact.relation, studentData.emergencyRelation),
-    emergencyPhone: firstNonEmpty(emergencyContact.phone, studentData.emergencyPhone),
+    emergencyName: firstNonEmpty(emergencyContact.name, parent.emergencyContact?.name, studentData.emergencyName),
+    emergencyRelation: firstNonEmpty(emergencyContact.relation, parent.emergencyContact?.relation, studentData.emergencyRelation),
+    emergencyPhone: firstNonEmpty(emergencyContact.phone, parent.emergencyContact?.phone, studentData.emergencyPhone),
     documents: studentProfileDocumentsOnly(studentData.documents),
   };
 };
