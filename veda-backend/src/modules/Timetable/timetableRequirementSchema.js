@@ -22,7 +22,7 @@ const timetableRequirementSchema = new mongoose.Schema(
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Staff",
-      required: true,
+      default: null,
     },
     periodsPerWeek: {
       type: Number,

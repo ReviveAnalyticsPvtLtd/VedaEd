@@ -351,11 +351,16 @@ function formatParentProfileApiData(parentDoc) {
     username: parentDoc.parentId,
     password: parentDoc.password,
     fatherName: parentDoc.fatherName || parentDoc.name || "N/A",
-    fatherOccupation: parentDoc.occupation || parentDoc.fatherOccupation || "Parent",
-    fatherNumber: parentDoc.phone || parentDoc.fatherNumber || "N/A",
+    fatherOccupation: parentDoc.fatherOccupation || parentDoc.occupation || "Parent",
+    fatherNumber: parentDoc.fatherPhone || parentDoc.phone || parentDoc.fatherNumber || "N/A",
+    fatherPhone: parentDoc.fatherPhone || parentDoc.phone || "N/A",
+    fatherEmail: parentDoc.fatherEmail || parentDoc.email || "N/A",
     motherName: parentDoc.motherName || "N/A",
     motherOccupation: parentDoc.motherOccupation || "Home Maker",
-    motherNumber: parentDoc.motherNumber || "N/A",
+    motherNumber: parentDoc.motherPhone || parentDoc.motherNumber || "N/A",
+    motherPhone: parentDoc.motherPhone || parentDoc.motherNumber || "N/A",
+    motherEmail: parentDoc.motherEmail || "N/A",
+    guardian: parentDoc.guardian || { name: "", relation: "", phone: "", email: "", occupation: "" },
     emergencyContact:
       (parentDoc.emergencyContact &&
         (parentDoc.emergencyContact.name || parentDoc.emergencyContact.phone)) ||
@@ -675,6 +680,28 @@ exports.getParentbyId = async (req, res) => {
         ]
       }).lean();
 
+      // 3. Fallback: check if id is a Student's stdId, username, or _id
+      if (!parentDoc) {
+        const student = await Student.findOne({
+          schoolId,
+          $or: [
+            { "personalInfo.stdId": id },
+            { "personalInfo.username": id },
+            ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
+          ]
+        }).select("parent").lean();
+
+        if (student && student.parent) {
+          parentDoc = await Parent.findOne({ _id: student.parent, schoolId }).populate({
+            path: 'children',
+            populate: [
+              { path: 'personalInfo.class', select: 'name' },
+              { path: 'personalInfo.section', select: 'name' }
+            ]
+          }).lean();
+        }
+      }
+
       if (parentDoc) {
         parentDoc.photo = resolveParentProfilePhotoFromParentDoc(parentDoc);
       }
@@ -806,7 +833,21 @@ exports.updateParent = async (req, res) => {
     const parentQuery = mongoose.Types.ObjectId.isValid(id)
       ? { _id: id, schoolId }
       : { parentId: id, schoolId };
-    const parentExist = await Parent.findOne(parentQuery);
+    let parentExist = await Parent.findOne(parentQuery);
+    if (!parentExist) {
+      const student = await Student.findOne({
+        schoolId,
+        $or: [
+          { "personalInfo.stdId": id },
+          { "personalInfo.username": id },
+          ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
+        ]
+      }).select("parent").lean();
+
+      if (student && student.parent) {
+        parentExist = await Parent.findOne({ _id: student.parent, schoolId });
+      }
+    }
     if (!parentExist) {
       return res.status(404).json({
         success: false,

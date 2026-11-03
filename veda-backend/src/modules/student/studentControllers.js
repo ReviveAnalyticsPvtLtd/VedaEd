@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const Student = require("./studentModels");
 const AdmissionApplication = require("../admission/admissionApplicationModel");
 const { generateNextStudentId, peekNextStudentId } = require("../../utils/studentIdGenerator");
+const { generateNextParentId } = require("../../utils/parentIdGenerator");
 const Parent = require("../parents/parentModel");
 const Class = require("../class/classSchema");
 const Section = require("../section/sectionSchema");
@@ -35,6 +36,12 @@ const UPLOADS_DIR = path.resolve(__dirname, "../../../public/uploads");
  */
 const PARENT_PROFILE_FIELDS = [
   "parentId",
+  "name",
+  "email",
+  "phone",
+  "role",
+  "occupation",
+  "relation",
   "fatherName",
   "motherName",
   "contactDetails",
@@ -45,6 +52,10 @@ const PARENT_PROFILE_FIELDS = [
   "motherOccupation",
   "motherPhone",
   "motherEmail",
+  "emergencyContact",
+  "address",
+  "profilePhoto",
+  "status",
 ].join(" ");
 
 const safeDocumentPath = (filename) => {
@@ -264,6 +275,12 @@ exports.createStudent = async (req, res) => {
                   phone: emergencyContact.phone || "",
                 },
               }
+            : {}),
+          ...(req.body.earlierAcademic && typeof req.body.earlierAcademic === "object"
+            ? { earlierAcademic: req.body.earlierAcademic }
+            : {}),
+          ...(req.body.contactInfo && typeof req.body.contactInfo === "object"
+            ? { contactInfo: req.body.contactInfo }
             : {}),
         });
         break;
@@ -1894,7 +1911,8 @@ exports.importStudents = async (req, res) => {
   const schoolId = requireSchool(req, res);
   if (!schoolId) return;
   try {
-    const { students } = req.body;
+    const rawData = req.body;
+    const students = Array.isArray(rawData) ? rawData : (rawData?.students || []);
 
     if (!students || !Array.isArray(students) || students.length === 0) {
       return res.status(400).json({
@@ -1910,16 +1928,106 @@ exports.importStudents = async (req, res) => {
     };
 
     const Role = require('../../models/Role');
-    const studentRole = await Role.findOne({ name: 'student' }).lean();
+    const [studentRole, parentRole] = await Promise.all([
+      Role.findOne({ name: 'student' }).lean(),
+      Role.findOne({ name: 'parent' }).lean()
+    ]);
+
+    const passwordHashCache = new Map();
+    const hashPasswordCached = async (plain) => {
+      const p = plain || "default123";
+      if (passwordHashCache.has(p)) return passwordHashCache.get(p);
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(p, salt);
+      passwordHashCache.set(p, hash);
+      return hash;
+    };
+
+    const getVal = (row, keys, fallback = "") => {
+      if (!row || typeof row !== "object") return fallback;
+
+      // 1. Direct checks
+      for (const k of keys) {
+        if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
+          return String(row[k]).trim();
+        }
+      }
+
+      // 2. Check in common nested containers if present
+      const containers = [
+        row.personalInfo,
+        row.contactDetails,
+        row.contactInfo,
+        row.emergencyContact,
+        row.earlierAcademic,
+        row.parent,
+        row.parents,
+        row.parents?.father,
+        row.parents?.mother,
+        row.parents?.guardian,
+      ];
+
+      for (const c of containers) {
+        if (c && typeof c === "object") {
+          for (const k of keys) {
+            if (c[k] !== undefined && c[k] !== null && String(c[k]).trim() !== "") {
+              return String(c[k]).trim();
+            }
+          }
+        }
+      }
+
+      // 3. Normalized key check on root row
+      const rowKeyMap = {};
+      for (const rk of Object.keys(row)) {
+        const norm = rk.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!rowKeyMap[norm]) rowKeyMap[norm] = rk;
+      }
+      for (const k of keys) {
+        const normK = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (rowKeyMap[normK]) {
+          const actualKey = rowKeyMap[normK];
+          if (row[actualKey] !== undefined && row[actualKey] !== null && String(row[actualKey]).trim() !== "") {
+            return String(row[actualKey]).trim();
+          }
+        }
+      }
+
+      // 4. Normalized key check on nested objects
+      for (const c of containers) {
+        if (c && typeof c === "object") {
+          const cKeyMap = {};
+          for (const rk of Object.keys(c)) {
+            const norm = rk.toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (!cKeyMap[norm]) cKeyMap[norm] = rk;
+          }
+          for (const k of keys) {
+            const normK = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (cKeyMap[normK]) {
+              const actualKey = cKeyMap[normK];
+              if (c[actualKey] !== undefined && c[actualKey] !== null && String(c[actualKey]).trim() !== "") {
+                return String(c[actualKey]).trim();
+              }
+            }
+          }
+        }
+      }
+
+      return fallback;
+    };
 
     // Track batch allocated roll numbers per classId:sectionId
     const batchRollMap = new Map();
 
+    // In-memory parent cache for deduplicating siblings in the same batch
+    const batchParentsByPhone = new Map();
+    const batchParentsByEmail = new Map();
+
     for (const stu of students) {
       try {
-        const name = String(stu.personalInfo?.name || "").trim();
-        const rawClass = String(stu.personalInfo?.class || "").trim();
-        const rawSection = String(stu.personalInfo?.section || "").trim();
+        const name = getVal(stu, ["name", "Name", "Student Name", "StudentName", "Full Name", "FullName", "student_name"]);
+        const rawClass = getVal(stu, ["class", "Class", "Grade", "grade", "ClassName", "Class Name"]);
+        const rawSection = getVal(stu, ["section", "Section", "sec", "Sec", "Section Name"]);
 
         if (!name) {
           results.errors.push({ row: stu, reason: "Name is required" });
@@ -1930,7 +2038,12 @@ exports.importStudents = async (req, res) => {
         let classId = null;
         let classDoc = null;
         if (rawClass && rawClass !== "-") {
-          classDoc = await Class.findOne({ name: rawClass, schoolId });
+          if (mongoose.isValidObjectId(rawClass)) {
+            classDoc = await Class.findOne({ _id: rawClass, schoolId });
+          }
+          if (!classDoc) {
+            classDoc = await Class.findOne({ name: rawClass, schoolId });
+          }
           if (!classDoc && /^\d+$/.test(rawClass)) {
             classDoc = await Class.findOne({ name: `Grade ${rawClass}`, schoolId }) ||
                        await Class.findOne({ name: `Class ${rawClass}`, schoolId });
@@ -1950,7 +2063,19 @@ exports.importStudents = async (req, res) => {
         let sectionId = null;
         let sectionDoc = null;
         if (rawSection && rawSection !== "-") {
-          sectionDoc = await Section.findOne({ name: rawSection, schoolId });
+          if (mongoose.isValidObjectId(rawSection)) {
+            sectionDoc = await Section.findOne({ _id: rawSection, schoolId });
+          }
+          if (!sectionDoc && classDoc) {
+            sectionDoc = await Section.findOne({
+              _id: { $in: classDoc.sections || [] },
+              name: rawSection,
+              schoolId,
+            });
+          }
+          if (!sectionDoc) {
+            sectionDoc = await Section.findOne({ name: rawSection, schoolId });
+          }
           if (sectionDoc) {
             sectionId = sectionDoc._id;
           } else {
@@ -1969,116 +2094,537 @@ exports.importStudents = async (req, res) => {
           continue;
         }
 
-        // ── Duplicate check: skip if same name + class + section exists ─────
-        const duplicateQuery = { schoolId, "personalInfo.name": name, "personalInfo.class": classId, "personalInfo.section": sectionId };
-
-        const existing = await Student.findOne(duplicateQuery).select("_id personalInfo.stdId").lean();
-        if (existing) {
-          results.skipped.push({
-            name,
-            reason: `Student already exists (ID: ${existing.personalInfo?.stdId || existing._id})`
-          });
-          continue;
-        }
-
-        // ── Roll Number Allocation & Batch Conflict Tracking ────────────────
-        const batchKey = `${classId.toString()}:${sectionId.toString()}`;
-        if (!batchRollMap.has(batchKey)) {
-          const dbAssigned = await getAssignedRollNumbers(schoolId, classId, sectionId);
-          batchRollMap.set(batchKey, new Set(dbAssigned.usedNumbers));
-        }
-        const currentBatchSet = batchRollMap.get(batchKey);
-        const capacity = resolveClassSectionCapacity(classDoc, sectionDoc);
-
-        const rawRoll = stu.personalInfo?.rollNo;
-        const hasManualRoll = rawRoll !== undefined && rawRoll !== null && String(rawRoll).trim() !== "" && String(rawRoll).trim() !== "-";
-
-        let finalRollNo = null;
-        if (hasManualRoll) {
-          const parsed = parseInt(String(rawRoll).trim(), 10);
-          if (!Number.isInteger(parsed) || parsed < 1 || parsed > capacity || currentBatchSet.has(parsed)) {
-            if (!Number.isInteger(parsed) || parsed < 1) {
-              results.errors.push({ name, reason: `Invalid roll number: "${rawRoll}"` });
-              continue;
-            }
-            if (parsed > capacity) {
-              results.errors.push({ name, reason: `Roll number ${parsed} exceeds capacity of ${capacity}` });
-              continue;
-            }
-            if (currentBatchSet.has(parsed)) {
-              results.errors.push({ name, reason: `Roll number ${parsed} is already assigned in ${classDoc.name} - Section ${sectionDoc.name}` });
-              continue;
-            }
+        // ── Student ID / Duplicate Check ────────────────────────────────────
+        const rawStdId = getVal(stu, ["stdId", "Student ID", "StudentId", "StudentID", "Std ID", "std_id", "Student_ID"]);
+        const duplicateConditions = [
+          {
+            "personalInfo.name": name,
+            "personalInfo.class": classId,
+            "personalInfo.section": sectionId,
           }
-          finalRollNo = String(parsed);
-          currentBatchSet.add(parsed);
-        } else {
-          const nextRoll = findSmallestAvailableRollNumber(currentBatchSet, capacity);
-          if (nextRoll === null) {
-            results.errors.push({ name, reason: `Class ${classDoc.name} - Section ${sectionDoc.name} reached capacity of ${capacity} students` });
-            continue;
-          }
-          finalRollNo = String(nextRoll);
-          currentBatchSet.add(nextRoll);
+        ];
+        if (rawStdId && rawStdId !== "-" && rawStdId.toLowerCase() !== "auto") {
+          duplicateConditions.push({ "personalInfo.stdId": rawStdId });
         }
 
-        // ── Generate unique Student ID (same logic as createStudent) ────────
-        const stdId = await generateNextStudentId();
-        const username = await generateUniqueStudentUsername(
-          name,
-          stu.personalInfo?.DOB || stu.personalInfo?.dateOfBirth,
-          schoolId
-        );
-        const plainPassword = stu.personalInfo?.password || "default123";
-
-        // ── Build and save student document ─────────────────────────────────
-        const newStudent = await Student.create({
-          personalInfo: {
-            name,
-            class: classId,
-            section: sectionId,
-            stdId,
-            username,
-            rollNo: finalRollNo,
-            fees: (["Paid", "Due"].includes(String(stu.personalInfo?.fees || "").charAt(0).toUpperCase() + String(stu.personalInfo?.fees || "").slice(1).toLowerCase())) 
-                  ? String(stu.personalInfo?.fees || "").charAt(0).toUpperCase() + String(stu.personalInfo?.fees || "").slice(1).toLowerCase() 
-                  : "Due",
-            password: plainPassword,
-            status: stu.personalInfo?.status || "Active",
-          },
+        const existingStudent = await Student.findOne({
           schoolId,
-          attendance: stu.attendance || "-",
+          $or: duplicateConditions
         });
 
-        results.imported.push({
-          _id: newStudent._id,
-          name,
-          stdId,
-          rollNo: finalRollNo,
-          class: classDoc.name,
-          section: sectionDoc.name,
-        });
+        // ── Extract All Additional Student Data ──────────────────────────────
+        const rawDob = getVal(stu, ["dob", "DOB", "Date of Birth", "DateOfBirth", "Birth Date", "BirthDate", "dateOfBirth", "date_of_birth"]);
+        let dobVal = rawDob;
+        if (typeof rawDob === "number") {
+          const d = new Date(Math.round((rawDob - 25569) * 86400 * 1000));
+          if (!isNaN(d.getTime())) dobVal = d.toISOString().split("T")[0];
+        }
 
-        // ── Create Auth User record (background, non-blocking) ───────────────
-        if (studentRole) {
-          try {
-            await User.create({
+        const rawGender = getVal(stu, ["gender", "Gender", "Sex", "sex"]);
+        let genderVal = "";
+        if (rawGender) {
+          if (/^f/i.test(rawGender.trim())) genderVal = "Female";
+          else if (/^m/i.test(rawGender.trim())) genderVal = "Male";
+          else if (/^o/i.test(rawGender.trim())) genderVal = "Other";
+          else genderVal = rawGender.trim();
+        }
+
+        const rawBlood = getVal(stu, ["bloodGroup", "blood group", "Blood Group", "BloodGroup", "Blood", "blood_group"]);
+        const bloodGroupVal = rawBlood ? rawBlood.trim().toUpperCase() : "";
+
+        const nationalityVal = getVal(stu, ["nationality", "Nationality"]);
+        const religionVal = getVal(stu, ["religion", "Religion"]);
+        const ageVal = getVal(stu, ["age", "Age"]);
+
+        const rawFees = getVal(stu, ["fees", "Fees", "fee", "Fee", "Fee Status", "feeStatus"]);
+        const feesVal = (rawFees && ["paid", "due"].includes(rawFees.trim().toLowerCase()))
+          ? (rawFees.trim().toLowerCase() === "paid" ? "Paid" : "Due")
+          : "Paid";
+
+        const rawStatus = getVal(stu, ["status", "Status"]);
+        const statusVal = (rawStatus && rawStatus.trim().toLowerCase() === "inactive") ? "Inactive" : "Active";
+
+        const admissionDateRaw = getVal(stu, ["admissionDate", "Admission Date", "Date of Admission", "admission_date"]);
+        let admissionDateVal = new Date();
+        if (admissionDateRaw) {
+          const parsedAd = new Date(admissionDateRaw);
+          if (!isNaN(parsedAd.getTime())) admissionDateVal = parsedAd;
+        }
+
+        const plainPassword = getVal(stu, ["password", "Password", "Pass", "pass"]) || "default123";
+
+        // Contact details
+        const emailVal = getVal(stu, ["email", "Email", "Student Email", "Student Email ID", "student_email", "Email ID"]);
+        const phoneVal = getVal(stu, ["mobileNumber", "phone", "Phone", "Mobile", "Student Phone", "Student Mobile", "Contact Number", "Contact", "mobile"]);
+        const countryCodeVal = getVal(stu, ["countryCode", "Country Code", "country_code"]);
+        const altPhoneVal = getVal(stu, ["alternatePhone", "Alternate Phone", "Alt Phone", "Alt Mobile", "alternate_phone"]);
+
+        // Address parts
+        let streetVal = getVal(stu, ["street", "Street", "Street Address", "Address Line 1", "Address 1"]);
+        let cityVal = getVal(stu, ["city", "City", "Town"]);
+        let stateVal = getVal(stu, ["state", "State", "Province"]);
+        let zipVal = getVal(stu, ["zipCode", "Zip Code", "ZipCode", "Zip", "Pincode", "Pin Code", "Postal Code", "zip_code", "pincode"]);
+        let addressVal = getVal(stu, ["address", "Address", "Full Address", "Residential Address", "residential_address"]);
+
+        if (addressVal && (!streetVal || !cityVal || !stateVal || !zipVal)) {
+          const parts = String(addressVal).split(",").map(s => s.trim()).filter(Boolean);
+          if (!streetVal && parts[0]) streetVal = parts[0];
+          if (!cityVal && parts[1]) cityVal = parts[1];
+          if (parts.length >= 3) {
+            const tail = parts.slice(2).join(", ");
+            const zipMatch = tail.match(/(\d{4,10})$/);
+            if (!zipVal && zipMatch) zipVal = zipMatch[1];
+            if (!stateVal) stateVal = tail.replace(/\s+\d{4,10}$/, "").trim();
+          }
+        }
+        if (!addressVal && (streetVal || cityVal || stateVal || zipVal)) {
+          addressVal = [streetVal, cityVal, stateVal, zipVal].filter(Boolean).join(", ");
+        }
+
+        // Earlier academic
+        const schoolNameVal = getVal(stu, ["previousSchool", "Previous School", "Previous School Name", "Earlier School", "schoolName", "school_name"]);
+        const boardVal = getVal(stu, ["boardOrUniversity", "board", "Board / University", "Board/University", "Board", "University", "board_university"]);
+        const lastClassVal = getVal(stu, ["classLastStudied", "lastClass", "Class Last Studied", "Class Last Studied/Passed", "Last Class", "Class Studied", "Previous Class", "last_class"]);
+        const academicYearVal = getVal(stu, ["academicYear", "Academic Year", "AcademicYear", "Session", "Year of Study", "academic_year"]);
+
+        // Emergency contact
+        let emergencyName = getVal(stu, ["emergencyContactName", "emergencyName", "Emergency Contact Name", "Emergency Contact", "Emergency Name", "emergency_contact_name"]);
+        let emergencyRelation = getVal(stu, ["emergencyContactRelation", "emergencyRelation", "Emergency Contact Relation", "Emergency Relation", "Relation with Emergency Contact", "emergency_relation"]);
+        let emergencyPhone = getVal(stu, ["emergencyContactPhone", "emergencyPhone", "Emergency Contact Phone", "Emergency Phone", "Emergency Mobile", "Emergency Contact Number", "emergency_phone"]);
+
+        // Parent Information fields
+        const fatherName = getVal(stu, ["fatherName", "Father Name", "Father's Name", "FatherName", "Father"]);
+        const fatherOccupation = getVal(stu, ["fatherOccupation", "Father Occupation", "Father's Occupation", "Father Profession", "Father Occupation/Profession"]);
+        const fatherPhone = getVal(stu, ["fatherPhone", "Father Phone", "Father's Phone", "Father Mobile", "Father Mobile Number", "Father Contact", "Father Contact Number"]);
+        const fatherEmail = getVal(stu, ["fatherEmail", "Father Email", "Father's Email", "Father Email ID"]);
+
+        const motherName = getVal(stu, ["motherName", "Mother Name", "Mother's Name", "MotherName", "Mother"]);
+        const motherOccupation = getVal(stu, ["motherOccupation", "Mother Occupation", "Mother's Occupation", "Mother Profession"]);
+        const motherPhone = getVal(stu, ["motherPhone", "Mother Phone", "Mother's Phone", "Mother Mobile", "Mother Mobile Number", "Mother Contact", "Mother Contact Number"]);
+        const motherEmail = getVal(stu, ["motherEmail", "Mother Email", "Mother's Email", "Mother Email ID"]);
+
+        const guardianName = getVal(stu, ["guardianName", "Guardian Name", "Guardian's Name", "Local Guardian Name", "Guardian"]);
+        const guardianRelation = getVal(stu, ["guardianRelation", "Guardian Relation", "Relation with Guardian", "Guardian's Relation"]);
+        const guardianPhone = getVal(stu, ["guardianPhone", "Guardian Phone", "Guardian's Phone", "Guardian Mobile", "Guardian Contact"]);
+        const guardianEmail = getVal(stu, ["guardianEmail", "Guardian Email", "Guardian's Email", "Guardian Email ID"]);
+        const guardianOccupation = getVal(stu, ["guardianOccupation", "Guardian Occupation", "Guardian's Occupation", "Guardian Profession"]);
+
+        const genericParentName = getVal(stu, ["parentName", "Parent Name", "Parent", "Primary Guardian Name"]);
+        const genericParentPhone = getVal(stu, ["parentPhone", "Parent Phone", "Parent Mobile", "Parent Contact"]);
+        const genericParentEmail = getVal(stu, ["parentEmail", "Parent Email", "Parent Email ID"]);
+        const genericParentRole = getVal(stu, ["parentRole", "Role", "Parent Role", "Parent Relation"]);
+        const genericParentOccupation = getVal(stu, ["parentOccupation", "Parent Occupation"]);
+
+        // Fallback emergency contact from parent if not specified
+        if (!emergencyName) {
+          emergencyName = fatherName || motherName || guardianName || genericParentName || "";
+          emergencyRelation = emergencyRelation || (fatherName ? "Father" : motherName ? "Mother" : guardianName ? (guardianRelation || "Guardian") : "Parent");
+          emergencyPhone = emergencyPhone || fatherPhone || motherPhone || guardianPhone || genericParentPhone || "";
+        }
+
+        let targetStudent = null;
+        let isNewStudent = false;
+        let finalRollNo = null;
+
+        if (existingStudent) {
+          targetStudent = existingStudent;
+          finalRollNo = existingStudent.personalInfo?.rollNo;
+
+          // Backfill missing fields without overwriting valid data
+          let studentChanged = false;
+          const pi = targetStudent.personalInfo || {};
+          if (!pi.DOB && dobVal) { pi.DOB = dobVal; studentChanged = true; }
+          if (!pi.gender && genderVal) { pi.gender = genderVal; studentChanged = true; }
+          if (!pi.bloodGroup && bloodGroupVal) { pi.bloodGroup = bloodGroupVal; studentChanged = true; }
+          if (!pi.nationality && nationalityVal) { pi.nationality = nationalityVal; studentChanged = true; }
+          if (!pi.religion && religionVal) { pi.religion = religionVal; studentChanged = true; }
+          if (!pi.age && ageVal) { pi.age = ageVal; studentChanged = true; }
+          if (!pi.address && addressVal) { pi.address = addressVal; studentChanged = true; }
+          if ((!pi.fees || pi.fees === "Due") && feesVal === "Paid") { pi.fees = feesVal; studentChanged = true; }
+
+          if (!pi.contactDetails) pi.contactDetails = {};
+          if (!pi.contactDetails.mobileNumber && phoneVal) { pi.contactDetails.mobileNumber = phoneVal; studentChanged = true; }
+          if (!pi.contactDetails.countryCode && countryCodeVal) { pi.contactDetails.countryCode = countryCodeVal; studentChanged = true; }
+          if (!pi.contactDetails.alternatePhone && altPhoneVal) { pi.contactDetails.alternatePhone = altPhoneVal; studentChanged = true; }
+          if (!pi.contactDetails.email && emailVal) { pi.contactDetails.email = emailVal; studentChanged = true; }
+          targetStudent.personalInfo = pi;
+
+          if (!targetStudent.contactInfo) targetStudent.contactInfo = {};
+          if (!targetStudent.contactInfo.street && streetVal) { targetStudent.contactInfo.street = streetVal; studentChanged = true; }
+          if (!targetStudent.contactInfo.city && cityVal) { targetStudent.contactInfo.city = cityVal; studentChanged = true; }
+          if (!targetStudent.contactInfo.state && stateVal) { targetStudent.contactInfo.state = stateVal; studentChanged = true; }
+          if (!targetStudent.contactInfo.zipCode && zipVal) { targetStudent.contactInfo.zipCode = zipVal; studentChanged = true; }
+
+          if (!targetStudent.emergencyContact) targetStudent.emergencyContact = {};
+          if (!targetStudent.emergencyContact.name && emergencyName) { targetStudent.emergencyContact.name = emergencyName; studentChanged = true; }
+          if (!targetStudent.emergencyContact.relation && emergencyRelation) { targetStudent.emergencyContact.relation = emergencyRelation; studentChanged = true; }
+          if (!targetStudent.emergencyContact.phone && emergencyPhone) { targetStudent.emergencyContact.phone = emergencyPhone; studentChanged = true; }
+
+          if (!targetStudent.earlierAcademic) targetStudent.earlierAcademic = {};
+          if (!targetStudent.earlierAcademic.schoolName && schoolNameVal) { targetStudent.earlierAcademic.schoolName = schoolNameVal; studentChanged = true; }
+          if (!targetStudent.earlierAcademic.board && boardVal) { targetStudent.earlierAcademic.board = boardVal; studentChanged = true; }
+          if (!targetStudent.earlierAcademic.lastClass && lastClassVal) { targetStudent.earlierAcademic.lastClass = lastClassVal; studentChanged = true; }
+          if (!targetStudent.earlierAcademic.academicYear && academicYearVal) { targetStudent.earlierAcademic.academicYear = academicYearVal; studentChanged = true; }
+
+          if (studentChanged) {
+            await targetStudent.save();
+          }
+
+        } else {
+          // ── Roll Number Allocation & Batch Conflict Tracking ────────────────
+          const batchKey = `${classId.toString()}:${sectionId.toString()}`;
+          if (!batchRollMap.has(batchKey)) {
+            const dbAssigned = await getAssignedRollNumbers(schoolId, classId, sectionId);
+            batchRollMap.set(batchKey, new Set(dbAssigned.usedNumbers));
+          }
+          const currentBatchSet = batchRollMap.get(batchKey);
+          const capacity = resolveClassSectionCapacity(classDoc, sectionDoc);
+
+          const rawRoll = getVal(stu, ["rollNo", "roll", "Roll", "RollNo", "Roll Number", "Roll No", "roll_no", "Roll#"]);
+          const hasManualRoll = rawRoll !== undefined && rawRoll !== null && String(rawRoll).trim() !== "" && String(rawRoll).trim() !== "-" && String(rawRoll).trim().toLowerCase() !== "auto";
+
+          if (hasManualRoll) {
+            const parsed = parseInt(String(rawRoll).trim(), 10);
+            if (!Number.isInteger(parsed) || parsed < 1 || parsed > capacity || currentBatchSet.has(parsed)) {
+              if (!Number.isInteger(parsed) || parsed < 1) {
+                results.errors.push({ name, reason: `Invalid roll number: "${rawRoll}"` });
+                continue;
+              }
+              if (parsed > capacity) {
+                results.errors.push({ name, reason: `Roll number ${parsed} exceeds capacity of ${capacity}` });
+                continue;
+              }
+              if (currentBatchSet.has(parsed)) {
+                results.errors.push({ name, reason: `Roll number ${parsed} is already assigned in ${classDoc.name} - Section ${sectionDoc.name}` });
+                continue;
+              }
+            }
+            finalRollNo = String(parsed);
+            currentBatchSet.add(parsed);
+          } else {
+            const nextRoll = findSmallestAvailableRollNumber(currentBatchSet, capacity);
+            if (nextRoll === null) {
+              results.errors.push({ name, reason: `Class ${classDoc.name} - Section ${sectionDoc.name} reached capacity of ${capacity} students` });
+              continue;
+            }
+            finalRollNo = String(nextRoll);
+            currentBatchSet.add(nextRoll);
+          }
+
+          // Student ID and username
+          let stdId = rawStdId && rawStdId !== "-" && rawStdId.toLowerCase() !== "auto"
+            ? rawStdId
+            : await generateNextStudentId();
+
+          const username = await generateUniqueStudentUsername(name, dobVal, schoolId);
+
+          targetStudent = await Student.create({
+            schoolId,
+            personalInfo: {
               name,
-              email: stu.personalInfo?.email || username,
+              class: classId,
+              section: sectionId,
+              stdId,
+              username,
+              rollNo: finalRollNo,
+              DOB: dobVal || "",
+              gender: genderVal,
+              bloodGroup: bloodGroupVal,
+              nationality: nationalityVal,
+              religion: religionVal,
+              age: ageVal,
+              admissionDate: admissionDateVal,
+              status: statusVal,
+              fees: feesVal,
+              contactDetails: {
+                mobileNumber: phoneVal,
+                countryCode: countryCodeVal,
+                alternatePhone: altPhoneVal,
+                email: emailVal,
+              },
+              address: addressVal,
               password: plainPassword,
-              roleId: studentRole._id,
-              refId: newStudent._id,
+            },
+            contactInfo: {
+              street: streetVal,
+              city: cityVal,
+              state: stateVal,
+              zipCode: zipVal,
+            },
+            emergencyContact: {
+              name: emergencyName,
+              relation: emergencyRelation,
+              phone: emergencyPhone,
+            },
+            earlierAcademic: {
+              schoolName: schoolNameVal,
+              board: boardVal,
+              lastClass: lastClassVal,
+              academicYear: academicYearVal,
+            },
+            attendance: stu.attendance || "-",
+          });
+
+          isNewStudent = true;
+        }
+
+        // ── Automatic Parent Creation & Deduplication ───────────────────────
+        let linkedParent = null;
+        const hasParentName = Boolean(fatherName || motherName || guardianName || genericParentName);
+        const candidatePhones = [fatherPhone, motherPhone, guardianPhone, genericParentPhone].filter(Boolean);
+        const candidateEmails = [fatherEmail, motherEmail, guardianEmail, genericParentEmail].filter(Boolean);
+
+        const primaryPhone = candidatePhones[0] || (phoneVal ? String(phoneVal).trim() : "");
+        const primaryEmail = candidateEmails[0] || (emailVal ? String(emailVal).trim().toLowerCase() : "");
+
+        if (hasParentName && (primaryPhone || candidateEmails.length > 0)) {
+          // Normalize candidate phones and emails for reliable deduplication
+          const phoneNorms = [];
+          for (const p of candidatePhones) {
+            const rawP = String(p).trim();
+            phoneNorms.push(rawP);
+            const digits = rawP.replace(/\D/g, "");
+            if (digits) {
+              phoneNorms.push(digits);
+              if (digits.length >= 10) {
+                phoneNorms.push(digits.slice(-10));
+              }
+            }
+          }
+          const emailNorms = candidateEmails.map(e => String(e).trim().toLowerCase());
+
+          // 1. Check batch cache (siblings in same file)
+          let existingParent = null;
+          for (const p of phoneNorms) {
+            if (batchParentsByPhone.has(p)) {
+              existingParent = batchParentsByPhone.get(p);
+              break;
+            }
+          }
+          if (!existingParent) {
+            for (const e of emailNorms) {
+              if (batchParentsByEmail.has(e)) {
+                existingParent = batchParentsByEmail.get(e);
+                break;
+              }
+            }
+          }
+
+          // 2. Check MongoDB for existing parent
+          if (!existingParent) {
+            const orConditions = [];
+            if (phoneNorms.length > 0) {
+              orConditions.push({ phone: { $in: phoneNorms } });
+              orConditions.push({ "contactDetails.phone": { $in: phoneNorms } });
+              orConditions.push({ fatherPhone: { $in: phoneNorms } });
+              orConditions.push({ motherPhone: { $in: phoneNorms } });
+              orConditions.push({ "guardian.phone": { $in: phoneNorms } });
+            }
+            if (emailNorms.length > 0) {
+              orConditions.push({ email: { $in: emailNorms } });
+              orConditions.push({ "contactDetails.email": { $in: emailNorms } });
+              orConditions.push({ fatherEmail: { $in: emailNorms } });
+              orConditions.push({ motherEmail: { $in: emailNorms } });
+              orConditions.push({ "guardian.email": { $in: emailNorms } });
+            }
+            if (orConditions.length > 0) {
+              existingParent = await Parent.findOne({ schoolId, $or: orConditions });
+            }
+          }
+
+          // 3. Determine role & name for parent account
+          const primaryParentName = (
+            genericParentName ||
+            fatherName ||
+            motherName ||
+            guardianName ||
+            "Parent"
+          ).trim();
+
+          let primaryRole = "Primary Guardian";
+          if (genericParentRole) {
+            const normR = genericParentRole.toLowerCase().trim();
+            if (normR.includes("father")) primaryRole = "Father";
+            else if (normR.includes("mother")) primaryRole = "Mother";
+            else if (normR.includes("secondary")) primaryRole = "Secondary Guardian";
+            else if (normR.includes("guardian")) primaryRole = "Guardian";
+            else if (normR.includes("primary")) primaryRole = "Primary Guardian";
+          } else if (fatherName) {
+            primaryRole = "Father";
+          } else if (motherName) {
+            primaryRole = "Mother";
+          } else if (guardianName) {
+            primaryRole = "Guardian";
+          }
+
+          if (existingParent) {
+            // Link student to existing parent without creating duplicate
+            if (!existingParent.children) existingParent.children = [];
+            const childIdStr = targetStudent._id.toString();
+            const alreadyLinked = existingParent.children.some(c => (c._id || c).toString() === childIdStr);
+            if (!alreadyLinked) {
+              existingParent.children.push(targetStudent._id);
+            }
+
+            // Fill in missing parent details without overwriting existing data
+            if (!existingParent.fatherName && fatherName) existingParent.fatherName = fatherName;
+            if (!existingParent.fatherOccupation && fatherOccupation) existingParent.fatherOccupation = fatherOccupation;
+            if (!existingParent.fatherPhone && fatherPhone) existingParent.fatherPhone = fatherPhone;
+            if (!existingParent.fatherEmail && fatherEmail) existingParent.fatherEmail = fatherEmail;
+
+            if (!existingParent.motherName && motherName) existingParent.motherName = motherName;
+            if (!existingParent.motherOccupation && motherOccupation) existingParent.motherOccupation = motherOccupation;
+            if (!existingParent.motherPhone && motherPhone) existingParent.motherPhone = motherPhone;
+            if (!existingParent.motherEmail && motherEmail) existingParent.motherEmail = motherEmail;
+
+            if (guardianName) {
+              if (!existingParent.guardian) existingParent.guardian = {};
+              if (!existingParent.guardian.name) existingParent.guardian.name = guardianName;
+              if (!existingParent.guardian.relation && guardianRelation) existingParent.guardian.relation = guardianRelation;
+              if (!existingParent.guardian.phone && guardianPhone) existingParent.guardian.phone = guardianPhone;
+              if (!existingParent.guardian.email && guardianEmail) existingParent.guardian.email = guardianEmail;
+              if (!existingParent.guardian.occupation && guardianOccupation) existingParent.guardian.occupation = guardianOccupation;
+            }
+            if (emergencyName) {
+              if (!existingParent.emergencyContact) existingParent.emergencyContact = {};
+              if (!existingParent.emergencyContact.name) existingParent.emergencyContact.name = emergencyName;
+              if (!existingParent.emergencyContact.relation && emergencyRelation) existingParent.emergencyContact.relation = emergencyRelation;
+              if (!existingParent.emergencyContact.phone && emergencyPhone) existingParent.emergencyContact.phone = emergencyPhone;
+            }
+
+            await existingParent.save();
+            linkedParent = existingParent;
+
+            // Cache in batch
+            for (const p of phoneNorms) batchParentsByPhone.set(p, existingParent);
+            for (const e of emailNorms) batchParentsByEmail.set(e, existingParent);
+            if (existingParent.phone) batchParentsByPhone.set(existingParent.phone, existingParent);
+            if (existingParent.email) batchParentsByEmail.set(existingParent.email.toLowerCase(), existingParent);
+
+          } else {
+            // Create new parent record
+            const parentId = await generateNextParentId();
+            const finalEmail = primaryEmail || `${parentId.toLowerCase()}@parent.vedaed`;
+            const finalPhone = primaryPhone || (phoneVal ? String(phoneVal).trim() : "N/A");
+
+            const newParent = await Parent.create({
               schoolId,
-              status: 'active',
+              parentId,
+              name: primaryParentName,
+              email: finalEmail,
+              phone: finalPhone,
+              role: primaryRole,
+              occupation: (primaryRole === "Guardian" && guardianOccupation) ? guardianOccupation : (fatherOccupation || motherOccupation || genericParentOccupation || "Parent"),
+              relation: (primaryRole === "Father" || primaryRole === "Mother") ? primaryRole : (guardianRelation || "Parent"),
+              fatherName: fatherName || (primaryRole === "Father" ? primaryParentName : ""),
+              fatherOccupation: fatherOccupation || "",
+              fatherPhone: fatherPhone || (primaryRole === "Father" ? finalPhone : ""),
+              fatherEmail: fatherEmail || (primaryRole === "Father" ? (primaryEmail || finalEmail) : ""),
+              motherName: motherName || (primaryRole === "Mother" ? primaryParentName : ""),
+              motherOccupation: motherOccupation || "",
+              motherPhone: motherPhone || (primaryRole === "Mother" ? finalPhone : ""),
+              motherEmail: motherEmail || (primaryRole === "Mother" ? (primaryEmail || finalEmail) : ""),
+              guardian: {
+                name: guardianName || (primaryRole === "Guardian" ? primaryParentName : ""),
+                relation: guardianRelation || "",
+                phone: guardianPhone || (primaryRole === "Guardian" ? finalPhone : ""),
+                email: guardianEmail || (primaryRole === "Guardian" ? (primaryEmail || finalEmail) : ""),
+                occupation: guardianOccupation || "",
+              },
+              emergencyContact: {
+                name: emergencyName || primaryParentName,
+                relation: emergencyRelation || primaryRole || "Parent",
+                phone: emergencyPhone || finalPhone,
+              },
+              contactDetails: {
+                phone: finalPhone,
+                email: finalEmail,
+              },
+              address: addressVal || "",
+              status: "Active",
+              password: plainPassword,
+              children: [targetStudent._id],
             });
-          } catch (authErr) {
-            // Auth creation failure is non-fatal for import
-            console.warn(`Auth User creation failed for imported student "${name}":`, authErr.message);
+
+            linkedParent = newParent;
+
+            // Cache in batch
+            for (const p of phoneNorms) batchParentsByPhone.set(p, newParent);
+            for (const e of emailNorms) batchParentsByEmail.set(e, newParent);
+            if (finalPhone) batchParentsByPhone.set(finalPhone, newParent);
+            if (finalEmail) batchParentsByEmail.set(finalEmail.toLowerCase(), newParent);
+
+            // Create Auth User for parent
+            if (parentRole) {
+              try {
+                const hashedParentPassword = await hashPasswordCached(plainPassword);
+                await User.create({
+                  name: primaryParentName,
+                  email: finalEmail,
+                  password: hashedParentPassword,
+                  roleId: parentRole._id,
+                  refId: newParent._id,
+                  schoolId,
+                  status: "active",
+                });
+              } catch (pAuthErr) {
+                console.warn(`Parent User auth creation note for "${primaryParentName}":`, pAuthErr.message);
+              }
+            }
+          }
+
+          // Bidirectional link: attach parent to student if not already attached
+          if (!targetStudent.parent || targetStudent.parent.toString() !== linkedParent._id.toString()) {
+            targetStudent.parent = linkedParent._id;
+            await targetStudent.save();
+          }
+        }
+
+        if (existingStudent && !isNewStudent) {
+          results.imported.push({
+            _id: targetStudent._id,
+            name,
+            stdId: targetStudent.personalInfo.stdId,
+            rollNo: targetStudent.personalInfo.rollNo,
+            class: classDoc.name,
+            section: sectionDoc.name,
+            parentId: linkedParent ? linkedParent.parentId : (targetStudent.parent ? String(targetStudent.parent) : null),
+            parentName: linkedParent ? linkedParent.name : null,
+            updated: true,
+          });
+        } else {
+          results.imported.push({
+            _id: targetStudent._id,
+            name,
+            stdId: targetStudent.personalInfo.stdId,
+            rollNo: finalRollNo,
+            class: classDoc.name,
+            section: sectionDoc.name,
+            parentId: linkedParent ? linkedParent.parentId : null,
+            parentName: linkedParent ? linkedParent.name : null,
+          });
+
+          // ── Create Auth User record for Student ─────────────────────────────
+          if (studentRole) {
+            try {
+              const hashedStudentPassword = await hashPasswordCached(plainPassword);
+              await User.create({
+                name,
+                email: emailVal || targetStudent.personalInfo.username,
+                password: hashedStudentPassword,
+                roleId: studentRole._id,
+                refId: targetStudent._id,
+                schoolId,
+                status: "active",
+              });
+            } catch (authErr) {
+              console.warn(`Auth User creation failed for imported student "${name}":`, authErr.message);
+            }
           }
         }
 
       } catch (rowErr) {
-        const name = stu.personalInfo?.name || "Unknown";
+        const name = getVal(stu, ["name", "Name", "Student Name"]) || "Unknown";
         console.error(`Error processing import row "${name}":`, rowErr.message);
         results.errors.push({ name, reason: rowErr.message });
       }

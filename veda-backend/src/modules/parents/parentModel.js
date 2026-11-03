@@ -63,6 +63,7 @@ const parentSchema = new Schema({
         relation: { type: String, default: "" },
         phone: { type: String, default: "" },
         email: { type: String, default: "" },
+        occupation: { type: String, default: "" },
     },
     /**
      * Per-parent contact details captured on the admin SIS student profile.
