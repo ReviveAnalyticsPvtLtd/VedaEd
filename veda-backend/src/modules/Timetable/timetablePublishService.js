@@ -1,10 +1,10 @@
 const Timetable = require("./timeTableSchema");
 const TimetableRequirement = require("./timetableRequirementSchema");
-const TimetableHeader = require("./timetableHeaderSchema");
 const Class = require("../class/classSchema");
 const Section = require("../section/sectionSchema");
 const Subject = require("../subject/subjectSchema");
 const Staff = require("../staff/staffModels");
+const { findPublishedHeaderIds } = require("./timetableConflictService");
 
 const DAY_NAMES = {
   MON: "Monday",
@@ -188,42 +188,20 @@ const validateTimetableForHeader = async ({ header, schoolId }) => {
     });
   }
 
-  // Conflicts with timetables of other classes/sections in the same school.
-  // Timetable rows are not school-scoped directly, so scope them through the
-  // school's headers (new flow) or the school's classes (legacy rows).
   let otherEntries = [];
 
   if (workingDays.length > 0) {
-    const [schoolHeaders, schoolClasses] = await Promise.all([
-      TimetableHeader.find({ schoolId }).select("_id").lean(),
-      Class.find({ schoolId }).select("_id").lean(),
-    ]);
+    const publishedHeaderIds = await findPublishedHeaderIds(schoolId);
 
-    otherEntries = await Timetable.find({
-      day: { $in: workingDays },
-      timetableHeader: { $ne: header._id },
-      $or: [
-        { timetableHeader: { $in: schoolHeaders.map((item) => item._id) } },
-        { class: { $in: schoolClasses.map((item) => item._id) } },
-      ],
-    })
-      .select("_id day timeFrom timeTo teacher roomNo class section academicYear timetableHeader")
-      .lean();
+    if (publishedHeaderIds.length > 0) {
+      otherEntries = await Timetable.find({
+        day: { $in: workingDays },
+        timetableHeader: { $in: publishedHeaderIds, $ne: header._id },
+      })
+        .select("_id day timeFrom timeTo teacher roomNo class section academicYear timetableHeader")
+        .lean();
+    }
   }
-
-  const sameAcademicYear = (row) =>
-    !header.academicYear ||
-    !row.academicYear ||
-    String(row.academicYear) === String(header.academicYear);
-
-  const replaceableLegacyRow = (row) =>
-    !row.timetableHeader &&
-    String(row.class) === String(header.class) &&
-    String(row.section) === String(header.section);
-
-  otherEntries = otherEntries.filter(
-    (row) => sameAcademicYear(row) && !replaceableLegacyRow(row)
-  );
 
   const classIds = uniqueIds([
     ...entries.map((entry) => entry.class),

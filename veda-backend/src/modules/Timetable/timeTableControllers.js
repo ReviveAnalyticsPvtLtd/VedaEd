@@ -15,6 +15,7 @@ const {
   validateTimetableConflicts,
   validateTimetableConflictsBulk,
   validateOwnership,
+  findPublishedHeaderIds,
 } = require("./timetableConflictService");
 const { validateTimetableForHeader } = require("./timetablePublishService");
 const { moveAssignment, moveSeries } = require("./timetableMoveService");
@@ -1218,6 +1219,7 @@ exports.getTimetableEntries = async (req, res) => {
   try {
     const { classId, sectionId, teacherId } = req.query;
     let filter = {};
+    let publishedOnly = false;
 
     // Teacher timetable
     if (teacherId) {
@@ -1230,6 +1232,7 @@ exports.getTimetableEntries = async (req, res) => {
       }
 
       filter.teacher = teacherId;
+      publishedOnly = true;
     } else if (req.user && req.user.role === "student") {
       // Fetch the student's class and section
       const student = await Student.findOne({
@@ -1281,6 +1284,13 @@ exports.getTimetableEntries = async (req, res) => {
 
       filter.class = classId;
       filter.section = sectionId;
+    } else {
+      publishedOnly = true;
+    }
+
+    if (publishedOnly) {
+      const publishedHeaderIds = await findPublishedHeaderIds(schoolId);
+      filter.timetableHeader = { $in: publishedHeaderIds };
     }
 
     // Restrict results to this school's classes and sections
@@ -1329,7 +1339,7 @@ exports.getTimetableEntries = async (req, res) => {
   }
 };
 
-// Debug helper; not used by the current timetable UI.
+//not used by the current timetable UI.
 // Kept commented for reference.
 /*
 exports.debugTimetableData = async (req, res) => {
@@ -1794,22 +1804,6 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
       });
     }
 
-    // Rows for the same class/section that predate the header-based flow
-    // (legacy rows with no timetableHeader) are replaced by this save. They
-    // are ignored by the conflict checks below and removed once it succeeds.
-    const legacyAssignments = await Timetable.find({
-      class: header.class,
-      section: header.section,
-      // `{ timetableHeader: null }` already matches rows where the field is
-      // missing, so the `$exists` clause is redundant.
-      // $or: [{ timetableHeader: { $exists: false } }, { timetableHeader: null }],
-      $or: [{ timetableHeader: null }],
-    })
-      .select("_id")
-      .lean();
-
-    const replaceableAssignmentIds = legacyAssignments.map((entry) => entry._id);
-
     const conflicts = [];
 
     if (proposedAssignments.length > 0) {
@@ -1821,10 +1815,6 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
 
       conflicts.push(...(internal.conflicts || []));
 
-      // Conflicts against timetables of other classes/sections. Entries that
-      // belong to this same header (or replaceable legacy rows of this
-      // class/section) are excluded because they are replaced.
-      //
       // When the caller is about to publish, this external pass is skipped
       // because POST /headers/:id/publish performs the same checks (and more)
       // as part of its full validation. That avoids validating twice.
@@ -1833,9 +1823,7 @@ exports.replaceTimetableHeaderEntries = async (req, res) => {
           schoolId,
           classId: header.class,
           sectionId: header.section,
-          academicYearId: header.academicYear,
           excludeHeaderId: header._id,
-          excludeAssignmentIds: replaceableAssignmentIds,
           proposedAssignments,
         });
 

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Timetable = require("./timeTableSchema");
 const TimetableHeader = require("./timetableHeaderSchema");
+const { AcademicYear } = require("../fees/feeModels");
 const Class = require("../class/classSchema");
 const Section = require("../section/sectionSchema");
 const Staff = require("../staff/staffModels");
@@ -80,6 +81,28 @@ const findOwnedTimetableHeader = async (headerId, schoolId) => {
   }
 };
 
+const findPublishedHeaderIds = async (schoolId) => {
+  if (!isValidObjectId(schoolId) || mongoose.connection.readyState !== 1) {
+    return [];
+  }
+
+  try {
+    const activeYear =
+      (await AcademicYear.findOne({ schoolId, isActive: true }).sort({
+        createdAt: -1,
+      })) ||
+      (await AcademicYear.findOne({ schoolId }).sort({ createdAt: -1 }));
+
+    const filter = { schoolId, status: "PUBLISHED" };
+    if (activeYear) filter.academicYear = activeYear._id;
+
+    const headers = await TimetableHeader.find(filter).select("_id").lean();
+    return headers.map((header) => header._id);
+  } catch (e) {
+    return [];
+  }
+};
+
 const validateOwnership = async (schoolId, entities = {}) => {
   const errors = [];
   if (!isValidObjectId(schoolId)) {
@@ -144,7 +167,6 @@ const validateTimetableConflicts = async (options = {}) => {
     day,
     timeFrom,
     timeTo,
-    academicYearId,
     excludeAssignmentId,
     excludeAssignmentIds = [],
     excludeHeaderId,
@@ -194,13 +216,6 @@ const validateTimetableConflicts = async (options = {}) => {
       assignment &&
         excludedAssignmentIdSet.size > 0 &&
         excludedAssignmentIdSet.has(String(assignment._id))
-    );
-
-  const belongsToOtherAcademicYear = (assignment) =>
-    Boolean(
-      academicYearId &&
-        assignment?.academicYear &&
-        String(assignment.academicYear) !== String(academicYearId)
     );
 
   // Validate proposed assignments set
@@ -312,8 +327,15 @@ const validateTimetableConflicts = async (options = {}) => {
       };
     }
 
+    const publishedHeaderIds = await findPublishedHeaderIds(schoolId);
+
     if (isValidObjectId(classId) && isValidObjectId(sectionId)) {
-      const classQuery = { day, class: classId, section: sectionId };
+      const classQuery = {
+        day,
+        class: classId,
+        section: sectionId,
+        timetableHeader: { $in: publishedHeaderIds },
+      };
       let classAssignments = await Timetable.find(classQuery)
         .populate({ path: "class", select: "name schoolId" })
         .populate({ path: "section", select: "name schoolId" })
@@ -328,7 +350,6 @@ const validateTimetableConflicts = async (options = {}) => {
       classAssignments = classAssignments.filter((a) => {
         if (isExcludedAssignment(a)) return false;
         if (belongsToExcludedHeader(a)) return false;
-        if (belongsToOtherAcademicYear(a)) return false;
         const clsSchool = a.class?.schoolId;
         const secSchool = a.section?.schoolId;
         if (clsSchool && secSchool) {
@@ -362,7 +383,11 @@ const validateTimetableConflicts = async (options = {}) => {
     }
 
     if (isValidObjectId(teacherId)) {
-      const teacherQuery = { day, teacher: teacherId };
+      const teacherQuery = {
+        day,
+        teacher: teacherId,
+        timetableHeader: { $in: publishedHeaderIds },
+      };
       let teacherAssignments = await Timetable.find(teacherQuery)
         .populate({ path: "class", select: "name schoolId" })
         .populate({ path: "section", select: "name schoolId" })
@@ -377,7 +402,6 @@ const validateTimetableConflicts = async (options = {}) => {
       teacherAssignments = teacherAssignments.filter((a) => {
         if (isExcludedAssignment(a)) return false;
         if (belongsToExcludedHeader(a)) return false;
-        if (belongsToOtherAcademicYear(a)) return false;
         const clsSchool = a.class?.schoolId;
         const secSchool = a.section?.schoolId;
         if (clsSchool && secSchool) {
@@ -411,7 +435,11 @@ const validateTimetableConflicts = async (options = {}) => {
     }
 
     if (roomNo && String(roomNo).trim() !== "") {
-      const roomQuery = { day, roomNo: String(roomNo).trim() };
+      const roomQuery = {
+        day,
+        roomNo: String(roomNo).trim(),
+        timetableHeader: { $in: publishedHeaderIds },
+      };
       let roomAssignments = await Timetable.find(roomQuery)
         .populate({ path: "class", select: "name schoolId" })
         .populate({ path: "section", select: "name schoolId" })
@@ -426,7 +454,6 @@ const validateTimetableConflicts = async (options = {}) => {
       roomAssignments = roomAssignments.filter((a) => {
         if (isExcludedAssignment(a)) return false;
         if (belongsToExcludedHeader(a)) return false;
-        if (belongsToOtherAcademicYear(a)) return false;
         const clsSchool = a.class?.schoolId;
         const secSchool = a.section?.schoolId;
         if (clsSchool && secSchool) {
@@ -476,7 +503,6 @@ const validateTimetableConflictsBulk = async (options = {}) => {
     schoolId,
     classId,
     sectionId,
-    academicYearId,
     excludeHeaderId,
     excludeAssignmentIds = [],
     proposedAssignments = [],
@@ -546,8 +572,11 @@ const validateTimetableConflictsBulk = async (options = {}) => {
     return { hasConflicts: false, conflicts };
   }
 
+  const publishedHeaderIds = await findPublishedHeaderIds(schoolId);
+
   let assignments = await Timetable.find({
     day: { $in: [...daySet] },
+    timetableHeader: { $in: publishedHeaderIds },
     $or: queryOr,
   })
     .select(
@@ -598,14 +627,6 @@ const validateTimetableConflictsBulk = async (options = {}) => {
       excludeHeaderId &&
       assignment.timetableHeader &&
       String(assignment.timetableHeader) === String(excludeHeaderId)
-    ) {
-      return false;
-    }
-
-    if (
-      academicYearId &&
-      assignment.academicYear &&
-      String(assignment.academicYear) !== String(academicYearId)
     ) {
       return false;
     }
@@ -758,4 +779,5 @@ module.exports = {
   findOwnedStaff,
   findOwnedSubject,
   findOwnedTimetableHeader,
+  findPublishedHeaderIds,
 };
