@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function PageHeader({
   breadcrumbs = [],
-  separator = " > ",
+  separator = " / ",
   title,
   subtitle,
   action,
