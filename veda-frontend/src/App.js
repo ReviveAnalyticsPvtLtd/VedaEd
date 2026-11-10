@@ -17,24 +17,24 @@ import Profile from "./SIS/Profile";
 
 // Student & Staff
 import Student from "./SIS/Student";
-import Staff from "./SIS/Staff";
+import Staff from "./modules/sis/pages/Staff";
 import StudentProfile from "./SIS/StudentProfile";
-import StaffProfile from "./SIS/Staffprofile";
+import StaffProfile from "./modules/sis/pages/StaffProfile";
 
 // Parents
 import Parents from "./SIS/Parents";
 import ParentProfile from "./SIS/ParentProfile";
 
 // Attendance
-import Attendance from "./SIS/Attendance/Attendance";
-import Overview from "./SIS/Attendance/Overview";
-import ByClass from "./SIS/Attendance/ByClass";
-import ByStudent from "./SIS/Attendance/ByStudent";
-import ClassDetail from "./SIS/Attendance/ClassDetail";
-import StudentDetail from "./SIS/Attendance/StudentDetail";
+import Attendance from "./modules/sis/pages/Attendance/Attendance";
+import Overview from "./modules/sis/pages/Attendance/Overview";
+import ByClass from "./modules/sis/pages/Attendance/ByClass";
+import ByStudent from "./modules/sis/pages/Attendance/ByStudent";
+import ClassDetail from "./modules/sis/pages/Attendance/ClassDetail";
+import StudentDetail from "./modules/sis/pages/Attendance/StudentDetail";
 
 // Reports
-import Reports from "./SIS/Reports/Reports";
+import Reports from "./modules/sis/pages/Reports";
 
 // Classes & Schedules
 import ClassesSchedules from "./SIS/classes-schedules/ClassesSchedules";
@@ -309,19 +309,11 @@ import SuperAdminSISDashboardLayout from "./SuperAdmin/SIS/SuperAdminSISDashboar
 import SuperAdminSISDashboard from "./SuperAdmin/SIS/SuperAdminSISDashboard";
 import SuperAdminSISStudents from "./SuperAdmin/SIS/SuperAdminSISStudents";
 import SuperAdminSISStudentProfile from "./SuperAdmin/SIS/SuperAdminSISStudentProfile";
-import SuperAdminSISStaff from "./SuperAdmin/SIS/SuperAdminSISStaff";
-import SuperAdminSISStaffProfile from "./SuperAdmin/SIS/SuperAdminSISStaffProfile";
 import SuperAdminSISParents from "./SuperAdmin/SIS/SuperAdminSISParents";
 import SuperAdminSISParentProfile from "./SuperAdmin/SIS/SuperAdminSISParentProfile";
-import SuperAdminSISReports from "./SuperAdmin/SIS/SuperAdminSISReports";
 
 
-import SuperAdminSISAttendance from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendance";
-import SuperAdminSISAttendanceOverview from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceOverview";
-import SuperAdminSISAttendanceByClass from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByClass";
-import SuperAdminSISAttendanceByStudent from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceByStudent";
-import SuperAdminSISAttendanceClassDetail from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceClassDetail";
-import SuperAdminSISAttendanceStudentDetail from "./SuperAdmin/SIS/Attendance/SuperAdminSISAttendanceStudentDetail";import SuperAdminSISClasses from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClasses";
+import SuperAdminSISClasses from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClasses";
 import SuperAdminSISSubjectGroup from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISSubjectGroup";
 import SuperAdminSISAssignTeacher from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAssignTeacher";
 import SuperAdminSISTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISTimetable";
@@ -713,47 +705,44 @@ function App() {
         <Route path="students" element={<SuperAdminSISStudents />} />
         <Route path="students/:id" element={<SuperAdminSISStudentProfile />} />
         <Route path="student-profile/:id" element={<SuperAdminSISStudentProfile />} />
-        <Route path="staff" element={<SuperAdminSISStaff />} />
-        <Route
-          path="staff-profile/:id"
-          element={<SuperAdminSISStaffProfile />}
-        />
-        <Route path="staff/:id" element={<SuperAdminSISStaffProfile />} />
+        <Route path="staff" element={<Staff />} />
+        <Route path="staff-profile/:id" element={<StaffProfile />} />
+        <Route path="staff/:id" element={<StaffProfile />} />
         <Route path="parents" element={<SuperAdminSISParents />} />
         <Route path="parents/:id" element={<SuperAdminSISParentProfile />} />
         <Route path="parent-profile/:id" element={<SuperAdminSISParentProfile />} />
         <Route path="parent-profile/:parentId" element={<SuperAdminSISParentProfile />} />
-        <Route path="reports" element={<SuperAdminSISReports />} />
+        <Route path="reports" element={<Reports />} />
 
       <Route
   path="attendance"
-  element={<SuperAdminSISAttendance />}
+  element={<Attendance />}
 >
   <Route index element={<Navigate to="overview" />} />
 
   <Route
     path="overview"
-    element={<SuperAdminSISAttendanceOverview />}
+    element={<Overview />}
   />
 
   <Route
     path="by-class"
-    element={<SuperAdminSISAttendanceByClass />}
+    element={<ByClass />}
   />
 
   <Route
     path="by-student"
-    element={<SuperAdminSISAttendanceByStudent />}
+    element={<ByStudent />}
   />
 
   <Route
     path="by-class/:id"
-    element={<SuperAdminSISAttendanceClassDetail />}
+    element={<ClassDetail />}
   />
 
   <Route
     path="by-student/:id"
-    element={<SuperAdminSISAttendanceStudentDetail />}
+    element={<StudentDetail />}
   />
 </Route>
 
@@ -971,6 +960,7 @@ function App() {
           <Route path="staff" element={<Staff />} />
           <Route path="staff-profile/:id" element={<StaffProfile />} />
           <Route path="parents" element={<Parents />} />
+          <Route path="parents/:id" element={<ParentProfile />} />
           <Route path="parent-profile/:parentId" element={<ParentProfile />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />

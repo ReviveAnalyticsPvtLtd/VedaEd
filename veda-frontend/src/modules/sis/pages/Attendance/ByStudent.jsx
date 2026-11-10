@@ -1,0 +1,269 @@
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../../../services/apiClient";
+import Pagination from "../../../../components/common/Pagination";
+import useAccess from "../../../../access/useAccess";
+import sisModule from "../../module.config";
+import { SIS_PATHS } from "../../routes";
+
+export default function ByStudent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { basePath } = useAccess();
+  const attendanceBasePath = `${basePath(sisModule.id)}/${SIS_PATHS.attendance}`;
+  const queryParams = new URLSearchParams(location.search);
+  const statusFilter = queryParams.get("status") || "";
+
+  const getLocalDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const [students, setStudents] = useState([]);
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState(getLocalDateString);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Fetch all students and daily attendance from backend
+  useEffect(() => {
+    const fetchStudentsAndAttendance = async () => {
+      try {
+        const [studentsRes, attendanceRes] = await Promise.all([
+          api.get("/students"),
+          api.get(`/attendance/date/${date}`),
+        ]);
+
+        const studentList = Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : [];
+        const attendanceRecords = Array.isArray(attendanceRes.data?.data) ? attendanceRes.data.data : [];
+
+        const mapped = studentList.map((s) => {
+          const att = attendanceRecords.find((r) => String(r.student?._id || r.student) === String(s._id));
+          return {
+            id: s._id,
+            name: s?.personalInfo?.name || "",
+            grade: `${s?.personalInfo?.class || ""} - ${
+              s?.personalInfo?.section || ""
+            }`.trim(),
+            status: att ? att.status : "Absent",
+            time: att ? (att.time || "--") : "--",
+          };
+        });
+        setStudents(mapped);
+      } catch (err) {
+        console.error("Error fetching students/attendance:", err);
+      }
+    };
+
+    if (date) {
+      fetchStudentsAndAttendance();
+    }
+  }, [date]);
+
+  const markAttendance = async (id, newStatus) => {
+    const currentTime =
+      newStatus === "Absent"
+        ? "--"
+        : new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
+    const updated = students.map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            status: newStatus,
+            time: currentTime,
+          }
+        : s
+    );
+    setStudents(updated);
+
+    try {
+      const attendanceDate = date || getLocalDateString();
+      await api.put(`/attendance/student/${id}`, {
+        status: newStatus,
+        date: attendanceDate,
+        time: currentTime,
+      });
+    } catch (err) {
+      console.error("Error updating attendance:", err);
+    }
+  };
+
+  const exportReport = () => {
+    const headers = ["ID,Name,Grade,Status,Time"];
+    const rows = students.map(
+      (s) => `${s.id},${s.name},${s.grade},${s.status},${s.time}`
+    );
+    const csv = [...headers, ...rows].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `student-attendance-${date || "report"}.csv`;
+    a.click();
+  };
+const filtered = students.filter((s) => {
+  const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
+                        s.grade.toLowerCase().includes(search.toLowerCase());
+  const matchesStatus = statusFilter ? s.status.toLowerCase() === statusFilter.toLowerCase() : true;
+  return matchesSearch && matchesStatus;
+});
+const indexOfLast = currentPage * itemsPerPage;
+const indexOfFirst = indexOfLast - itemsPerPage;
+const currentStudents = filtered.slice(indexOfFirst, indexOfLast);
+
+const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  return (
+    <div className="p-0 m-0 min-h-screen">
+      <div className="bg-white p-3 rounded-lg shadow-sm border mb-4">
+        <h2 className="text-lg font-semibold mb-4">Attendance by Student</h2>
+
+        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4 gap-2">
+          <input
+            type="text"
+            placeholder="Search by name or grade..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border px-3 py-2 rounded-md  w-full md:w-1/3 mb-3 md:mb-0"
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="border px-3 py-2 rounded-md  w-full md:w-1/4"
+          />
+          {statusFilter && (
+            <div className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm">
+              <span>Status: {statusFilter}</span>
+              <button
+                onClick={() => navigate(`${attendanceBasePath}/by-student`)}
+                className="hover:text-blue-900 font-bold ml-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <button
+            onClick={exportReport}
+            className="ml-auto mt-3 md:mt-0 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition duration-150 ease-in-out"
+          >
+            Export Report
+          </button>
+        </div>
+      </div>
+
+     {/* 📋 TABLE */}
+<div className="bg-white p-3 rounded-lg shadow-sm border">
+  <div className="overflow-x-auto">
+    <table className="w-full border text-sm">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="p-2 border">Name</th>
+          <th className="p-2 border">Grade</th>
+          <th className="p-2 border">Status</th>
+          <th className="p-2 border">Time</th>
+          <th className="p-2 border">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {currentStudents.map((student) => (
+          <tr
+            key={student.id}
+            className="text-center hover:bg-gray-50"
+          >
+            <td className="p-2 border text-left">
+              {student.name}
+            </td>
+
+            <td className="p-2 border">
+              {student.grade}
+            </td>
+
+            <td
+              className={`p-2 border font-semibold ${
+                student.status === "Present"
+                  ? "text-green-600"
+                  : student.status === "Absent"
+                  ? "text-red-600"
+                  : "text-orange-500"
+              }`}
+            >
+              {student.status}
+            </td>
+
+            <td className="p-2 border">
+              {student.time}
+            </td>
+
+            <td className="p-2 border">
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Present")
+                  }
+                  className="bg-green-500 text-white px-2 py-1 rounded-md hover:bg-green-600"
+                >
+                  Present
+                </button>
+
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Absent")
+                  }
+                  className="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600"
+                >
+                  Absent
+                </button>
+
+                <button
+                  onClick={() =>
+                    markAttendance(student.id, "Late")
+                  }
+                  className="bg-orange-500 text-white px-2 py-1 rounded-md hover:bg-orange-600"
+                >
+                  Late
+                </button>
+
+                <button
+                  onClick={() =>
+                    navigate(
+                      `${attendanceBasePath}/by-student/${student.id}`
+                    )
+                  }
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  View Details
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+
+        {filtered.length === 0 && (
+          <tr>
+            <td
+              colSpan="5"
+              className="p-2 border text-center text-gray-500 italic"
+            >
+              No students found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+ 
+                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        </div>
+        
+      </div>
+      
+    </div>
+  );
+}

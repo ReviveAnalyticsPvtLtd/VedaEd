@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import * as calendarAPI from "../services/calendarAPI";
+import api from "../services/apiClient";
 
 import {
   addDays,
@@ -12,6 +13,13 @@ import {
   subYears,
   format,
   startOfDay,
+  eachDayOfInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
 } from "date-fns";
 
 import {
@@ -33,6 +41,16 @@ const EVENT_TYPES = [
   "Other"
 ];
 
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 /* ================= MAIN ================= */
 export default function TeacherAnnualCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -40,6 +58,7 @@ export default function TeacherAnnualCalendar() {
   const [selectedClass, setSelectedClass] = useState("All");
   const [activeTypes, setActiveTypes] = useState(EVENT_TYPES);
   const [events, setEvents] = useState([]);
+  const [timetableEntries, setTimetableEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   
@@ -48,10 +67,27 @@ export default function TeacherAnnualCalendar() {
     fetchEvents();
   }, []);
 
+  const fetchTimetable = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const teacherId = user?.refId || user?._id;
+      if (!teacherId) return [];
+
+      const res = await api.get("/timetables", { params: { teacherId } });
+      return res.data?.success ? res.data.data || [] : [];
+    } catch (err) {
+      console.error("Failed to fetch timetable", err);
+      return [];
+    }
+  };
+
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const res = await calendarAPI.getAllEvents();
+      const [res, timetable] = await Promise.all([
+        calendarAPI.getAllEvents(),
+        fetchTimetable(),
+      ]);
       if (res.success) {
         const mapped = res.data.map(e => ({
           ...e,
@@ -63,6 +99,7 @@ export default function TeacherAnnualCalendar() {
         }));
         setEvents(mapped);
       }
+      setTimetableEntries(timetable);
     } catch (err) {
       console.error("Failed to fetch events", err);
     } finally {
@@ -70,16 +107,99 @@ export default function TeacherAnnualCalendar() {
     }
   };
 
+  /* ================= VISIBLE RANGE ================= */
+  const visibleRange = useMemo(() => {
+    if (view === "year")
+      return { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+    if (view === "week")
+      return { start: startOfWeek(currentDate), end: endOfWeek(currentDate) };
+    if (view === "day")
+      return { start: startOfDay(currentDate), end: startOfDay(currentDate) };
+    return {
+      start: startOfWeek(startOfMonth(currentDate)),
+      end: endOfWeek(endOfMonth(currentDate)),
+    };
+  }, [view, currentDate]);
+
+  /* ================= TEACHER TIMETABLE EVENTS ================= */
+  const timetableEvents = useMemo(() => {
+    if (!activeTypes.includes("Timetable") || timetableEntries.length === 0)
+      return [];
+
+    const entriesByDay = {};
+    timetableEntries.forEach((entry) => {
+      if (!entry.day) return;
+      (entriesByDay[entry.day] = entriesByDay[entry.day] || []).push(entry);
+    });
+
+    const occurrences = [];
+
+    eachDayOfInterval(visibleRange).forEach((day) => {
+      const dayEntries = entriesByDay[WEEKDAY_NAMES[day.getDay()]] || [];
+
+      dayEntries.forEach((entry) => {
+        const [sh, sm] = String(entry.timeFrom || "").split(":");
+        const [eh, em] = String(entry.timeTo || "").split(":");
+
+        const start = new Date(
+          day.getFullYear(),
+          day.getMonth(),
+          day.getDate(),
+          Number(sh) || 0,
+          Number(sm) || 0
+        );
+
+        let end = new Date(
+          day.getFullYear(),
+          day.getMonth(),
+          day.getDate(),
+          Number(eh) || 0,
+          Number(em) || 0
+        );
+
+        if (end <= start) end = new Date(start.getTime() + 45 * 60000);
+
+        const classLabel =
+          [entry.class?.name, entry.section?.name]
+            .filter(Boolean)
+            .join("-") || "All";
+
+        occurrences.push({
+          id: `timetable-${entry._id}-${format(day, "yyyy-MM-dd")}`,
+          title: entry.subject?.subjectName || "Class",
+          type: "Timetable",
+          start,
+          end,
+          venue: entry.roomNo || "",
+          class: classLabel,
+          description: [
+            classLabel !== "All" ? `Class: ${classLabel}` : "",
+            entry.roomNo ? `Room: ${entry.roomNo}` : "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
+        });
+      });
+    });
+
+    return occurrences;
+  }, [timetableEntries, activeTypes, visibleRange]);
+
   /* ================= FILTER EVENTS ================= */
+  const allEvents = useMemo(
+    () => [...events, ...timetableEvents],
+    [events, timetableEvents]
+  );
+
   const filteredEvents = useMemo(() => {
-    return events.filter(
+    return allEvents.filter(
       (e) =>
         (selectedClass === "All" ||
           e.class === selectedClass ||
           e.class === "All") &&
         activeTypes.includes(e.type)
     );
-  }, [events, selectedClass, activeTypes]);
+  }, [allEvents, selectedClass, activeTypes]);
 
   /* ================= GROUP BY DAY ================= */
   const eventsByDay = useMemo(() => {
@@ -180,27 +300,42 @@ export default function TeacherAnnualCalendar() {
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Event Types</label>
         <details className="mt-1 group">
           <summary className="cursor-pointer border rounded px-3 py-2 bg-white text-sm list-none flex justify-between items-center">
-            <span>Select Event Types ({activeTypes.length})</span>
+            <span>Select Event Types ({activeTypes.length === EVENT_TYPES.length ? "All" : activeTypes.length})</span>
             <span className="group-open:rotate-180 transition-transform">▼</span>
           </summary>
-          <div className="absolute z-20 mt-2 bg-white border rounded shadow-lg p-3 w-full grid grid-cols-3 gap-2">
-            {EVENT_TYPES.map((t) => (
-              <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={activeTypes.includes(t)}
-                  onChange={() =>
-                    setActiveTypes((p) =>
-                      p.includes(t)
-                        ? p.filter((x) => x !== t)
-                        : [...p, t]
-                    )
-                  }
-                  className="rounded text-blue-600"
-                />
-                {t}
-              </label>
-            ))}
+          <div className="absolute z-20 mt-2 bg-white border rounded shadow-lg p-3 w-full">
+            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer hover:bg-gray-50 p-1 rounded border-b pb-2 mb-2">
+              <input
+                type="checkbox"
+                checked={activeTypes.length === EVENT_TYPES.length}
+                onChange={() =>
+                  setActiveTypes((p) =>
+                    p.length === EVENT_TYPES.length ? [] : [...EVENT_TYPES]
+                  )
+                }
+                className="rounded text-blue-600"
+              />
+              All
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {EVENT_TYPES.map((t) => (
+                <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={activeTypes.includes(t)}
+                    onChange={() =>
+                      setActiveTypes((p) =>
+                        p.includes(t)
+                          ? p.filter((x) => x !== t)
+                          : [...p, t]
+                      )
+                    }
+                    className="rounded text-blue-600"
+                  />
+                  {t}
+                </label>
+              ))}
+            </div>
           </div>
         </details>
       </div>

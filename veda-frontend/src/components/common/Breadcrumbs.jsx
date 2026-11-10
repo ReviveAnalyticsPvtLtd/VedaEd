@@ -8,6 +8,7 @@ const breadcrumbLabels = {
   student: "Student",
   parent: "Parent",
   superadmin: "Super Admin",
+  sis: "SIS",
 
   students: "Students",
   student: "Student",

@@ -1,36 +1,8 @@
-import { Outlet } from "react-router-dom";
-import Navbar from "../../SIS/Navbar";
-import SuperAdminSISSidebar from "./SuperAdminSISSidebar";
-  import { Breadcrumbs } from "../../components/common/Breadcrumbs";
-import { useState } from "react";
-
-export default function SuperAdminSISDashboardLayout() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  return (
-    <div className="flex w-full h-screen bg-gray-100 overflow-hidden">
-
-      <div className="fixed top-0 left-0 w-full h-16 bg-white border-b z-40">
-        <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-      </div>
-
-      <SuperAdminSISSidebar
-        searchQuery={searchQuery}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-      />
-
-      <div
-        className="flex-1 pt-16 overflow-y-auto transition-all"
-        style={{ marginLeft: isSidebarOpen ? "256px" : "56px" }}
-      >
-        <div className="p-3">
-          <Breadcrumbs />
-          <Outlet />
-        </div>
-      </div>
-
-    </div>
-  );
-}
+/**
+ * Superadmin SIS layout.
+ *
+ * Phase 1: re-export the shared SIS layout so both admin and superadmin use a
+ * single implementation. Kept as a re-export so existing App.js imports do not
+ * need to change during the migration.
+ */
+export { default } from "../../modules/sis/SisLayout";
