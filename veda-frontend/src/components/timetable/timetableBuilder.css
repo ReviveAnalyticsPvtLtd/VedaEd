@@ -27,8 +27,6 @@
   border-radius: 8px;
 }
 
-/* The tab strip only needs the variables and typography; it must not add the
-   builder page padding because it sits directly in the app content area. */
 .ttb.ttb-tabs {
   background: transparent;
   padding: 0;

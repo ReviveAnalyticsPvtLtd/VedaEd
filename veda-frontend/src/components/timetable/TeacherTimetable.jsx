@@ -239,5 +239,4 @@ const TeacherTimetable = () => {
   );
 };
 
-export default TeacherTimetable;         
-
+export default TeacherTimetable;

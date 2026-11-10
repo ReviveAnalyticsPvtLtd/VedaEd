@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const School = require("../models/School");
 const { findActivePlatformAdmin } = require("../utils/platformAdminAuth");
 
 const authMiddleware = async (req, res, next) => {
@@ -35,8 +36,6 @@ const authMiddleware = async (req, res, next) => {
       sessionId: decoded.sessionId,
     };
 
-    // Any client-supplied school identity is discarded here. The authoritative
-    // school is resolved only from the authenticated account, below.
     req.schoolId = undefined;
 
     const user = await User.findById(req.user.userId)
@@ -51,11 +50,28 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Authoritative tenant context. Read from the user document rather than the
-    // token so a stale or tampered token can never carry a foreign schoolId.
-    req.user.schoolId = user.schoolId && mongoose.isValidObjectId(String(user.schoolId))
+    let schoolId = user.schoolId && mongoose.isValidObjectId(String(user.schoolId))
       ? String(user.schoolId)
       : null;
+
+    if (!schoolId && req.user.role === "superadmin") {
+      const ownedSchool = await School.findOne({ ownerUserId: user._id })
+        .select("_id")
+        .lean();
+      if (ownedSchool?._id) {
+        schoolId = String(ownedSchool._id);
+
+        await User.updateOne(
+          {
+            _id: user._id,
+            $or: [{ schoolId: null }, { schoolId: { $exists: false } }],
+          },
+          { $set: { schoolId: ownedSchool._id } }
+        ).catch(() => {});
+      }
+    }
+
+    req.user.schoolId = schoolId;
 
     if (decoded.sessionId && (!user.activeSession?.sessionId || user.activeSession.sessionId !== decoded.sessionId)) {
       return res.status(401).json({

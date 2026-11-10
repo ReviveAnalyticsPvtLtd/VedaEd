@@ -45,8 +45,6 @@ const workingDaySet = (header) => {
   return new Set(fromHeader);
 };
 
-// Same validation the entries save endpoint runs: in-memory check of the whole
-// proposed timetable plus cross-timetable teacher/room/class checks.
 const findConflicts = async ({ header, schoolId, proposedAssignments }) => {
   const conflicts = [];
 
@@ -55,16 +53,6 @@ const findConflicts = async ({ header, schoolId, proposedAssignments }) => {
     proposedAssignments,
   });
   conflicts.push(...(internal.conflicts || []));
-
-  const legacyRows = await Timetable.find({
-    class: header.class,
-    section: header.section,
-    $or: [{ timetableHeader: { $exists: false } }, { timetableHeader: null }],
-  })
-    .select("_id")
-    .lean();
-
-  const excludeAssignmentIds = legacyRows.map((row) => row._id);
 
   for (const proposal of proposedAssignments) {
     const result = await validateTimetableConflicts({
@@ -76,9 +64,7 @@ const findConflicts = async ({ header, schoolId, proposedAssignments }) => {
       day: proposal.day,
       timeFrom: proposal.timeFrom,
       timeTo: proposal.timeTo,
-      academicYearId: header.academicYear,
       excludeHeaderId: header._id,
-      excludeAssignmentIds,
     });
 
     conflicts.push(...(result.conflicts || []));
