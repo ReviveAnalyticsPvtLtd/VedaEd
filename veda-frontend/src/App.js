@@ -46,7 +46,8 @@ import AddClass from "./SIS/classes-schedules/AddClass";
 import AddSubject from "./SIS/classes-schedules/AddSubject";
 import ClassDetailPage from "./SIS/classes-schedules/ClassDetailPage";
 import ClassTimetable from "./SIS/classes-schedules/ClassTimetable";
-import TeacherTimetable from "./SIS/classes-schedules/TeacherTimetable";
+import TeacherTimetable from "./components/timetable/TeacherTimetable";
+import TimetableBuilder from "./components/timetable/TimetableBuilder";
 
 // ===== Teacher SIS =====
 import TeacherClassesPage from "./TeacherSIS/Classes";
@@ -328,8 +329,6 @@ import SuperAdminSISAddClass from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminS
 import SuperAdminSISAddSubject from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISAddSubject";
 import SuperAdminSISClassDetailPage from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassDetailPage";
 import SuperAdminSISClassesSchedules from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassesSchedules";
-import SuperAdminSISClassTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISClassTimetable";
-import SuperAdminSISTeacherTimetable from "./SuperAdmin/SIS/ClassesSchedules/SuperAdminSISTeacherTimetable";
 
 
 import SuperAdminFeesDashboardLayout from "./SuperAdmin/Fees/SuperAdminFeesDashboardLayout";
@@ -779,12 +778,12 @@ function App() {
 
   <Route
     path="class-timetable/:classId"
-    element={<SuperAdminSISClassTimetable />}
+    element={<TimetableBuilder />}
   />
 
   <Route
     path="teacher-timetable/:teacherId"
-    element={<SuperAdminSISTeacherTimetable />}
+    element={<TeacherTimetable />}
   />
 </Route>
       </Route>

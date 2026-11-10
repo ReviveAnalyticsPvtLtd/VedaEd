@@ -1,36 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
+import TimetableTabs from "../../components/timetable/TimetableTabs";
+import TeacherTimetable from "../../components/timetable/TeacherTimetable";
 import ClassTimetable from "./ClassTimetable";
-import TeacherTimetable from "./TeacherTimetable";
-import "./timetableBuilder.css";
+import "../../components/timetable/timetableBuilder.css";
 
-const Timetable = () => {
-  const [activeTab, setActiveTab] = useState("class"); // default class
-
-  return (
-    <div className="p-0 m-0 min-h-screen">
-      {/* Tabs */}
-      <div className="ttb ttb-tabs">
-        <div className="view-tabs">
-          <button
-            onClick={() => setActiveTab("class")}
-            className={`btn ${activeTab === "class" ? "active" : ""}`}
-          >
-            Class Timetable
-          </button>
-          <button
-            onClick={() => setActiveTab("teacher")}
-            className={`btn ${activeTab === "teacher" ? "active" : ""}`}
-          >
-            Teacher Timetable
-          </button>
-        </div>
-      </div>
-
-      {/* Render Tabs */}
-      {activeTab === "class" && <ClassTimetable />}
-      {activeTab === "teacher" && <TeacherTimetable />}
-    </div>
-  );
-};
+const Timetable = () => (
+  <TimetableTabs
+    classView={<ClassTimetable />}
+    teacherView={<TeacherTimetable />}
+  />
+);
 
 export default Timetable;

@@ -142,8 +142,6 @@ const entriesPayloadFromSlots = (slotsMap) => ({
   }),
 });
 
-// Mirrors what the save call sends for a header that was just loaded, so an
-// unchanged section is not re-uploaded on every save/publish.
 const schedulePayloadFromHeader = (loadedHeader) => {
   const form = scheduleFormFromHeader(loadedHeader);
   return {
@@ -236,8 +234,6 @@ const TimetableBuilder = () => {
   const [toastMsg, setToastMsg] = useState("");
   const toastTimer = useRef(null);
 
-  // Payload snapshots of what is already persisted, used to avoid re-sending
-  // unchanged schedule/requirements/entries on save or publish.
   const savedSnapshotRef = useRef({
     schedule: null,
     requirements: null,
@@ -1644,16 +1640,12 @@ const TimetableBuilder = () => {
       if (!(await saveSlots(target, { skipConflictValidation: true }))) return;
 
       try {
-        // Single validate-then-publish call. The save above intentionally
-        // skipped its own external conflict pass, so validation runs once.
         const res = await api.post(
           `/timetables/headers/${target._id}/publish`
         );
         const published = res.data?.data || null;
         if (published) setHeader(published);
 
-        // Keep the in-memory school-wide cache in sync without re-fetching
-        // every timetable in the school.
         const targetClassId = idOf(target.class);
         const targetSectionId = idOf(target.section);
         const publishedEntries = entriesPayloadFromSlots(slots).entries.map(
