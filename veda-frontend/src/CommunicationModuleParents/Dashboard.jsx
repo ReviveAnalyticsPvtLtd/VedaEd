@@ -20,10 +20,10 @@ const COLORS = ["#22c55e", "#ef4444"];
 
 export default function CommunicationParentDashboard() {
   const [stats, setStats] = useState([
-    { title: "Messages from School", value: 0, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/parent/communication/messages" },
-    { title: "Notices", value: 0, icon: <FiBell size={22} />, color: "border-green-500", link: "/parent/communication/notices" },
-    { title: "My Complaints", value: 0, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/parent/communication/complaints" },
-    { title: "Resolved Issues", value: 0, icon: <FiUserCheck size={22} />, color: "border-purple-500", link: "/parent/communication/logs" },
+    { title: "Messages from School", value: 0, icon: <FiMessageSquare size={22} />, iconBg: "bg-blue-50 text-blue-600", link: "/parent/communication/messages" },
+    { title: "Notices", value: 0, icon: <FiBell size={22} />, iconBg: "bg-emerald-50 text-emerald-600", link: "/parent/communication/notices" },
+    { title: "My Complaints", value: 0, icon: <FiAlertCircle size={22} />, iconBg: "bg-amber-50 text-amber-600", link: "/parent/communication/complaints" },
+    { title: "Resolved Issues", value: 0, icon: <FiUserCheck size={22} />, iconBg: "bg-purple-50 text-purple-600", link: "/parent/communication/logs" },
   ]);
   const [complaintData, setComplaintData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -63,10 +63,10 @@ export default function CommunicationParentDashboard() {
         const resolvedCount = complaintList.filter((c) => ["resolved", "closed"].includes(c.status)).length;
 
         setStats([
-          { title: "Messages from School", value: msgCount, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/parent/communication/messages" },
-          { title: "Notices", value: noticeCount, icon: <FiBell size={22} />, color: "border-green-500", link: "/parent/communication/notices" },
-          { title: "My Complaints", value: complaintList.length, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/parent/communication/complaints" },
-          { title: "Resolved Issues", value: resolvedCount, icon: <FiUserCheck size={22} />, color: "border-purple-500", link: "/parent/communication/logs" },
+          { title: "Messages from School", value: msgCount, icon: <FiMessageSquare size={22} />, iconBg: "bg-blue-50 text-blue-600", link: "/parent/communication/messages" },
+          { title: "Notices", value: noticeCount, icon: <FiBell size={22} />, iconBg: "bg-emerald-50 text-emerald-600", link: "/parent/communication/notices" },
+          { title: "My Complaints", value: complaintList.length, icon: <FiAlertCircle size={22} />, iconBg: "bg-amber-50 text-amber-600", link: "/parent/communication/complaints" },
+          { title: "Resolved Issues", value: resolvedCount, icon: <FiUserCheck size={22} />, iconBg: "bg-purple-50 text-purple-600", link: "/parent/communication/logs" },
         ]);
 
         const pendingCount = complaintList.filter((c) => ["submitted", "under_review", "Pending"].includes(c.status)).length;
@@ -122,16 +122,16 @@ export default function CommunicationParentDashboard() {
   return (
     <div className="space-y-6">
       {/* STAT CARDS */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((item, index) => (
           <Link to={item.link} key={index}>
-            <div className={`bg-white p-5 rounded-lg shadow-sm border-l-4 ${item.color} hover:shadow-md transition cursor-pointer`}>
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-500">{item.title}</p>
-                  <h2 className="text-2xl font-semibold">{loading ? "..." : item.value}</h2>
+                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{item.title}</p>
+                  <h2 className="text-2xl font-bold text-gray-800 mt-1">{loading ? "..." : item.value}</h2>
                 </div>
-                <div className="text-gray-600">{item.icon}</div>
+                <div className={`p-3 rounded-xl ${item.iconBg}`}>{item.icon}</div>
               </div>
             </div>
           </Link>
@@ -179,12 +179,12 @@ export default function CommunicationParentDashboard() {
       </div>
 
       {/* QUICK ACTIONS */}
-      <div className="bg-white p-5 rounded-lg shadow-sm">
-        <h3 className="text-md font-semibold mb-4">Quick Actions</h3>
-        <div className="flex gap-4">
-          <Link to="/parent/communication/messages" className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">View Messages</Link>
-          <Link to="/parent/communication/notices" className="px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600">View Notices</Link>
-          <Link to="/parent/communication/complaints" className="px-4 py-2 bg-red-500 text-white rounded-md text-sm hover:bg-red-600">Raise Complaint</Link>
+      <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <h3 className="text-md font-semibold mb-4 text-gray-800">Quick Actions</h3>
+        <div className="flex gap-4 flex-wrap">
+          <Link to="/parent/communication/messages" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition">View Messages</Link>
+          <Link to="/parent/communication/notices" className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 shadow-sm transition">View Notices</Link>
+          <Link to="/parent/communication/complaints" className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 shadow-sm transition">Raise Complaint</Link>
         </div>
       </div>
     </div>

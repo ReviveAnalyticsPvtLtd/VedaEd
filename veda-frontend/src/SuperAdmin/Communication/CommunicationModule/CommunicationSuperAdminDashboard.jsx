@@ -263,29 +263,29 @@ const SuperAdminCommunicationDashboard = () => {
     {
       title: "Total Announcements",
       value: stats.totalAnnouncements,
-      icon: <FiBell size={26} />,
-      color: "from-blue-500 to-blue-600",
+      icon: <FiBell size={24} />,
+      iconBg: "bg-blue-50 text-blue-600",
       route: "/superadmin/communication/notices",
     },
     {
       title: "Notifications Sent",
       value: stats.totalNotifications,
-      icon: <FiMail size={26} />,
-      color: "from-green-500 to-green-600",
+      icon: <FiMail size={24} />,
+      iconBg: "bg-emerald-50 text-emerald-600",
       route: "/superadmin/communication/logs",
     },
     {
       title: "Scheduled Notifications",
       value: stats.scheduledCount,
-      icon: <FiSend size={26} />,
-      color: "from-purple-500 to-purple-600",
+      icon: <FiSend size={24} />,
+      iconBg: "bg-purple-50 text-purple-600",
       route: "/superadmin/communication/logs",
     },
     {
       title: "Draft Announcements",
       value: stats.draftCount,
-      icon: <FiFileText size={26} />,
-      color: "from-amber-500 to-amber-600",
+      icon: <FiFileText size={24} />,
+      iconBg: "bg-amber-50 text-amber-600",
       route: "/superadmin/communication/notices",
     },
   ];
@@ -362,20 +362,20 @@ const SuperAdminCommunicationDashboard = () => {
           <div
             key={index}
             onClick={() => navigate(card.route)}
-            className={`bg-gradient-to-r ${card.color} text-white p-5 rounded-xl shadow-sm cursor-pointer transform hover:translate-y-[-2px] transition duration-200`}
+            className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition duration-200"
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider opacity-80">
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
                   {card.title}
                 </p>
 
-                <h2 className="text-3xl font-extrabold mt-1">
+                <h2 className="text-3xl font-bold text-gray-800 mt-1">
                   {card.value}
                 </h2>
               </div>
 
-              <div className="opacity-90">
+              <div className={`p-3 rounded-xl ${card.iconBg}`}>
                 {card.icon}
               </div>
             </div>
@@ -396,7 +396,7 @@ const SuperAdminCommunicationDashboard = () => {
                 "/superadmin/communication/messages"
               )
             }
-            className="bg-blue-600 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition text-sm font-medium"
+            className="bg-blue-600 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition text-sm font-medium shadow-sm"
           >
             <FiSend />
 
@@ -409,7 +409,7 @@ const SuperAdminCommunicationDashboard = () => {
                 "/superadmin/communication/notices"
               )
             }
-            className="bg-green-600 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-green-700 transition text-sm font-medium"
+            className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition text-sm font-medium shadow-sm"
           >
             <FiPlusCircle />
 
@@ -422,7 +422,7 @@ const SuperAdminCommunicationDashboard = () => {
                 "/superadmin/communication/logs"
               )
             }
-            className="bg-purple-600 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition text-sm font-medium"
+            className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition text-sm font-medium shadow-sm"
           >
             <FiFileText />
 

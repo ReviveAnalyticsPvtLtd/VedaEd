@@ -20,10 +20,10 @@ const COLORS = ["#22c55e", "#ef4444", "#3b82f6"];
 
 export default function CommunicationStudentDashboard() {
   const [stats, setStats] = useState([
-    { title: "My Messages", value: 0, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/student/communication/messages" },
-    { title: "Notices", value: 0, icon: <FiBell size={22} />, color: "border-green-500", link: "/student/communication/notices" },
-    { title: "Complaints", value: 0, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/student/communication/complaints" },
-    { title: "Pending Replies", value: 0, icon: <FiClock size={22} />, color: "border-yellow-500", link: "/student/communication/logs" },
+    { title: "My Messages", value: 0, icon: <FiMessageSquare size={22} />, iconBg: "bg-blue-50 text-blue-600", link: "/student/communication/messages" },
+    { title: "Notices", value: 0, icon: <FiBell size={22} />, iconBg: "bg-emerald-50 text-emerald-600", link: "/student/communication/notices" },
+    { title: "Complaints", value: 0, icon: <FiAlertCircle size={22} />, iconBg: "bg-amber-50 text-amber-600", link: "/student/communication/complaints" },
+    { title: "Pending Replies", value: 0, icon: <FiClock size={22} />, iconBg: "bg-purple-50 text-purple-600", link: "/student/communication/logs" },
   ]);
   const [complaintData, setComplaintData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -82,10 +82,10 @@ export default function CommunicationStudentDashboard() {
         const otherCount = complaintList.length - resolvedCount - pendingCount;
 
         setStats([
-          { title: "My Messages", value: msgCount, icon: <FiMessageSquare size={22} />, color: "border-blue-500", link: "/student/communication/messages" },
-          { title: "Notices", value: noticeCount, icon: <FiBell size={22} />, color: "border-green-500", link: "/student/communication/notices" },
-          { title: "Complaints", value: complaintList.length, icon: <FiAlertCircle size={22} />, color: "border-red-500", link: "/student/communication/complaints" },
-          { title: "Pending Replies", value: pendingCount, icon: <FiClock size={22} />, color: "border-yellow-500", link: "/student/communication/logs" },
+          { title: "My Messages", value: msgCount, icon: <FiMessageSquare size={22} />, iconBg: "bg-blue-50 text-blue-600", link: "/student/communication/messages" },
+          { title: "Notices", value: noticeCount, icon: <FiBell size={22} />, iconBg: "bg-emerald-50 text-emerald-600", link: "/student/communication/notices" },
+          { title: "Complaints", value: complaintList.length, icon: <FiAlertCircle size={22} />, iconBg: "bg-amber-50 text-amber-600", link: "/student/communication/complaints" },
+          { title: "Pending Replies", value: pendingCount, icon: <FiClock size={22} />, iconBg: "bg-purple-50 text-purple-600", link: "/student/communication/logs" },
         ]);
 
         const chartData = [];
@@ -157,21 +157,20 @@ export default function CommunicationStudentDashboard() {
       </div>
 
       {/* 🔹 STAT CARDS */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((item, index) => (
           <Link to={item.link} key={index}>
             <div
-              className={`bg-white p-5 rounded-lg shadow-sm border-l-4 ${item.color}
-              hover:shadow-md transition cursor-pointer`}
+              className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer"
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-500">{item.title}</p>
-                  <h2 className="text-2xl font-semibold">
+                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{item.title}</p>
+                  <h2 className="text-2xl font-bold text-gray-800 mt-1">
                     {loading ? "..." : item.value}
                   </h2>
                 </div>
-                <div className="text-gray-600">{item.icon}</div>
+                <div className={`p-3 rounded-xl ${item.iconBg}`}>{item.icon}</div>
               </div>
             </div>
           </Link>
@@ -240,29 +239,29 @@ export default function CommunicationStudentDashboard() {
       </div>
 
       {/* 🔹 QUICK ACTIONS */}
-      <div className="bg-white p-5 rounded-lg shadow-sm">
-        <h3 className="text-md font-semibold mb-4">
+      <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <h3 className="text-md font-semibold mb-4 text-gray-800">
           Quick Actions
         </h3>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <Link
             to="/student/communication/messages"
-            className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition"
           >
             View Messages
           </Link>
 
           <Link
             to="/student/communication/notices"
-            className="px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600"
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 shadow-sm transition"
           >
             View Notices
           </Link>
 
           <Link
             to="/student/communication/complaints"
-            className="px-4 py-2 bg-red-500 text-white rounded-md text-sm hover:bg-red-600"
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 shadow-sm transition"
           >
             Raise Complaint
           </Link>
