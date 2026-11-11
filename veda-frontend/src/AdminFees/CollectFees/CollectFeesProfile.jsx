@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "../../services/apiClient";
 import config from "../../config";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 
 const CollectFeesProfile = () => {
   const { id } = useParams();
@@ -35,7 +36,7 @@ const CollectFeesProfile = () => {
     if (window.history.length > 1) {
       navigate(-1);
     } else {
-      navigate("/admin/collect-fees");
+      navigate(isSuperAdminPath() ? "/superadmin/fees/collect" : "/admin/fees/collect-fees");
     }
   };
 

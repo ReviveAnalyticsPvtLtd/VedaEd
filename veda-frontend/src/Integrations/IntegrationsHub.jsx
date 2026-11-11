@@ -235,7 +235,7 @@ export default function IntegrationsHub() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 w-full max-w-full min-w-0 space-y-6">
       {/* Header Banner */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -265,7 +265,7 @@ export default function IntegrationsHub() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center justify-between border-b border-gray-200">
+      <div className="flex items-center justify-between border-b border-gray-200 overflow-x-auto scrollbar-none">
         <div className="flex items-center gap-6">
           <button
             type="button"
@@ -333,7 +333,7 @@ export default function IntegrationsHub() {
         <div className="space-y-6">
           {/* Search & Category Pills */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="relative w-full md:w-80">
+            <div className="relative w-full md:w-80 shrink-0">
               <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
@@ -344,13 +344,13 @@ export default function IntegrationsHub() {
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 max-w-full scrollbar-none">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition shrink-0 ${
                     selectedCategory === cat
                       ? "bg-indigo-600 text-white shadow-xs"
                       : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"

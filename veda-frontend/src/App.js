@@ -807,10 +807,17 @@ function App() {
       <Route path="/superadmin/fees" element={<SuperAdminFeesDashboardLayout />}>
         <Route index element={<SuperAdminFeesDashboard />} />
         <Route path="collect" element={<SuperAdminFeesCollectFees />} />
+        <Route path="collect/:id" element={<CollectFeesProfile />} />
+        <Route path="collect-fees" element={<SuperAdminFeesCollectFees />} />
+        <Route path="collect-fees/:id" element={<CollectFeesProfile />} />
+        <Route path="search-payment" element={<SearchFeesPayment />} />
+        <Route path="search-due" element={<SearchFeesDue />} />
         <Route path="fee-master" element={<SuperAdminFeesFeeMaster />} />
         <Route path="fee-group" element={<SuperAdminFeesFeeGroup />} />
         <Route path="fee-type" element={<SuperAdminFeesFeeType />} />
-       <Route path="fee-discount" element={<SuperAdminFeesFeeDiscount />} />
+        <Route path="fee-discount" element={<SuperAdminFeesFeeDiscount />} />
+        <Route path="admin-collection" element={<AdminCollection />} />
+        <Route path="fee-account/:id" element={<FeeAccount />} />
         <Route path="carry-forward" element={<SuperAdminFeesCarryForward />} />
         <Route path="reminder" element={<SuperAdminFeesFeeReminder />} />
       </Route>
@@ -851,21 +858,31 @@ function App() {
       <Route path="/superadmin/admission" element={<SuperAdminAdmissionDashboardLayout />}>
         <Route index element={<SuperAdminAdmissionDashboard />} />
         <Route path="enquiry" element={<SuperAdminAdmissionEnquiry />} />
+        <Route path="admission-enquiry" element={<SuperAdminAdmissionEnquiry />} />
         <Route path="entrance" element={<SuperAdminAdmissionEntranceList />} />
+        <Route path="entrance-list" element={<SuperAdminAdmissionEntranceList />} />
         <Route path="interview" element={<SuperAdminAdmissionInterviewList />} />
+        <Route path="interview-list" element={<SuperAdminAdmissionInterviewList />} />
         <Route path="documents" element={<SuperAdminAdmissionDocumentVerification />} />
+        <Route path="document-verification" element={<SuperAdminAdmissionDocumentVerification />} />
         <Route path="applications" element={<SuperAdminAdmissionApplicationList />} />
+        <Route path="application-list" element={<SuperAdminAdmissionApplicationList />} />
         <Route path="review/:id" element={<SuperAdminAdmissionApplicationReview />} />
+        <Route path="application/:id/review" element={<SuperAdminAdmissionApplicationReview />} />
         <Route path="final-students" element={<SuperAdminAdmissionFinalStudents />} />
         <Route
-  path="status-tracking"
-  element={<SuperAdminAdmissionStatusTracking />}
-/>
+          path="status-tracking"
+          element={<SuperAdminAdmissionStatusTracking />}
+        />
 
-<Route
-  path="final-student-profile/:id"
-  element={<SuperAdminAdmissionFinalStudentProfile />}
-/>
+        <Route
+          path="final-student-profile/:id"
+          element={<SuperAdminAdmissionFinalStudentProfile />}
+        />
+        <Route
+          path="final-students/:id"
+          element={<SuperAdminAdmissionFinalStudentProfile />}
+        />
         <Route path="vacancy-setup" element={<SuperAdminAdmissionVacancySetup />} />
       </Route>
 

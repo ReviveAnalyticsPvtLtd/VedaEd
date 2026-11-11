@@ -7,6 +7,7 @@ import classAPI from "../../services/classAPI";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/common/Pagination";
 import CustomSelect from "../../components/common/CustomSelect";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 export default function AdmissionEnquiry() {
    const navigate = useNavigate(); 
   const [enquiries, setEnquiries] = useState([]);
@@ -480,7 +481,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 <div className="fixed bottom-4 left-4 right-4 md:left-[calc(16rem+1rem)] md:right-8 flex justify-between z-40">
   {/* BACK BUTTON */}
   <button
-    onClick={() => navigate("/admission")}
+    onClick={() => navigate(isSuperAdminPath() ? "/superadmin/admission" : "/admission")}
     className="bg-gray-200 text-gray-700 px-4 md:px-6 py-2 rounded-md hover:bg-gray-300"
   >
     Back
@@ -488,7 +489,7 @@ Regularly review this page to ensure timely responses to all enquiries. Use the 
 
   {/* NEXT BUTTON */}
   <button
-    onClick={() => navigate("/admission/vacancy-setup")}
+    onClick={() => navigate(isSuperAdminPath() ? "/superadmin/admission/vacancy-setup" : "/admission/vacancy-setup")}
     className="bg-blue-600 text-white px-4 md:px-6 py-2 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next

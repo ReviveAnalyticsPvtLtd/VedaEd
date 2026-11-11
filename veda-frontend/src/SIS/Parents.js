@@ -8,6 +8,7 @@ import { toastBannerClassName } from "../utils/toastMessageStyle";
 import api from "../services/apiClient";
 import ProfileAvatar from "../components/ProfileAvatar";
 import Pagination from "../components/common/Pagination";
+import { getParentProfilePath } from "../utils/navigationHelper";
 
 function formatDateTime(value) {
   if (value == null || value === "") return "N/A";
@@ -965,7 +966,7 @@ Sections:
                         (selectedParent.children?.[0]?.stdId && selectedParent.children[0].stdId !== "N/A")
                           ? selectedParent.children[0].stdId
                           : (selectedParent._id || selectedParent.parentId);
-                      navigate(`/admin/parent-profile/${targetId}`, {
+                      navigate(getParentProfilePath(targetId), {
                         state: selectedParent,
                       });
                     }}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiSearch } from "react-icons/fi";
 import axios from "../../services/apiClient";
 import config from "../../config";
+import { getFeesCollectProfilePath } from "../../utils/navigationHelper";
 
 const CollectFees = () => {
   const navigate = useNavigate();
@@ -163,7 +164,7 @@ const CollectFees = () => {
                   <td
                     className="p-2 text-blue-600 cursor-pointer"
                     onClick={() =>
-                      navigate(`/admin/collect-fees/${item.id}`, {
+                      navigate(getFeesCollectProfilePath(item.id), {
                         state: item,
                       })
                     }
@@ -178,7 +179,7 @@ const CollectFees = () => {
                   <td className="p-2 text-center">
                   <button
   onClick={() =>
-    navigate(`/admin/fees/collect-fees/${item.id}`, {
+    navigate(getFeesCollectProfilePath(item.id), {
       state: item,
     })
   }

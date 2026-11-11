@@ -8,6 +8,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GOOGLE_CLIENT_ID } from './config/googleOAuth';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './access/AuthProvider';
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -23,7 +24,9 @@ root.render(
         }
       >
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
       </GoogleOAuthProvider>
     </ThemeProvider>

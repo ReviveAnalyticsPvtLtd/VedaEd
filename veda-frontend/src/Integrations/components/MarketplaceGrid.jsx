@@ -18,7 +18,7 @@ export default function MarketplaceGrid({
 }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {[1, 2, 3, 4, 5, 6].map((n) => (
           <div
             key={n}
@@ -52,7 +52,7 @@ export default function MarketplaceGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
       {providers.map((provider) => {
         const isConnected = provider.connection?.status === "CONNECTED";
         const isConnecting = provider.connection?.status === "CONNECTING";

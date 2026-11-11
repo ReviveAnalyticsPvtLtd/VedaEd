@@ -73,7 +73,7 @@ function StudentDetail() {
     <div className="p-0 space-y-6">
       <div className="text-sm text-gray-500 mb-2">
         <span
-          onClick={() => navigate("/admin/attendance")}
+          onClick={() => navigate(-1)}
           className="cursor-pointer hover:underline"
         >
           Attendance

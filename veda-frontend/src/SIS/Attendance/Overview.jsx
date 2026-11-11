@@ -73,7 +73,7 @@ export default function Overview() {
               <h3 className=" font-semibold">{item.title}</h3>
               <p className=" text-gray-500">{item.count} students</p>
               <button
-                onClick={() => navigate(`/admin/attendance/by-student?status=${item.title}`)}
+                onClick={() => navigate(`../by-student?status=${item.title}`)}
                 className="mt-3 w-full px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition duration-150 ease-in-out"
               >
                 View List

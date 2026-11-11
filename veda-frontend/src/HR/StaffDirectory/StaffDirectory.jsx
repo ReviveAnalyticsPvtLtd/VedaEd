@@ -10,6 +10,7 @@ import { FiChevronDown, FiUser, FiDownload } from "react-icons/fi";
 
 import { toastBannerClassName } from "../../utils/toastMessageStyle";
 import Pagination from "../../components/common/Pagination";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 
 export default function Staff() {
   const location = useLocation();
@@ -1059,11 +1060,14 @@ Sections:
                   {selectedStaff.personalInfo?.name || "N/A"}
                 </h2>
                 <button
-                  onClick={() =>
-                    navigate(`/hr/staff-profile/${selectedStaff._id}`, {
+                  onClick={() => {
+                    const profilePath = isSuperAdminPath()
+                      ? `/superadmin/hr/staff/${selectedStaff._id}`
+                      : `/hr/staff-profile/${selectedStaff._id}`;
+                    navigate(profilePath, {
                       state: selectedStaff,
-                    })
-                  }
+                    });
+                  }}
                   className="text-sm bg-yellow-500 text-white px-4 py-1 rounded"
                 >
                   View Full Profile

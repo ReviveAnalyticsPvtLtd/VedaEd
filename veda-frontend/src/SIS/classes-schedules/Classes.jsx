@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/apiClient";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 
 const Classes = () => {
   const [classInput, setClassInput] = useState("");
@@ -11,6 +12,7 @@ const Classes = () => {
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+  const scheduleBase = isSuperAdminPath() ? "/superadmin/sis/classes-schedules" : "/admin/classes-schedules";
 
   // Fetch classes from backend
   useEffect(() => {
@@ -140,7 +142,7 @@ const Classes = () => {
         {/* Add Class */}
         <button
           onClick={() =>
-            navigate("/admin/classes-schedules/add-class")
+            navigate(`${scheduleBase}/add-class`)
           }
           className="ml-auto border border-blue-600 text-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-50"
         >
@@ -150,7 +152,7 @@ const Classes = () => {
         {/* Add Subject */}
         <button
           onClick={() =>
-            navigate("/admin/classes-schedules/add-subject")
+            navigate(`${scheduleBase}/add-subject`)
           }
           className="border border-blue-600 text-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-50"
         >
@@ -202,7 +204,7 @@ const Classes = () => {
                     <button
                       onClick={() =>
                         navigate(
-                          `/admin/classes-schedules/class-detail/${cls._id}/${sec._id}`
+                          `${scheduleBase}/class-detail/${cls._id}/${sec._id}`
                         )
                       }
                       className="mt-4 bg-blue-500 text-white px-3 py-2 rounded"

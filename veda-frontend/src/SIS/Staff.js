@@ -12,6 +12,7 @@ import { getLatestPassportPhotoUrlFromDocs } from "../utils/studentProfileMedia"
 
 import { toastBannerClassName } from "../utils/toastMessageStyle";
 import Pagination from "../components/common/Pagination";
+import { getStaffProfilePath } from "../utils/navigationHelper";
 
 export default function Staff() {
   const [selectedStaffIds, setSelectedStaffIds] = useState([]);
@@ -1169,7 +1170,7 @@ Sections:
                   <h2 className="break-words text-xl font-semibold">{selectedStaff.personalInfo?.name || "N/A"}</h2>
                   <button
                     onClick={() =>
-                      navigate(`/admin/staff-profile/${selectedStaff._id}`, {
+                      navigate(getStaffProfilePath(selectedStaff._id), {
                         state: selectedStaff
                       })
                     }

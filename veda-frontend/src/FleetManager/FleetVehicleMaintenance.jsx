@@ -1,10 +1,11 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../services/apiClient";
 import config from "../config";
 
 export default function FleetMaintenance() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,7 +115,7 @@ export default function FleetMaintenance() {
                       </td>
                       <td className="border p-2">
                         <button
-                          onClick={() => navigate(`/fleet/maintenance/${r.id}`)}
+                          onClick={() => navigate(`${location.pathname}/${r.id}`)}
                           className="text-indigo-600 underline"
                         >
                           Manage

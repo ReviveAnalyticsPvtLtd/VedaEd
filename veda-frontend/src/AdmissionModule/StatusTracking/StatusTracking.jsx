@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import api from "../../services/apiClient";
 import config from "../../config";
 import { useNavigate } from "react-router-dom";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 import {
   FiSearch,
   FiCheckCircle,
@@ -175,14 +176,14 @@ export default function StatusTracking() {
       {/* FIXED BOTTOM NAVIGATION */}
 <div className="fixed bottom-4 left-[calc(16rem+1rem)] right-8 flex justify-between z-40">
   <button
-    onClick={() => navigate("/admission/registration-fees")}
+    onClick={() => navigate(isSuperAdminPath() ? "/superadmin/admission/registration-fees" : "/admission/registration-fees")}
     className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300"
   >
     Back
   </button>
 
   <button
-    onClick={() => navigate("/admission/final-students")}
+    onClick={() => navigate(isSuperAdminPath() ? "/superadmin/admission/final-students" : "/admission/final-students")}
     className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
   >
     Next →

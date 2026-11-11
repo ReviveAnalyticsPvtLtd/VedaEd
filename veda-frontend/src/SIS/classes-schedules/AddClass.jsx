@@ -561,7 +561,7 @@ const navigate = useNavigate();
 
   {/* Next Button */}
   <Link
-    to="/admin/classes-schedules/add-subject"
+    to="../add-subject"
     className="bg-blue-600 text-white px-6 py-2 rounded-md shadow hover:bg-blue-700"
   >
     Next →

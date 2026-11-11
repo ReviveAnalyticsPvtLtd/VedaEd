@@ -51,7 +51,7 @@ const ClassDetailPage = () => {
     <div className="p-0 min-h-screen">
       
       <button
-  onClick={() => navigate("/admin/classes-schedules/classes")}
+  onClick={() => navigate(-1)}
   className="fixed  right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg"
 >
   ← Back

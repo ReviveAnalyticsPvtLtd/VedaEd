@@ -122,7 +122,7 @@ export default function FleetMaintenanceDetail() {
 
       {/* BACK */}
       <button
-        onClick={() => navigate("/fleet/maintenance")}
+        onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
       >
         <FiArrowLeft /> Back to Maintenance List

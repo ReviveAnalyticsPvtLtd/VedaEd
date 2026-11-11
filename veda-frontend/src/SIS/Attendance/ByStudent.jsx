@@ -137,7 +137,7 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
             <div className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm">
               <span>Status: {statusFilter}</span>
               <button
-                onClick={() => navigate("/admin/attendance/by-student")}
+                onClick={() => navigate(location.pathname)}
                 className="hover:text-blue-900 font-bold ml-1"
               >
                 ✕
@@ -229,7 +229,7 @@ const totalPages = Math.ceil(filtered.length / itemsPerPage);
                 <button
                   onClick={() =>
                     navigate(
-                      `/admin/attendance/by-student/${student.id}`
+                      `${location.pathname}/${student.id}`
                     )
                   }
                   className="text-blue-600 hover:text-blue-800"

@@ -11,6 +11,7 @@ import Pagination from "../components/common/Pagination";
 import api from "../services/apiClient";
 import { isToastErrorMessage, toastBannerClassName } from "../utils/toastMessageStyle";
 import { getLatestPassportPhotoUrlFromDocs } from "../utils/studentProfileMedia";
+import { getStudentProfilePath } from "../utils/navigationHelper";
 
 function normalizeStudentRow(s, idx = 0) {
   const imageField = s.personalInfo?.image;
@@ -745,7 +746,7 @@ const handleBulkDelete = async () => {
   const handleViewFullProfile = (studentRecord) => {
     if (!studentRecord?._id) return;
 
-    navigate(`/admin/student-profile/${studentRecord._id}`, {
+    navigate(getStudentProfilePath(studentRecord._id), {
       state: studentRecord,
     });
   };

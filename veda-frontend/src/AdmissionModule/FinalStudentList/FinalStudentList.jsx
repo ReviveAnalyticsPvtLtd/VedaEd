@@ -4,6 +4,7 @@ import { FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/apiClient";
 import config from "../../config";
+import { isSuperAdminPath } from "../../utils/navigationHelper";
 
 
 import { FiPlus, FiUpload, FiSearch, FiTrash2, FiEdit, FiUser, FiDownload, FiChevronDown } from "react-icons/fi";
@@ -976,11 +977,13 @@ Sections:
                     console.log("Selected student:", selectedStudent);
                     console.log("Student _id:", selectedStudent._id);
                   navigate(
-  `/admission/final-student-profile/${selectedStudent._id}`,
-  {
-    state: selectedStudent,
-  }
-);
+                    isSuperAdminPath()
+                      ? `/superadmin/admission/final-students/${selectedStudent._id}`
+                      : `/admission/final-student-profile/${selectedStudent._id}`,
+                    {
+                      state: selectedStudent,
+                    }
+                  );
                   }}
                   className="text-sm bg-yellow-500 text-white px-8 py-1 rounded"
                 >
@@ -1196,7 +1199,7 @@ Sections:
       {/* BACK BUTTON – Status Tracking */}
 <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-8 z-40">
   <button
-    onClick={() => navigate("/admission/status-tracking")}
+    onClick={() => navigate(isSuperAdminPath() ? "/superadmin/admission/status-tracking" : "/admission/status-tracking")}
     className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 w-full sm:w-auto"
   >
      Back
