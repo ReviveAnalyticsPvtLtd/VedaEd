@@ -26,7 +26,7 @@ export default function SuperAdminFeesSidebar({
   const menuItems = [
     {
       name: "Dashboard",
-      path: "/superadmin/fees/dashboard",
+      path: "/superadmin/fees",
       icon: <FiHome size={18} />,
       isDashboard: true,
     },
@@ -37,12 +37,12 @@ export default function SuperAdminFeesSidebar({
     },
     {
       name: "Fee Master",
-      path: "/superadmin/fees/master",
+      path: "/superadmin/fees/fee-master",
       icon: <FiDollarSign size={18} />,
     },
     {
       name: "Discounts",
-      path: "/superadmin/fees/discounts",
+      path: "/superadmin/fees/fee-discount",
       icon: <FiDollarSign size={18} />,
     },
   ];

@@ -691,6 +691,7 @@ function App() {
             element={<Navigate to="dashboard" replace />}
           />
           <Route path="dashboard" element={<SuperAdminMasterDashboard />} />
+          <Route path="integrations" element={<IntegrationsHub />} />
           <Route path="setup-profile" element={<ViewSetupProfile />} />
           <Route path="setup-profile/edit" element={<EditSetupProfile />} />
           <Route
@@ -836,6 +837,7 @@ function App() {
       {/* ===== FLEET ===== */}
       <Route path="/superadmin/fleet" element={<SuperAdminFleetDashboardLayout />}>
         <Route index element={<SuperAdminFleetDashboard />} />
+        <Route path="dashboard" element={<SuperAdminFleetDashboard />} />
         <Route path="vehicles" element={<SuperAdminFleetVehicles />} />
         <Route path="maintenance" element={<SuperAdminFleetMaintenance />} />
         <Route path="documents" element={<SuperAdminFleetDocuments />} />
@@ -847,6 +849,7 @@ function App() {
       {/* ===== HR ===== */}
       <Route path="/superadmin/hr" element={<SuperAdminHRDashboardLayout />}>
         <Route index element={<SuperAdminHRDashboard />} />
+        <Route path="dashboard" element={<SuperAdminHRDashboard />} />
         <Route path="staff-directory" element={<SuperAdminHRStaffDirectory />} />
         <Route path="staff/:id" element={<SuperAdminHRStaffProfile />} />
         <Route path="attendance" element={<SuperAdminHRAttendance />} />

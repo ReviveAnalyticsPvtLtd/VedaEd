@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import * as calendarAPI from "../services/calendarAPI";
+import api from "../services/apiClient";
+import { assignmentAPI } from "../services/assignmentAPI";
 
 import {
   addDays,
@@ -12,6 +14,8 @@ import {
   subYears,
   format,
   startOfDay,
+  startOfYear,
+  endOfYear,
 } from "date-fns";
 
 import {
@@ -33,6 +37,16 @@ const EVENT_TYPES = [
   "Other"
 ];
 
+const DAY_INDEX = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
 /* ================= MAIN ================= */
 export default function TeacherAnnualCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -40,9 +54,13 @@ export default function TeacherAnnualCalendar() {
   const [selectedClass, setSelectedClass] = useState("All");
   const [activeTypes, setActiveTypes] = useState(EVENT_TYPES);
   const [events, setEvents] = useState([]);
+  const [timetableEntries, setTimetableEntries] = useState([]);
+  const [assignmentEntries, setAssignmentEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const teacherId = user?.refId || user?._id;
 
   useEffect(() => {
     fetchEvents();
@@ -51,9 +69,18 @@ export default function TeacherAnnualCalendar() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const res = await calendarAPI.getAllEvents();
-      if (res.success) {
-        const mapped = res.data.map(e => ({
+      const [calendarRes, timetableRes, assignmentsRes] = await Promise.all([
+        calendarAPI.getAllEvents().catch(() => null),
+        teacherId
+          ? api
+              .get("/timetables", { params: { teacherId } })
+              .catch(() => null)
+          : Promise.resolve(null),
+        assignmentAPI.getAssignments().catch(() => []),
+      ]);
+
+      if (calendarRes?.success) {
+        const mapped = calendarRes.data.map(e => ({
           ...e,
           id: e._id,
           type: e.type || e.eventType || "Other",
@@ -63,6 +90,12 @@ export default function TeacherAnnualCalendar() {
         }));
         setEvents(mapped);
       }
+
+      if (timetableRes?.data?.success) {
+        setTimetableEntries(timetableRes.data.data || []);
+      }
+
+      setAssignmentEntries(Array.isArray(assignmentsRes) ? assignmentsRes : []);
     } catch (err) {
       console.error("Failed to fetch events", err);
     } finally {
@@ -70,16 +103,127 @@ export default function TeacherAnnualCalendar() {
     }
   };
 
+  const allEvents = useMemo(() => {
+    const yearStart = startOfYear(currentDate);
+    const yearEnd = endOfYear(currentDate);
+
+    const timetableEvents = [];
+
+    (timetableEntries || []).forEach((entry) => {
+      const dayName = entry?.day
+        ? entry.day.charAt(0).toUpperCase() + entry.day.slice(1).toLowerCase()
+        : "";
+      const weekday = DAY_INDEX[dayName];
+      if (weekday === undefined) return;
+
+      let cursor = yearStart;
+      while (cursor.getDay() !== weekday) {
+        cursor = addDays(cursor, 1);
+      }
+
+      while (cursor <= yearEnd) {
+        const dateStr = format(cursor, "yyyy-MM-dd");
+        const start = new Date(
+          `${dateStr}T${entry.timeFrom || "00:00"}:00`
+        );
+        if (Number.isNaN(start.getTime())) {
+          cursor = addDays(cursor, 7);
+          continue;
+        }
+
+        const parsedEnd = new Date(
+          `${dateStr}T${entry.timeTo || entry.timeFrom || "00:00"}:00`
+        );
+        const end =
+          Number.isNaN(parsedEnd.getTime()) || parsedEnd <= start
+            ? new Date(start.getTime() + 45 * 60 * 1000)
+            : parsedEnd;
+
+        timetableEvents.push({
+          id: `timetable-${entry._id}-${dateStr}`,
+          title: entry.subject?.subjectName || "Timetable Class",
+          type: "Timetable",
+          start,
+          end,
+          class: "All",
+          venue: entry.roomNo || "",
+          description: [
+            entry.subject?.subjectName
+              ? `Subject: ${entry.subject.subjectName}`
+              : null,
+            entry.teacher?.personalInfo?.name
+              ? `Teacher: ${entry.teacher.personalInfo.name}`
+              : null,
+            entry.class?.name
+              ? `Class: ${entry.class.name}${
+                  entry.section?.name ? ` - ${entry.section.name}` : ""
+                }`
+              : null,
+            entry.roomNo ? `Room: ${entry.roomNo}` : null,
+            `Time: ${entry.timeFrom || "-"} - ${entry.timeTo || "-"}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+
+        cursor = addDays(cursor, 7);
+      }
+    });
+
+    const assignmentEvents = (assignmentEntries || []).flatMap((a) => {
+      if (!a?.dueDate) return [];
+
+      const start = new Date(a.dueDate);
+      if (Number.isNaN(start.getTime())) return [];
+
+      if (start.getHours() === 0 && start.getMinutes() === 0) {
+        start.setHours(9, 0, 0, 0);
+      }
+
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+      return [
+        {
+          id: `assignment-${a._id}`,
+          title: a.title || "Assignment",
+          type: "Assignment",
+          start,
+          end,
+          class: "All",
+          venue: "",
+          description: [
+            a.assignmentType ? `Type: ${a.assignmentType}` : null,
+            a.subject?.subjectName
+              ? `Subject: ${a.subject.subjectName}`
+              : null,
+            a.class?.name
+              ? `Class: ${a.class.name}${
+                  a.section?.name ? ` - ${a.section.name}` : ""
+                }`
+              : null,
+            a.status ? `Status: ${a.status}` : null,
+            a.description || null,
+            `Due: ${format(start, "PPP p")}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+      ];
+    });
+
+    return [...events, ...timetableEvents, ...assignmentEvents];
+  }, [events, timetableEntries, assignmentEntries, currentDate]);
+
   /* ================= FILTER EVENTS ================= */
   const filteredEvents = useMemo(() => {
-    return events.filter(
+    return allEvents.filter(
       (e) =>
         (selectedClass === "All" ||
           e.class === selectedClass ||
           e.class === "All") &&
         activeTypes.includes(e.type)
     );
-  }, [events, selectedClass, activeTypes]);
+  }, [allEvents, selectedClass, activeTypes]);
 
   /* ================= GROUP BY DAY ================= */
   const eventsByDay = useMemo(() => {
@@ -184,6 +328,33 @@ export default function TeacherAnnualCalendar() {
             <span className="group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="absolute z-20 mt-2 bg-white border rounded shadow-lg p-3 w-full grid grid-cols-3 gap-2">
+            <label className="col-span-3 flex items-center justify-between gap-2 pb-2 mb-1 border-b border-gray-200 text-sm font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={activeTypes.length === EVENT_TYPES.length}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate =
+                        activeTypes.length > 0 &&
+                        activeTypes.length < EVENT_TYPES.length;
+                    }
+                  }}
+                  onChange={() =>
+                    setActiveTypes(
+                      activeTypes.length === EVENT_TYPES.length
+                        ? []
+                        : EVENT_TYPES
+                    )
+                  }
+                  className="rounded text-blue-600"
+                />
+                Select All
+              </span>
+              <span className="text-xs font-normal text-gray-500">
+                {activeTypes.length} selected
+              </span>
+            </label>
             {EVENT_TYPES.map((t) => (
               <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input

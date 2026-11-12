@@ -40,8 +40,8 @@ export default function Sidebar({
  const menuItems = [
   { name: "Dashboard", path: "", icon: <FiHome size={18} /> },
   { name: "Students", path: "students", icon: <FiUsers size={18} /> },
-  { name: "Parents", path: "parents", icon: <FiUser size={18} /> },
   { name: "Staff", path: "staff", icon: <FiUserCheck size={18} /> },
+  { name: "Parents", path: "parents", icon: <FiUser size={18} /> },
   {
     name: "Classes and Schedule",
     path: "classes-schedules",
