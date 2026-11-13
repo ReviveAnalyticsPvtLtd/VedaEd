@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiEdit2 } from "react-icons/fi";
 import PageHeader from "../identity-access/components/PageHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import SetupProfileForm from "./components/SetupProfileForm";
 import SetupProfileSummary from "./components/SetupProfileSummary";
 import { getSetupProfile } from "../../services/setupWizardAPI";
@@ -39,13 +40,8 @@ export default function ViewSetupProfile() {
   if (error && !profile) {
     return (
       <div className="min-h-full bg-gray-100 p-4 md:p-6">
-        <PageHeader
-          breadcrumbs={[
-            { label: "Dashboard", to: "/superadmin-front/dashboard" },
-            { label: "Setup Profile" },
-          ]}
-          title="Setup Profile"
-        />
+        <Breadcrumbs />
+        <PageHeader title="Setup Profile" />
         <div className="text-center py-20">
           <p className="text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3 inline-block text-sm">
             {error}
@@ -64,11 +60,8 @@ export default function ViewSetupProfile() {
 
   return (
     <div className="min-h-full bg-gray-100 p-0">
+      <Breadcrumbs />
       <PageHeader
-        breadcrumbs={[
-          { label: "Dashboard", to: "/superadmin-front/dashboard" },
-          { label: "Setup Profile" },
-        ]}
         title="Setup Profile"
         subtitle={`Organization setup data for ${profile.schoolName}`}
         action={

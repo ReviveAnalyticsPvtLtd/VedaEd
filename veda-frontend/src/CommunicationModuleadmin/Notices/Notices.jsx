@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import PostNotices from "./PostNotices";
 import NoticeTemplates from "./NoticeTemplates";
 import OthersNotices from "./OthersNotices";
+import NoticesOverview from "./NoticesOverview";
 import { FiDownload } from "react-icons/fi";
 import HelpInfo from "../../components/HelpInfo";
 
 export default function Notices() {
-  const [activeTab, setActiveTab] = useState("post"); // default Post Notices
+  const [activeTab, setActiveTab] = useState("overview"); // default tab
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -22,6 +23,8 @@ export default function Notices() {
 
   const renderTab = () => {
     switch (activeTab) {
+      case "overview":
+        return <NoticesOverview />;
       case "post":
         return <PostNotices />;
       case "templates":
@@ -45,15 +48,26 @@ export default function Notices() {
 
 7.1 Page Overview
 
-Use the tab bar to move between composing new notices, editing templates, or using other admin tools.
+Use the tab bar to move between the notice overview, composing new notices, editing templates, or using other admin tools.
 
 Sections:
 - Breadcrumb & Header: Reflects the active tab so admins know which tool they’re using
-- Tab Bar: Buttons for Post Notices, Notice Templates, and Others
+- Tab Bar: Buttons for Overview, Post Notices, Notice Templates, and Others
 - Dynamic Content: The component for the active tab loads in the content area below
 
 
-7.2 Post Notices Tab
+7.2 Overview Tab
+
+View sent and received notices in one place.
+
+Sections:
+- Notice Summary: Shows sent, received, and unread notice counts
+- Search: Search notices by title, content, or sender
+- Filters: Filter by role and status
+- Notice List: Displays notice details, priority, status, type, sender, date, channel, and attachment
+
+
+7.3 Post Notices Tab
 
 Create and send a fresh notice to selected channels.
 
@@ -65,7 +79,7 @@ Sections:
 - Preview Card: Optional preview of the final notice before publishing
 
 
-7.3 Notice Templates Tab
+7.4 Notice Templates Tab
 
 Maintain reusable notice templates for recurring announcements.
 
@@ -76,7 +90,7 @@ Sections:
 - Template Preview: Inspect a template’s body prior to applying it
 
 
-7.4 Others Tab
+7.5 Others Tab
 
 Access miscellaneous notice utilities and archives.
 
@@ -90,7 +104,7 @@ Sections:
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-300">
-        {["post", "templates", "others"].map((tab) => (
+        {["overview", "post", "templates", "others"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -100,7 +114,9 @@ Sections:
                 : "text-gray-500"
             }`}
           >
-            {tab === "post"
+            {tab === "overview"
+              ? "Overview"
+              : tab === "post"
               ? "Post Notices"
               : tab === "templates"
               ? "Notice Templates"

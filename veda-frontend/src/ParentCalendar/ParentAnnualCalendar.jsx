@@ -22,6 +22,16 @@ import {
 
 import ParentUpcomingEvents from "./ParentUpcomingEvents";
 
+const EVENT_TYPES = [
+  "Holiday",
+  "Exam",
+  "Timetable",
+  "Assignment",
+  "Activity",
+  "Meeting",
+  "Other",
+];
+
 /* ================= MAIN ================= */
 export default function ParentAnnualCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -29,6 +39,7 @@ export default function ParentAnnualCalendar() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTypes, setActiveTypes] = useState(EVENT_TYPES);
 
   /* ================= PARENT USER ================= */
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -73,11 +84,12 @@ export default function ParentAnnualCalendar() {
   const filteredEvents = useMemo(() => {
     return events.filter(
       (e) =>
-        e.class === "All" ||
-        e.class === childClass ||
-        childClass === "All"
+        (e.class === "All" ||
+          e.class === childClass ||
+          childClass === "All") &&
+        activeTypes.includes(e.type)
     );
-  }, [events, childClass]);
+  }, [events, childClass, activeTypes]);
 
   /* ================= GROUP EVENTS ================= */
   const eventsByDay = useMemo(() => {
@@ -174,22 +186,79 @@ export default function ParentAnnualCalendar() {
         </button>
       </div>
 
-      <select
-        value={view}
-        onChange={(e) => setView(e.target.value)}
-        className="
-          border rounded-lg
-          px-3 py-2
-          bg-white text-sm
-          focus:outline-none
-        "
-      >
-        <option value="year">Year</option>
-        <option value="month">Month</option>
-        <option value="week">Week</option>
-        <option value="day">Day</option>
-        <option value="list">List</option>
-      </select>
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <details className="group">
+            <summary className="cursor-pointer border rounded-lg px-3 py-2 bg-white text-sm list-none flex justify-between items-center gap-3">
+              <span>Event Types ({activeTypes.length})</span>
+              <span className="group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 bg-white border rounded-lg shadow-lg p-3 w-72 grid grid-cols-2 gap-2">
+              <label className="col-span-2 flex items-center justify-between gap-2 pb-2 mb-1 border-b border-gray-200 text-sm font-medium cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={activeTypes.length === EVENT_TYPES.length}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate =
+                          activeTypes.length > 0 &&
+                          activeTypes.length < EVENT_TYPES.length;
+                      }
+                    }}
+                    onChange={() =>
+                      setActiveTypes(
+                        activeTypes.length === EVENT_TYPES.length
+                          ? []
+                          : EVENT_TYPES
+                      )
+                    }
+                    className="rounded text-blue-600"
+                  />
+                  Select All
+                </span>
+                <span className="text-xs font-normal text-gray-500">
+                  {activeTypes.length} selected
+                </span>
+              </label>
+              {EVENT_TYPES.map((t) => (
+                <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={activeTypes.includes(t)}
+                    onChange={() =>
+                      setActiveTypes((p) =>
+                        p.includes(t)
+                          ? p.filter((x) => x !== t)
+                          : [...p, t]
+                      )
+                    }
+                    className="rounded text-blue-600"
+                  />
+                  {t}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
+
+        <select
+          value={view}
+          onChange={(e) => setView(e.target.value)}
+          className="
+            border rounded-lg
+            px-3 py-2
+            bg-white text-sm
+            focus:outline-none
+          "
+        >
+          <option value="year">Year</option>
+          <option value="month">Month</option>
+          <option value="week">Week</option>
+          <option value="day">Day</option>
+          <option value="list">List</option>
+        </select>
+      </div>
     </div>
   );
 
