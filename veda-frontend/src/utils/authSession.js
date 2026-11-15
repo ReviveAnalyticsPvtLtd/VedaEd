@@ -1,34 +1,19 @@
 import config from "../config";
+import { clearAuthStorage, getAuthRole, getAuthToken } from "./authStorage";
 
-/**
- * Persists auth session consistently with the main Login page.
- */
-export function saveAuthSession({
-  token,
-  refreshToken,
-  role,
-  permissions,
-  platformPermissions,
-  user,
-}) {
-  localStorage.setItem("token", token);
-  localStorage.setItem("role", role);
-  localStorage.setItem("permissions", JSON.stringify(permissions || []));
-  localStorage.setItem("user", JSON.stringify(user));
-
-  if (refreshToken) {
-    localStorage.setItem("refreshToken", refreshToken);
-  }
-
-  if (role === "admin" && platformPermissions) {
-    localStorage.setItem("platformPermissions", JSON.stringify(platformPermissions));
-  } else {
-    localStorage.removeItem("platformPermissions");
-  }
-}
+export {
+  getAuthToken,
+  getRefreshToken,
+  isTokenExpired,
+  getAuthRole,
+  getStoredUser,
+  getAuthSessionId,
+  getAuthUserId,
+  setAuthSession as saveAuthSession,
+} from "./authStorage";
 
 export async function clearAuthSession() {
-  const token = localStorage.getItem("token");
+  const token = getAuthToken();
   if (token) {
     try {
       await fetch(`${config.API_BASE_URL}/auth/logout`, {
@@ -42,41 +27,7 @@ export async function clearAuthSession() {
       // Best-effort logout notification
     }
   }
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("role");
-  localStorage.removeItem("permissions");
-  localStorage.removeItem("platformPermissions");
-  localStorage.removeItem("user");
-}
-
-export function getAuthToken() {
-  return localStorage.getItem("token");
-}
-
-export function getRefreshToken() {
-  return localStorage.getItem("refreshToken");
-}
-
-export function isTokenExpired(token) {
-  if (!token || typeof token !== "string") return true;
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return true;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    const payload = JSON.parse(jsonPayload);
-    if (!payload.exp) return false;
-    return payload.exp * 1000 <= Date.now() + 5000;
-  } catch (_) {
-    return true;
-  }
+  clearAuthStorage();
 }
 
 export function navigateAfterRoleLogin(role, navigate) {
@@ -94,7 +45,7 @@ export function navigateAfterRoleLogin(role, navigate) {
 }
 
 export function getRoleDashboardPath() {
-  const role = localStorage.getItem("role");
+  const role = getAuthRole();
   if (role === "superadmin") return "/superadmin-front/dashboard";
   if (role === "admin") return "/admin-front";
   if (role === "teacher") return "/teacher";

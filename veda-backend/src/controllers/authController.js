@@ -1,10 +1,14 @@
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 
 const User = require("../models/User");
 const RolePermission = require("../models/RolePermission");
+const {
+  buildAccessToken,
+  issueRefreshToken,
+  startActiveSession,
+} = require("../utils/authTokens");
 const {
   flattenPlatformPermissions,
   findPlatformAdminByEmployeeId,
@@ -423,10 +427,7 @@ exports.login = async (req, res) => {
       }
     }
 
-    console.log("USER FOUND:", user);
-
     if (!user) {
-      console.log("USER NOT FOUND");
       return res.status(401).json({
         message: "Invalid credentials"
       });
@@ -434,10 +435,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
 
-    console.log("PASSWORD MATCH:", isMatch);
-
     if (!isMatch) {
-      console.log("PASSWORD WRONG");
       if (user.authProvider === "google") {
         return res.status(401).json({
           message:
@@ -456,7 +454,6 @@ exports.login = async (req, res) => {
 
     // 4️⃣ Verify selected role matches the user's role
     if (normalizedRole !== normalizedSelectedRole) {
-      console.log(`ROLE MISMATCH: account role=${normalizedRole}, selected role=${normalizedSelectedRole}`);
       return res.status(401).json({
         message: "The selected role does not match this account.",
       });
@@ -474,8 +471,6 @@ exports.login = async (req, res) => {
         message: "Your account is inactive. Contact your administrator.",
       });
     }
-
-    console.log("ROLE:", roleName);
 
     let permissions = [];
     let platformPermissions = null;
@@ -499,57 +494,18 @@ exports.login = async (req, res) => {
       permissions = rolePermissions.map((rp) => rp.permissionId.name);
     }
 
-    console.log("PERMISSIONS:", permissions);
-
-    const sessionId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: roleName,
-        refId: user.refId,
-        // Informational only. authMiddleware re-resolves schoolId from the user
-        // document on every request, so the token is never the authority.
-        schoolId: user.schoolId || null,
-        sessionId,
-      },
-      process.env.JWT_SECRET || "fallback_secret_key",
-      { expiresIn: "7d" }
-    );
-
-    const newSession = {
-      sessionId,
-      token,
-      createdAt: new Date(),
-      expiresAt,
+    const session = await startActiveSession(user, {
       device: req.headers["user-agent"] || "Unknown",
       ip: req.ip || req.connection?.remoteAddress || null,
+    });
+
+    const token = buildAccessToken(user, session.sessionId);
+
+    const refreshResult = await issueRefreshToken(user._id, session.sessionId);
+    const refreshPayload = {
+      refreshToken: refreshResult.refreshToken,
+      refreshTokenExpiresAt: refreshResult.refreshTokenExpiresAt,
     };
-
-    // Replace the previous active session with the new session
-    await User.findByIdAndUpdate(
-      user._id,
-      {
-        $set: {
-          lastLogin: new Date(),
-          activeSession: newSession,
-        },
-      },
-      { new: true }
-    );
-
-    const { issueRefreshToken } = require("../utils/authTokens");
-    let refreshPayload = {};
-    try {
-      const refreshResult = await issueRefreshToken(user._id);
-      refreshPayload = {
-        refreshToken: refreshResult.refreshToken,
-        refreshTokenExpiresAt: refreshResult.refreshTokenExpiresAt,
-      };
-    } catch (refreshErr) {
-      console.error("Failed to issue refresh token on login:", refreshErr);
-    }
 
     const response = {
       success: true,
@@ -574,8 +530,8 @@ exports.login = async (req, res) => {
 
     if (normalizedRole === "admin") {
       try {
-        const session = await buildOnboardingSessionPayload(user._id);
-        Object.assign(response, session);
+        const onboardingSession = await buildOnboardingSessionPayload(user._id);
+        Object.assign(response, onboardingSession);
       } catch (sessionError) {
         console.error("onboarding session load error:", sessionError);
       }
@@ -601,36 +557,42 @@ exports.logout = async (req, res) => {
     if (!userId && req.headers.authorization?.startsWith("Bearer ")) {
       try {
         const token = req.headers.authorization.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key");
+        const decoded = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "fallback_secret_key",
+          { ignoreExpiration: true }
+        );
         userId = decoded?.userId;
         sessionId = decoded?.sessionId;
       } catch (e) {
-        // Token might already be expired or invalid
+        // Invalid or malformed token: nothing safe to revoke.
       }
     }
 
     if (userId) {
+      const RefreshToken = require("../models/RefreshToken");
+      const revokedAt = new Date();
+
       if (sessionId) {
-        // Only clear if the session being logged out matches the active session
+        await RefreshToken.updateMany(
+          { userId, sessionId, revokedAt: null },
+          { $set: { revokedAt } }
+        );
+
         await User.updateOne(
           { _id: userId, "activeSession.sessionId": sessionId },
           { $set: { activeSession: null } }
         );
-      } else {
-        // Legacy fallback
-        await User.updateOne(
-          { _id: userId },
-          { $set: { activeSession: null } }
-        );
       }
 
-      // Also revoke refresh tokens if refreshToken was sent in body
       const refreshToken = req.body?.refreshToken;
-      if (refreshToken && refreshToken.includes(".")) {
+      if (refreshToken && typeof refreshToken === "string" && refreshToken.includes(".")) {
         const [tokenId] = refreshToken.split(".");
-        const RefreshToken = require("../models/RefreshToken");
         if (mongoose.isValidObjectId(tokenId)) {
-          await RefreshToken.updateOne({ _id: tokenId }, { $set: { revokedAt: new Date() } });
+          await RefreshToken.updateOne(
+            { _id: tokenId, userId },
+            { $set: { revokedAt } }
+          );
         }
       }
     }
@@ -663,6 +625,7 @@ exports.refreshToken = async (req, res) => {
     return res.json({
       success: true,
       token: result.token,
+      sessionId: result.sessionId,
       refreshToken: result.refreshToken,
       refreshTokenExpiresAt: result.refreshTokenExpiresAt,
       user: result.user,

@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { FiMail, FiCalendar, FiUser, FiDownload } from "react-icons/fi";
 import CommunicationAPI from "../communicationAPI";
@@ -13,7 +14,7 @@ const [selectedNotice, setSelectedNotice] = useState(null);
   const [studentModel, setStudentModel] = useState("Student");
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const uId = user.refId || user._id || "68c27fb96a063075c9a73ee2";
     let uModel = "Student";
     if (user.role) {

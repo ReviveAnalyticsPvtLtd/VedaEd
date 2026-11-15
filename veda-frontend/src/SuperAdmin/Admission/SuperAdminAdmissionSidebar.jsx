@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiHome,
@@ -23,9 +24,7 @@ export default function SuperAdminAdmissionSidebar({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Current user
-  const currentUser = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
+  const currentUser = (getStoredUser() || {});
 
   const userName = currentUser?.name || "Super Admin";
   const userImage = resolveProfileImage(currentUser);

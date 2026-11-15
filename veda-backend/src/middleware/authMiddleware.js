@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const { findActivePlatformAdmin } = require("../utils/platformAdminAuth");
+const { SESSION_REPLACED_MESSAGE } = require("../utils/authTokens");
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -57,17 +58,18 @@ const authMiddleware = async (req, res, next) => {
       ? String(user.schoolId)
       : null;
 
-    if (decoded.sessionId && (!user.activeSession?.sessionId || user.activeSession.sessionId !== decoded.sessionId)) {
+    const activeSession = user.activeSession;
+    if (!activeSession?.sessionId || !decoded.sessionId || decoded.sessionId !== activeSession.sessionId) {
       return res.status(401).json({
         code: "SESSION_REPLACED",
-        message: "Your session was ended because your account was signed in from another device or browser.",
+        message: SESSION_REPLACED_MESSAGE,
       });
     }
 
-    if (user.activeSession?.expiresAt && new Date(user.activeSession.expiresAt).getTime() <= Date.now()) {
+    if (activeSession.expiresAt && new Date(activeSession.expiresAt).getTime() <= Date.now()) {
       return res.status(401).json({
         code: "SESSION_EXPIRED",
-        message: "Your session has expired. Please log in again.",
+        message: "Your session has expired. Please sign in again.",
       });
     }
 

@@ -1,7 +1,9 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../config";
 import HelpInfo from "../components/HelpInfo";
+import { authFetch } from "../services/apiClient";
 
 export default function ParentAttendance() {
   const [records, setRecords] = useState([]);
@@ -14,8 +16,8 @@ export default function ParentAttendance() {
   useEffect(() => {
     const fetchParentInfo = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        const token = localStorage.getItem("token");
+        const user = getStoredUser();
+        const token = getAuthToken();
         if (!user || !user.refId) return;
 
         const authHeaders = { Authorization: `Bearer ${token}` };
@@ -40,10 +42,7 @@ export default function ParentAttendance() {
       if (!selectedChildId) return;
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${config.API_BASE_URL}/attendance/student/${selectedChildId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await authFetch(`${config.API_BASE_URL}/attendance/student/${selectedChildId}`);
         if (!res.ok) throw new Error("Failed to fetch child's attendance");
         const data = await res.json();
         const apiRecords = Array.isArray(data) ? data : data.records || data.data || [];

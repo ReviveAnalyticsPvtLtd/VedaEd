@@ -1,3 +1,4 @@
+import { getStoredUser, setStoredUser } from "../../utils/authStorage";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import config from "../../config";
@@ -92,7 +93,7 @@ export default function StudentProfileSettingsAccount() {
       // Check stored user in localStorage as supplement or fallback
       let storedUser = null;
       try {
-        storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        storedUser = (getStoredUser() || {});
       } catch {}
 
       let studentDetails = null;
@@ -205,13 +206,13 @@ export default function StudentProfileSettingsAccount() {
       setImage(newImagePath);
 
       try {
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const storedUser = (getStoredUser() || {});
         const updatedUser = {
           ...storedUser,
           profilePicture: newImagePath,
           image: newImagePath,
         };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setStoredUser(updatedUser);
         window.dispatchEvent(new Event("storage"));
       } catch (storageErr) {
         console.warn("Failed to update user in localStorage:", storageErr);
@@ -242,14 +243,14 @@ export default function StudentProfileSettingsAccount() {
       });
 
       try {
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const storedUser = (getStoredUser() || {});
         const updatedUser = {
           ...storedUser,
           name: formData.fullName || storedUser.name,
           email: formData.email || storedUser.email,
           ...(response?.user || {}),
         };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setStoredUser(updatedUser);
         window.dispatchEvent(new Event("storage"));
       } catch (storageErr) {
         console.warn("Failed to update user in localStorage:", storageErr);

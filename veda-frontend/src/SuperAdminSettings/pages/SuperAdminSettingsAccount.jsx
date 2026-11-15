@@ -1,3 +1,4 @@
+import { getStoredUser, setStoredUser } from "../../utils/authStorage";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import config from "../../config";
@@ -154,14 +155,14 @@ export default function SuperAdminSettingsAccount() {
 
       // Update localStorage user record if name or email changed
       try {
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const storedUser = (getStoredUser() || {});
         const updatedUser = {
           ...storedUser,
           name: formData.fullName || storedUser.name,
           email: formData.email || storedUser.email,
           ...(response?.user || {}),
         };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setStoredUser(updatedUser);
       } catch (storageErr) {
         console.error("Failed to update user in localStorage:", storageErr);
       }

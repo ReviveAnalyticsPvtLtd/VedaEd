@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useMemo, useState, useEffect } from "react";
 
 import * as calendarAPI from "../services/calendarAPI";
@@ -33,7 +34,7 @@ export default function StudentAnnualCalendar() {
   const [loading, setLoading] = useState(true);
  
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = (getStoredUser() || {});
   const studentClass = user.class || "All"; // Fallback to All if not set
 
   useEffect(() => {

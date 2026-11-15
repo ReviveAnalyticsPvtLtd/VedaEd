@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { FiSearch, FiTrash2, FiUser } from "react-icons/fi";
 import CommunicationAPI from "../communicationAPI";
@@ -36,7 +37,7 @@ export default function Individual({ templates = [] }) {
   const [parents, setParents] = useState([]);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     setCurrentUser(user);
   }, []);
 

@@ -1,3 +1,4 @@
+import { getAuthToken } from "../utils/authStorage";
 import { useParams, useNavigate } from "react-router-dom";
 import useParentFeeData from "./useParentFeeData";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ export default function ParentFeesPaymentDetails() {
     let active = true;
     const load = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const res = await axios.get(`${config.API_BASE_URL}/fees/collect/receipt/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });

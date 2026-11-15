@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiHome,
@@ -30,7 +31,7 @@ export default function StudentSidebar({
 
   const currentUser = (() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || {};
+      return getStoredUser() || {};
     } catch {
       return {};
     }

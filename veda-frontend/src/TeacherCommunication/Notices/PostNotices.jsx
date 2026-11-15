@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../../utils/authStorage";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommunicationAPI from "../communicationAPI";
@@ -7,7 +8,7 @@ export default function PostNotices() {
 
   // Load current user author id from localStorage
   let currentUserId = null;
-  const storedUser = localStorage.getItem("user");
+  const storedUser = getStoredUserJSON();
   if (storedUser) {
     try {
       const u = JSON.parse(storedUser);

@@ -1,3 +1,5 @@
+import { getStoredPlatformPermissions as readStoredPlatformPermissions } from "../utils/authStorage";
+
 const MODULE_PERMISSION_KEYS = {
   "Admin SIS": ["sis", "students"],
   Communication: ["communication"],
@@ -10,12 +12,8 @@ const MODULE_PERMISSION_KEYS = {
 };
 
 export const getStoredPlatformPermissions = () => {
-  try {
-    const raw = localStorage.getItem("platformPermissions");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  const stored = readStoredPlatformPermissions();
+  return Array.isArray(stored) ? stored : [];
 };
 
 export const canViewModule = (moduleName, platformPermissions) => {

@@ -11,8 +11,44 @@ const {
 } = require("./platformAdminAuth");
 
 const ACCESS_TOKEN_EXPIRY = "7d";
+const ACCESS_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 const REFRESH_BCRYPT_ROUNDS = 10;
+
+const SESSION_REPLACED_MESSAGE =
+  "Your account has been logged in from another device. Please sign in again.";
+
+const createSessionId = () =>
+  crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+
+const startActiveSession = async (user, { device = null, ip = null } = {}) => {
+  const now = new Date();
+  const sessionId = createSessionId();
+  const expiresAt = new Date(now.getTime() + ACCESS_TOKEN_EXPIRY_MS);
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        lastLogin: now,
+        activeSession: {
+          sessionId,
+          createdAt: now,
+          expiresAt,
+          device,
+          ip,
+        },
+      },
+    }
+  );
+
+  await RefreshToken.updateMany(
+    { userId: user._id, revokedAt: null },
+    { $set: { revokedAt: now } }
+  );
+
+  return { sessionId, createdAt: now, expiresAt, device, ip };
+};
 
 const buildAccessToken = (user, sessionId) =>
   jwt.sign(
@@ -56,32 +92,12 @@ const buildAuthResponse = async (user) => {
     permissions = flattenPlatformPermissions(platformPermissions);
   }
 
-  const sessionId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
-  const token = buildAccessToken(user, sessionId);
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
-  try {
-    await User.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          lastLogin: new Date(),
-          activeSession: {
-            sessionId,
-            token,
-            createdAt: new Date(),
-            expiresAt,
-          },
-        },
-      }
-    );
-  } catch (err) {
-    console.error("Failed to update activeSession in buildAuthResponse:", err);
-  }
+  const session = await startActiveSession(user);
+  const token = buildAccessToken(user, session.sessionId);
 
   return {
     token,
+    sessionId: session.sessionId,
     role: roleName,
     permissions,
     platformPermissions,
@@ -97,7 +113,21 @@ const buildAuthResponse = async (user) => {
   };
 };
 
-const issueRefreshToken = async (userId) => {
+const issueRefreshToken = async (userId, sessionId) => {
+  if (!userId) {
+    const error = new Error("A user is required to issue a refresh token");
+    error.statusCode = 500;
+    error.code = "REFRESH_TOKEN_USER_REQUIRED";
+    throw error;
+  }
+
+  if (!sessionId) {
+    const error = new Error("An active session is required to issue a refresh token");
+    error.statusCode = 500;
+    error.code = "REFRESH_TOKEN_SESSION_REQUIRED";
+    throw error;
+  }
+
   const plainToken = crypto.randomBytes(48).toString("hex");
   const tokenHash = await bcrypt.hash(plainToken, REFRESH_BCRYPT_ROUNDS);
   const expiresAt = new Date();
@@ -105,6 +135,7 @@ const issueRefreshToken = async (userId) => {
 
   const doc = await RefreshToken.create({
     userId,
+    sessionId,
     tokenHash,
     expiresAt,
   });
@@ -131,25 +162,6 @@ const rotateRefreshToken = async (rawRefreshToken) => {
     if (mongoose.isValidObjectId(tokenId)) {
       tokenDoc = await RefreshToken.findById(tokenId);
       secret = plainSecret;
-    }
-  }
-
-  // Fallback for legacy plain refresh tokens without tokenId prefix
-  if (!tokenDoc || !secret) {
-    const candidates = await RefreshToken.find({
-      revokedAt: null,
-      expiresAt: { $gt: new Date() },
-    })
-      .sort({ createdAt: -1 })
-      .limit(50);
-
-    for (const candidate of candidates) {
-      const match = await bcrypt.compare(rawRefreshToken, candidate.tokenHash);
-      if (match) {
-        tokenDoc = candidate;
-        secret = rawRefreshToken;
-        break;
-      }
     }
   }
 
@@ -182,16 +194,19 @@ const rotateRefreshToken = async (rawRefreshToken) => {
     throw error;
   }
 
-  // Revoke the old refresh token (Token Rotation)
-  tokenDoc.revokedAt = new Date();
-  await tokenDoc.save();
-
   // Load the user
   const user = await User.findById(tokenDoc.userId).populate("roleId");
   if (!user) {
     const error = new Error("User not found");
     error.statusCode = 401;
     error.code = "USER_NOT_FOUND";
+    throw error;
+  }
+
+  if (!tokenDoc.userId || String(tokenDoc.userId) !== String(user._id)) {
+    const error = new Error("Invalid refresh token");
+    error.statusCode = 401;
+    error.code = "INVALID_REFRESH_TOKEN";
     throw error;
   }
 
@@ -202,32 +217,63 @@ const rotateRefreshToken = async (rawRefreshToken) => {
     throw error;
   }
 
-  // Issue new access token and new refresh token
-  const sessionId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
-  const newAccessToken = buildAccessToken(user, sessionId);
-  const newRefresh = await issueRefreshToken(user._id);
+  const activeSession = user.activeSession;
+  if (
+    !activeSession?.sessionId ||
+    !tokenDoc.sessionId ||
+    tokenDoc.sessionId !== activeSession.sessionId
+  ) {
+    await RefreshToken.updateOne(
+      { _id: tokenDoc._id, revokedAt: null },
+      { $set: { revokedAt: new Date() } }
+    );
 
-  // Update user's active session
-  const accessExpiresAt = new Date();
-  accessExpiresAt.setDate(accessExpiresAt.getDate() + 7);
+    const error = new Error(SESSION_REPLACED_MESSAGE);
+    error.statusCode = 401;
+    error.code = "SESSION_REPLACED";
+    throw error;
+  }
+
+  if (
+    activeSession.expiresAt &&
+    new Date(activeSession.expiresAt).getTime() <= Date.now()
+  ) {
+    await RefreshToken.updateOne(
+      { _id: tokenDoc._id, revokedAt: null },
+      { $set: { revokedAt: new Date() } }
+    );
+
+    const error = new Error("Your session has expired. Please sign in again.");
+    error.statusCode = 401;
+    error.code = "SESSION_EXPIRED";
+    throw error;
+  }
+
+  const newAccessToken = buildAccessToken(user, activeSession.sessionId);
+
+  const revoked = await RefreshToken.findOneAndUpdate(
+    { _id: tokenDoc._id, revokedAt: null },
+    { $set: { revokedAt: new Date() } },
+    { new: true }
+  );
+
+  if (!revoked) {
+    const error = new Error("Refresh token has been revoked");
+    error.statusCode = 401;
+    error.code = "REVOKED_REFRESH_TOKEN";
+    throw error;
+  }
+
+  const newRefresh = await issueRefreshToken(user._id, activeSession.sessionId);
 
   await User.updateOne(
     { _id: user._id },
-    {
-      $set: {
-        lastLogin: new Date(),
-        activeSession: {
-          sessionId,
-          token: newAccessToken,
-          createdAt: new Date(),
-          expiresAt: accessExpiresAt,
-        },
-      },
-    }
+    { $set: { lastLogin: new Date() } }
   );
 
   return {
     token: newAccessToken,
+    sessionId: activeSession.sessionId,
     refreshToken: newRefresh.refreshToken,
     refreshTokenExpiresAt: newRefresh.refreshTokenExpiresAt,
     user: {
@@ -243,7 +289,7 @@ const rotateRefreshToken = async (rawRefreshToken) => {
 
 const buildFullAuthSession = async (user) => {
   const authPayload = await buildAuthResponse(user);
-  const refresh = await issueRefreshToken(user._id);
+  const refresh = await issueRefreshToken(user._id, authPayload.sessionId);
   return { ...authPayload, ...refresh };
 };
 
@@ -253,4 +299,6 @@ module.exports = {
   buildFullAuthSession,
   issueRefreshToken,
   rotateRefreshToken,
+  startActiveSession,
+  SESSION_REPLACED_MESSAGE,
 };

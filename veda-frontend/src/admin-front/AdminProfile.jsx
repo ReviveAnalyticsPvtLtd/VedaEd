@@ -1,10 +1,11 @@
+import { getStoredUser } from "../utils/authStorage";
 import { useState } from "react";
 import { PASSWORD_MIN_LENGTH, validatePasswordFields } from "../superadmin-front/identity-access/constants";
 import { authAPI } from "../services/authAPI";
 import { toastBannerClassName } from "../utils/toastMessageStyle";
 
 export default function AdminProfile() {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = (getStoredUser() || {});
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

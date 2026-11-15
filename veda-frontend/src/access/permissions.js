@@ -5,6 +5,8 @@
  * with system RolePermission entries and role hierarchies.
  */
 
+import { authStorage } from "../utils/authStorage";
+
 // Mapping of module names/aliases to canonical keys
 export const MODULE_KEY_MAP = {
   "admin sis": "sis",
@@ -54,27 +56,17 @@ export function normalizeModuleKey(name) {
 }
 
 /**
- * Safely reads stored platform permissions from localStorage.
+ * Safely reads stored platform permissions from this tab's authentication.
  */
 export function getStoredPlatformPermissions() {
-  try {
-    const raw = localStorage.getItem("platformPermissions");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return authStorage.getStoredPlatformPermissions();
 }
 
 /**
- * Safely reads stored discrete permissions from localStorage.
+ * Safely reads stored discrete permissions from this tab's authentication.
  */
 export function getStoredPermissions() {
-  try {
-    const raw = localStorage.getItem("permissions");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return authStorage.getStoredPermissions();
 }
 
 /**

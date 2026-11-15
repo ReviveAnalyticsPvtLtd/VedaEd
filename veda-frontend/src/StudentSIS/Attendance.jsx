@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import api from "../services/apiClient";
 import config from "../config";
@@ -9,7 +10,7 @@ export default function StudentAttendance() {
   const [filterDate, setFilterDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = getStoredUser();
   const studentId = user?.refId || ""; 
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,9 +23,7 @@ export default function TeacherCalendarSidebar({
   // =========================
   // CURRENT USER
   // =========================
-  const currentUser = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
+  const currentUser = (getStoredUser() || {});
 
   const userName =
     currentUser?.name ||

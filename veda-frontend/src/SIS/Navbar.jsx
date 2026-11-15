@@ -2,24 +2,18 @@ import { FiBell, FiSettings, FiHome, FiLogOut } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { clearAuthSession } from "../utils/authSession";
+import { getAuthRole } from "../utils/authStorage";
 
 export default function Navbar({ searchQuery, setSearchQuery }) {
   const navigate = useNavigate();
   const [role, setRole] = useState(null);
 
   useEffect(() => {
-    // Read both possible keys so the role badge always shows
-    const savedRole =
-      localStorage.getItem("role") || localStorage.getItem("veda_role");
-
-
-      
-    setRole(savedRole);
+    setRole(getAuthRole());
   }, []);
 
   const handleHome = () => {
-    const r =
-      localStorage.getItem("role") || localStorage.getItem("veda_role");
+    const r = getAuthRole();
     if (!r) { navigate("/"); return; }
     if (r === "superadmin") navigate("/superadmin-front/dashboard");
     else if (r === "admin")   navigate("/admin-front");
@@ -31,7 +25,6 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
 
   const handleLogout = async () => {
     await clearAuthSession();
-    localStorage.removeItem("veda_role");
     navigate("/");
   };
 
