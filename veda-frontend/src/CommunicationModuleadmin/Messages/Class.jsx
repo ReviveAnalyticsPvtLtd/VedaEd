@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSend } from "react-icons/fi";
@@ -39,7 +40,7 @@ export default function Class() {
 
   // Load user profile & classes
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     setCurrentUser(user);
 
     const loadClasses = async () => {

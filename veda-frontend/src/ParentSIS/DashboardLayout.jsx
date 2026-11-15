@@ -1,3 +1,4 @@
+import { getStoredUserJSON, setStoredUser } from "../utils/authStorage";
 import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import ParentSidebar from "./Sidebar";
@@ -12,7 +13,7 @@ export default function ParentDashboardLayout() {
   // DEV: Auto-login as first parent if no user found
   useEffect(() => {
     const checkUser = async () => {
-      const stored = localStorage.getItem("user");
+      const stored = getStoredUserJSON();
       if (!stored) {
         try {
           const parentsResponse = await parentAPI.getAllParents();
@@ -25,7 +26,7 @@ export default function ParentDashboardLayout() {
               name: firstParent.name,
               email: firstParent.email
             };
-            localStorage.setItem("user", JSON.stringify(userObj));
+            setStoredUser(userObj);
             console.log("DEV: Auto-logged in as parent", userObj.name);
           }
         } catch (e) {

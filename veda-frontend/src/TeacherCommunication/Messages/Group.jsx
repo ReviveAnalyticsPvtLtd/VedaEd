@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import CommunicationAPI from "../communicationAPI";
 import { studentAPI } from "../../services/studentAPI";
@@ -21,7 +22,7 @@ export default function Group({ templates = [] }) {
   });
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     setCurrentUser(user);
   }, []);
 

@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../utils/authStorage";
 import { useMemo, useState, useEffect } from "react";
 import {
   FiAlertTriangle,
@@ -55,7 +56,7 @@ export default function ParentComplaints() {
 
   // Load User
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = getStoredUserJSON();
     if (storedUser) {
         try {
             setUser(JSON.parse(storedUser));

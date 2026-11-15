@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../config";
@@ -37,41 +38,6 @@ function formatTime(value) {
   return String(value).slice(0, 5);
 }
 
-// Newer deployments keep auth in sessionStorage under prefixed keys, while
-// older ones still use plain localStorage. Read both so a signed-in parent is
-// not falsely treated as logged out when the active session uses the newer
-// storage format.
-const readStoredUser = () => {
-  try {
-    const sessionUser = sessionStorage.getItem("veda_auth_user");
-    if (sessionUser) return JSON.parse(sessionUser);
-  } catch (_) {
-    // Ignore malformed session data and try the legacy key.
-  }
-
-  try {
-    const legacyUser = localStorage.getItem("user");
-    return legacyUser ? JSON.parse(legacyUser) : null;
-  } catch (_) {
-    return null;
-  }
-};
-
-const readAuthToken = () => {
-  try {
-    const sessionToken = sessionStorage.getItem("veda_auth_token");
-    if (sessionToken) return sessionToken;
-  } catch (_) {
-    // Fall through to the legacy key.
-  }
-
-  try {
-    return localStorage.getItem("token");
-  } catch (_) {
-    return null;
-  }
-};
-
 export default function ParentClasses() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -85,8 +51,8 @@ export default function ParentClasses() {
 
     const load = async () => {
       try {
-        const user = readStoredUser();
-        const token = readAuthToken();
+        const user = getStoredUser();
+        const token = getAuthToken();
         if (!user || !user.refId || !token) {
           if (active) {
             setError("You need to be logged in to view classes.");

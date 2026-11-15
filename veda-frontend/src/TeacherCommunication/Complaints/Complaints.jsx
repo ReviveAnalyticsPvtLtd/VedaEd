@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../../utils/authStorage";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import HelpInfo from "../../components/HelpInfo";
 import { FiSearch, FiPaperclip } from "react-icons/fi";
@@ -17,7 +18,7 @@ export default function TeacherComplaints() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
+    const stored = getStoredUserJSON();
     if (stored) {
       try {
         const u = JSON.parse(stored);

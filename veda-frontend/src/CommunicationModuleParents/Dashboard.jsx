@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
@@ -31,7 +32,7 @@ export default function CommunicationParentDashboard() {
 
   useEffect(() => {
     let active = true;
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const userId = user?.refId || user?._id;
     if (!userId) {
       setLoading(false);

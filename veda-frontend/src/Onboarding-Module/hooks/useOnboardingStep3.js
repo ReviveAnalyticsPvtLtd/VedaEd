@@ -1,3 +1,4 @@
+import { getStoredUserJSON, setStoredUser } from "../../utils/authStorage";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -167,12 +168,12 @@ export function useOnboardingStep3() {
       clearDraft();
 
       try {
-        const storedUser = localStorage.getItem("user");
+        const storedUser = getStoredUserJSON();
         if (storedUser) {
           const user = JSON.parse(storedUser);
           user.name = payload.fullName;
           user.email = payload.email;
-          localStorage.setItem("user", JSON.stringify(user));
+          setStoredUser(user);
         }
       } catch {
         // ignore local session update errors

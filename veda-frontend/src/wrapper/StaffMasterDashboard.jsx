@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import api from "../services/apiClient";
 import {
@@ -19,7 +20,7 @@ export default function StaffMasterDashboard() {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const staffId = user?.refId || user?._id;
 
         const requests = [];

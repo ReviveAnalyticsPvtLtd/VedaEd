@@ -1,93 +1,90 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { isTokenExpired, terminateSession } from "../services/apiClient";
+import {
+  AUTH_CHANGED_EVENT,
+  clearAuthStorage,
+  ensureTabOwnership,
+  getAuthRole,
+  getAuthSessionId,
+  getAuthSnapshot,
+  getAuthToken,
+  getAuthUserId,
+  getStoredPermissions,
+  getStoredPlatformPermissions,
+  getStoredUser,
+  migrateLegacyAuthStorage,
+  setAuthFlashMessage,
+  setAuthSession,
+  UNVERIFIABLE_SESSION_MESSAGE,
+} from "../utils/authStorage";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("token"));
-  const [role, setRole] = useState(() => localStorage.getItem("role"));
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [permissions, setPermissions] = useState(() => {
-    try {
-      const stored = localStorage.getItem("permissions");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [platformPermissions, setPlatformPermissions] = useState(() => {
-    try {
-      const stored = localStorage.getItem("platformPermissions");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [token, setToken] = useState(() => getAuthToken());
+  const [role, setRole] = useState(() => getAuthRole());
+  const [user, setUser] = useState(() => getStoredUser());
+  const [permissions, setPermissions] = useState(() => getStoredPermissions());
+  const [platformPermissions, setPlatformPermissions] = useState(() =>
+    getStoredPlatformPermissions()
+  );
+  const [sessionId, setSessionId] = useState(() => getAuthSessionId());
+  const [userIdState, setUserIdState] = useState(() => getAuthUserId());
+  const [authReady, setAuthReady] = useState(false);
 
-  // Sync state with localStorage if changes occur
-  const syncFromStorage = useCallback(() => {
-    const currentToken = localStorage.getItem("token");
-    setToken(currentToken);
-    setRole(localStorage.getItem("role"));
-
-    try {
-      const u = localStorage.getItem("user");
-      setUser(u ? JSON.parse(u) : null);
-    } catch {
-      setUser(null);
-    }
-
-    try {
-      const p = localStorage.getItem("permissions");
-      setPermissions(p ? JSON.parse(p) : []);
-    } catch {
-      setPermissions([]);
-    }
-
-    try {
-      const pp = localStorage.getItem("platformPermissions");
-      setPlatformPermissions(pp ? JSON.parse(pp) : null);
-    } catch {
-      setPlatformPermissions(null);
-    }
+  const syncFromTabStorage = useCallback(() => {
+    const snapshot = getAuthSnapshot();
+    setToken(snapshot.token);
+    setRole(snapshot.role);
+    setUser(snapshot.user);
+    setPermissions(snapshot.permissions || []);
+    setPlatformPermissions(snapshot.platformPermissions);
+    setSessionId(snapshot.sessionId);
+    setUserIdState(snapshot.userId);
   }, []);
 
   useEffect(() => {
-    window.addEventListener("storage", syncFromStorage);
-    return () => window.removeEventListener("storage", syncFromStorage);
-  }, [syncFromStorage]);
+    // Legacy global auth keys are removed once; they are never read again.
+    migrateLegacyAuthStorage();
+
+    let cancelled = false;
+
+    ensureTabOwnership()
+      .then((owned) => {
+        if (cancelled) return;
+        if (!owned) {
+          syncFromTabStorage();
+        }
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearAuthStorage();
+        setAuthFlashMessage(UNVERIFIABLE_SESSION_MESSAGE);
+        syncFromTabStorage();
+        setAuthReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [syncFromTabStorage]);
+
+  useEffect(() => {
+    window.addEventListener(AUTH_CHANGED_EVENT, syncFromTabStorage);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, syncFromTabStorage);
+  }, [syncFromTabStorage]);
 
   const login = useCallback((authData) => {
-    const { token: newToken, refreshToken, role: newRole, permissions: newPerms, platformPermissions: newPlatformPerms, user: newUser } = authData;
+    const snapshot = setAuthSession(authData);
 
-    localStorage.setItem("token", newToken);
-    if (refreshToken) {
-      localStorage.setItem("refreshToken", refreshToken);
-    } else {
-      localStorage.removeItem("refreshToken");
-    }
-    localStorage.setItem("role", newRole);
-    localStorage.setItem("permissions", JSON.stringify(newPerms || []));
-    localStorage.setItem("user", JSON.stringify(newUser));
-
-    if (newRole === "admin" && newPlatformPerms) {
-      localStorage.setItem("platformPermissions", JSON.stringify(newPlatformPerms));
-    } else {
-      localStorage.removeItem("platformPermissions");
-    }
-
-    setToken(newToken);
-    setRole(newRole);
-    setUser(newUser);
-    setPermissions(newPerms || []);
-    setPlatformPermissions(newPlatformPerms || null);
+    setToken(snapshot.token);
+    setRole(snapshot.role);
+    setUser(snapshot.user);
+    setPermissions(snapshot.permissions || []);
+    setPlatformPermissions(snapshot.platformPermissions);
+    setSessionId(snapshot.sessionId);
+    setUserIdState(snapshot.userId);
   }, []);
 
   const logout = useCallback((message) => {
@@ -97,6 +94,8 @@ export function AuthProvider({ children }) {
     setUser(null);
     setPermissions([]);
     setPlatformPermissions(null);
+    setSessionId(null);
+    setUserIdState(null);
   }, []);
 
   const isAuthenticated = Boolean(token && !isTokenExpired(token));
@@ -107,12 +106,15 @@ export function AuthProvider({ children }) {
     user,
     permissions,
     platformPermissions,
+    sessionId,
+    userId: userIdState,
     isAuthenticated,
+    authReady,
     isSuperAdmin: role === "superadmin",
     isAdmin: role === "admin",
     login,
     logout,
-    syncFromStorage,
+    syncFromStorage: syncFromTabStorage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -121,30 +123,18 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    // Provide a safe fallback reading directly from localStorage if called outside provider
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    let user = null;
-    let permissions = [];
-    let platformPermissions = null;
-
-    try {
-      user = JSON.parse(localStorage.getItem("user") || "null");
-      permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
-      platformPermissions = JSON.parse(localStorage.getItem("platformPermissions") || "null");
-    } catch {}
-
+    const snapshot = getAuthSnapshot();
     return {
-      token,
-      role,
-      user,
-      permissions,
-      platformPermissions,
-      isAuthenticated: Boolean(token && !isTokenExpired(token)),
-      isSuperAdmin: role === "superadmin",
-      isAdmin: role === "admin",
+      ...snapshot,
+      isAuthenticated: Boolean(snapshot.token && !isTokenExpired(snapshot.token)),
+      authReady: true,
+      isSuperAdmin: snapshot.role === "superadmin",
+      isAdmin: snapshot.role === "admin",
       login: () => {},
-      logout: terminateSession,
+      logout: () => {
+        clearAuthStorage();
+        terminateSession();
+      },
       syncFromStorage: () => {},
     };
   }
@@ -152,4 +142,3 @@ export function useAuth() {
 }
 
 export default AuthContext;
-

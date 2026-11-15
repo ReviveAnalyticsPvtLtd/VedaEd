@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { FiMail, FiCalendar, FiUser, FiDownload } from "react-icons/fi";
 import CommunicationAPI from "../../services/communicationAPI";
@@ -9,7 +10,7 @@ const [notices, setNotices] = useState([]);
 const [user, setUser] = useState(null);
 
 useEffect(() => {
-  const storedUser = localStorage.getItem("user");
+  const storedUser = getStoredUserJSON();
   if (storedUser) {
     try {
       setUser(JSON.parse(storedUser));

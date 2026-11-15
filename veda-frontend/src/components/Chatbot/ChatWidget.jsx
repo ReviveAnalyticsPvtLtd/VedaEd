@@ -3,6 +3,7 @@ import { FiMessageSquare, FiSend, FiX, FiMinimize2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import chatbotAPI from "../../services/chatbotAPI";
 import VedaMascot from "./VedaMascot";
+import { getAuthRole, getStoredUser } from "../../utils/authStorage";
 
 const RESIZE_MIN_W = 340;
 const RESIZE_MIN_H = 420;
@@ -370,8 +371,8 @@ const ChatWidget = () => {
     if (isOpen) {
       const initChat = async () => {
         try {
-          const user = JSON.parse(localStorage.getItem("user") || "{}");
-          const role = localStorage.getItem("role") || "guest";
+          const user = getStoredUser() || {};
+          const role = getAuthRole() || "guest";
           const userName = user?.personalInfo?.name || user?.name || "User";
 
           const response = await chatbotAPI.ask(
@@ -440,8 +441,8 @@ const ChatWidget = () => {
     setMascotState("thinking");
 
     try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const role = localStorage.getItem("role") || "guest";
+      const user = getStoredUser() || {};
+      const role = getAuthRole() || "guest";
       const userName = user?.personalInfo?.name || user?.name || "User";
 
       // Map conversation history

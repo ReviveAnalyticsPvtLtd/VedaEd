@@ -1,3 +1,4 @@
+import { getAuthToken } from "../utils/authStorage";
 import { useState } from "react";
 import { FiSearch, FiEye, FiDownload } from "react-icons/fi";
 import useParentFeeData from "./useParentFeeData";
@@ -40,7 +41,7 @@ export default function PaymentHistory() {
 
   const downloadReceipt = async (txn) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const res = await axios.get(`${config.API_BASE_URL}/fees/collect/receipt/${txn.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
