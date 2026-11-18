@@ -176,22 +176,29 @@ exports.getClasses = async (req, res) => {
 
     // Teachers only get the class/section pairs they are assigned to, so their
     // dropdown matches exactly the roster GET /api/students returns for them.
-    // Other roles keep the full school list.
+    // Other roles keep the full school list. If scope=all or all=true, or if
+    // the teacher has no assigned pairs yet, fall back to the full school list.
     let scopedClasses = sortedClasses;
-    if (req.user?.role === "teacher") {
+    if (req.user?.role === "teacher" && req.query.scope !== "all" && req.query.all !== "true") {
       const { pairs } = await getTeacherRosterScope(req.user.refId, schoolId);
-      const allowedPairs = new Set(
-        pairs.map((pair) => `${pair.class}:${pair.section}`)
-      );
+      if (pairs.length > 0) {
+        const allowedPairs = new Set(
+          pairs.map((pair) => `${pair.class}:${pair.section}`)
+        );
 
-      scopedClasses = sortedClasses
-        .map((cls) => ({
-          ...cls,
-          sections: (cls.sections || []).filter((sec) =>
-            allowedPairs.has(`${cls._id}:${sec._id}`)
-          ),
-        }))
-        .filter((cls) => cls.sections.length > 0);
+        const filtered = sortedClasses
+          .map((cls) => ({
+            ...cls,
+            sections: (cls.sections || []).filter((sec) =>
+              allowedPairs.has(`${cls._id}:${sec._id}`)
+            ),
+          }))
+          .filter((cls) => cls.sections.length > 0);
+
+        if (filtered.length > 0) {
+          scopedClasses = filtered;
+        }
+      }
     }
 
     res.status(200).json({

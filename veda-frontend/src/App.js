@@ -624,6 +624,7 @@ function App() {
           <Route path="/admin-front" element={<AdminShellLayout />}>
             <Route index element={<AdminMainDashboard />} />
             <Route path="integrations" element={<IntegrationsHub />} />
+            <Route path="account" element={<Navigate to="/admin-front/settings/account" replace />} />
          
              {/* SETTINGS MODULE */}
     <Route

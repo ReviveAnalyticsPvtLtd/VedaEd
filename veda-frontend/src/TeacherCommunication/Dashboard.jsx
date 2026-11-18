@@ -78,12 +78,14 @@ export default function TeacherCommunicationDashboard() {
         const [
           messagesRes,
           sentRes,
+          notifsRes,
           complaintsRes,
           noticesRes,
           logsRes,
         ] = await Promise.all([
           CommunicationAPI.getMessages(teacherId, "Teacher"),
           CommunicationAPI.getSentMessages(teacherId, "Teacher"),
+          CommunicationAPI.getReceivedNotifications(teacherId, "Teacher").catch(() => ({ data: [] })),
           CommunicationAPI.getUserComplaints(teacherId, "Teacher"),
           CommunicationAPI.getNotices(),
           CommunicationAPI.getUserLogs(teacherId, "Teacher"),
@@ -93,11 +95,12 @@ export default function TeacherCommunicationDashboard() {
 
         const messages = messagesRes?.data || [];
         const sentMessages = sentRes?.data || [];
+        const notifs = notifsRes?.data || [];
         const complaints = complaintsRes?.data || [];
         const notices = noticesRes?.data || [];
         const logs = logsRes?.data || [];
 
-        const totalMessages = messages.length + sentMessages.length;
+        const totalMessages = messages.length + sentMessages.length + notifs.length;
         const totalComplaints = complaints.length;
         const totalNotices = notices.length;
         const parentsContacted = logs.filter(

@@ -29,7 +29,8 @@ export default function Class({ templates = [] }) {
     classAPI
       .getAllClasses()
       .then((res) => {
-        if (res?.success) setClassList(res.data || []);
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setClassList(list);
       })
       .catch((err) => console.error("Failed to load classes:", err));
   }, []);

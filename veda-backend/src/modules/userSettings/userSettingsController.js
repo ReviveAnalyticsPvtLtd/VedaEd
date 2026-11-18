@@ -1,11 +1,30 @@
 const UserSettings = require('./userSettingsModel');
 const User = require('../../models/User');
+const Role = require('../../models/Role');
 const Staff = require('../staff/staffModels');
 const Parent = require('../parents/parentModel');
 const Student = require('../student/studentModels');
 const AdmissionApplication = require('../admission/admissionApplicationModel');
+const Class = require('../class/classSchema');
+const Section = require('../section/sectionSchema');
+const PlatformAdmin = require('../../models/PlatformAdmin');
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
+
+const formatRoleName = (role) => {
+  if (!role) return 'User';
+  const rLower = String(role).trim().toLowerCase();
+  if (rLower === 'superadmin' || rLower === 'super administrator') return 'Super Administrator';
+  if (rLower === 'admin' || rLower === 'administrator') return 'Administrator';
+  if (rLower === 'student') return 'Student';
+  if (rLower === 'parent') return 'Parent';
+  if (rLower === 'teacher') return 'Teacher';
+  if (rLower === 'staff') return 'Teacher';
+  if (rLower === 'hr') return 'HR';
+  if (rLower === 'receptionist') return 'Receptionist';
+  if (rLower === 'admission') return 'Admission Officer';
+  return role.charAt(0).toUpperCase() + role.slice(1);
+};
 
 // Get user settings
 exports.getUserSettings = async (req, res) => {
@@ -207,13 +226,29 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
-    let roleName = user.roleId?.name || req.user?.role || 'User';
-    const rLower = String(roleName).toLowerCase();
-    if (rLower === 'superadmin' || rLower === 'super administrator') roleName = 'Super Administrator';
-    else if (rLower === 'admin' || rLower === 'administrator') roleName = 'Administrator';
-    else if (rLower === 'student') roleName = 'Student';
-    else if (rLower === 'parent') roleName = 'Parent';
-    else if (rLower === 'teacher' || rLower === 'staff') roleName = 'Teacher';
+    const rawRole = user.roleId?.name || req.user?.role || 'User';
+    const rLower = String(rawRole).toLowerCase();
+    let roleName = formatRoleName(rawRole);
+
+    if (rLower === 'admin' || rLower === 'superadmin') {
+      const updateData = {};
+      if (fullName !== undefined) updateData.fullName = user.name;
+      if (email !== undefined) updateData.email = user.email;
+      if (mobileVal !== undefined) updateData.phone = user.mobile;
+      if (department !== undefined) updateData.department = user.department;
+      if (employeeId !== undefined) updateData.employeeId = user.employeeId;
+      if (Object.keys(updateData).length > 0) {
+        await PlatformAdmin.updateOne(
+          {
+            $or: [
+              ...(user._id ? [{ userId: user._id }] : []),
+              { email: { $regex: new RegExp(`^${user.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+            ]
+          },
+          { $set: updateData }
+        ).catch(() => {});
+      }
+    }
 
     res.json({
       message: 'Profile updated successfully',
@@ -225,6 +260,7 @@ exports.updateProfile = async (req, res) => {
         mobile: user.mobile || user.phone || '',
         department: user.department || '',
         employeeId: user.employeeId || '',
+        adminId: user.employeeId || '',
         role: roleName,
         profilePicture: user.profilePicture || '',
         image: user.profilePicture || ''
@@ -250,13 +286,9 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    let roleName = user.roleId?.name || req.user?.role || 'User';
-    const rLower = String(roleName).toLowerCase();
-    if (rLower === 'superadmin' || rLower === 'super administrator') roleName = 'Super Administrator';
-    else if (rLower === 'admin' || rLower === 'administrator') roleName = 'Administrator';
-    else if (rLower === 'student') roleName = 'Student';
-    else if (rLower === 'parent') roleName = 'Parent';
-    else if (rLower === 'teacher' || rLower === 'staff') roleName = 'Teacher';
+    const rawRole = user.roleId?.name || req.user?.role || 'User';
+    const rLower = String(rawRole).toLowerCase();
+    let roleName = formatRoleName(rawRole);
 
     let profileData = {
       fullName: user.name,
@@ -265,6 +297,7 @@ exports.getProfile = async (req, res) => {
       department: user.department || '',
       mobile: user.mobile || user.phone || '',
       employeeId: user.employeeId || '',
+      adminId: user.employeeId || '',
       image: user.profilePicture || '',
       profilePicture: user.profilePicture || '',
       status: user.status || 'active',
@@ -401,6 +434,43 @@ exports.getProfile = async (req, res) => {
           admissionDate: student.personalInfo?.admissionDate || student.createdAt
         };
       }
+    }
+
+    // For admin / superadmin or when employeeId is missing, look up PlatformAdmin
+    if (rLower === 'admin' || rLower === 'superadmin' || !profileData.employeeId) {
+      const platformAdmin = await PlatformAdmin.findOne({
+        $or: [
+          ...(user._id ? [{ userId: user._id }] : []),
+          { email: { $regex: new RegExp(`^${user.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+        ]
+      }).lean();
+
+      if (platformAdmin) {
+        if (platformAdmin.employeeId) {
+          profileData.employeeId = platformAdmin.employeeId;
+          profileData.adminId = platformAdmin.employeeId;
+        }
+        if (platformAdmin.department && !profileData.department) {
+          profileData.department = platformAdmin.department;
+        }
+        if (platformAdmin.phone && !profileData.mobile) {
+          profileData.mobile = platformAdmin.phone;
+        }
+        if (!user.employeeId && platformAdmin.employeeId) {
+          User.updateOne({ _id: user._id }, { $set: { employeeId: platformAdmin.employeeId } }).exec().catch(() => {});
+        }
+      }
+    }
+
+    if ((rLower === 'admin' || rLower === 'superadmin') && !profileData.employeeId) {
+      const year = user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
+      profileData.employeeId = `ADM-${year}-${String(user._id).slice(-4).toUpperCase()}`;
+      profileData.adminId = profileData.employeeId;
+      User.updateOne({ _id: user._id }, { $set: { employeeId: profileData.employeeId } }).exec().catch(() => {});
+    }
+
+    if (!profileData.adminId && profileData.employeeId) {
+      profileData.adminId = profileData.employeeId;
     }
 
     res.json(profileData);

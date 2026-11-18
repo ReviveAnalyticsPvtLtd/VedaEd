@@ -272,6 +272,83 @@ class CommunicationAPI {
     }
   }
 
+  static async updateMessageStatus(messageId, status, userId, userModel) {
+    try {
+      const response = await authFetch(`/communication/messages/${messageId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, userId, userModel })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update message status');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating message status:', error);
+      throw error;
+    }
+  }
+
+  // Notification API methods
+  static async createNotification(notificationData) {
+    try {
+      const response = await authFetch(`/communication/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }
+
+  static async getNotifications(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await authFetch(`/communication/notifications?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notifications');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  }
+
+  static async getReceivedNotifications(userId, userModel, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await authFetch(`/communication/notifications/received/${userId}/${userModel}?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch received notifications');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching received notifications:', error);
+      throw error;
+    }
+  }
+
   // Complaint API methods
   static async createComplaint(complaintData) {
     try {

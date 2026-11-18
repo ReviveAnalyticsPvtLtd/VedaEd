@@ -98,7 +98,7 @@ export default function AppSidebar({
   }, [isSidebarOpen]);
 
   const dashboardPath = isSuper ? "/superadmin-front/dashboard" : "/admin-front";
-  const settingsPath = isSuper ? "/superadmin/settings/account" : "/admin-front/account";
+  const settingsPath = isSuper ? "/superadmin/settings/account" : "/admin-front/settings/account";
 
   return (
     <aside

@@ -96,7 +96,7 @@ export default function Individual({ templates = [] }) {
 
         if (role === "Student") {
           name = item.personalInfo?.fullName || item.personalInfo?.name || "N/A";
-          extra = `Class: ${item.academicInfo?.class || "N/A"}`;
+          extra = `Class: ${item.personalInfo?.class || item.academicInfo?.class || "N/A"}`;
         } else if (role === "Teacher") {
           name = item.personalInfo?.name || item.personalInfo?.fullName || "N/A";
           extra = `Role: ${item.personalInfo?.role || "Teacher"}`;

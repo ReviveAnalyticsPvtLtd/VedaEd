@@ -7,9 +7,11 @@ void config;
 // Student API functions
 export const studentAPI = {
   // Get all students
-  getAllStudents: async () => {
+  getAllStudents: async (params = {}) => {
     try {
-      const response = await authFetch(`/students`, {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = queryParams ? `/students?${queryParams}` : `/students`;
+      const response = await authFetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });

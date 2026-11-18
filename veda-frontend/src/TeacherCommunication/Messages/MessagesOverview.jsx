@@ -41,50 +41,133 @@ export default function MessagesOverview() {
     const fetchMessages = async () => {
       setLoading(true);
       try {
-        const [inboxRes, sentRes] = await Promise.all([
-          CommunicationAPI.getMessages(currentUser.id, currentUser.model),
-          CommunicationAPI.getSentMessages(currentUser.id, currentUser.model),
+        const [inboxRes, sentRes, notifRes] = await Promise.allSettled([
+          CommunicationAPI.getMessages(currentUser.id, currentUser.model, { limit: 100 }),
+          CommunicationAPI.getSentMessages(currentUser.id, currentUser.model, { limit: 100 }),
+          CommunicationAPI.getReceivedNotifications(currentUser.id, currentUser.model, { limit: 100 }),
         ]);
 
         if (!active) return;
 
-        const inbox = (inboxRes?.data || []).map((m) => ({
+        const inboxData = inboxRes.status === "fulfilled" && Array.isArray(inboxRes.value?.data) ? inboxRes.value.data : [];
+        const sentData = sentRes.status === "fulfilled" && Array.isArray(sentRes.value?.data) ? sentRes.value.data : [];
+        const notifData = notifRes.status === "fulfilled" && Array.isArray(notifRes.value?.data) ? notifRes.value.data : [];
+
+        const readKey = `read_notifs_${currentUser.id}`;
+        let readNotifIds = [];
+        try {
+          readNotifIds = JSON.parse(localStorage.getItem(readKey) || "[]");
+        } catch (e) {
+          readNotifIds = [];
+        }
+
+        const formatChannel = (channels) => {
+          if (!channels || (Array.isArray(channels) && channels.length === 0)) return "App";
+          const first = Array.isArray(channels) ? channels[0] : channels;
+          const lower = String(first).toLowerCase();
+          if (lower === "sms") return "SMS";
+          if (lower === "email") return "Email";
+          if (lower === "app") return "App";
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
+
+        const inbox = inboxData.map((m) => ({
           id: m._id,
-          title: m.subject,
-          message: m.content,
-          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel,
-          senderRole: m.senderModel,
-          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiverModel,
-          recipientRole: m.receiverModel,
+          isNotification: false,
+          title: m.subject || "Message",
+          message: m.content || "",
+          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.sender?.name || m.senderModel || "User",
+          senderRole: m.senderModel || "Staff",
+          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiver?.name || m.receiverModel || "Me",
+          recipientRole: m.receiverModel || "Teacher",
           sentDate: m.createdAt,
           messageType: "Individual",
           channel: "App",
+          channels: ["app"],
           isRead: m.status === "read" || m.status === "archived",
-          priority: m.priority,
+          priority: (m.priority || "medium").toLowerCase(),
           class: "",
           direction: "received",
           student: "",
         }));
 
-        const sent = (sentRes?.data || []).map((m) => ({
+        const sent = sentData.map((m) => ({
           id: m._id,
-          title: m.subject,
-          message: m.content,
-          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.senderModel,
-          senderRole: m.senderModel,
-          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiverModel,
-          recipientRole: m.receiverModel,
+          isNotification: false,
+          title: m.subject || "Message",
+          message: m.content || "",
+          sender: m.sender?.personalInfo?.name || m.sender?.personalInfo?.fullName || m.sender?.name || m.senderModel || "Me",
+          senderRole: m.senderModel || "Teacher",
+          recipient: m.receiver?.personalInfo?.name || m.receiver?.personalInfo?.fullName || m.receiver?.name || m.receiverModel || "Recipient",
+          recipientRole: m.receiverModel || "User",
           sentDate: m.createdAt,
           messageType: "Individual",
           channel: "App",
+          channels: ["app"],
           isRead: m.status === "read" || m.status === "archived",
-          priority: m.priority,
+          priority: (m.priority || "medium").toLowerCase(),
           class: "",
           direction: "sent",
           student: "",
         }));
 
-        setMessages([...sent, ...inbox]);
+        const notifs = notifData.map((n) => {
+          let messageType = "Group";
+          if (
+            n.audience === "specific_class" ||
+            n.audience === "specific_section" ||
+            n.specificTargetModel === "Class" ||
+            n.specificTargetModel === "Section"
+          ) {
+            messageType = "Class";
+          } else if (
+            n.specificTargets &&
+            n.specificTargets.length > 0 &&
+            (n.specificTargetModel === "Teacher" ||
+              n.specificTargetModel === "Staff" ||
+              n.specificTargetModel === "Student" ||
+              n.specificTargetModel === "Parent")
+          ) {
+            messageType = "Individual";
+          }
+
+          const primaryChannel = formatChannel(n.channels);
+          const priority =
+            n.type === "Urgent"
+              ? "high"
+              : (n.priority || "medium").toLowerCase();
+
+          return {
+            id: n._id,
+            isNotification: true,
+            title: n.title,
+            message: n.description,
+            sender:
+              n.createdBy?.personalInfo?.name ||
+              n.createdBy?.name ||
+              n.createdByModel ||
+              "Admin",
+            senderRole: n.createdByModel || "Admin",
+            recipient: "Me",
+            recipientRole: "Teacher",
+            sentDate: n.publishDate || n.createdAt,
+            messageType,
+            channel: primaryChannel,
+            channels: Array.isArray(n.channels) ? n.channels : [primaryChannel],
+            isRead: readNotifIds.includes(n._id),
+            priority,
+            class: "",
+            direction: "received",
+            student: "",
+            category: n.type || "Academic",
+          };
+        });
+
+        const combined = [...inbox, ...notifs, ...sent].sort(
+          (a, b) => new Date(b.sentDate) - new Date(a.sentDate)
+        );
+
+        setMessages(combined);
       } catch (err) {
         console.error("Error fetching messages:", err);
       } finally {
@@ -96,16 +179,52 @@ export default function MessagesOverview() {
     return () => { active = false; };
   }, [currentUser]);
 
+  const handleOpenMessage = (msg) => {
+    setSelectedMessage(msg);
+    if (!msg.isRead) {
+      const updated = messages.map((m) =>
+        m.id === msg.id ? { ...m, isRead: true } : m
+      );
+      setMessages(updated);
+
+      if (msg.isNotification) {
+        try {
+          const key = `read_notifs_${currentUser?.id || "teacher"}`;
+          const readIds = JSON.parse(localStorage.getItem(key) || "[]");
+          if (!readIds.includes(msg.id)) {
+            readIds.push(msg.id);
+            localStorage.setItem(key, JSON.stringify(readIds));
+          }
+        } catch (e) {
+          console.error("Failed to save read notification state:", e);
+        }
+      } else if (currentUser) {
+        CommunicationAPI.updateMessageStatus(
+          msg.id,
+          "read",
+          currentUser.id,
+          currentUser.model
+        ).catch(() => {});
+      }
+    }
+  };
+
   const filteredMessages = messages.filter((message) => {
     const matchesSearch =
-      message.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.sender.toLowerCase().includes(searchQuery.toLowerCase());
+      (message.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (message.message || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (message.sender || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (message.category || "").toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesType =
       filterType === "all" || message.messageType === filterType;
     const matchesChannel =
-      filterChannel === "all" || message.channel === filterChannel;
+      filterChannel === "all" ||
+      message.channel === filterChannel ||
+      (Array.isArray(message.channels) &&
+        message.channels.some(
+          (c) => c.toLowerCase() === filterChannel.toLowerCase()
+        ));
     const matchesDirection =
       filterDirection === "all" || message.direction === filterDirection;
 
@@ -313,7 +432,7 @@ export default function MessagesOverview() {
 
                 <div className="ml-4 flex flex-col gap-2">
                   <button
-                  onClick={() => setSelectedMessage(message)}
+                  onClick={() => handleOpenMessage(message)}
                   className="text-blue-600 hover:text-blue-800  font-medium"
                 >
                   View Details

@@ -318,6 +318,32 @@ exports.getReceivedNotifications = async (req, res) => {
     const actor = await resolveActor(req);
     const modelName = String(userModel).charAt(0).toUpperCase() + String(userModel).slice(1).toLowerCase();
 
+    const audienceConditions = [{ audience: 'all' }];
+    const lowerModel = modelName.toLowerCase();
+    if (lowerModel === 'teacher') {
+      audienceConditions.push({ audience: 'teachers' }, { audience: 'staff' });
+    } else if (lowerModel === 'staff') {
+      audienceConditions.push({ audience: 'staff' }, { audience: 'teachers' });
+    } else {
+      audienceConditions.push({ audience: lowerModel + 's' });
+    }
+
+    const targetIds = [actor.id];
+    if (req.user && req.user.userId && String(req.user.userId) !== String(actor.id)) {
+      targetIds.push(String(req.user.userId));
+    }
+    if (req.user && req.user.refId && String(req.user.refId) !== String(actor.id)) {
+      targetIds.push(String(req.user.refId));
+    }
+    if (userId && !targetIds.includes(String(userId))) {
+      targetIds.push(String(userId));
+    }
+
+    const objectIdTargets = targetIds
+      .filter((id) => mongoose.isValidObjectId(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+    const allSpecificTargets = [...new Set([...targetIds, ...objectIdTargets])];
+
     // Scoped three ways: the school, the published state, and the audience.
     // The old query had no schoolId at all, so a notification addressed to an
     // individual in another school would surface on this school's feed.
@@ -326,9 +352,8 @@ exports.getReceivedNotifications = async (req, res) => {
       status: 'sent',
       publishDate: { $lte: new Date() },
       $or: [
-        { audience: 'all' },
-        { audience: modelName.toLowerCase() + 's' },
-        { specificTargets: actor.id }
+        ...audienceConditions,
+        { specificTargets: { $in: allSpecificTargets } }
       ]
     };
 
@@ -337,9 +362,9 @@ exports.getReceivedNotifications = async (req, res) => {
         path: 'createdBy',
         select: 'personalInfo.name personalInfo.email name email'
       })
-      .sort({ publishDate: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .sort({ publishDate: -1, createdAt: -1 })
+      .limit(Number(limit))
+      .skip((page - 1) * Number(limit));
 
     const total = await Notification.countDocuments(query);
 
