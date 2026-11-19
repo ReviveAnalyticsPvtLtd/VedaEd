@@ -360,21 +360,6 @@ const navigate = useNavigate();
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      <nav className="text-sm mb-4">
-        <ol className="flex text-gray-600">
-          
-          <li>
-            <Link
-              to="/classes-schedules"
-              className="text-gray-600 hover:underline"
-            >
-              Classes & Schedules
-            </Link>
-          </li>
-          <li className="mx-2"></li>
-          <li className="text-gray-600 ">Add Class & Section</li>
-        </ol>
-      </nav>
  <h2 className="text-xl font-semibold mb-4">Add Class & Section</h2>
      
 

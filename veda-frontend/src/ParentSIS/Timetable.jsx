@@ -9,90 +9,199 @@ import HelpInfo from "../components/HelpInfo";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const toDisplayText = (value) => {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    const text = value.name ?? value.className ?? value.sectionName ?? value.grade ?? value.section;
+    return text == null ? "" : String(text).trim();
+  }
+  return String(value).trim();
+};
+
+const getChildDisplayInfo = (child) => {
+  if (!child) {
+    return { name: "N/A", className: "N/A", section: "N/A" };
+  }
+  const className = toDisplayText(
+    child.className ??
+      child.grade ??
+      child.class ??
+      child.personalInfo?.class ??
+      child.personalInfo?.grade
+  );
+  const section = toDisplayText(
+    child.sectionName ??
+      child.section ??
+      child.personalInfo?.section
+  );
+  return {
+    name: toDisplayText(child.name ?? child.personalInfo?.name) || "Unknown",
+    className: className || "N/A",
+    section: section || "N/A",
+  };
+};
+
 export default function ParentTimetable() {
   const [view, setView] = useState("Week");
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
-  const [studentInfo, setStudentInfo] = useState({ name: "Loading...", className: "...", section: "..." });
+  const [studentInfo, setStudentInfo] = useState({ name: "Loading...", className: "", section: "" });
   const [timetableData, setTimetableData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [childrenLoaded, setChildrenLoaded] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchParentInfo = async () => {
       try {
         const user = getStoredUser();
         const token = getAuthToken();
-        if (!user || !user.refId) return;
+        if (!user || !user.refId) {
+          if (!cancelled) {
+            setStudentInfo({ name: "N/A", className: "N/A", section: "N/A" });
+            setChildrenLoaded(true);
+            setLoading(false);
+          }
+          return;
+        }
 
-        const authHeaders = { Authorization: `Bearer ${token}` };
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await axios.get(`${config.API_BASE_URL}/parents/${user.refId}`, { headers: authHeaders });
-        
-        if (res.data && res.data.success && res.data.parent.children) {
+
+        if (!cancelled && res.data && res.data.success && Array.isArray(res.data.parent?.children)) {
           const kids = res.data.parent.children;
           setChildren(kids);
           if (kids.length > 0) {
-            setSelectedChildId(kids[0]._id);
+            setSelectedChildId((prev) => {
+              if (prev && kids.some((k) => String(k._id) === String(prev))) return prev;
+              return kids[0]._id;
+            });
+          } else {
+            setStudentInfo({ name: "N/A", className: "N/A", section: "N/A" });
+            setTimetableData({});
+            setLoading(false);
           }
+        } else if (!cancelled) {
+          setStudentInfo({ name: "N/A", className: "N/A", section: "N/A" });
+          setLoading(false);
         }
       } catch (err) {
         console.error("Error fetching parent info:", err);
+        if (!cancelled) {
+          setStudentInfo({ name: "N/A", className: "N/A", section: "N/A" });
+          setLoading(false);
+        }
+      } finally {
+        if (!cancelled) setChildrenLoaded(true);
       }
     };
     fetchParentInfo();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
+    if (!selectedChildId) return;
+
+    const childEntry = children.find((c) => String(c._id) === String(selectedChildId));
+    const profileInfo = getChildDisplayInfo(childEntry);
+
+    setStudentInfo(profileInfo);
+    setTimetableData({});
+    setLoading(true);
+
+    let cancelled = false;
     const fetchTimetable = async () => {
-      if (!selectedChildId) return;
       try {
-        setLoading(true);
         const token = getAuthToken();
-        const authHeaders = { Authorization: `Bearer ${token}` };
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-        // Set child name from parent profile children
-        const childEntry = children.find(c => c._id === selectedChildId);
-        if (childEntry) {
-          setStudentInfo(prev => ({
-            ...prev,
-            name: childEntry.name || "Unknown"
-          }));
-        }
+        const timetableRes = await axios.get(
+          `${config.API_BASE_URL}/timetables?studentId=${selectedChildId}`,
+          { headers: authHeaders }
+        );
 
-        // Get Timetable (parent RBAC scopes by studentId)
-        const timetableRes = await axios.get(`${config.API_BASE_URL}/timetables?studentId=${selectedChildId}`, { headers: authHeaders });
+        if (cancelled) return;
+
         if (timetableRes.data && timetableRes.data.success) {
-          const rawData = timetableRes.data.data;
+          const rawData = Array.isArray(timetableRes.data.data) ? timetableRes.data.data : [];
+
           if (rawData.length > 0) {
             const first = rawData[0];
-            setStudentInfo(prev => ({
+            const timetableClass = toDisplayText(first.class?.name ?? first.class?.className ?? first.class);
+            const timetableSection = toDisplayText(first.section?.name ?? first.section?.sectionName ?? first.section);
+            setStudentInfo((prev) => ({
               ...prev,
-              name: childEntry?.name || "Unknown",
-              className: first.class?.name || prev.className,
-              section: first.section?.name || prev.section
+              name: profileInfo.name || prev.name || "Unknown",
+              className: timetableClass || prev.className || profileInfo.className || "N/A",
+              section: timetableSection || prev.section || profileInfo.section || "N/A",
+            }));
+          } else {
+            setStudentInfo((prev) => ({
+              ...prev,
+              name: profileInfo.name || prev.name || "N/A",
+              className: prev.className || profileInfo.className || "N/A",
+              section: prev.section || profileInfo.section || "N/A",
             }));
           }
+
           const mapped = {};
-          DAYS.forEach(day => mapped[day] = []);
-          rawData.forEach(entry => {
-            if (mapped[entry.day]) {
-              mapped[entry.day].push({
-                time: entry.timeFrom,
-                subject: entry.subject?.subjectName || "Unknown",
-                room: entry.roomNo || "N/A",
-                teacher: entry.teacher?.personalInfo?.name || "Unknown"
+          DAYS.forEach((day) => {
+            mapped[day] = [];
+          });
+          const normalizeDayName = (day) => {
+            if (!day) return null;
+            const str = String(day).trim().toLowerCase();
+            return DAYS.find((d) => d.toLowerCase() === str) || null;
+          };
+          rawData.forEach((entry) => {
+            const dayKey = normalizeDayName(entry.day) || (DAYS.includes(entry.day) ? entry.day : null);
+            if (dayKey && mapped[dayKey]) {
+              const time = entry.timeFrom || entry.startTime || entry.time || "";
+              mapped[dayKey].push({
+                time: String(time),
+                subject: entry.subject?.subjectName || entry.subjectName || entry.subject?.name || "Unknown",
+                room: entry.roomNo || entry.room || entry.roomNumber || "N/A",
+                teacher:
+                  entry.teacher?.personalInfo?.name ||
+                  entry.teacher?.name ||
+                  entry.teacherName ||
+                  "Unknown",
               });
             }
           });
           setTimetableData(mapped);
+        } else {
+          setStudentInfo((prev) => ({
+            ...prev,
+            name: profileInfo.name || prev.name || "N/A",
+            className: prev.className || profileInfo.className || "N/A",
+            section: prev.section || profileInfo.section || "N/A",
+          }));
+          setTimetableData({});
         }
       } catch (err) {
         console.error("Error fetching child timetable:", err);
+        if (!cancelled) {
+          setStudentInfo((prev) => ({
+            ...prev,
+            name: profileInfo.name || prev.name || "N/A",
+            className: prev.className || profileInfo.className || "N/A",
+            section: prev.section || profileInfo.section || "N/A",
+          }));
+          setTimetableData({});
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetchTimetable();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedChildId, children]);
 
   const TIMES = [...new Set(Object.values(timetableData).flat().map(c => c.time))].sort();
@@ -104,7 +213,6 @@ export default function ParentTimetable() {
 
   return (
     <div className="p-0 m-0 min-h-screen">
-        <p className="text-gray-500 text-sm mb-2 flex items-center gap-1">Timetable &gt;</p>
 <div className="flex items-center justify-between mb-4">
   <h2 className="text-2xl font-bold">Timetable</h2>
 
@@ -139,7 +247,7 @@ Sections:
        <div className="col-span-3 border rounded-lg p-4 bg-white shadow flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold flex items-center gap-2">
-              {studentInfo.name} (Class {studentInfo.className} - {studentInfo.section})
+              {studentInfo.name || "N/A"} (Class {studentInfo.className || "N/A"} - {studentInfo.section || "N/A"})
             </h2>
             <div className="flex gap-2">
               {children.length > 1 && (
@@ -150,7 +258,7 @@ Sections:
                 >
                   {children.map((child) => (
                     <option key={child._id} value={child._id}>
-                      {child.name}
+                      {child.name || child.personalInfo?.name || "Child"}
                     </option>
                   ))}
                 </select>

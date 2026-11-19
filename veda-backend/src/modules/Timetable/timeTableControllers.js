@@ -1218,6 +1218,7 @@ exports.getTimetableEntries = async (req, res) => {
   try {
     const { classId, sectionId, teacherId } = req.query;
     let filter = {};
+    const role = req.user?.role;
 
     // Teacher timetable
     if (teacherId) {
@@ -1230,46 +1231,82 @@ exports.getTimetableEntries = async (req, res) => {
       }
 
       filter.teacher = teacherId;
-    } else if (req.user && req.user.role === "student") {
+    } else if (role === "student") {
       // Fetch the student's class and section
       const student = await Student.findOne({
         _id: req.user.refId,
         schoolId,
       }).select("personalInfo.class personalInfo.section");
 
-      if (student && student.personalInfo) {
-        filter.class = student.personalInfo.class;
-        filter.section = student.personalInfo.section;
+      if (!student?.personalInfo?.class || !student?.personalInfo?.section) {
+        return res.status(200).json({
+          success: true,
+          message: "Timetable entries fetched successfully",
+          data: [],
+        });
       }
-    } else if (req.user && req.user.role === "parent") {
-      // Fetch the parent's child or first linked child
+
+      filter.class = student.personalInfo.class;
+      filter.section = student.personalInfo.section;
+    } else if (role === "parent") {
       const parent = await Parent.findOne({
         _id: req.user.refId,
         schoolId,
-      }).populate({
-        path: "children",
-        match: { schoolId },
-      });
+      }).select("children");
 
-      const childId = req.query.studentId;
-
-      if (parent && childId) {
-        const child = parent.children.find(
-          (c) => c._id.toString() === childId
-        );
-
-        if (child && child.personalInfo) {
-          filter.class = child.personalInfo.class;
-          filter.section = child.personalInfo.section;
-        }
-      } else if (
-        parent &&
-        parent.children &&
-        parent.children.length > 0
-      ) {
-        filter.class = parent.children[0].personalInfo?.class;
-        filter.section = parent.children[0].personalInfo?.section;
+      if (!parent) {
+        return res.status(200).json({
+          success: true,
+          message: "Timetable entries fetched successfully",
+          data: [],
+        });
       }
+
+      const linkedChildIds = (parent.children || [])
+        .filter(Boolean)
+        .map((id) => String(id));
+
+      let targetChildId = req.query.studentId ? String(req.query.studentId) : null;
+      if (targetChildId) {
+        if (!isValidObjectId(targetChildId) || !linkedChildIds.includes(targetChildId)) {
+          return res.status(200).json({
+            success: true,
+            message: "Timetable entries fetched successfully",
+            data: [],
+          });
+        }
+      } else {
+        targetChildId = linkedChildIds[0] || null;
+      }
+
+      if (!targetChildId) {
+        return res.status(200).json({
+          success: true,
+          message: "Timetable entries fetched successfully",
+          data: [],
+        });
+      }
+
+      const student = await Student.findOne({
+        _id: targetChildId,
+        schoolId,
+      }).select("parent personalInfo.class personalInfo.section");
+
+      const belongsToParent =
+        student &&
+        (linkedChildIds.includes(String(student._id)) ||
+          (student.parent && String(student.parent) === String(parent._id)));
+
+      if (!belongsToParent || !student.personalInfo?.class || !student.personalInfo?.section) {
+        return res.status(200).json({
+          success: true,
+          message: "Timetable entries fetched successfully",
+          data: [],
+        });
+      }
+
+      filter.class = student.personalInfo.class;
+      filter.section = student.personalInfo.section;
     } else if (classId && sectionId) {
       // Manual filter for admin/staff
       if (!isValidObjectId(classId) || !isValidObjectId(sectionId)) {
@@ -1289,10 +1326,52 @@ exports.getTimetableEntries = async (req, res) => {
       getSchoolSectionIds(schoolId),
     ]);
 
-    filter.$and = [
+    const andConditions = [
       { class: { $in: schoolClassIds } },
       { section: { $in: schoolSectionIds } },
     ];
+
+    const isTeacherView = !!teacherId;
+    const isClassScoped = !!(filter.class && filter.section);
+    const isSchoolWideListing = !isTeacherView && !isClassScoped;
+
+    if (isTeacherView || isSchoolWideListing || role === "student" || role === "parent") {
+      const activeYear = await AcademicYear.findOne({ schoolId, isActive: true }).select("_id").lean();
+      const publishedHeaderFilter = { schoolId, status: "PUBLISHED" };
+
+      if (isTeacherView && activeYear?._id) {
+        publishedHeaderFilter.academicYear = activeYear._id;
+      }
+      if (isClassScoped) {
+        publishedHeaderFilter.class = filter.class;
+        publishedHeaderFilter.section = filter.section;
+      }
+
+      const publishedHeaders = await TimetableHeader.find(publishedHeaderFilter).select("_id").lean();
+      const publishedHeaderIds = publishedHeaders.map((h) => h._id);
+
+      if (isTeacherView || isSchoolWideListing) {
+        andConditions.push(
+          publishedHeaderIds.length > 0
+            ? { timetableHeader: { $in: publishedHeaderIds } }
+            : { timetableHeader: { $in: [] } }
+        );
+      } else {
+        // Student/parent class-scoped view
+        if (publishedHeaderIds.length > 0) {
+          andConditions.push({ timetableHeader: { $in: publishedHeaderIds } });
+        } else {
+          andConditions.push({
+            $or: [
+              { timetableHeader: { $exists: false } },
+              { timetableHeader: null },
+            ],
+          });
+        }
+      }
+    }
+
+    filter.$and = andConditions;
 
     const timetables = await Timetable.find(filter)
       .populate({

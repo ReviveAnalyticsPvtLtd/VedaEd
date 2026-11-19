@@ -100,36 +100,54 @@ function flattenParentAddress(parentDoc) {
   return "";
 }
 
+function resolveChildClassOrSectionRef(val) {
+  if (val == null || val === "") return { id: null, name: null };
+
+  if (typeof val === "object" && !(val instanceof mongoose.Types.ObjectId) && val._bsontype !== "ObjectID") {
+    const name = val.name ?? val.className ?? val.sectionName ?? null;
+    const id = val._id ?? val.id ?? null;
+    if (name != null || id != null) {
+      const nameStr = name != null && String(name).trim() !== "" ? String(name).trim() : null;
+      return { id: id || null, name: nameStr };
+    }
+    return { id: null, name: null };
+  }
+
+  if (val instanceof mongoose.Types.ObjectId || (val && val._bsontype === "ObjectID")) {
+    return { id: val, name: null };
+  }
+
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return { id: null, name: null };
+    if (mongoose.Types.ObjectId.isValid(trimmed) && String(new mongoose.Types.ObjectId(trimmed)) === trimmed) {
+      return { id: trimmed, name: null };
+    }
+    return { id: null, name: trimmed };
+  }
+
+  return { id: null, name: null };
+}
+
 /** Maps populated or admission-shaped student rows for admin ParentProfile + legacy childDetails. */
 function mapChildrenForParentProfile(children = []) {
   return (children || []).map((child) => {
     const pi = child.personalInfo || {};
-    // Populated Class/Section docs carry their label in `name` (the schemas have
-    // no className/sectionName); an unpopulated ref is an ObjectId, which must
-    // degrade to "N/A" rather than stringify into "[object Object]".
-    const classVal = pi.class;
-    const classLabel =
-      classVal && typeof classVal === "object"
-        ? classVal.name ?? classVal.className
-        : classVal;
-    const grade =
-      classLabel != null && String(classLabel).trim() !== ""
-        ? String(classLabel)
-        : "N/A";
-    const secVal = pi.section;
-    const sectionLabel =
-      secVal && typeof secVal === "object"
-        ? secVal.name ?? secVal.sectionName
-        : secVal;
-    const section =
-      sectionLabel != null && String(sectionLabel).trim() !== ""
-        ? String(sectionLabel)
-        : "N/A";
+    const classRef = resolveChildClassOrSectionRef(pi.class);
+    const sectionRef = resolveChildClassOrSectionRef(pi.section);
+    const className = classRef.name || "N/A";
+    const sectionName = sectionRef.name || "N/A";
     return {
       _id: child._id,
       name: pi.name || child.name || "Student",
-      grade,
-      section,
+      // Canonical fields
+      className,
+      sectionName,
+      classId: classRef.id || null,
+      sectionId: sectionRef.id || null,
+      // Legacy / backward-compatible fields
+      grade: className,
+      section: sectionName,
       stdId: pi.stdId || child.stdId,
       rollNo: pi.rollNo || child.rollNo || "N/A",
       attendance: "95%",
@@ -347,6 +365,11 @@ function formatParentProfileApiData(parentDoc) {
       grade: c.grade,
       section: c.section,
       stdId: c.stdId,
+      // Canonical, consistently resolved class/section fields
+      className: c.className,
+      sectionName: c.sectionName,
+      classId: c.classId || null,
+      sectionId: c.sectionId || null,
     })),
     username: parentDoc.parentId,
     password: parentDoc.password,
@@ -381,6 +404,7 @@ function formatParentProfileApiData(parentDoc) {
       pincode: "",
     },
     childDetails: mappedChildren.map((c) => ({
+      _id: c._id,
       name: c.name,
       class: c.grade,
       section: c.section,
@@ -388,6 +412,11 @@ function formatParentProfileApiData(parentDoc) {
       stdId: c.stdId,
       attendance: c.attendance,
       feeStatus: c.feeStatus,
+      // Canonical, consistently resolved class/section fields
+      className: c.className,
+      sectionName: c.sectionName,
+      classId: c.classId || null,
+      sectionId: c.sectionId || null,
     })),
   };
 }
@@ -672,13 +701,15 @@ exports.getParentbyId = async (req, res) => {
         ? { _id: id, schoolId }
         : { parentId: id, schoolId };
 
-      parentDoc = await Parent.findOne(sisQuery).populate({
+      const populateChildrenForProfile = {
         path: 'children',
         populate: [
-          { path: 'personalInfo.class', select: 'name' },
-          { path: 'personalInfo.section', select: 'name' }
+          { path: 'personalInfo.class', select: 'name', match: { schoolId } },
+          { path: 'personalInfo.section', select: 'name', match: { schoolId } }
         ]
-      }).lean();
+      };
+
+      parentDoc = await Parent.findOne(sisQuery).populate(populateChildrenForProfile).lean();
 
       // 3. Fallback: check if id is a Student's stdId, username, or _id
       if (!parentDoc) {
@@ -692,13 +723,9 @@ exports.getParentbyId = async (req, res) => {
         }).select("parent").lean();
 
         if (student && student.parent) {
-          parentDoc = await Parent.findOne({ _id: student.parent, schoolId }).populate({
-            path: 'children',
-            populate: [
-              { path: 'personalInfo.class', select: 'name' },
-              { path: 'personalInfo.section', select: 'name' }
-            ]
-          }).lean();
+          parentDoc = await Parent.findOne({ _id: student.parent, schoolId })
+            .populate(populateChildrenForProfile)
+            .lean();
         }
       }
 
@@ -1310,18 +1337,10 @@ const dashSafe = async (fn, fallback) => {
 /** Turn a raw populated child doc into a normalized dashboard row. */
 function normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade) {
   const pi = ch.personalInfo || {};
-  const rawClass = pi.class;
-  const rawSection = pi.section;
-  const className =
-    rawClass && typeof rawClass === "object"
-      ? rawClass.name || rawClass.className
-      : rawClass;
-  const sectionName =
-    rawSection && typeof rawSection === "object"
-      ? rawSection.name || rawSection.sectionName
-      : rawSection;
-  const classNameStr = className != null ? String(className) : "N/A";
-  const sectionNameStr = sectionName != null ? String(sectionName) : "N/A";
+  const classRef = resolveChildClassOrSectionRef(pi.class);
+  const sectionRef = resolveChildClassOrSectionRef(pi.section);
+  const classNameStr = classRef.name || "N/A";
+  const sectionNameStr = sectionRef.name || "N/A";
   const key = String(ch._id);
   const att = attByChild[key];
   const attendance =
@@ -1333,8 +1352,14 @@ function normalizeChildRow(ch, attByChild, paidByChild, expectedByGrade) {
     stdId: pi.stdId || ch.stdId || "N/A",
     name: pi.name || ch.name || "Student",
     rollNo: pi.rollNo || ch.rollNo || "N/A",
+    // Canonical fields
     className: classNameStr,
     sectionName: sectionNameStr,
+    classId: classRef.id || null,
+    sectionId: sectionRef.id || null,
+    // Legacy aliases
+    grade: classNameStr,
+    section: sectionNameStr,
     attendance,
     examScore: null,
     pendingAssignments: 0,
@@ -1621,17 +1646,23 @@ exports.getParentDashboardStats = async (req, res) => {
       return row;
     });
 
-    // Admission-linked fallback row (name/class/section only)
     if (!parent && admissionApp) {
       const pi = admissionApp.personalInfo || {};
-      const rawClass = pi.classApplied;
+      const appliedClass = resolveChildClassOrSectionRef(pi.classApplied || pi.class);
+      const appliedSection = resolveChildClassOrSectionRef(pi.section);
+      const className = appliedClass.name || "N/A";
+      const sectionName = appliedSection.name || "N/A";
       children.push({
         _id: admissionApp._id || null,
         stdId: pi.stdId || "N/A",
         name: pi.name || "Child",
-        rollNo: "N/A",
-        className: rawClass ? String(rawClass) : "N/A",
-        sectionName: pi.section ? String(pi.section) : "N/A",
+        rollNo: pi.rollNo || "N/A",
+        className,
+        sectionName,
+        classId: null,
+        sectionId: null,
+        grade: className,
+        section: sectionName,
         attendance: null,
         examScore: null,
         pendingAssignments: 0,
