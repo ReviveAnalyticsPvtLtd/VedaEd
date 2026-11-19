@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
@@ -64,7 +65,7 @@ export default function TeacherCommunicationDashboard() {
   useEffect(() => {
     let active = true;
 
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const teacherId = user?.refId || user?._id;
 
     const loadDashboard = async () => {

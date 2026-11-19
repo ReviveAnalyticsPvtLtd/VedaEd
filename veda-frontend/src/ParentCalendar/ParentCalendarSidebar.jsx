@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiCalendar,
@@ -23,7 +24,7 @@ export default function ParentCalendarSidebar({
 
   const currentUser = (() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || {};
+      return getStoredUser() || {};
     } catch {
       return {};
     }

@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiFileText,
@@ -27,7 +28,7 @@ export default function TeacherCommunicationSidebar({
   // CURRENT USER
   const currentUser = (() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || {};
+      return getStoredUser() || {};
     } catch {
       return {};
     }

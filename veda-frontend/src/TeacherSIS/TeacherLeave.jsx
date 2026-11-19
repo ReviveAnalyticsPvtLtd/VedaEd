@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiCheck, FiEdit, FiEye, FiFileText, FiX } from "react-icons/fi";
 import staffAPI from "../services/staffAPI";
@@ -248,7 +249,7 @@ function nextRequestId() {
 
 function teacherDisplayName() {
   try {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    const u = (getStoredUser() || {});
     return (
       u?.name ||
       u?.personalInfo?.name ||
@@ -264,7 +265,7 @@ function teacherDisplayName() {
 
 function teacherStorageKey() {
   try {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    const u = (getStoredUser() || {});
     const identity =
       u?.staffId ||
       u?.personalInfo?.staffId ||
@@ -370,7 +371,7 @@ export default function TeacherLeave() {
     let isMounted = true;
     const loadTeacherStaffId = async () => {
       try {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        const u = (getStoredUser() || {});
         const localStaffId = u?.staffId || u?.personalInfo?.staffId;
         if (localStaffId && !isObjectIdLike(localStaffId)) {
           if (isMounted) setTeacherStaffId(localStaffId);

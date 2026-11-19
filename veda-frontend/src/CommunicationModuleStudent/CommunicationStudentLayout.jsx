@@ -1,3 +1,4 @@
+import { getStoredUserJSON, setStoredUser } from "../utils/authStorage";
 import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import CommunicationStudentSidebar from "./CommunicationStudentSidebar";
@@ -12,7 +13,7 @@ export default function CommunicationStudentLayout() {
   // DEV: Auto-login as first student if no user found
   useEffect(() => {
     const checkUser = async () => {
-        const stored = localStorage.getItem("user");
+        const stored = getStoredUserJSON();
         if (!stored) {
             try {
                 const students = await studentAPI.getAllStudents();
@@ -25,7 +26,7 @@ export default function CommunicationStudentLayout() {
                         name: firstStudent.personalInfo?.fullName || firstStudent.personalInfo?.name,
                         email: firstStudent.personalInfo?.email
                     };
-                    localStorage.setItem("user", JSON.stringify(userObj));
+                    setStoredUser(userObj);
                     console.log("DEV: Auto-logged in as", userObj.name);
                     // We can't easily force child refresh, but user refresh will work.
                     // Or we could dispatch a storage event?

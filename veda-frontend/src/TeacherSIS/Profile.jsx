@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import {
   FiInfo,
@@ -47,7 +48,7 @@ export default function TeacherProfile() {
     const fetchProfile = async () => {
       try {
         setError("");
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const staffId = user?.refId || user?._id;
         if (!staffId) {
           setError("Unable to identify logged-in staff profile.");

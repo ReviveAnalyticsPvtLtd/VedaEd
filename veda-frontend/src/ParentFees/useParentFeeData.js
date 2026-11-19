@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import config from "../config";
@@ -12,8 +13,8 @@ export default function useParentFeeData() {
 
   useEffect(() => {
     let active = true;
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const token = localStorage.getItem("token");
+    const user = (getStoredUser() || {});
+    const token = getAuthToken();
     if (!user?.refId || !token) {
       setError("You need to be logged in to view fees.");
       setLoading(false);
@@ -63,7 +64,7 @@ export default function useParentFeeData() {
       try {
         setLoading(true);
         setError("");
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const headers = { Authorization: `Bearer ${token}` };
         const params = academicYear ? { year: academicYear } : {};
 

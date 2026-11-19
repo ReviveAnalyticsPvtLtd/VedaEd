@@ -1,23 +1,27 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../access/AuthProvider";
 import { isTokenExpired } from "../services/apiClient";
+import {
+  clearAuthStorage,
+  getAuthRole,
+  getAuthToken,
+  getRefreshToken,
+  setAuthFlashMessage,
+} from "../utils/authStorage";
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const token = localStorage.getItem("token");
-  const refreshToken = localStorage.getItem("refreshToken");
-  const role = localStorage.getItem("role");
+  const { authReady } = useAuth();
+
+  if (!authReady) return null;
+
+  const token = getAuthToken();
+  const refreshToken = getRefreshToken();
+  const role = getAuthRole();
 
   if (!token || (isTokenExpired(token) && !refreshToken)) {
     if (token) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("role");
-      localStorage.removeItem("permissions");
-      localStorage.removeItem("platformPermissions");
-      localStorage.removeItem("user");
-      sessionStorage.setItem(
-        "auth_flash_message",
-        "Your session has expired. Please log in again."
-      );
+      clearAuthStorage();
+      setAuthFlashMessage("Your session has expired. Please log in again.");
     }
     return <Navigate to="/" replace />;
   }

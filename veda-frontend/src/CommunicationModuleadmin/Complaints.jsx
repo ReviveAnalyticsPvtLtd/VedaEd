@@ -1,3 +1,4 @@
+import { getAuthRole, getStoredUser } from "../utils/authStorage";
 import React, { useEffect, useMemo, useState } from "react";
 import HelpInfo from "../components/HelpInfo";
 import { FiSearch, FiPaperclip } from "react-icons/fi";
@@ -29,11 +30,11 @@ export default function AdminComplaints() {
   const currentUser = useMemo(() => {
     let stored = {};
     try {
-      stored = JSON.parse(localStorage.getItem("user") || "{}");
+      stored = (getStoredUser() || {});
     } catch (_) {
       stored = {};
     }
-    const role = stored.role || localStorage.getItem("role") || "admin";
+    const role = stored.role || getAuthRole() || "admin";
     return {
       // The backend accepts either the caller's own party refId or their own
       // User._id, so mirror the documented `user.refId || user._id` order.

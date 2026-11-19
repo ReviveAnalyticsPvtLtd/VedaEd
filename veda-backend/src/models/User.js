@@ -19,7 +19,6 @@ const userSchema = new mongoose.Schema({
   lastLogin: { type: Date },
   activeSession: {
     sessionId: { type: String, default: null },
-    token: { type: String, default: null },
     createdAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
     device: { type: String, default: null },

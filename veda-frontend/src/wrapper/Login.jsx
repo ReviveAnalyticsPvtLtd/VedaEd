@@ -21,6 +21,11 @@ import {
 
 import config from "../config";
 import { getSetupProgress } from "../services/setupWizardAPI";
+import {
+  consumeAuthFlashMessage,
+  ensureTabOwnership,
+  setAuthSession,
+} from "../utils/authStorage";
 
 const ADMIN_ROLES = [
   { key: "superadmin", label: "Super Admin", icon: FiShield },
@@ -85,10 +90,9 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    const flashMessage = sessionStorage.getItem("auth_flash_message");
+    const flashMessage = consumeAuthFlashMessage();
     if (flashMessage) {
       setError(flashMessage);
-      sessionStorage.removeItem("auth_flash_message");
     }
   }, []);
 
@@ -123,22 +127,15 @@ export default function Login() {
 
       const response = await axios.post(`${config.API_BASE_URL}/auth/login`, body);
 
-      const { token, refreshToken, role, permissions, platformPermissions, user } = response.data;
+      const { role } = response.data;
 
-      localStorage.setItem("token", token);
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      } else {
-        localStorage.removeItem("refreshToken");
-      }
-      localStorage.setItem("role", role);
-      localStorage.setItem("permissions", JSON.stringify(permissions || []));
-      localStorage.setItem("user", JSON.stringify(user));
+      // Per-tab storage: this login never touches another tab's identity.
+      setAuthSession(response.data);
 
-      if (role === "admin" && platformPermissions) {
-        localStorage.setItem("platformPermissions", JSON.stringify(platformPermissions));
-      } else {
-        localStorage.removeItem("platformPermissions");
+      const ownsSession = await ensureTabOwnership();
+      if (!ownsSession) {
+        setError("This tab could not verify its session. Please sign in again.");
+        return;
       }
 
       if (role === "superadmin") {

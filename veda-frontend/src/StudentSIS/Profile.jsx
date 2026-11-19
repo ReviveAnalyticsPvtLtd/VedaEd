@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { FiInfo, FiCalendar, FiDollarSign, FiFileText } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
@@ -150,7 +151,7 @@ export default function StudentProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         if (user && user.refId) {
           const res = await studentAPI.getStudent(user.refId);
           if (res.success) {

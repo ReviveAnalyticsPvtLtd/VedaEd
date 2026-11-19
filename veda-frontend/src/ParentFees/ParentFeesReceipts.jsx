@@ -1,3 +1,4 @@
+import { getAuthToken } from "../utils/authStorage";
 import useParentFeeData from "./useParentFeeData";
 import axios from "axios";
 import config from "../config";
@@ -27,7 +28,7 @@ export default function ParentFeeReceipts() {
 
   const downloadReceipt = async (receipt) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const res = await axios.get(`${config.API_BASE_URL}/fees/collect/receipt/${receipt.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

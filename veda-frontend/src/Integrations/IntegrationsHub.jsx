@@ -16,6 +16,7 @@ import AppDetailsModal from "./components/AppDetailsModal";
 import ResourceExplorerModal from "./components/ResourceExplorerModal";
 import integrationAPI from "../services/integrationAPI";
 import Swal from "sweetalert2";
+import { getAuthRole, getStoredUser } from "../utils/authStorage";
 
 export default function IntegrationsHub() {
   const [activeTab, setActiveTab] = useState("marketplace"); // 'marketplace' | 'connected' | 'resources' | 'admin'
@@ -32,14 +33,8 @@ export default function IntegrationsHub() {
   const [explorerConnection, setExplorerConnection] = useState(null);
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
 
-  const currentUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("user")) || {};
-    } catch {
-      return {};
-    }
-  })();
-  const userRole = localStorage.getItem("role") || currentUser?.role || "admin";
+  const currentUser = getStoredUser() || {};
+  const userRole = getAuthRole() || currentUser?.role || "admin";
   const isAdmin = userRole === "admin" || userRole === "superadmin";
 
   const categories = [

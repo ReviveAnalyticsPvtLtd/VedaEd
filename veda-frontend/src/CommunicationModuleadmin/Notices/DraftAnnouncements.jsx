@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useEffect, useState } from "react";
 import {
   FiSearch,
@@ -27,7 +28,7 @@ export default function DraftAnnouncements() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     setCurrentUser(user);
     fetchDrafts();
   }, []);
