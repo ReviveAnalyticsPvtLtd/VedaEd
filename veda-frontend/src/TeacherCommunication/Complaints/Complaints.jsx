@@ -1,5 +1,4 @@
 import { getStoredUserJSON } from "../../utils/authStorage";
-import React, { useEffect, useMemo, useState } from "react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import HelpInfo from "../../components/HelpInfo";
 import { FiSearch, FiPaperclip } from "react-icons/fi";
@@ -74,8 +73,8 @@ export default function TeacherComplaints() {
         const list = Array.isArray(clsRes)
           ? clsRes
           : Array.isArray(clsRes?.data)
-          ? clsRes.data
-          : [];
+            ? clsRes.data
+            : [];
         setClassList(list);
       } catch (error) {
         console.error("Error fetching classes:", error);
@@ -169,8 +168,8 @@ export default function TeacherComplaints() {
     );
     const fromClassObj = matchingClassObj && Array.isArray(matchingClassObj.sections)
       ? matchingClassObj.sections
-          .map((sec) => (typeof sec === "string" ? sec : sec?.name || sec?.sectionName || ""))
-          .filter(Boolean)
+        .map((sec) => (typeof sec === "string" ? sec : sec?.name || sec?.sectionName || ""))
+        .filter(Boolean)
       : [];
 
     return [...new Set([...fromClassObj, ...fromStudents])]
@@ -399,17 +398,16 @@ export default function TeacherComplaints() {
               setReply("");
               setSearch("");
             }}
-            className={`pb-2 ${
-              activeTab === t
+            className={`pb-2 ${activeTab === t
                 ? "text-blue-600 border-b-2 border-blue-600 font-semibold"
                 : "text-gray-500 hover:text-blue-600"
-            }`}
+              }`}
           >
             {t === "raise"
               ? "Raise Complaint"
               : t === "my"
-              ? "My Complaints"
-              : "Complaint Logs"}
+                ? "My Complaints"
+                : "Complaint Logs"}
           </button>
         ))}
       </div>
@@ -495,32 +493,32 @@ export default function TeacherComplaints() {
             </div>
           )}
 
-        {/* SEND TO */}
-<div className="mb-6">
-  <label className="block  font-medium text-gray-700 mb-2">
-    Send Complaint To *
-  </label>
+          {/* SEND TO */}
+          <div className="mb-6">
+            <label className="block  font-medium text-gray-700 mb-2">
+              Send Complaint To *
+            </label>
 
-  <div className="flex gap-6 flex-wrap">
-    {["PARENT", "ADMIN", "ACCOUNTANT", "LIBRARIAN", "RECEPTIONIST"].map((role) => (
-      <label
-        key={role}
-        className="flex items-center gap-2 text-sm cursor-pointer select-none"
-      >
-        <input
-          type="checkbox"
-          checked={form.sendTo.includes(role)}
-          onChange={() => toggleSendTo(role)}
-        />
-        {role === "PARENT"
-          ? "Parent"
-          : role === "ADMIN"
-          ? "Admin"
-          : role.charAt(0) + role.slice(1).toLowerCase()}
-      </label>
-    ))}
-  </div>
-</div>
+            <div className="flex gap-6 flex-wrap">
+              {["PARENT", "ADMIN", "ACCOUNTANT", "LIBRARIAN", "RECEPTIONIST"].map((role) => (
+                <label
+                  key={role}
+                  className="flex items-center gap-2 text-sm cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.sendTo.includes(role)}
+                    onChange={() => toggleSendTo(role)}
+                  />
+                  {role === "PARENT"
+                    ? "Parent"
+                    : role === "ADMIN"
+                      ? "Admin"
+                      : role.charAt(0) + role.slice(1).toLowerCase()}
+                </label>
+              ))}
+            </div>
+          </div>
 
           {/* CLASS / SECTION / STUDENT - Only if Parent is selected */}
           {isParentSelected && (
@@ -528,7 +526,7 @@ export default function TeacherComplaints() {
               {/* CLASS */}
               <div className="mb-5">
                 <label className="block  font-medium text-gray-700 mb-1">
-                 Student Class *
+                  Student Class *
                 </label>
                 <select
                   className="w-full border rounded-lg px-3 py-2.5 text-sm"
@@ -555,7 +553,7 @@ export default function TeacherComplaints() {
               {form.class && (
                 <div className="mb-5">
                   <label className="block  font-medium text-gray-700 mb-1">
-Student Section *
+                    Student Section *
                   </label>
                   <select
                     className="w-full border rounded-lg px-3 py-2.5 text-sm"
@@ -640,7 +638,7 @@ Student Section *
           {/* SUBJECT */}
           <div className="mb-5">
             <label className="block  font-medium text-gray-700 mb-1">
-               Complaint Detail*
+              Complaint Detail*
             </label>
             <input
               className="w-full border rounded-lg px-3 py-2.5 text-sm"
@@ -652,7 +650,7 @@ Student Section *
           {/* DESCRIPTION */}
           <div className="mb-6">
             <label className="block  font-medium text-gray-700 mb-1">
-             Explain the  Concern in Description *
+              Explain the  Concern in Description *
             </label>
             <textarea
               rows={4}
@@ -679,8 +677,8 @@ Student Section *
               />
             </label>
             <p className="text-xs text-gray-500 mt-1">
-    Supported formats: PNG, JPG, JPEG, PDF, Excel (XLS, XLSX)
-  </p>
+              Supported formats: PNG, JPG, JPEG, PDF, Excel (XLS, XLSX)
+            </p>
           </div>
 
           {/* SUBMIT */}
@@ -719,11 +717,10 @@ Student Section *
             {filteredMyComplaints.map((c) => (
               <div
                 key={c._id}
-                className={`cursor-pointer p-3 border-b last:border-none ${
-                  selected?._id === c._id
+                className={`cursor-pointer p-3 border-b last:border-none ${selected?._id === c._id
                     ? "bg-blue-50 border-blue-400"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
                 onClick={() => {
                   setSelected(c);
                   setReply("");
@@ -732,13 +729,12 @@ Student Section *
                 <div className="flex justify-between items-center">
                   <h3 className="font-semibold">{c.subject}</h3>
                   <span
-                    className={` font-semibold px-2 py-0.5 rounded-full ${
-                      c.status === "Pending" || c.status === "submitted"
+                    className={` font-semibold px-2 py-0.5 rounded-full ${c.status === "Pending" || c.status === "submitted"
                         ? "bg-yellow-200 text-yellow-800"
                         : c.status === "Replied" || c.status === "Reviewed"
-                        ? "bg-green-200 text-green-800"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
+                          ? "bg-green-200 text-green-800"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
                   >
                     {c.status}
                   </span>
@@ -775,13 +771,12 @@ Student Section *
                 <p className=" text-gray-600 mb-2">
                   Status:{" "}
                   <span
-                    className={`font-semibold px-2 py-0.5 rounded-full ${
-                      selected.status === "Pending" || selected.status === "submitted"
+                    className={`font-semibold px-2 py-0.5 rounded-full ${selected.status === "Pending" || selected.status === "submitted"
                         ? "bg-yellow-200 text-yellow-800"
                         : selected.status === "Replied" || selected.status === "Reviewed"
-                        ? "bg-green-200 text-green-800"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
+                          ? "bg-green-200 text-green-800"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
                   >
                     {selected.status}
                   </span>
@@ -805,11 +800,10 @@ Student Section *
                   {selected.responses?.map((m, idx) => (
                     <div
                       key={m._id || idx}
-                      className={`p-3 rounded-lg ${
-                        m.responder === currentUser.id
+                      className={`p-3 rounded-lg ${m.responder === currentUser.id
                           ? "bg-blue-100 text-blue-900 self-end"
                           : "bg-gray-100 text-gray-900"
-                      }`}
+                        }`}
                     >
                       <p>{m.response}</p>
                       <p className=" text-gray-500 mt-1">{new Date(m.responseDate).toLocaleString()}</p>
@@ -844,163 +838,159 @@ Student Section *
       )}
 
       {/* ================= COMPLAINT LOGS ================= */}
-    {activeTab === "logs" && (
-  <div className="space-y-3">
-    {/* ================= Complaint Logs Summary (full width box) ================= */}
-    <div className="bg-white border rounded-xl shadow-lg p-4">
-      <h3 className="font-semibold text-lg text-gray-800">Complaint Logs Summary</h3>
-      <p className="text-gray-600 mt-2">
-        Total: <span className="font-semibold">{summary.total}</span> | Pending:{" "}
-        <span className="font-semibold text-yellow-600">{summary.pending}</span> | Reviewed:{" "}
-        <span className="font-semibold text-green-600">{summary.reviewed}</span> | Resolved:{" "}
-        <span className="font-semibold text-gray-600">{summary.resolved}</span>
-      </p>
-    </div>
-
-    {/* ================= Logs List + Selected Log Details side by side ================= */}
-    <div className="grid grid-cols-3 gap-3">
-      {/* Logs List */}
-      <div className="bg-white border rounded-xl shadow-md max-h-[600px] overflow-y-auto p-3">
-        {loading && <p className="text-center p-4">Loading...</p>}
-        {!loading && logs.length === 0 ? (
-          <p className="text-center text-gray-400">No complaint logs found.</p>
-        ) : (
-          logs.map((log) => (
-            <div
-              key={log._id}
-              className={`cursor-pointer p-4 mb-4 rounded-lg border last:mb-0 ${
-                selected?._id === log._id
-                  ? "bg-blue-50 border-blue-400"
-                  : "hover:bg-gray-50 border-gray-200"
-              }`}
-              onClick={() => {
-                setSelected(log);
-                setReply("");
-              }}
-            >
-              <h4 className="font-semibold text-lg">{log.subject}</h4>
-              <p className=" text-gray-600 mt-1">
-                Raised By: <span className="font-medium">{log.complainantModel}</span> | Status:{" "}
-                <span
-                  className={`inline-block px-2 py-0.5 rounded-full font-semibold ${
-                    log.status === "Pending" || log.status === "submitted"
-                      ? "bg-yellow-200 text-yellow-800"
-                      : log.status === "Reviewed" || log.status === "Replied"
-                      ? "bg-green-200 text-green-800"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {log.status}
-                </span>
-              </p>
-              {log.targetUser && (
-                <p className="text-xs text-gray-600 mt-1">
-                  Target: {log.targetUser.personalInfo?.fullName || log.targetUser.personalInfo?.name}
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">{new Date(log.createdAt).toLocaleString()}</p>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Selected Log Details */}
-      <div className="col-span-2 bg-white border rounded-xl shadow-md p-3 max-h-[600px] overflow-y-auto flex flex-col">
-        {!selected ? (
-          <p className="text-center text-gray-400 mt-40">Select a complaint log to see details</p>
-        ) : (
-          <>
-            <h3 className="font-bold text-2xl mb-3">{selected.subject}</h3>
-            <p className="text-sm text-gray-700 mb-3">
-              Status:{" "}
-              <span
-                className={`inline-block px-3 py-1 rounded-full font-semibold ${
-                  selected.status === "Pending" || selected.status === "submitted"
-                    ? "bg-yellow-200 text-yellow-800"
-                    : selected.status === "Reviewed" || selected.status === "Replied"
-                    ? "bg-green-200 text-green-800"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {selected.status}
-              </span>
+      {activeTab === "logs" && (
+        <div className="space-y-3">
+          {/* ================= Complaint Logs Summary (full width box) ================= */}
+          <div className="bg-white border rounded-xl shadow-lg p-4">
+            <h3 className="font-semibold text-lg text-gray-800">Complaint Logs Summary</h3>
+            <p className="text-gray-600 mt-2">
+              Total: <span className="font-semibold">{summary.total}</span> | Pending:{" "}
+              <span className="font-semibold text-yellow-600">{summary.pending}</span> | Reviewed:{" "}
+              <span className="font-semibold text-green-600">{summary.reviewed}</span> | Resolved:{" "}
+              <span className="font-semibold text-gray-600">{summary.resolved}</span>
             </p>
+          </div>
 
-            {selected.targetUser && (
-              <p className="text-base mb-5 text-gray-800">
-                Target: <span className="font-medium">{selected.targetUser.personalInfo?.fullName || selected.targetUser.personalInfo?.name}</span>
-              </p>
-            )}
+          {/* ================= Logs List + Selected Log Details side by side ================= */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* Logs List */}
+            <div className="bg-white border rounded-xl shadow-md max-h-[600px] overflow-y-auto p-3">
+              {loading && <p className="text-center p-4">Loading...</p>}
+              {!loading && logs.length === 0 ? (
+                <p className="text-center text-gray-400">No complaint logs found.</p>
+              ) : (
+                logs.map((log) => (
+                  <div
+                    key={log._id}
+                    className={`cursor-pointer p-4 mb-4 rounded-lg border last:mb-0 ${selected?._id === log._id
+                        ? "bg-blue-50 border-blue-400"
+                        : "hover:bg-gray-50 border-gray-200"
+                      }`}
+                    onClick={() => {
+                      setSelected(log);
+                      setReply("");
+                    }}
+                  >
+                    <h4 className="font-semibold text-lg">{log.subject}</h4>
+                    <p className=" text-gray-600 mt-1">
+                      Raised By: <span className="font-medium">{log.complainantModel}</span> | Status:{" "}
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full font-semibold ${log.status === "Pending" || log.status === "submitted"
+                            ? "bg-yellow-200 text-yellow-800"
+                            : log.status === "Reviewed" || log.status === "Replied"
+                              ? "bg-green-200 text-green-800"
+                              : "bg-gray-200 text-gray-700"
+                          }`}
+                      >
+                        {log.status}
+                      </span>
+                    </p>
+                    {log.targetUser && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Target: {log.targetUser.personalInfo?.fullName || log.targetUser.personalInfo?.name}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">{new Date(log.createdAt).toLocaleString()}</p>
+                  </div>
+                ))
+              )}
+            </div>
 
-            <div className="space-y-4 mb-6 flex-grow overflow-y-auto">
-               {/* Original Message */}
-               <div className="p-4 rounded-lg bg-gray-100 text-gray-900 border-l-4 border-gray-300">
-                <p className="font-semibold text-xs text-gray-500 uppercase mb-1">Initial Complaint</p>
-                <p className="mb-1">{selected.description}</p>
-                <p className="text-xs text-gray-500">{new Date(selected.createdAt).toLocaleString()}</p>
-                <p className="text-xs text-gray-600 font-semibold">{selected.complainantModel}</p>
-              </div>
-
-              {selected.responses?.map((m, idx) => (
-                <div
-                  key={m._id || idx}
-                  className={`p-4 rounded-lg ${
-                    m.responder === currentUser.id ? "bg-blue-100 text-blue-900 self-end border-r-4 border-blue-300" : "bg-gray-100 text-gray-900 border-l-4 border-gray-300"
-                  }`}
-                >
-                  <p className="mb-1">{m.response}</p>
-                  <p className="text-xs text-gray-500">{new Date(m.responseDate).toLocaleString()}</p>
-                  <p className="text-xs text-gray-600 font-semibold">
-                    {m.responder === currentUser.id ? "You" : m.responderModel}
+            {/* Selected Log Details */}
+            <div className="col-span-2 bg-white border rounded-xl shadow-md p-3 max-h-[600px] overflow-y-auto flex flex-col">
+              {!selected ? (
+                <p className="text-center text-gray-400 mt-40">Select a complaint log to see details</p>
+              ) : (
+                <>
+                  <h3 className="font-bold text-2xl mb-3">{selected.subject}</h3>
+                  <p className="text-sm text-gray-700 mb-3">
+                    Status:{" "}
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full font-semibold ${selected.status === "Pending" || selected.status === "submitted"
+                          ? "bg-yellow-200 text-yellow-800"
+                          : selected.status === "Reviewed" || selected.status === "Replied"
+                            ? "bg-green-200 text-green-800"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                    >
+                      {selected.status}
+                    </span>
                   </p>
-                </div>
-              ))}
+
+                  {selected.targetUser && (
+                    <p className="text-base mb-5 text-gray-800">
+                      Target: <span className="font-medium">{selected.targetUser.personalInfo?.fullName || selected.targetUser.personalInfo?.name}</span>
+                    </p>
+                  )}
+
+                  <div className="space-y-4 mb-6 flex-grow overflow-y-auto">
+                    {/* Original Message */}
+                    <div className="p-4 rounded-lg bg-gray-100 text-gray-900 border-l-4 border-gray-300">
+                      <p className="font-semibold text-xs text-gray-500 uppercase mb-1">Initial Complaint</p>
+                      <p className="mb-1">{selected.description}</p>
+                      <p className="text-xs text-gray-500">{new Date(selected.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-gray-600 font-semibold">{selected.complainantModel}</p>
+                    </div>
+
+                    {selected.responses?.map((m, idx) => (
+                      <div
+                        key={m._id || idx}
+                        className={`p-4 rounded-lg ${m.responder === currentUser.id ? "bg-blue-100 text-blue-900 self-end border-r-4 border-blue-300" : "bg-gray-100 text-gray-900 border-l-4 border-gray-300"
+                          }`}
+                      >
+                        <p className="mb-1">{m.response}</p>
+                        <p className="text-xs text-gray-500">{new Date(m.responseDate).toLocaleString()}</p>
+                        <p className="text-xs text-gray-600 font-semibold">
+                          {m.responder === currentUser.id ? "You" : m.responderModel}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    className="w-full border rounded-lg px-4 py-3 text-sm mb-4 resize-none"
+                    placeholder="Type your reply here..."
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                  />
+
+                  <div className="flex gap-4 justify-between items-center">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => updateStatus("Pending")}
+                        className="px-4 py-2 text-sm rounded bg-yellow-300 text-yellow-900 hover:bg-yellow-400 transition"
+                      >
+                        Mark Pending
+                      </button>
+                      <button
+                        onClick={() => updateStatus("Reviewed")}
+                        className="px-4 py-2 text-sm rounded bg-green-300 text-green-900 hover:bg-green-400 transition"
+                      >
+                        Mark Reviewed
+                      </button>
+                      <button
+                        onClick={() => updateStatus("Resolved")}
+                        className="px-4 py-2 text-sm rounded bg-gray-300 text-gray-900 hover:bg-gray-400 transition"
+                      >
+                        Mark Resolved
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={sendReplyLogs}
+                      className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                      disabled={loading}
+                    >
+                      {loading ? "Sending..." : "Send Reply"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-
-            <textarea
-              rows={4}
-              className="w-full border rounded-lg px-4 py-3 text-sm mb-4 resize-none"
-              placeholder="Type your reply here..."
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-            />
-
-            <div className="flex gap-4 justify-between items-center">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => updateStatus("Pending")}
-                  className="px-4 py-2 text-sm rounded bg-yellow-300 text-yellow-900 hover:bg-yellow-400 transition"
-                >
-                  Mark Pending
-                </button>
-                <button
-                  onClick={() => updateStatus("Reviewed")}
-                  className="px-4 py-2 text-sm rounded bg-green-300 text-green-900 hover:bg-green-400 transition"
-                >
-                  Mark Reviewed
-                </button>
-                <button
-                  onClick={() => updateStatus("Resolved")}
-                  className="px-4 py-2 text-sm rounded bg-gray-300 text-gray-900 hover:bg-gray-400 transition"
-                >
-                  Mark Resolved
-                </button>
-              </div>
-
-              <button
-                onClick={sendReplyLogs}
-                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                disabled={loading}
-              >
-                {loading ? "Sending..." : "Send Reply"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        </div>
+      )}
 
     </div>
   );
