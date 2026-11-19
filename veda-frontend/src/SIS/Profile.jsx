@@ -1,3 +1,4 @@
+import { getStoredUser, setStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import {
   FiUser,
@@ -323,13 +324,10 @@ export default function AdminProfile() {
 
       // Keep the cached session copy in sync so the sidebar/header reflect the change.
       try {
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ ...storedUser, name: nextName, email: nextEmail })
-        );
+        const storedUser = (getStoredUser() || {});
+        setStoredUser({ ...storedUser, name: nextName, email: nextEmail });
       } catch (storageErr) {
-        console.error("Failed to update user in localStorage:", storageErr);
+        console.error("Failed to update cached user:", storageErr);
       }
 
       setSaveSuccess("Changes saved successfully");

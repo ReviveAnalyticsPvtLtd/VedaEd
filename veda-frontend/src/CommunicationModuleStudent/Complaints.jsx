@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../utils/authStorage";
 import React, { useEffect, useState, useMemo } from "react";
 import HelpInfo from "../components/HelpInfo";
 import { FiSearch, FiPaperclip } from "react-icons/fi";
@@ -28,7 +29,7 @@ export default function Complaints() {
 
   // Load User
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = getStoredUserJSON();
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -145,7 +146,7 @@ export default function Complaints() {
     let currentUser = user;
     if (!currentUser) {
         // Try reloading one last time
-        const stored = localStorage.getItem("user");
+        const stored = getStoredUserJSON();
         if (stored) {
             currentUser = JSON.parse(stored);
             setUser(currentUser);

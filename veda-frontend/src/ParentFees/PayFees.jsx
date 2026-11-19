@@ -1,3 +1,4 @@
+import { getAuthToken } from "../utils/authStorage";
 import { useState } from "react";
 import useParentFeeData from "./useParentFeeData";
 import axios from "axios";
@@ -63,7 +64,7 @@ export default function PayFees() {
     if (!child || !academicYear || totalSelected <= 0) return;
     setPaying(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const res = await axios.post(
         `${config.API_BASE_URL}/fees/collect/payment`,
         {

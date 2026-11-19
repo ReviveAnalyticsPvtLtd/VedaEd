@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import React, { useEffect, useState } from "react";
 import {
   FiMessageCircle,
@@ -26,7 +27,7 @@ export default function MessagesOverview() {
 
   useEffect(() => {
     let active = true;
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const userId = user?.refId || user?._id;
     if (!userId) {
       setLoading(false);
@@ -88,7 +89,7 @@ export default function MessagesOverview() {
   }, []);
 
   const openMessage = (msg) => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const userId = user?.refId || user?._id;
     const userModel = user.role
       ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()

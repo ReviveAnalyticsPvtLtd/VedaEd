@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FiDownload, FiClock, FiCheckCircle } from "react-icons/fi";
@@ -18,8 +19,8 @@ export default function ParentAssignments() {
   useEffect(() => {
     const fetchParentInfo = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        const token = localStorage.getItem("token");
+        const user = getStoredUser();
+        const token = getAuthToken();
         if (!user || !user.refId) return;
 
         const authHeaders = { Authorization: `Bearer ${token}` };

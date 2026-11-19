@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
@@ -27,14 +28,14 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const studentId = user?.refId || user?._id;
         if (!studentId) {
           setError("Student account not found. Please log in again.");
           setLoading(false);
           return;
         }
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
         const res = await axios.get(

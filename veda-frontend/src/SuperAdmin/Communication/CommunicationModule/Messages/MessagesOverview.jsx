@@ -1,3 +1,4 @@
+import { getStoredUserJSON } from "../../../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import {
   FiMessageCircle,
@@ -22,7 +23,7 @@ export default function MessagesOverview() {
 
   // Get logged-in SuperAdmin
   useEffect(() => {
-    const stored = localStorage.getItem("user");
+    const stored = getStoredUserJSON();
 
     if (stored) {
       try {

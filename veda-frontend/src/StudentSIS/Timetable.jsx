@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import axios from "axios";
@@ -27,8 +28,8 @@ export default function StudentTimetable() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const user = JSON.parse(localStorage.getItem("user"));
-        const token = localStorage.getItem("token");
+        const user = getStoredUser();
+        const token = getAuthToken();
         if (!user || !user.refId) return;
 
         const authHeaders = { Authorization: `Bearer ${token}` };

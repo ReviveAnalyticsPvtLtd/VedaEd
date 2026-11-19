@@ -1,3 +1,4 @@
+import { getAuthToken } from "../../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 import { useNavigate,Link } from "react-router-dom";
@@ -35,7 +36,7 @@ const SubjectGroup = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getAuthToken();
     axios
       .get(`${config.API_BASE_URL}/sections?classId=${selectedClass}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -52,7 +53,7 @@ const SubjectGroup = () => {
 
   const fetchGroups = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const res = await axios.get(`${config.API_BASE_URL}/subGroups/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -64,7 +65,7 @@ const SubjectGroup = () => {
 
   const fetchDropdownData = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const headers = { Authorization: `Bearer ${token}` };
       const [classRes, subjectRes] = await Promise.all([
         axios.get(`${config.API_BASE_URL}/classes`, { headers }),
@@ -109,7 +110,7 @@ const SubjectGroup = () => {
 
     try {
       let res;
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const headers = { Authorization: `Bearer ${token}` };
 
       if (editId) {
@@ -148,7 +149,7 @@ const SubjectGroup = () => {
     setSelectedSubjects(group.subjects.map((s) => s._id));
     setEditId(group._id);
 
-    const token = localStorage.getItem("token");
+    const token = getAuthToken();
     axios
       .get(`${config.API_BASE_URL}/sections?classId=${group.classes._id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -163,7 +164,7 @@ const SubjectGroup = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this subject group?")) {
       try {
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const res = await axios.delete(
           `${config.API_BASE_URL}/subGroups/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }

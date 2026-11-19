@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import axios from "axios";
@@ -54,8 +55,8 @@ export default function ParentTimetable() {
     let cancelled = false;
     const fetchParentInfo = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "null");
-        const token = localStorage.getItem("token");
+        const user = getStoredUser();
+        const token = getAuthToken();
         if (!user || !user.refId) {
           if (!cancelled) {
             setStudentInfo({ name: "N/A", className: "N/A", section: "N/A" });
@@ -114,7 +115,7 @@ export default function ParentTimetable() {
     let cancelled = false;
     const fetchTimetable = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
         const timetableRes = await axios.get(
