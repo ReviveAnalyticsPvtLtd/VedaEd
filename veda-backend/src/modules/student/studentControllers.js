@@ -474,8 +474,8 @@ exports.getAllStudents = async (req, res) => {
       }
     }
 
-    // 2. Teacher Access filtering: must only see assigned class-section pairs
-    if (req.user && req.user.role === 'teacher') {
+    // 2. Teacher Access filtering: must only see assigned class-section pairs unless scope=all or all=true
+    if (req.user && req.user.role === 'teacher' && req.query.scope !== 'all' && req.query.all !== 'true') {
       // JWT refId points to Staff._id for teacher accounts.
       const { pairs } = await getTeacherRosterScope(req.user.refId, schoolId);
 

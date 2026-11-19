@@ -1,9 +1,11 @@
 import { getStoredUserJSON } from "../../utils/authStorage";
 import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import HelpInfo from "../../components/HelpInfo";
 import { FiSearch, FiPaperclip } from "react-icons/fi";
 import complaintAPI from "../../services/complaintAPI";
 import { studentAPI } from "../../services/studentAPI";
+import classAPI from "../../services/classAPI";
 
 /* ===================== ID GENERATORS ===================== */
 const genReplyId = () =>
@@ -39,13 +41,6 @@ export default function TeacherComplaints() {
     }
   }, []);
 
-  // Use a small effect or check to avoid fetching if user not loaded
-  useEffect(() => {
-    if (currentUser) {
-        fetchData();
-    }
-  }, [currentUser]);
-
   /* ===================== FORM ===================== */
   const [form, setForm] = useState({
     category: "",
@@ -62,74 +57,138 @@ export default function TeacherComplaints() {
   /* ===================== DATA ===================== */
   const [myComplaints, setMyComplaints] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [classList, setClassList] = useState([]);
   const [studentsData, setStudentsData] = useState([]);
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState("");
   const [search, setSearch] = useState("");
 
   /* ===================== FETCH DATA ===================== */
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Fetch My Complaints (raised by this teacher)
-      const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
-      if (myComplaintsRes.success) {
-        setMyComplaints(myComplaintsRes.data);
+
+      // 1. Fetch Classes (independent)
+      try {
+        const clsRes = await classAPI.getAllClasses({ scope: "all" });
+        const list = Array.isArray(clsRes)
+          ? clsRes
+          : Array.isArray(clsRes?.data)
+          ? clsRes.data
+          : [];
+        setClassList(list);
+      } catch (error) {
+        console.error("Error fetching classes:", error);
       }
 
-      // Fetch Complaint Logs (related to this teacher or her classes)
-      // For now, fetching all complaints as logs, but usually this would be filtered
-      // Fetch Complaint Logs (complaints addressed to this teacher)
-      const logsRes = await complaintAPI.getComplaints({ targetUser: currentUser.id });
-      if (logsRes.success) {
-        setLogs(logsRes.data);
+      // 2. Fetch Students (independent)
+      try {
+        const studentsRes = await studentAPI.getAllStudents({ scope: "all" });
+        const studentList = studentsRes
+          ? (studentsRes.students || studentsRes.data || (Array.isArray(studentsRes) ? studentsRes : []))
+          : [];
+
+        if (studentList && studentList.length > 0) {
+          const transformed = studentList.map((s) => {
+            const parent = s.parent || {};
+            const parentInfo = s.parentInfo || {};
+            const contactDetails = s.personalInfo?.contactDetails || {};
+            const rawClass = s.personalInfo?.class;
+            const rawSection = s.personalInfo?.section;
+            return {
+              id: s._id,
+              name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
+              class: typeof rawClass === "string" ? rawClass : rawClass?.name || "N/A",
+              section: typeof rawSection === "string" ? rawSection : rawSection?.name || "N/A",
+              parentId: parent.parentId || parent._id || parentInfo.parentId || "N/A",
+              parentName: parent.name || parent.fatherName || parentInfo.fatherName || "N/A",
+              parentPhone: parent.phone || parent.fatherPhone || parentInfo.fatherPhone || contactDetails.mobileNumber || "N/A",
+            };
+          });
+          setStudentsData(transformed);
+        }
+      } catch (error) {
+        console.error("Error fetching students:", error);
       }
 
-      // Fetch Students
-      // Fetch Students
-      const studentsRes = await studentAPI.getAllStudents();
-      // Handle response structure: { success: true, students: [...] }
-      const studentList = studentsRes ? (studentsRes.students || (Array.isArray(studentsRes) ? studentsRes : [])) : [];
+      // 3. Fetch My Complaints and Logs (if user is loaded)
+      if (currentUser?.id) {
+        try {
+          const myComplaintsRes = await complaintAPI.getUserComplaints(currentUser.id, currentUser.model);
+          if (myComplaintsRes?.success) {
+            setMyComplaints(myComplaintsRes.data || []);
+          }
+        } catch (error) {
+          console.error("Error fetching my complaints:", error);
+        }
 
-      if (studentList && studentList.length > 0) {
-        // Transform student data if necessary
-        const transformed = studentList.map(s => ({
-          id: s._id,
-          name: s.personalInfo?.fullName || s.personalInfo?.name || "N/A",
-          class: s.personalInfo?.class || "N/A", // Controller returns class name now? No, populated so usually name but checked controller which does manual swap.
-          // Wait, controller does: obj.personalInfo.class = obj.personalInfo.class?.name || null;
-          // So s.personalInfo.class IS the string name. Correct.
-          section: s.personalInfo?.section || "N/A",
-          parentId: s.parentInfo?.parentId || "N/A", // need to verify structure, but assuming okay for now or minimal fallback
-          parentName: s.parentInfo?.fatherName || (s.parent && s.parent.fatherName) || "N/A",
-          parentPhone: s.parentInfo?.fatherPhone || (s.parent && s.parent.contactDetails?.primary) || "N/A",
-        }));
-        setStudentsData(transformed);
+        try {
+          const logsRes = await complaintAPI.getComplaints({ targetUser: currentUser.id });
+          if (logsRes?.success) {
+            setLogs(logsRes.data || []);
+          }
+        } catch (error) {
+          console.error("Error fetching complaint logs:", error);
+        }
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
 
-  // Removed automatic fetchData on mount, waiting for user.
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   /* ===================== DERIVED ===================== */
   const isParentSelected = form.sendTo.includes("PARENT");
 
-  // Derive unique classes and sections from students data
-  const classes = useMemo(() => [...new Set(studentsData.map(s => s.class))].filter(c => c && c !== "N/A").sort(), [studentsData]);
+  // Derive unique classes from both class list and students data
+  const classes = useMemo(() => {
+    const fromStudents = studentsData
+      .map((s) => (typeof s.class === "string" ? s.class : s.class?.name || s.class?.className || ""))
+      .filter(Boolean);
+    const fromClasses = classList
+      .map((c) => (typeof c === "string" ? c : c?.name || c?.className || ""))
+      .filter(Boolean);
+    return [...new Set([...fromClasses, ...fromStudents])]
+      .filter((c) => c && c !== "N/A")
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+  }, [studentsData, classList]);
+
+  // Derive sections for the selected class from class list and students data
   const sections = useMemo(() => {
     if (!form.class) return [];
-    return [...new Set(studentsData.filter(s => s.class === form.class).map(s => s.section))].sort();
-  }, [studentsData, form.class]);
+    const fromStudents = studentsData
+      .filter((s) => (typeof s.class === "string" ? s.class : s.class?.name || s.class?.className) === form.class)
+      .map((s) => (typeof s.section === "string" ? s.section : s.section?.name || s.section?.className || ""))
+      .filter(Boolean);
+
+    const matchingClassObj = classList.find(
+      (c) => (typeof c === "string" ? c : c?.name || c?.className) === form.class
+    );
+    const fromClassObj = matchingClassObj && Array.isArray(matchingClassObj.sections)
+      ? matchingClassObj.sections
+          .map((sec) => (typeof sec === "string" ? sec : sec?.name || sec?.sectionName || ""))
+          .filter(Boolean)
+      : [];
+
+    return [...new Set([...fromClassObj, ...fromStudents])]
+      .filter((s) => s && s !== "N/A")
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+  }, [studentsData, classList, form.class]);
 
   // Filter students based on class and section
-  const filteredStudents = studentsData.filter(
-    (s) => s.class === form.class && s.section === form.section
-  );
+  const filteredStudents = useMemo(() => {
+    if (!form.class) return [];
+    const studentClassMatches = (s) =>
+      (typeof s.class === "string" ? s.class : s.class?.name || s.class?.className) === form.class;
+    const studentSectionMatches = (s) =>
+      !form.section ||
+      (typeof s.section === "string" ? s.section : s.section?.name || s.section?.className) === form.section;
+
+    return studentsData.filter((s) => studentClassMatches(s) && studentSectionMatches(s));
+  }, [studentsData, form.class, form.section]);
 
   // Selected student object
   const selectedStudent = studentsData.find((s) => s.id === form.studentId);

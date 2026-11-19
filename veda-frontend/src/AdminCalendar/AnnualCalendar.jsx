@@ -221,6 +221,33 @@ export default function AnnualCalendar() {
             <span className="group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="absolute z-20 mt-2 bg-white border rounded shadow-lg p-3 w-full grid grid-cols-3 gap-2">
+            <label className="col-span-3 flex items-center justify-between gap-2 pb-2 mb-1 border-b border-gray-200 text-sm font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={activeTypes.length === EVENT_TYPES.length}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate =
+                        activeTypes.length > 0 &&
+                        activeTypes.length < EVENT_TYPES.length;
+                    }
+                  }}
+                  onChange={() =>
+                    setActiveTypes(
+                      activeTypes.length === EVENT_TYPES.length
+                        ? []
+                        : EVENT_TYPES
+                    )
+                  }
+                  className="rounded text-blue-600"
+                />
+                Select All
+              </span>
+              <span className="text-xs font-normal text-gray-500">
+                {activeTypes.length} selected
+              </span>
+            </label>
             {EVENT_TYPES.map((t) => (
               <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input

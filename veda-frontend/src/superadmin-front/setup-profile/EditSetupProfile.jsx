@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../identity-access/components/PageHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import SetupProfileForm from "./components/SetupProfileForm";
 import SetupProfileSummary from "./components/SetupProfileSummary";
 import { getSetupProfile, updateSetupProfile } from "../../services/setupWizardAPI";
@@ -58,14 +59,8 @@ export default function EditSetupProfile() {
   if (error && !form) {
     return (
       <div className="min-h-full bg-gray-100 p-4 md:p-6">
-        <PageHeader
-          breadcrumbs={[
-            { label: "Dashboard", to: "/superadmin-front/dashboard" },
-            { label: "Setup Profile", to: BASE },
-            { label: "Edit Setup Profile" },
-          ]}
-          title="Edit Setup Profile"
-        />
+        <Breadcrumbs />
+        <PageHeader title="Edit Setup Profile" />
         <p className="text-center text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3 inline-block text-sm">
           {error}
         </p>
@@ -75,12 +70,8 @@ export default function EditSetupProfile() {
 
   return (
     <div className="min-h-full bg-gray-100 p-4 md:p-6">
+      <Breadcrumbs />
       <PageHeader
-        breadcrumbs={[
-          { label: "Dashboard", to: "/superadmin-front/dashboard" },
-          { label: "Setup Profile", to: BASE },
-          { label: "Edit Setup Profile" },
-        ]}
         title="Edit Setup Profile"
         subtitle={`Update organization setup data for ${form.schoolName}`}
       />

@@ -5,9 +5,9 @@ const API_URL = `${config.API_BASE_URL}/classes`;
 
 const classAPI = {
     // Get all classes (includes sections)
-    getAllClasses: async () => {
+    getAllClasses: async (params = {}) => {
         try {
-            const response = await api.get(API_URL);
+            const response = await api.get(API_URL, { params });
             return response.data;
         } catch (error) {
             console.error('Error fetching classes:', error);

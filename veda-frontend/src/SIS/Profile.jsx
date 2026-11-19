@@ -156,22 +156,28 @@ const formatDateTime = (dateStr) => {
 export default function AdminProfile() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editMode, setEditMode] = useState(false);
-  const [admin, setAdmin] = useState({
-    personalInfo: {
-      adminId: "",
-      name: "",
-      username: "",
-      gender: "",
-      role: "",
-      email: "",
-      mobileNumber: "",
-      address: "",
-    },
-    joiningDate: "",
-    experience: "",
-    qualification: "",
-    salaryDetails: { salary: "", lastPayment: "" },
-    documents: [],
+  const [admin, setAdmin] = useState(() => {
+    let initialUser = {};
+    try {
+      initialUser = JSON.parse(localStorage.getItem("user") || "{}");
+    } catch (_) {}
+    return {
+      personalInfo: {
+        adminId: initialUser.adminId || initialUser.employeeId || "",
+        name: initialUser.fullName || initialUser.name || "",
+        username: initialUser.username || "",
+        gender: initialUser.gender || "",
+        role: initialUser.role || "Administrator",
+        email: initialUser.email || "",
+        mobileNumber: initialUser.mobile || initialUser.phone || "",
+        address: initialUser.address || "",
+      },
+      joiningDate: "",
+      experience: "",
+      qualification: "",
+      salaryDetails: { salary: "", lastPayment: "" },
+      documents: [],
+    };
   });
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -191,11 +197,13 @@ export default function AdminProfile() {
       try {
         const profile = await userSettingsAPI.getProfile();
         if (cancelled) return;
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const resolvedAdminId = profile.adminId || profile.employeeId || storedUser.adminId || storedUser.employeeId || "";
         setAdmin((prev) => ({
           ...prev,
           personalInfo: {
             ...prev.personalInfo,
-            adminId: profile.employeeId || "",
+            adminId: resolvedAdminId,
             name: profile.fullName || profile.name || "",
             role: profile.role || "Administrator",
             email: profile.email || "",
@@ -538,6 +546,7 @@ export default function AdminProfile() {
         {/* SYSTEM */}
         {activeTab === "system" && (
           <ProfileCard label="Account Information" icon={<FiCalendar />}>
+            <InfoDetail label="Admin ID" value={admin.personalInfo.adminId} />
             <InfoDetail label="Role" value={admin.personalInfo.role} />
             <InfoDetail
               label="Department"

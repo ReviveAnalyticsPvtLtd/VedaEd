@@ -4,6 +4,20 @@ import { useNavigate } from "react-router-dom";
 import config from "../../config";
 import { userSettingsAPI } from "../../services/userSettingsAPI";
 
+const formatRole = (r) => {
+  if (!r) return "";
+  const lower = String(r).trim().toLowerCase();
+  if (lower === "superadmin" || lower === "super administrator") return "Super Administrator";
+  if (lower === "admin" || lower === "administrator") return "Administrator";
+  if (lower === "teacher") return "Teacher";
+  if (lower === "parent") return "Parent";
+  if (lower === "student") return "Student";
+  if (lower === "hr") return "HR";
+  if (lower === "receptionist") return "Receptionist";
+  if (lower === "admission") return "Admission Officer";
+  return r.charAt(0).toUpperCase() + r.slice(1);
+};
+
 export default function SuperAdminSettingsAccount() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -77,10 +91,12 @@ export default function SuperAdminSettingsAccount() {
     try {
       setLoading(true);
       setError("");
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const profile = await userSettingsAPI.getProfile();
+      const resolvedRole = formatRole(profile.role || storedUser.role || "Super Administrator");
       setFormData({
         fullName: profile.fullName || "",
-        role: profile.role || "Super Administrator",
+        role: resolvedRole,
         email: profile.email || "",
         department: profile.department || "",
         mobile: profile.mobile || "",

@@ -672,12 +672,19 @@ exports.register = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
         message: "Current password and new password are required",
+      });
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password and confirm password do not match",
       });
     }
 
@@ -695,9 +702,21 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.userId);
+    const userId = req.user?.userId || req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: "This account does not have a local password set. Please use your authentication provider.",
+      });
     }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);

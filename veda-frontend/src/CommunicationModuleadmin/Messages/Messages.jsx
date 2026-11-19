@@ -3,10 +3,11 @@ import Group from "./Group";
 import Individual from "./Individual";
 import Class from "./Class";
 import Templates from "./Templates";
+import MessagesOverview from "./MessagesOverview";
 import HelpInfo from "../../components/HelpInfo";
 
 export default function Messages() {
-  const [activeTab, setActiveTab] = useState("group"); // default tab
+  const [activeTab, setActiveTab] = useState("overview"); // default tab
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -22,6 +23,8 @@ export default function Messages() {
 
   const renderTab = () => {
     switch (activeTab) {
+      case "overview":
+        return <MessagesOverview />;
       case "group":
         return <Group />;
       case "individual":
@@ -48,15 +51,27 @@ export default function Messages() {
 7.1 Page Overview
 
 Compose and send announcements from a single workspace.
-Use the tab bar to jump between recipient modes and template management.
+Use the tab bar to jump between the message overview, recipient modes, and template management.
 
 Sections:
-- Breadcrumb & Header: Shows which sub-tab (Group, Individual, Class, Templates) is active above the page title
-- Tab Bar: Four buttons that render the correct compose interface for each workflow
-- Content Area: Displays the component (Group, Individual, Class, Templates) matching the active tab
+- Breadcrumb & Header: Shows which sub-tab (Overview, Group, Individual, Class, Templates) is active above the page title
+- Tab Bar: Five buttons that render the correct interface for each workflow
+- Content Area: Displays the component (Overview, Group, Individual, Class, Templates) matching the active tab
 
 
-7.2 Group Tab
+7.2 Overview Tab
+
+View sent and received messages in one place.
+
+Sections:
+- Message Summary: Shows sent, received, and unread message counts
+- Search: Search messages by subject, content, or sender
+- Filters: Filter by message type, channel, and direction
+- Message List: Displays message details, priority, type, direction, sender/recipient, date, and channel
+- View Details: Opens the selected message details
+
+
+7.3 Group Tab
 
 Broadcast a message to predefined audience groups (e.g., all parents, all staff).
 
@@ -67,7 +82,7 @@ Sections:
 - Send/Schedule Controls: Send immediately or schedule for later
 
 
-7.3 Individual Tab
+7.4 Individual Tab
 
 Send personalized 1:1 messages to a specific recipient.
 
@@ -78,7 +93,7 @@ Sections:
 - Delivery Confirmation: Preview summary before sending
 
 
-7.4 Class Tab
+7.5 Class Tab
 
 Notify entire classes or sections in one action.
 
@@ -89,7 +104,7 @@ Sections:
 - Channel + Send Controls: Choose delivery channels and send or schedule
 
 
-7.5 Templates Tab
+7.6 Templates Tab
 
 Manage reusable message templates for faster communication.
 
@@ -103,7 +118,7 @@ Sections:
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-300">
-        {["group", "individual", "class", "templates"].map((tab) => (
+        {["overview", "group", "individual", "class", "templates"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -113,7 +128,9 @@ Sections:
                 : "text-gray-500 hover:text-blue-600"
             }`}
           >
-            {tab === "group"
+            {tab === "overview"
+              ? "Overview"
+              : tab === "group"
               ? "Group"
               : tab === "individual"
               ? "Individual"

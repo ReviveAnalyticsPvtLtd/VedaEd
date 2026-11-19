@@ -374,12 +374,12 @@ export const OPERATIONAL_MODULES = [
       {
         label: "Discover Apps",
         adminPath: "/admin-front/integrations",
-        superadminPath: "/admin-front/integrations",
+        superadminPath: "/superadmin-front/integrations",
       },
       {
         label: "Connected Apps",
         adminPath: "/admin-front/integrations",
-        superadminPath: "/admin-front/integrations",
+        superadminPath: "/superadmin-front/integrations",
       },
     ],
   },

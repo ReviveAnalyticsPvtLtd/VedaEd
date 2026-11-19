@@ -1,9 +1,33 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { userSettingsAPI } from "../services/userSettingsAPI";
 
+const formatRole = (r) => {
+  if (!r) return "";
+  const lower = String(r).trim().toLowerCase();
+  if (lower === "superadmin" || lower === "super administrator") return "Super Administrator";
+  if (lower === "admin" || lower === "administrator") return "Administrator";
+  if (lower === "teacher") return "Teacher";
+  if (lower === "parent") return "Parent";
+  if (lower === "student") return "Student";
+  if (lower === "hr") return "HR";
+  if (lower === "receptionist") return "Receptionist";
+  if (lower === "admission") return "Admission Officer";
+  return r.charAt(0).toUpperCase() + r.slice(1);
+};
+
+const getInitials = (name) => {
+  if (!name || !name.trim()) return "AD";
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 export default function AdminAccountSettings() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: "",
+    role: "Administrator",
     email: "",
     department: "",
     mobile: "",
@@ -21,9 +45,12 @@ export default function AdminAccountSettings() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const profile = await userSettingsAPI.getProfile();
+      const resolvedRole = formatRole(profile.role || storedUser.role || "Administrator");
       setFormData({
         fullName: profile.fullName || "",
+        role: resolvedRole,
         email: profile.email || "",
         department: profile.department || "",
         mobile: profile.mobile || "",
@@ -102,7 +129,7 @@ export default function AdminAccountSettings() {
           <div className="flex flex-col items-center shrink-0 w-full lg:w-48">
             <div className="relative">
               <div className="w-28 h-28 rounded-full bg-indigo-50 border-4 border-white shadow-md flex items-center justify-center text-indigo-600 font-bold text-3xl">
-                SA
+                {getInitials(formData.fullName)}
               </div>
 
               <button className="absolute bottom-1 right-1 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition">
@@ -120,7 +147,11 @@ export default function AdminAccountSettings() {
             
             {/* Change Password */}
             <div className="flex justify-end">
-              <button className="flex items-center gap-2 px-3 py-1.5 border border-indigo-200 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-50">
+              <button
+                type="button"
+                onClick={() => navigate("/admin-front/settings/security/password")}
+                className="flex items-center gap-2 px-3 py-1.5 border border-indigo-200 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-50"
+              >
                 🔒 Change Password
               </button>
             </div>
@@ -145,7 +176,7 @@ export default function AdminAccountSettings() {
                   Role
                 </label>
                 <input
-                  value=" Administrator"
+                  value={formData.role || "Administrator"}
                   disabled
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg cursor-not-allowed"
                 />
