@@ -37,10 +37,42 @@ function formatTime(value) {
   return String(value).slice(0, 5);
 }
 
+const toIdString = (value) => {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    const id = value._id ?? value.id;
+    return id == null ? "" : String(id);
+  }
+  const str = String(value).trim();
+  return str;
+};
+
+const getChildClassId = (child) => {
+  if (!child) return "";
+  const candidates = [
+    child.classId,
+    child.personalInfo?.classId,
+    child.class?._id,
+    child.class,
+    child.personalInfo?.class?._id,
+    child.personalInfo?.class,
+  ];
+  for (const candidate of candidates) {
+    const id = toIdString(candidate);
+    if (id && /^[a-f\d]{24}$/i.test(id)) return id;
+  }
+  return "";
+};
+
+const getChildDisplayName = (child) =>
+  child?.name || child?.personalInfo?.name || "My Child";
+
 export default function ParentClasses() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [classes, setClasses] = useState([]);
   const [attendance, setAttendance] = useState({ present: 0, absent: 0 });
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState("");
   const [childName, setChildName] = useState("My Child");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,9 +80,9 @@ export default function ParentClasses() {
   useEffect(() => {
     let active = true;
 
-    const load = async () => {
+    const loadChildren = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = JSON.parse(localStorage.getItem("user") || "null");
         const token = localStorage.getItem("token");
         if (!user || !user.refId || !token) {
           if (active) {
@@ -62,33 +94,84 @@ export default function ParentClasses() {
 
         const authHeaders = { Authorization: `Bearer ${token}` };
         const base = config.API_BASE_URL;
-
         const parentRes = await axios.get(`${base}/parents/${user.refId}`, { headers: authHeaders });
         const parent = parentRes.data && parentRes.data.parent;
-        const children = parent && parent.children ? parent.children : [];
+        const kids = parent && Array.isArray(parent.children) ? parent.children : [];
 
-        if (children.length === 0) {
+        if (!active) return;
+
+        setChildren(kids);
+        if (kids.length === 0) {
+          setSelectedChildId("");
+          setChildName("My Child");
+          setClasses([]);
+          setAttendance({ present: 0, absent: 0 });
+          setSelectedClass(null);
+          setError("No child records found.");
+          setLoading(false);
+          return;
+        }
+
+        setSelectedChildId((prev) => {
+          if (prev && kids.some((k) => String(k._id) === String(prev))) return prev;
+          return kids[0]._id;
+        });
+      } catch (err) {
+        console.error("Error fetching parent children for classes:", err);
+        if (active) {
+          setError("Could not load child information. Please try again.");
+          setLoading(false);
+        }
+      }
+    };
+
+    loadChildren();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedChildId) return;
+
+    let active = true;
+
+    const load = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        const token = localStorage.getItem("token");
+        if (!user || !user.refId || !token) {
           if (active) {
-            setError("No child records found.");
+            setError("You need to be logged in to view classes.");
             setLoading(false);
           }
           return;
         }
 
-        const child = children[0];
+        const child = children.find((c) => String(c._id) === String(selectedChildId));
+        if (!child) {
+          if (active) {
+            setError("Selected child record could not be found.");
+            setClasses([]);
+            setAttendance({ present: 0, absent: 0 });
+            setSelectedClass(null);
+            setLoading(false);
+          }
+          return;
+        }
+
         const childId = child._id;
-        if (!childId) {
-          if (active) {
-            setError("Could not identify your child's record. Please try again.");
-            setLoading(false);
-          }
-          return;
-        }
-        const clsRef = child.personalInfo && child.personalInfo.class;
-        const childClassId = clsRef && typeof clsRef === "object" ? clsRef._id : clsRef;
+        const childClassId = getChildClassId(child);
+        const base = config.API_BASE_URL;
+        const authHeaders = { Authorization: `Bearer ${token}` };
 
         if (active) {
-          setChildName(child.personalInfo?.name || child.name || "My Child");
+          setLoading(true);
+          setError("");
+          setClasses([]);
+          setAttendance({ present: 0, absent: 0 });
+          setSelectedClass(null);
+          setChildName(getChildDisplayName(child));
         }
 
         const [tt, asg, att, mat, ntc] = await Promise.allSettled([
@@ -97,9 +180,11 @@ export default function ParentClasses() {
           axios.get(`${base}/attendance/student/${childId}`, { headers: authHeaders }),
           childClassId
             ? axios.get(`${base}/curriculum/study-materials/student?classId=${childClassId}`, { headers: authHeaders })
-            : Promise.reject(new Error("Child has no class assigned")),
+            : Promise.resolve({ data: { data: [] } }),
           axios.get(`${base}/communication/notices/published/${user.refId}/Parent`, { headers: authHeaders }),
         ]);
+
+        if (!active) return;
 
         const timetableRows =
           tt.status === "fulfilled" && tt.value.data && Array.isArray(tt.value.data.data)
@@ -183,17 +268,18 @@ export default function ParentClasses() {
           };
         });
 
-        if (active) {
-          setClasses(built);
-          setAttendance({
-            present: attendanceList.filter((r) => r.status === "Present").length,
-            absent: attendanceList.filter((r) => r.status === "Absent").length,
-          });
-        }
+        setClasses(built);
+        setAttendance({
+          present: attendanceList.filter((r) => r.status === "Present").length,
+          absent: attendanceList.filter((r) => r.status === "Absent").length,
+        });
       } catch (err) {
         console.error("Error fetching child classes:", err);
         if (active) {
           setError("Could not load class data. Please try again.");
+          setClasses([]);
+          setAttendance({ present: 0, absent: 0 });
+          setSelectedClass(null);
         }
       } finally {
         if (active) setLoading(false);
@@ -204,7 +290,7 @@ export default function ParentClasses() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [selectedChildId, children]);
 
   const DetailView = ({ cls }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -320,9 +406,23 @@ export default function ParentClasses() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">My Child's Classes</h2>
 
-        <HelpInfo
-          title="My Child's Classes"
-          description={`4.1 My Child's Classes (Class Overview)
+        <div className="flex items-center gap-2">
+          {children.length > 1 && (
+            <select
+              value={selectedChildId}
+              onChange={(e) => setSelectedChildId(e.target.value)}
+              className="border px-3 py-1 rounded bg-blue-50 text-blue-700 font-medium"
+            >
+              {children.map((child) => (
+                <option key={child._id} value={child._id}>
+                  {getChildDisplayName(child)}
+                </option>
+              ))}
+            </select>
+          )}
+          <HelpInfo
+            title="My Child's Classes"
+            description={`4.1 My Child's Classes (Class Overview)
 
 View all the classes your child is currently enrolled in, along with teacher details, timings, and classroom information.
 
@@ -333,14 +433,15 @@ Sections:
 - Room / Lab Information: Displays the room or lab assigned for the class
 - View Class Button: Open detailed class information, syllabus, and learning materials
 `}
-          steps={[
-            "Browse all subjects your child is enrolled in",
-            "Check teacher name, class timing, and room details",
-            "Identify daily schedule and subject timings",
-            "Click 'View Class' to see detailed class information",
-            "Use the page to track your child's academic schedule",
-          ]}
-        />
+            steps={[
+              "Browse all subjects your child is enrolled in",
+              "Check teacher name, class timing, and room details",
+              "Identify daily schedule and subject timings",
+              "Click 'View Class' to see detailed class information",
+              "Use the page to track your child's academic schedule",
+            ]}
+          />
+        </div>
       </div>
 
       {loading ? (

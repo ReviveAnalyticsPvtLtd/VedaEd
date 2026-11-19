@@ -139,16 +139,25 @@ export default function Curriculum() {
 
   useEffect(() => {
     const fetchSubjects = async () => {
-      if (!selectedChildId) return;
+      if (!selectedChildId) {
+        setSubjects([]);
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
+        setError(null);
+        setSubjects([]);
         const data = await getSubjects({ studentId: selectedChildId });
         if (data.success) {
           setSubjects(data.data || []);
+        } else {
+          setSubjects([]);
         }
       } catch (err) {
         console.error("Error loading subjects:", err);
         setError("Error loading subjects");
+        setSubjects([]);
       } finally {
         setLoading(false);
       }
@@ -189,8 +198,11 @@ export default function Curriculum() {
       <div className="p-0 m-0 min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">
-          {selectedChildId 
-            ? `${children.find(c => c._id === selectedChildId)?.personalInfo?.name || "Child"}'s Curriculum` 
+          {selectedChildId
+            ? `${(() => {
+                const child = children.find((c) => String(c._id) === String(selectedChildId));
+                return child?.name || child?.personalInfo?.name || "Child";
+              })()}'s Curriculum`
             : "Curriculum"}
         </h2>
         <div className="flex gap-2">
@@ -202,7 +214,7 @@ export default function Curriculum() {
             >
               {children.map((child) => (
                 <option key={child._id} value={child._id}>
-                  {child.personalInfo?.name || child.name}
+                  {child.name || child.personalInfo?.name || "Child"}
                 </option>
               ))}
             </select>

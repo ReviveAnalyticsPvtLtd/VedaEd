@@ -46,18 +46,29 @@ const ParentExams = () => {
   }, [selectedChildId]);
 
   const fetchExams = async () => {
+    if (!selectedChildId) {
+      setAllExams([]);
+      setSelectedExam(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      setAllExams([]);
+      setSelectedExam(null);
       const examsData = await examTimetableAPI.getAll({ studentId: selectedChildId });
-      setAllExams(examsData);
+      const list = Array.isArray(examsData) ? examsData : [];
+      setAllExams(list);
       // Auto-select first exam if available
-      if (examsData.length > 0) {
-        setSelectedExam(examsData[0]);
+      if (list.length > 0) {
+        setSelectedExam(list[0]);
       } else {
         setSelectedExam(null);
       }
     } catch (err) {
       console.error("Error fetching exams:", err);
+      setAllExams([]);
+      setSelectedExam(null);
     } finally {
       setLoading(false);
     }
@@ -67,8 +78,11 @@ const ParentExams = () => {
     <div className="p-0 m-0 min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">
-          {selectedChildId 
-            ? `${children.find(c => c._id === selectedChildId)?.personalInfo?.name || "Child"}'s Exam Timetable` 
+          {selectedChildId
+            ? `${(() => {
+                const child = children.find((c) => String(c._id) === String(selectedChildId));
+                return child?.name || child?.personalInfo?.name || "Child";
+              })()}'s Exam Timetable`
             : "Exams Timetable"}
         </h2>
         <div className="flex gap-2">
@@ -80,7 +94,7 @@ const ParentExams = () => {
             >
               {children.map((child) => (
                 <option key={child._id} value={child._id}>
-                  {child.personalInfo?.name || child.name}
+                  {child.name || child.personalInfo?.name || "Child"}
                 </option>
               ))}
             </select>
