@@ -5,13 +5,14 @@ import {
   FiUsers,
   FiSettings,
   FiMenu,
-  FiUser,
+
   FiHome,
   FiTool,
   FiFileText,
   FiDroplet,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 export default function FleetSidebar({
   searchQuery = "",
@@ -141,19 +142,7 @@ export default function FleetSidebar({
           </div>
         )}
 
-        {/* USER INFO */}
-        <div className="mt-4">
-          {isSidebarOpen ? (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Fleet Manager</div>
-              <div className="text-xs text-gray-500">Admin Panel</div>
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <FiUser size={20} className="text-gray-600" />
-            </div>
-          )}
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="fleet" />
       </div>
     </div>
   );
