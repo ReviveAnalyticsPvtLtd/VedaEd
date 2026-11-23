@@ -51,14 +51,21 @@ export default function StudentTimetable() {
           const mapped = {};
           DAYS.forEach(day => mapped[day] = []);
           
+          const normalizeDayName = (day) => {
+            if (!day) return null;
+            const str = String(day).trim().toLowerCase();
+            return DAYS.find((d) => d.toLowerCase() === str) || null;
+          };
           rawData.forEach(entry => {
-            if (mapped[entry.day]) {
-              mapped[entry.day].push({
-                time: entry.timeFrom,
-                displayTime: `${entry.timeFrom} - ${entry.timeTo}`,
-                subject: entry.subject?.subjectName || "Unknown",
-                room: entry.roomNo || "N/A",
-                teacher: entry.teacher?.personalInfo?.name || "Unknown"
+            const dayKey = normalizeDayName(entry.day) || (DAYS.includes(entry.day) ? entry.day : null);
+            if (dayKey && mapped[dayKey]) {
+              const time = entry.timeFrom || entry.startTime || entry.time || "";
+              mapped[dayKey].push({
+                time: String(time),
+                displayTime: entry.timeFrom && entry.timeTo ? `${entry.timeFrom} - ${entry.timeTo}` : String(time),
+                subject: entry.subject?.subjectName || entry.subjectName || entry.subject?.name || "Unknown",
+                room: entry.roomNo || entry.room || entry.roomNumber || "N/A",
+                teacher: entry.teacher?.personalInfo?.name || entry.teacher?.name || entry.teacherName || "Unknown"
               });
             }
           });

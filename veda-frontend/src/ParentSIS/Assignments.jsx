@@ -49,14 +49,16 @@ export default function ParentAssignments() {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
+      setAssignments([]);
       // Backend handles merging if no studentId is sent, 
       // but we send it for targeted view.
-      const data = await assignmentAPI.getAssignments({ 
-        studentId: selectedChildId 
+      const data = await assignmentAPI.getAssignments({
+        studentId: selectedChildId || undefined,
       });
       setAssignments(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching assignments:", err);
+      setAssignments([]);
     } finally {
       setLoading(false);
     }
@@ -75,8 +77,11 @@ export default function ParentAssignments() {
     <div className="p-0 m-0 min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">
-          {selectedChildId 
-            ? `${children.find(c => c._id === selectedChildId)?.personalInfo?.name || "Child"}'s Assignments` 
+          {selectedChildId
+            ? `${(() => {
+                const child = children.find((c) => String(c._id) === String(selectedChildId));
+                return child?.name || child?.personalInfo?.name || "Child";
+              })()}'s Assignments`
             : "Child's Assignments"}
         </h2>
         <div className="flex gap-2">
@@ -89,7 +94,7 @@ export default function ParentAssignments() {
               <option value="">All Children</option>
               {children.map((child) => (
                 <option key={child._id} value={child._id}>
-                  {child.personalInfo?.name || child.name}
+                  {child.name || child.personalInfo?.name || "Child"}
                 </option>
               ))}
             </select>

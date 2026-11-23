@@ -1,4 +1,3 @@
-import { getStoredUser } from "../utils/authStorage";
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
@@ -8,9 +7,7 @@ import {
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
-import ProfileAvatar, {
-  resolveProfileImage,
-} from "../components/ProfileAvatar";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 export default function StudentCalendarSidebar({
   isSidebarOpen,
@@ -18,22 +15,6 @@ export default function StudentCalendarSidebar({
 }) {
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const currentUser = (() => {
-    try {
-      return getStoredUser() || {};
-    } catch {
-      return {};
-    }
-  })();
-
-  const userName =
-    currentUser?.name ||
-    currentUser?.fullName ||
-    currentUser?.username ||
-    "Student";
-
-  const userImage = resolveProfileImage(currentUser);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -229,34 +210,7 @@ export default function StudentCalendarSidebar({
           </button>
         )}
 
-        {/* ================= STUDENT PROFILE ================= */}
-        <div
-          className={`
-            flex items-center
-            ${isSidebarOpen ? "gap-3 p-3" : "justify-center py-2"}
-            ${isSidebarOpen ? "bg-gray-50 rounded-lg" : ""}
-          `}
-        >
-          <ProfileAvatar
-            name={userName}
-            imageSrc={userImage}
-            sizeClassName="w-8 h-8"
-            textClassName="text-xs"
-            className="ring-0"
-          />
-
-          {isSidebarOpen && (
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-800 truncate">
-                {userName}
-              </p>
-
-              <p className="text-xs text-gray-500 truncate">
-                Student
-              </p>
-            </div>
-          )}
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="student" />
       </div>
     </aside>
   );

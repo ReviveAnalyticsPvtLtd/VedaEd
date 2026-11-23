@@ -105,13 +105,18 @@ export default function ParentFees() {
   }, []);
 
   useEffect(() => {
-    if (!selectedChildId) return;
+    if (!selectedChildId) {
+      setFeeProfile(null);
+      setLoading(false);
+      return;
+    }
     let active = true;
 
     const loadFeeProfile = async () => {
       try {
         setLoading(true);
         setError("");
+        setFeeProfile(null);
         const token = getAuthToken();
         const authHeaders = { Authorization: `Bearer ${token}` };
         const params = {};
@@ -125,6 +130,7 @@ export default function ParentFees() {
       } catch (err) {
         console.error("Error loading fee profile:", err);
         if (active) {
+          setFeeProfile(null);
           const msg = err.response && err.response.data && err.response.data.message;
           if (msg === "No active academic year found") {
             setError("Fee records for the current academic year are not set up yet.");
@@ -276,7 +282,7 @@ export default function ParentFees() {
             >
               {children.map((child) => (
                 <option key={child._id} value={child._id}>
-                  {child.name}
+                  {child.name || child.personalInfo?.name || "Child"}
                 </option>
               ))}
             </select>

@@ -140,32 +140,6 @@ const navigate = useNavigate();
 
   return (
     <div className="p-0 m-0 min-h-screen">
-      {/* Breadcrumbs */}
-      <nav className="text-sm mb-4">
-        <ol className="flex text-gray-600">
-          
-          <li>
-            
-            <Link
-              to="/classes-schedules"
-              className="text-gray-600 hover:underline"
-            >
-              Classes & Schedules
-            </Link>
-          </li>
-          <li className="mx-2">&gt;</li>
-          <li>
-            <Link
-              to="/classes-schedules/add-class"
-              className="text-gray-600 hover:underline"
-            >
-              Add Class & Section
-            </Link>
-          </li>
-          <li className="mx-2">&gt;</li>
-          <li className="text-gray-600 ">Add Subject</li>
-        </ol>
-      </nav>
        <h2 className="text-xl font-semibold mb-4">Add Subject list</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

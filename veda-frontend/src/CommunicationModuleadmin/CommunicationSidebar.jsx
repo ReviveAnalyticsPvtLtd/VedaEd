@@ -9,6 +9,7 @@ import {
   FiUser,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 export default function CommunicationSidebar({
   searchQuery = "",
@@ -153,19 +154,7 @@ export default function CommunicationSidebar({
     </div>
   )}
 </div>
-        {/* USER INFO */}
-        <div className="mt-4">
-          {isSidebarOpen ? (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Communication User</div>
-              <div className="text-xs text-gray-500">Admin</div>
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <FiUser size={20} className="text-gray-600" />
-            </div>
-          )}
-        </div>
+<SidebarProfile isSidebarOpen={isSidebarOpen} role="admin" />
       </div>
     </div>
   );
