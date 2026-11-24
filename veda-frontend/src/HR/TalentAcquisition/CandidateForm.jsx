@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import { FiUpload, FiCheck, FiFileText, FiUser, FiBriefcase, FiPhone, FiBookOpen } from "react-icons/fi";
+import useTalentPaths from "./useTalentPaths";
 
 export default function CandidateForm() {
   const navigate = useNavigate();
+  const { talentBase } = useTalentPaths();
   const [vacancies, setVacancies] = useState([]);
   const [formData, setFormData] = useState({
     vacancy: "", roleType: "Teaching", applicantName: "", fatherName: "", dob: "", gender: "Male",
@@ -305,7 +307,7 @@ export default function CandidateForm() {
         <div className="flex justify-between items-center pt-8 mt-4 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate("/hr/talent-acquisition/vacancy")}
+            onClick={() => navigate(`${talentBase}/vacancy`)}
             className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 font-medium transition"
           >
             Back
@@ -321,7 +323,7 @@ export default function CandidateForm() {
 
             <button
               type="button"
-              onClick={() => navigate("/hr/talent-acquisition/pipeline")}
+              onClick={() => navigate(`${talentBase}/pipeline`)}
               className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium transition"
             >
               Next

@@ -41,7 +41,7 @@ export default function SuperAdminSidebar({
   return (
     <div
       className={`fixed top-16 left-0 z-40 h-[calc(100vh-64px)]
-      bg-white border-r shadow-sm transition-all
+      bg-white border-r shadow-sm transition-all overflow-hidden flex flex-col
       ${isSidebarOpen ? "w-64" : "w-14"}`}
     >
       {/* Toggle */}
@@ -53,7 +53,7 @@ export default function SuperAdminSidebar({
       </button>
 
       {/* Main Menu */}
-      <ul className="mt-14 px-3 space-y-1">
+      <ul className="mt-14 flex-1 overflow-y-auto px-3 space-y-1">
         {menuItems.map((item) => {
           const active = location.pathname.startsWith(item.path);
           return (
@@ -75,8 +75,8 @@ export default function SuperAdminSidebar({
         })}
       </ul>
 
-      {/* ===== SETTINGS SECTION (REFERENCE STYLE) ===== */}
-      <div className="absolute bottom-20 w-full px-2">
+      {/* ===== SETTINGS + USER INFO ===== */}
+      <div className="shrink-0 border-t p-2">
         <button
           onClick={() => setSettingsOpen(!settingsOpen)}
           className={`flex h-10 w-full items-center rounded-lg transition
@@ -118,9 +118,9 @@ export default function SuperAdminSidebar({
             })}
           </div>
         )}
-      </div>
 
-      <SidebarProfile isSidebarOpen={isSidebarOpen} role="superadmin" />
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="superadmin" />
+      </div>
     </div>
   );
 }

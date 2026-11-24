@@ -27,7 +27,6 @@ import {
 
 export default function HRDashboard() {
 
-  /* ===================== MAIN STATS ===================== */
   const [statValues, setStatValues] = useState({
     totalStaff: "—",
     pendingLeaves: "—",
@@ -207,16 +206,14 @@ export default function HRDashboard() {
   }, []);
 
   const stats = [
-    { title: "Total Staff", value: statValues.totalStaff, icon: <FiUsers size={22} />, color: "border-blue-500" },
-    { title: "Pending Leaves", value: statValues.pendingLeaves, icon: <FiClock size={22} />, color: "border-yellow-500" },
-    { title: "Payroll This Month", value: statValues.payroll, icon: <FiDollarSign size={22} />, color: "border-green-500" },
-    { title: "New Hires", value: statValues.newHires, icon: <FiUserPlus size={22} />, color: "border-purple-500" },
+    { title: "Total Staff", value: statValues.totalStaff, icon: <FiUsers size={22} /> },
+    { title: "Pending Leaves", value: statValues.pendingLeaves, icon: <FiClock size={22} /> },
+    { title: "Payroll This Month", value: statValues.payroll, icon: <FiDollarSign size={22} /> },
+    { title: "New Hires", value: statValues.newHires, icon: <FiUserPlus size={22} /> },
   ];
 
-  /* ===================== ROLE CARDS ===================== */
   const [roleStats, setRoleStats] = useState([]);
 
-  /* ===================== CHART DATA ===================== */
   const [hiringData, setHiringData] = useState([]);
   const [salaryTrend, setSalaryTrend] = useState([]);
   const [attendanceData, setAttendanceData] = useState([]);
@@ -228,11 +225,10 @@ export default function HRDashboard() {
   return (
     <div className="space-y-8">
 
-      {/* ===================== TOP STAT CARDS ===================== */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((item, index) => (
           <div key={index}
-            className={`bg-white p-6 rounded-xl shadow-sm border-l-4 ${item.color}`}>
+            className="bg-white p-6 rounded-xl shadow-sm">
             <div className="flex justify-between">
               <div>
                 <p className="text-sm text-gray-500">{item.title}</p>
@@ -244,7 +240,6 @@ export default function HRDashboard() {
         ))}
       </div>
 
-      {/* ===================== ANALYTICS SECTION ===================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Hiring Bar Chart */}
@@ -300,7 +295,6 @@ export default function HRDashboard() {
 
       </div>
 
-      {/* ===================== SALARY TREND ===================== */}
       <div className="bg-white p-6 rounded-xl shadow-sm">
         <h3 className="font-semibold mb-4">Salary Expense Trend (Last 12 Months)</h3>
 
@@ -326,7 +320,6 @@ export default function HRDashboard() {
         )}
       </div>
 
-      {/* ===================== ROLE COUNT GRID ===================== */}
       <div>
         <h3 className="font-semibold mb-4">Staff Overview</h3>
 
@@ -347,7 +340,6 @@ export default function HRDashboard() {
         </div>
       </div>
 
-      {/* ===================== HR ACTIVITY ===================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <div className="bg-white p-6 rounded-xl shadow-sm">

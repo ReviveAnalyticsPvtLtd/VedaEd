@@ -38,11 +38,6 @@ export default function CashierFeeDiscount() {
 
   return (
     <div className="p-0">
-      <div className="text-gray-500 text-sm mb-2 flex items-center gap-1">
-        <span>Fees</span>
-        <span>&gt;</span>
-        <span>Fee Discount</span>
-      </div>
       <div className="flex items-center gap-4 mb-4">
         <h2 className="text-2xl font-bold">Fee Discount</h2>
         <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 text-sm font-semibold text-blue-800">
