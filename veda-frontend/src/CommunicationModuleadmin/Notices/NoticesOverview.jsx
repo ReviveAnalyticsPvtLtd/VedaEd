@@ -7,36 +7,29 @@ import {
   FiSend,
 } from "react-icons/fi";
 import CommunicationAPI from "../communicationAPI";
+import { getStoredUser } from "../../utils/authStorage";
 
 export default function NoticesOverview() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser] = useState(() => {
+    const u = getStoredUser() || {};
+
+    return {
+      id: u.refId || u._id || u.id || "",
+      role: u.role || "Admin",
+    };
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Get logged-in Admin
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-
-        setCurrentUser({
-          id: u.refId || u._id,
-          role: u.role || "Admin",
-        });
-      } catch (error) {
-        console.error("Failed to parse user:", error);
-      }
-    }
-  }, []);
-
   // Load notices
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id) {
+      setLoading(false);
+      return;
+    }
 
     let active = true;
 

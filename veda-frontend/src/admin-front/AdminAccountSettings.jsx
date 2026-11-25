@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { userSettingsAPI } from "../services/userSettingsAPI";
+import { getStoredUser, setStoredUser } from "../utils/authStorage";
 
 const formatRole = (r) => {
   if (!r) return "";
@@ -45,7 +46,7 @@ export default function AdminAccountSettings() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const storedUser = getStoredUser() || {};
       const profile = await userSettingsAPI.getProfile();
       const resolvedRole = formatRole(profile.role || storedUser.role || "Administrator");
       setFormData({
@@ -76,14 +77,28 @@ export default function AdminAccountSettings() {
       setError("");
       setSuccess("");
       
-      await userSettingsAPI.updateProfile({
+      const response = await userSettingsAPI.updateProfile({
         fullName: formData.fullName,
         email: formData.email,
         department: formData.department,
         mobile: formData.mobile,
         employeeId: formData.employeeId,
       });
-      
+
+      try {
+        const cachedUser = getStoredUser() || {};
+        setStoredUser({
+          ...cachedUser,
+          name: response?.user?.fullName || formData.fullName,
+          fullName: response?.user?.fullName || formData.fullName,
+          email: response?.user?.email || formData.email,
+          mobile: response?.user?.mobile || formData.mobile,
+          employeeId: response?.user?.employeeId || formData.employeeId,
+        });
+      } catch (storageErr) {
+        console.error("Failed to update cached user:", storageErr);
+      }
+
       setSuccess("Changes Saved Successfully");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {

@@ -7,11 +7,23 @@ import {
   FiInbox,
 } from "react-icons/fi";
 import CommunicationAPI from "../communicationAPI";
+import { getStoredUser } from "../../utils/authStorage";
 
 export default function MessagesOverview() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser] = useState(() => {
+    const u = getStoredUser() || {};
+    const role = String(u.role || "Admin");
+
+    return {
+      id: u.refId || u._id || u.id || "",
+      userId: u._id || u.id || "",
+      refId: u.refId || "",
+      model: role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : "Admin",
+    };
+  });
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -20,110 +32,157 @@ export default function MessagesOverview() {
 
   const [selectedMessage, setSelectedMessage] = useState(null);
 
-  // Get logged-in Admin
+  // Fetch messages and notifications. The Group/Individual/Class tabs create
+  // notifications, while the teacher/parent modules create messages, so the
+  // overview has to combine both to show the admin's full history.
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-
-        setCurrentUser({
-          id: u.refId || u._id,
-          model: u.role || "Admin",
-        });
-      } catch (error) {
-        console.error("Failed to parse user:", error);
-      }
+    if (!currentUser?.id) {
+      setLoading(false);
+      return;
     }
-  }, []);
-
-  // Fetch messages
-  useEffect(() => {
-    if (!currentUser?.id) return;
 
     let active = true;
 
     const fetchMessages = async () => {
       setLoading(true);
+      setError("");
 
-      try {
-        const [inboxRes, sentRes] = await Promise.all([
-          CommunicationAPI.getMessages(
-            currentUser.id,
-            currentUser.model
-          ),
-          CommunicationAPI.getSentMessages(
-            currentUser.id,
-            currentUser.model
-          ),
-        ]);
+      const [inboxRes, sentRes, notifsRes, receivedRes] = await Promise.allSettled([
+        CommunicationAPI.getMessages(currentUser.id, currentUser.model, { limit: 100 }),
+        CommunicationAPI.getSentMessages(currentUser.id, currentUser.model, { limit: 100 }),
+        CommunicationAPI.getNotifications({ limit: 100 }),
+        CommunicationAPI.getReceivedNotifications(currentUser.id, currentUser.model, { limit: 100 }),
+      ]);
 
-        if (!active) return;
+      if (!active) return;
 
-        const inbox = (inboxRes?.data || []).map((m) => ({
-          id: m._id,
-          title: m.subject || "No Subject",
-          message: m.content || "",
-          sender:
-            m.sender?.personalInfo?.name ||
-            m.sender?.personalInfo?.fullName ||
-            m.senderModel ||
-            "Unknown",
-          senderRole: m.senderModel || "",
-          recipient:
-            m.receiver?.personalInfo?.name ||
-            m.receiver?.personalInfo?.fullName ||
-            m.receiverModel ||
-            "Unknown",
-          recipientRole: m.receiverModel || "",
-          sentDate: m.createdAt,
-          messageType: "Individual",
-          channel: "App",
-          isRead: m.status === "read" || m.status === "archived",
-          priority: m.priority || "medium",
-          class: "",
-          direction: "received",
-          student: "",
-        }));
+      const settledData = (result) =>
+        result.status === "fulfilled" && Array.isArray(result.value?.data)
+          ? result.value.data
+          : [];
 
-        const sent = (sentRes?.data || []).map((m) => ({
-          id: m._id,
-          title: m.subject || "No Subject",
-          message: m.content || "",
-          sender:
-            m.sender?.personalInfo?.name ||
-            m.sender?.personalInfo?.fullName ||
-            m.senderModel ||
-            "Unknown",
-          senderRole: m.senderModel || "",
-          recipient:
-            m.receiver?.personalInfo?.name ||
-            m.receiver?.personalInfo?.fullName ||
-            m.receiverModel ||
-            "Unknown",
-          recipientRole: m.receiverModel || "",
-          sentDate: m.createdAt,
-          messageType: "Individual",
-          channel: "App",
-          isRead: m.status === "read" || m.status === "archived",
-          priority: m.priority || "medium",
-          class: "",
-          direction: "sent",
-          student: "",
-        }));
+      const refId = (value) =>
+        value && typeof value === "object" && value._id
+          ? String(value._id)
+          : String(value || "");
 
-        setMessages([...sent, ...inbox]);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-      } finally {
-        if (active) {
-          setLoading(false);
+      const partyName = (party, fallback) =>
+        party?.personalInfo?.name ||
+        party?.personalInfo?.fullName ||
+        party?.name ||
+        fallback;
+
+      const mapMessage = (m, direction) => ({
+        id: m._id,
+        title: m.subject || "No Subject",
+        message: m.content || "",
+        sender: partyName(m.sender, m.senderModel || "Unknown"),
+        senderRole: m.senderModel || "",
+        recipient: partyName(m.receiver, m.receiverModel || "Unknown"),
+        recipientRole: m.receiverModel || "",
+        sentDate: m.createdAt,
+        messageType: "Individual",
+        channel: "App",
+        isRead: m.status === "read" || m.status === "archived",
+        priority: m.priority || "medium",
+        class: "",
+        direction,
+        student: "",
+      });
+
+      const notificationType = (n) => {
+        if (
+          n.audience === "specific_class" ||
+          n.audience === "specific_section" ||
+          n.specificTargetModel === "Class" ||
+          n.specificTargetModel === "Section"
+        ) {
+          return "Class";
         }
+        if (
+          Array.isArray(n.specificTargets) &&
+          n.specificTargets.length > 0 &&
+          ["Teacher", "Staff", "Student", "Parent"].includes(n.specificTargetModel)
+        ) {
+          return "Individual";
+        }
+        return "Group";
+      };
+
+      const notificationChannel = (channels) => {
+        const first = Array.isArray(channels) ? channels[0] : channels;
+        const lower = String(first || "app").toLowerCase();
+        if (lower === "sms" || lower === "email") return lower.toUpperCase();
+        return "App";
+      };
+
+      const mapNotification = (n, direction) => ({
+        id: n._id,
+        title: n.title || "No Subject",
+        message: n.description || "",
+        sender: partyName(n.createdBy, n.createdByModel || "Admin"),
+        senderRole: n.createdByModel || "Admin",
+        recipient:
+          direction === "sent"
+            ? n.specificTargetModel || n.audience || "Recipients"
+            : "Me",
+        recipientRole:
+          direction === "sent"
+            ? n.specificTargetModel || n.audience || ""
+            : currentUser.model,
+        sentDate: n.publishDate || n.createdAt,
+        messageType: notificationType(n),
+        channel: notificationChannel(n.channels),
+        isRead: n.status === "read" || n.status === "archived" || Boolean(n.readAt),
+        priority:
+          String(n.type || "").toLowerCase() === "urgent"
+            ? "high"
+            : n.priority || "medium",
+        class: "",
+        direction,
+        student: "",
+      });
+
+      const ownIds = [currentUser.id, currentUser.userId, currentUser.refId]
+        .filter(Boolean)
+        .map(String);
+
+      const ownNotifications = settledData(notifsRes).filter((n) =>
+        ownIds.includes(refId(n.createdBy))
+      );
+
+      const combined = [
+        ...settledData(sentRes).map((m) => mapMessage(m, "sent")),
+        ...ownNotifications.map((n) => mapNotification(n, "sent")),
+        ...settledData(inboxRes).map((m) => mapMessage(m, "received")),
+        ...settledData(receivedRes).map((n) => mapNotification(n, "received")),
+      ];
+
+      const unique = new Map();
+      combined.forEach((item) => {
+        if (!unique.has(item.id)) unique.set(item.id, item);
+      });
+
+      setMessages(
+        [...unique.values()].sort(
+          (a, b) => new Date(b.sentDate) - new Date(a.sentDate)
+        )
+      );
+
+      if ([inboxRes, sentRes, notifsRes, receivedRes].every((r) => r.status === "rejected")) {
+        setError("Failed to load messages. Please try again.");
       }
     };
 
-    fetchMessages();
+    fetchMessages()
+      .catch((err) => {
+        if (!active) return;
+        console.error("Error fetching messages:", err);
+        setError(err.message || "Failed to load messages.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     return () => {
       active = false;
@@ -219,6 +278,15 @@ export default function MessagesOverview() {
 
   return (
     <div>
+      {error && (
+        <div
+          className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
         <div className="flex items-center justify-between mb-4">
