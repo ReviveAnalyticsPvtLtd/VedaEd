@@ -56,10 +56,6 @@ export default function SuperAdminSISDashboard() {
         },
       };
 
-      // =========================
-      // FETCH ALL DATA
-      // =========================
-
       const [
         dashboardRes,
         studentsRes,
@@ -96,16 +92,8 @@ export default function SuperAdminSISDashboard() {
           })),
       ]);
 
-      // =========================
-      // STUDENTS DATA
-      // =========================
-
       const students =
         studentsRes?.data?.students || [];
-
-      // =========================
-      // DASHBOARD STATS
-      // =========================
 
       setDashboardStats({
         students:
@@ -129,10 +117,6 @@ export default function SuperAdminSISDashboard() {
           0,
       });
 
-      // =========================
-      // STUDENTS BY CLASS
-      // =========================
-
       const classMap = {};
 
       students.forEach((student) => {
@@ -155,15 +139,7 @@ export default function SuperAdminSISDashboard() {
 
       setStudentChartData(formattedChartData);
 
-      // =========================
-      // RECENT STUDENTS
-      // =========================
-
       setRecentStudents(students.slice(0, 5));
-
-      // =========================
-      // TEACHER ASSIGNED CLASSES
-      // =========================
 
       try {
         const assignRes = await axios.get(
@@ -225,10 +201,6 @@ export default function SuperAdminSISDashboard() {
   return (
     <div className="space-y-5">
 
-      {/* ========================= */}
-      {/* TOP CARDS */}
-      {/* ========================= */}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 
         {/* TOTAL STUDENTS */}
@@ -262,7 +234,7 @@ export default function SuperAdminSISDashboard() {
             Teachers
           </p>
 
-          <h2 className="text-3xl font-bold text-green-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.teachers}
@@ -283,7 +255,7 @@ export default function SuperAdminSISDashboard() {
             Classes
           </p>
 
-          <h2 className="text-3xl font-bold text-purple-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.classes}
@@ -304,7 +276,7 @@ export default function SuperAdminSISDashboard() {
             Active Students
           </p>
 
-          <h2 className="text-3xl font-bold text-cyan-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.activeStudents}
@@ -328,10 +300,6 @@ export default function SuperAdminSISDashboard() {
         </div>
 
       </div>
-
-      {/* ========================= */}
-      {/* ANALYTICS */}
-      {/* ========================= */}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
@@ -531,10 +499,6 @@ export default function SuperAdminSISDashboard() {
 
       </div>
 
-      {/* ========================= */}
-      {/* ASSIGNED TEACHER CLASSES */}
-      {/* ========================= */}
-
       <div className="bg-white border rounded-2xl p-5 shadow-sm">
 
         <div className="flex items-center justify-between mb-5">
@@ -593,10 +557,6 @@ export default function SuperAdminSISDashboard() {
         </div>
 
       </div>
-
-      {/* ========================= */}
-      {/* BOTTOM SECTION */}
-      {/* ========================= */}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 

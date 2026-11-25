@@ -5,9 +5,11 @@ import { useNavigate } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import config from "../../config";
 import Pagination from "../../components/common/Pagination";
+import useTalentPaths from "./useTalentPaths";
 
 export default function ApplicationPipeline() {
   const navigate = useNavigate();
+  const { talentBase, dashboard } = useTalentPaths();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -518,14 +520,14 @@ export default function ApplicationPipeline() {
       {/* BACK & NEXT NAVIGATION BUTTONS - BOTTOM (NOT FIXED) */}
       <div className="flex justify-between items-center mt-4 pt-2  border-gray-200">
         <button
-          onClick={() => navigate("/hr/talent-acquisition/apply")}
+          onClick={() => navigate(`${talentBase}/apply`)}
           className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 font-medium transition"
         >
           Back
         </button>
 
         <button
-          onClick={() => navigate("/hr/dashboard")}
+          onClick={() => navigate(dashboard)}
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium transition"
         >
           Complete

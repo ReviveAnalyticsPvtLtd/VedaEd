@@ -63,10 +63,6 @@ export default function Dashboard() {
         },
       };
 
-      // =========================
-      // FETCH ALL DATA
-      // =========================
-
       const [
         dashboardRes,
         studentsRes,
@@ -103,16 +99,8 @@ export default function Dashboard() {
           })),
       ]);
 
-      // =========================
-      // STUDENTS DATA
-      // =========================
-
       const students =
         studentsRes?.data?.students || [];
-
-      // =========================
-      // DASHBOARD STATS
-      // =========================
 
       setDashboardStats({
         students:
@@ -137,10 +125,6 @@ export default function Dashboard() {
           0,
       });
 
-      // =========================
-      // STUDENTS BY CLASS
-      // =========================
-
       const classMap = {};
 
       students.forEach((student) => {
@@ -164,15 +148,7 @@ export default function Dashboard() {
 
       setStudentChartData(formattedChartData);
 
-      // =========================
-      // RECENT STUDENTS
-      // =========================
-
       setRecentStudents(students.slice(0, 5));
-
-      // =========================
-      // TEACHER ASSIGNED CLASSES
-      // =========================
 
       try {
         const assignRes = await axios.get(
@@ -236,10 +212,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
-      {/* ========================= */}
-      {/* TOP CARDS */}
-      {/* ========================= */}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <Link
           to="/admin/students"
@@ -268,7 +240,7 @@ export default function Dashboard() {
             Teachers
           </p>
 
-          <h2 className="text-3xl font-bold text-green-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.teachers}
@@ -287,7 +259,7 @@ export default function Dashboard() {
             Classes
           </p>
 
-          <h2 className="text-3xl font-bold text-purple-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.classes}
@@ -308,7 +280,7 @@ export default function Dashboard() {
             Active Students
           </p>
 
-          <h2 className="text-3xl font-bold text-cyan-600 mt-2">
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">
             {loading
               ? "..."
               : dashboardStats.activeStudents}
@@ -328,10 +300,6 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
-
-      {/* ========================= */}
-      {/* ANALYTICS */}
-      {/* ========================= */}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* STUDENT CHART */}
@@ -499,10 +467,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ========================= */}
-      {/* ASSIGNED TEACHER CLASSES */}
-      {/* ========================= */}
-
       <div className="bg-white border rounded-2xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">
@@ -554,10 +518,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      {/* ========================= */}
-      {/* BOTTOM SECTION */}
-      {/* ========================= */}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* QUICK ACTIONS */}

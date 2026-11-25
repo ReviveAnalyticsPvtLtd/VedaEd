@@ -204,7 +204,6 @@ export default function TeacherCommunicationDashboard() {
     };
   }, []);
 
-  /* ================= STAT CARDS ================= */
   const statCards = [
     {
       ...stats[0],
@@ -215,19 +214,19 @@ export default function TeacherCommunicationDashboard() {
     {
       ...stats[1],
       icon: <FiAlertCircle size={22} />,
-      iconBg: "bg-amber-50 text-amber-600",
+      iconBg: "bg-blue-50 text-blue-600",
       link: "/teacher-communication/complaints",
     },
     {
       ...stats[2],
       icon: <FiBell size={22} />,
-      iconBg: "bg-emerald-50 text-emerald-600",
+      iconBg: "bg-blue-50 text-blue-600",
       link: "/teacher-communication/notices",
     },
     {
       ...stats[3],
       icon: <FiUsers size={22} />,
-      iconBg: "bg-purple-50 text-purple-600",
+      iconBg: "bg-blue-50 text-blue-600",
       link: "/teacher-communication/logs",
     },
   ];
@@ -236,7 +235,6 @@ export default function TeacherCommunicationDashboard() {
 
   return (
     <div className="space-y-4">
-      {/* ================= HEADER ================= */}
       <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">
@@ -256,7 +254,6 @@ export default function TeacherCommunicationDashboard() {
         </select>
       </div>
 
-      {/* ================= STAT CARDS ================= */}
       {loading ? (
         <div className="text-center py-10 text-gray-500">
           Loading dashboard...
@@ -281,7 +278,6 @@ export default function TeacherCommunicationDashboard() {
             ))}
           </div>
 
-          {/* ================= CHARTS ================= */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl shadow-sm lg:col-span-2">
               <h3 className="text-lg font-semibold mb-4">
@@ -320,7 +316,6 @@ export default function TeacherCommunicationDashboard() {
             </div>
           </div>
 
-          {/* ================= LINE CHART ================= */}
           <div className="bg-white p-6 rounded-xl shadow-sm">
             <h3 className="text-lg font-semibold mb-4">
               Monthly Message Trend
@@ -341,7 +336,6 @@ export default function TeacherCommunicationDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* ================= TOP CLASSES TABLE ================= */}
           <div className="bg-white p-6 rounded-xl shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Most Active Classes</h3>
             {activeClasses.length > 0 ? (

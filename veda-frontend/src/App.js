@@ -856,6 +856,9 @@ function App() {
         <Route path="attendance" element={<SuperAdminHRAttendance />} />
         <Route path="payroll" element={<SuperAdminHRPayroll />} />
         <Route path="leave-approval" element={<SuperAdminHRLeaveApproval />} />
+        <Route path="talent-acquisition/vacancy" element={<VacancyDashboard />} />
+        <Route path="talent-acquisition/pipeline" element={<ApplicationPipeline />} />
+        <Route path="talent-acquisition/apply" element={<CandidateForm />} />
       </Route>
 
       {/* ===== ADMISSION ===== */}

@@ -3,9 +3,11 @@ import { FiTrash2, FiPlus, FiBriefcase, FiCheckCircle, FiUsers } from "react-ico
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import Pagination from "../../components/common/Pagination";
+import useTalentPaths from "./useTalentPaths";
 
 export default function VacancyDashboard() {
   const navigate = useNavigate();
+  const { talentBase, dashboard } = useTalentPaths();
   const [form, setForm] = useState({
     vacancyId: "",
     department: "",
@@ -376,14 +378,14 @@ export default function VacancyDashboard() {
       {/* BACK & NEXT NAVIGATION BUTTONS - BOTTOM (NOT FIXED) */}
       <div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
         <button
-          onClick={() => navigate("/hr/dashboard")}
+          onClick={() => navigate(dashboard)}
           className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 font-medium transition"
         >
           Back
         </button>
 
         <button
-          onClick={() => navigate("/hr/talent-acquisition/apply")}
+          onClick={() => navigate(`${talentBase}/apply`)}
           className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium transition"
         >
           Next

@@ -79,20 +79,81 @@ const buildStudentsByClassPipeline = (schoolId) => [
   }
 ];
 
-const buildStudentBreakdownPipeline = (schoolId) => [
-  { $match: tenantMatchFor(schoolId) },
-  {
-    $facet: {
-      studentsByClass: [
-        { $group: { _id: "$personalInfo.class", count: { $sum: 1 } } },
-        { $sort: { _id: 1 } }
-      ],
-      genderRatio: [
-        { $group: { _id: "$personalInfo.gender", count: { $sum: 1 } } }
-      ]
+const buildStudentBreakdownPipeline = (schoolId) => {
+  const tenantMatch = tenantMatchFor(schoolId);
+
+  return [
+    { $match: tenantMatch },
+    {
+      $facet: {
+        studentsByClass: [
+          { $group: { _id: "$personalInfo.class", count: { $sum: 1 } } },
+          {
+            // personalInfo.class is an ObjectId ref to the Class collection.
+            // Resolve it so chart labels use Class.name, not the raw ObjectId.
+            $lookup: {
+              from: Class.collection.name,
+              let: {
+                classId: "$_id",
+                tenantId: tenantMatch.schoolId
+              },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$_id", "$$classId"] },
+                        { $eq: ["$schoolId", "$$tenantId"] }
+                      ]
+                    }
+                  }
+                },
+                { $project: { name: 1 } }
+              ],
+              as: "classDoc"
+            }
+          },
+          {
+            $unwind: {
+              path: "$classDoc",
+              preserveNullAndEmptyArrays: true
+            }
+          },
+          {
+            $addFields: {
+              name: {
+                $cond: [
+                  { $eq: [{ $type: "$classDoc" }, "object"] },
+                  { $ifNull: ["$classDoc.name", "Unknown"] },
+                  {
+                    // Unresolved ObjectId / null -> "Unknown" (never show the id).
+                    // Legacy numeric class values -> "Class <value>".
+                    $cond: [
+                      {
+                        $in: [
+                          { $type: "$_id" },
+                          ["objectId", "null", "missing"]
+                        ]
+                      },
+                      "Unknown",
+                      { $concat: ["Class ", { $toString: "$_id" }] }
+                    ]
+                  }
+                ]
+              },
+              value: "$count"
+            }
+          },
+          { $project: { _id: 0, name: 1, value: 1 } },
+          { $sort: { name: 1 } }
+        ],
+        genderRatio: [
+          { $group: { _id: "$personalInfo.gender", count: { $sum: 1 } } }
+        ]
+      }
     }
-  }
-];
+  ];
+};
 
 const currentWeekRange = () => {
   const start = new Date();
@@ -267,7 +328,7 @@ const computeMasterStats = async (schoolId) => {
         totalStudents,
         totalStaff,
         totalClasses,
-        studentsByClass: studentsByClass.map(item => ({ name: `Class ${item._id}`, value: item.count })),
+        studentsByClass,
         genderRatio: genderRatio.map(item => ({ name: item._id || 'Unknown', value: item.count })),
         weeklyAttendance
       },
