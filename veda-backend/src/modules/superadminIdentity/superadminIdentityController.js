@@ -367,7 +367,7 @@ exports.createAdmin = async (req, res) => {
 
     if (isInviteFlow) {
       try {
-        await issueAndSendInvite(admin);
+        await issueAndSendInvite(admin, req);
       } catch (inviteError) {
         await rollbackCreatedAdmin(createdAdminId, createdUserId);
         createdAdminId = null;
@@ -444,7 +444,7 @@ exports.updateAdmin = async (req, res) => {
     });
 
     if (payload.sendInvite && !admin.isDraft && admin.inviteStatus !== "accepted") {
-      await issueAndSendInvite(admin);
+      await issueAndSendInvite(admin, req);
     }
 
     if (admin.userId) {
@@ -584,7 +584,7 @@ exports.sendInvite = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invitation already accepted" });
     }
 
-    await issueAndSendInvite(admin);
+    await issueAndSendInvite(admin, req);
     const data = await PlatformAdmin.findById(admin._id).lean();
     res.json({ success: true, data, message: "Invitation email sent successfully" });
   } catch (error) {
