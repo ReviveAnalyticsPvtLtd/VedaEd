@@ -39,9 +39,17 @@ export default function Navbar({ searchQuery, setSearchQuery }) {
     <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b shadow-sm z-50 flex items-center px-4">
 
       {/* LEFT LOGO */}
-      <div className="flex items-center gap-2 pl-6 w-64 select-none">
-        <span className="text-blue-700 font-extrabold text-xl">RA</span>
-        <h1 className="text-xl font-bold text-gray-800">VedaSchool</h1>
+      <div className="flex items-center pl-6 w-64 select-none">
+        <img
+          src={`${process.env.PUBLIC_URL}/VedaSchool-Light-theme.svg`}
+          alt="VedaSchool"
+          className="h-8 w-auto block dark:hidden"
+        />
+        <img
+          src={`${process.env.PUBLIC_URL}/VedaSchool-dark-theme.svg`}
+          alt="VedaSchool"
+          className="h-8 w-auto hidden dark:block"
+        />
       </div>
 
       {/* SEARCH */}
