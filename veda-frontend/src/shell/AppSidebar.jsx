@@ -14,12 +14,13 @@ import {
   FiTruck,
   FiSettings,
   FiMenu,
-  FiUser,
+
   FiLayers,
   FiDollarSign,
   FiShield,
   FiDatabase,
 } from "react-icons/fi";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 const ICON_MAP = {
   FiUsers: <FiUsers size={18} />,
@@ -265,26 +266,10 @@ export default function AppSidebar({
           </div>
         )}
 
-        {/* ROLE BADGE CARD */}
-        <div className="mt-3">
-          {isSidebarOpen ? (
-            <div className="p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-gray-800">
-                  {isSuper ? "Super Admin" : "School Admin"}
-                </div>
-                <div className="text-xs text-gray-500 font-medium">
-                  VEDAED ERP
-                </div>
-              </div>
-              <span className="w-2 h-2 rounded-full bg-emerald-500" title="Active Session" />
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <FiUser size={20} className="text-gray-600" />
-            </div>
-          )}
-        </div>
+        <SidebarProfile
+          isSidebarOpen={isSidebarOpen}
+          role={isSuper ? "superadmin" : "admin"}
+        />
       </div>
     </aside>
   );

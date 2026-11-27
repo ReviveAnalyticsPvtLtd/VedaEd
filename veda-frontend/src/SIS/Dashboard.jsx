@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import config from "../config";
+import { getAuthToken } from "../utils/authStorage";
 
 import {
   PieChart,
@@ -52,9 +53,7 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
-      const token =
-        localStorage.getItem("token") ||
-        sessionStorage.getItem("token");
+      const token = getAuthToken();
 
       const headers = {
         headers: {

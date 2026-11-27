@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useMemo, useState, useEffect } from "react";
 import * as calendarAPI from "../services/calendarAPI";
 import {
@@ -42,7 +43,7 @@ export default function ParentAnnualCalendar() {
   const [activeTypes, setActiveTypes] = useState(EVENT_TYPES);
 
   /* ================= PARENT USER ================= */
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = (getStoredUser() || {});
 
   // Parent ke child ki class
   const childClass = user.class || "All";

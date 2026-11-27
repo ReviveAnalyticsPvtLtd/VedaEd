@@ -1,3 +1,4 @@
+import { getAuthToken, getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect } from "react";
 import api from "../services/apiClient";
 import config from "../config";
@@ -42,14 +43,14 @@ export default function StudentMasterDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const studentId = user?.refId || user?._id;
         if (!studentId) {
           setError("Student account not found. Please log in again.");
           setLoading(false);
           return;
         }
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await api.get(
           `${config.API_BASE_URL}/students/${studentId}/dashboard-stats`,

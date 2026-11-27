@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 // import React, { useState, useEffect } from "react";
 // import {
 //   FiHeart,
@@ -76,7 +77,7 @@
 //   const fetchRecord = async () => {
 //     try {
 //       setLoading(true);
-//       const user = JSON.parse(localStorage.getItem("user") || "{}");
+//       const user = (getStoredUser() || {});
 //       const studentId = user?.refId || user?.stdId || user?.username || user?._id;
 // 
 //       if (!studentId) {

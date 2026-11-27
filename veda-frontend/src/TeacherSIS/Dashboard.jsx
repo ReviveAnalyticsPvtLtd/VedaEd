@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/apiClient";
@@ -22,7 +23,7 @@ export default function TeacherDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const staffId = user?.refId || user?._id;
         if (staffId) {
           const res = await api.get(`/staff/${staffId}/dashboard-stats`);

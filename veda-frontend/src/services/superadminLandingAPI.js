@@ -1,7 +1,9 @@
+import { getAuthToken } from "../utils/authStorage";
 import config from "../config";
+import { authFetch } from "./apiClient";
 
 const authHeaders = (extra = {}) => {
-  const token = localStorage.getItem("token");
+  const token = getAuthToken();
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
@@ -18,7 +20,7 @@ const parseResponse = async (response, fallbackMessage) => {
 
 export const superadminLandingAPI = {
   getProfile: async () => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
       method: "GET",
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
@@ -26,7 +28,7 @@ export const superadminLandingAPI = {
   },
 
   updateProfile: async (data) => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/profile`, {
       method: "PUT",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
@@ -38,7 +40,7 @@ export const superadminLandingAPI = {
     const formData = new FormData();
     formData.append("logo", file);
 
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/profile/logo`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/profile/logo`, {
       method: "PATCH",
       headers: authHeaders(),
       body: formData,
@@ -47,7 +49,7 @@ export const superadminLandingAPI = {
   },
 
   getTheme: async () => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
       method: "GET",
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
@@ -55,7 +57,7 @@ export const superadminLandingAPI = {
   },
 
   updateTheme: async (data) => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/theme`, {
       method: "PUT",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
@@ -64,7 +66,7 @@ export const superadminLandingAPI = {
   },
 
   getOther: async () => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
       method: "GET",
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
@@ -72,7 +74,7 @@ export const superadminLandingAPI = {
   },
 
   updateOther: async (data) => {
-    const response = await fetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
+    const response = await authFetch(`${config.API_BASE_URL}/superadmin-landing/other`, {
       method: "PUT",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),

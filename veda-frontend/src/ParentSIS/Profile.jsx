@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useState, useEffect, useRef } from "react";
 import { FiInfo, FiEye, FiEyeOff } from "react-icons/fi";
 import HelpInfo from "../components/HelpInfo";
@@ -38,7 +39,7 @@ export default function ParentProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         if (user && user.refId) {
           const res = await parentAPI.getParentById(user.refId);
           if (res.success) {

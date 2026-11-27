@@ -5,11 +5,12 @@ import {
   FiClock,
   FiMenu,
   FiSettings,
-  FiUser,
+
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import SidebarProfile from "../../components/common/SidebarProfile";
 
 export default function SuperAdminSidebar({
   isSidebarOpen,
@@ -119,16 +120,7 @@ export default function SuperAdminSidebar({
         )}
       </div>
 
-      {/* Admin User */}
-      <div className="absolute bottom-4 w-full px-2">
-        <div
-          className={`flex items-center rounded-lg text-gray-600
-          ${isSidebarOpen ? "px-3 gap-3" : "justify-center"}`}
-        >
-          <FiUser />
-          {isSidebarOpen && <span>Super Admin</span>}
-        </div>
-      </div>
+      <SidebarProfile isSidebarOpen={isSidebarOpen} role="superadmin" />
     </div>
   );
 }

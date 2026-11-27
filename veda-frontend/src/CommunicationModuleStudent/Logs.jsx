@@ -1,3 +1,4 @@
+import { getStoredUser } from "../utils/authStorage";
 import React, { useEffect, useState, useMemo } from "react";
 import CommunicationAPI from "../services/communicationAPI";
 import HelpInfo from "../components/HelpInfo";
@@ -60,7 +61,7 @@ export default function Logs() {
   };
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = (getStoredUser() || {});
     const uId = user.refId || user._id || "68c27fb96a063075c9a73ee2";
     let uModel = "Student";
     if (user.role) {

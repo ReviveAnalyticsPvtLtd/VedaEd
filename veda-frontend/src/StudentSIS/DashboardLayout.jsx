@@ -1,3 +1,4 @@
+import { getStoredUserJSON, setStoredUser } from "../utils/authStorage";
 import { Outlet } from "react-router-dom";
 import Navbar from "../SIS/Navbar";
 import StudentSidebar from "./Sidebar";
@@ -13,7 +14,7 @@ export default function StudentDashboardLayout() {
   // DEV: Auto-login as first student if no user found
   useEffect(() => {
     const checkUser = async () => {
-        const stored = localStorage.getItem("user");
+        const stored = getStoredUserJSON();
         if (!stored) {
             try {
                 const students = await studentAPI.getAllStudents();
@@ -30,7 +31,7 @@ export default function StudentDashboardLayout() {
                         name: firstStudent.personalInfo?.fullName || firstStudent.personalInfo?.name,
                         email: firstStudent.personalInfo?.email
                     };
-                    localStorage.setItem("user", JSON.stringify(userObj));
+                    setStoredUser(userObj);
                     console.log("DEV: Auto-logged in as", userObj.name);
                     // Force reload to ensure components pick it up? Or just let it be for next navigation.
                 }

@@ -11,9 +11,7 @@ import {
   FiChevronUp,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
-import ProfileAvatar, {
-  resolveProfileImage,
-} from "../components/ProfileAvatar";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 export default function CommunicationStudentSidebar({
   searchQuery = "",
@@ -25,21 +23,6 @@ export default function CommunicationStudentSidebar({
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const currentUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("user")) || {};
-    } catch {
-      return {};
-    }
-  })();
-
-  const userName =
-    currentUser?.name ||
-    currentUser?.fullName ||
-    currentUser?.username ||
-    "Student";
-
-  const userImage = resolveProfileImage(currentUser);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -201,34 +184,7 @@ export default function CommunicationStudentSidebar({
           </button>
         )}
 
-        {/* ================= USER INFO ================= */}
-        <div
-          className={`${
-            isSidebarOpen
-              ? "p-3 bg-gray-50 rounded-lg flex items-center gap-2"
-              : "flex justify-center py-2"
-          }`}
-        >
-          <ProfileAvatar
-            name={userName}
-            imageSrc={userImage}
-            sizeClassName="w-8 h-8"
-            textClassName="text-xs"
-            className="ring-0"
-          />
-
-          {isSidebarOpen && (
-            <div className="min-w-0">
-              <div className="text-sm font-medium truncate">
-                {userName}
-              </div>
-
-              <div className="text-xs text-gray-500">
-                Student
-              </div>
-            </div>
-          )}
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="student" />
       </div>
     </div>
   );

@@ -8,10 +8,11 @@ import {
   FiClipboard,
   FiSettings,
   FiMenu,
-  FiUser,
+
   FiHome,
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
+import SidebarProfile from "../../components/common/SidebarProfile";
 
 export default function SuperAdminTransportSidebar({
   searchQuery = "",
@@ -140,19 +141,7 @@ export default function SuperAdminTransportSidebar({
           </div>
         )}
 
-        {/* ADMIN INFO */}
-        <div className="mt-4">
-          {isSidebarOpen ? (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Transport Admin</div>
-              <div className="text-xs text-gray-500">Super Admin</div>
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <FiUser size={20} className="text-gray-600" />
-            </div>
-          )}
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="superadmin" />
       </div>
     </div>
   );

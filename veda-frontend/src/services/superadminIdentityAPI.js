@@ -1,7 +1,9 @@
+import { getAuthToken } from "../utils/authStorage";
 import config from "../config";
+import { authFetch } from "./apiClient";
 
 const authHeaders = (extra = {}) => {
-  const token = localStorage.getItem("token");
+  const token = getAuthToken();
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
@@ -20,14 +22,14 @@ const base = `${config.API_BASE_URL}/superadmin/identity`;
 
 export const superadminIdentityAPI = {
   getMeta: async () => {
-    const response = await fetch(`${base}/meta`, {
+    const response = await authFetch(`${base}/meta`, {
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to load options");
   },
 
   getNextEmployeeId: async () => {
-    const response = await fetch(`${base}/next-employee-id`, {
+    const response = await authFetch(`${base}/next-employee-id`, {
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to generate employee ID");
@@ -35,21 +37,21 @@ export const superadminIdentityAPI = {
 
   listAdmins: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${base}/admins?${query}`, {
+    const response = await authFetch(`${base}/admins?${query}`, {
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to fetch admins");
   },
 
   getAdmin: async (id) => {
-    const response = await fetch(`${base}/admins/${id}`, {
+    const response = await authFetch(`${base}/admins/${id}`, {
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
     return parseResponse(response, "Failed to fetch admin");
   },
 
   createAdmin: async (data) => {
-    const response = await fetch(`${base}/admins`, {
+    const response = await authFetch(`${base}/admins`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
@@ -58,7 +60,7 @@ export const superadminIdentityAPI = {
   },
 
   updateAdmin: async (id, data) => {
-    const response = await fetch(`${base}/admins/${id}`, {
+    const response = await authFetch(`${base}/admins/${id}`, {
       method: "PUT",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
@@ -67,7 +69,7 @@ export const superadminIdentityAPI = {
   },
 
   updateStatus: async (id, status) => {
-    const response = await fetch(`${base}/admins/${id}/status`, {
+    const response = await authFetch(`${base}/admins/${id}/status`, {
       method: "PATCH",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ status }),
@@ -76,7 +78,7 @@ export const superadminIdentityAPI = {
   },
 
   validateAccess: async (data) => {
-    const response = await fetch(`${base}/validate`, {
+    const response = await authFetch(`${base}/validate`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
@@ -85,7 +87,7 @@ export const superadminIdentityAPI = {
   },
 
   getDefaultPermissions: async (adminType) => {
-    const response = await fetch(
+    const response = await authFetch(
       `${base}/permissions/default?adminType=${encodeURIComponent(adminType)}`,
       { headers: authHeaders({ "Content-Type": "application/json" }) }
     );
@@ -93,7 +95,7 @@ export const superadminIdentityAPI = {
   },
 
   sendInvite: async (id) => {
-    const response = await fetch(`${base}/admins/${id}/send-invite`, {
+    const response = await authFetch(`${base}/admins/${id}/send-invite`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
@@ -101,7 +103,7 @@ export const superadminIdentityAPI = {
   },
 
   resendInvite: async (id) => {
-    const response = await fetch(`${base}/admins/${id}/resend-invite`, {
+    const response = await authFetch(`${base}/admins/${id}/resend-invite`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
     });
@@ -109,14 +111,14 @@ export const superadminIdentityAPI = {
   },
 
   validateInviteToken: async (token) => {
-    const response = await fetch(
+    const response = await authFetch(
       `${base}/invite/validate?token=${encodeURIComponent(token)}`
     );
     return parseResponse(response, "Invalid invitation link");
   },
 
   acceptInvite: async ({ token, password }) => {
-    const response = await fetch(`${base}/invite/accept`, {
+    const response = await authFetch(`${base}/invite/accept`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, password }),

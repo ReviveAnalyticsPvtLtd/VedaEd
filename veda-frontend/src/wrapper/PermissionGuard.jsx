@@ -1,13 +1,8 @@
 import React from 'react';
+import { getStoredPermissions } from "../utils/authStorage";
 
 const PermissionGuard = ({ requiredPermission, children }) => {
-  const permissionsString = localStorage.getItem("permissions");
-  let userPermissions = [];
-  try {
-    userPermissions = permissionsString ? JSON.parse(permissionsString) : [];
-  } catch (e) {
-    userPermissions = [];
-  }
+  const userPermissions = getStoredPermissions();
 
   if (userPermissions.includes(requiredPermission)) {
     return <>{children}</>;

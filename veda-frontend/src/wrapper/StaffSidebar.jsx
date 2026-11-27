@@ -8,6 +8,7 @@ import {
   FiTruck,
   FiSettings,
 } from "react-icons/fi";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 const MODULES = [
   {
@@ -140,17 +141,7 @@ export default function StaffSidebar() {
           </div>
         )}
       
-        <div className="mt-4">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm font-medium">
-              Teacher 
-            </div>
-      
-            <div className="text-xs text-gray-500">
-              VEDAED ERP
-            </div>
-          </div>
-        </div>
+        <SidebarProfile isSidebarOpen={true} role="teacher" />
       </div>
     </aside>
   );

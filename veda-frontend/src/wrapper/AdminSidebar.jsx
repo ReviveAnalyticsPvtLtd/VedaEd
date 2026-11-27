@@ -13,11 +13,12 @@ import {
   FiTruck,
   FiSettings,
   FiMenu,
-  FiUser,
+
   FiHome,
   FiLayers,
   FiDollarSign,
 } from "react-icons/fi";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 const MODULES = [
   {
@@ -409,24 +410,7 @@ useEffect(() => {
           </div>
         )}
 
-        {/* ADMIN CARD */}
-       <div className="mt-3">
-  {isSidebarOpen ? (
-    <div className="p-3 bg-gray-50 rounded-lg">
-      <div className="text-sm font-medium">
-        Admin
-      </div>
-
-      <div className="text-xs text-gray-500">
-        VEDAED ERP
-      </div>
-    </div>
-  ) : (
-    <div className="flex justify-center py-2">
-      <FiUser size={20} className="text-gray-600" />
-    </div>
-  )}
-</div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="admin" />
       </div>
     </aside>
   );

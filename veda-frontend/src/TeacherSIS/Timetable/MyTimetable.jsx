@@ -1,3 +1,4 @@
+import { getStoredUser } from "../../utils/authStorage";
 import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -15,7 +16,7 @@ export default function MyTimetable() {
   useEffect(() => {
     const fetchTimetable = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
+        const user = getStoredUser();
         const teacherId = user?.refId || user?._id;
         if (!teacherId) return;
 
