@@ -1,4 +1,3 @@
-import { getStoredUser } from "../utils/authStorage";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,9 +8,7 @@ import {
   FiChevronUp,
 } from "react-icons/fi";
 
-import ProfileAvatar, {
-  resolveProfileImage,
-} from "../components/ProfileAvatar";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 export default function TeacherCalendarSidebar({
   isSidebarOpen,
@@ -23,20 +20,6 @@ export default function TeacherCalendarSidebar({
   // =========================
   // CURRENT USER
   // =========================
-  const currentUser = (getStoredUser() || {});
-
-  const userName =
-    currentUser?.name ||
-    currentUser?.fullName ||
-    currentUser?.username ||
-    "Teacher";
-
-  const userImage = resolveProfileImage(
-    currentUser?.profileImage ||
-      currentUser?.profile_image ||
-      currentUser?.avatar ||
-      currentUser?.image
-  );
 
   return (
     <aside
@@ -227,44 +210,7 @@ export default function TeacherCalendarSidebar({
           </div>
         )}
 
-        {/* =========================
-            TEACHER PROFILE
-        ========================= */}
-        <div className="mt-2 pt-2  border-gray-200">
-          <div
-            className={`
-              flex
-              items-center
-              ${
-                isSidebarOpen
-                  ? "gap-3"
-                  : "justify-center"
-              }
-            `}
-          >
-            {/* Avatar */}
-            <ProfileAvatar
-  name={userName}
-  imageSrc={userImage}
-  sizeClassName="w-8 h-8"
-  textClassName="text-xs"
-  className="ring-0"
-/>
-
-            {/* Name + Role */}
-            {isSidebarOpen && (
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-800 truncate">
-                  {userName}
-                </p>
-
-                <p className="text-xs text-gray-500 truncate">
-                  Teacher
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="teacher" />
       </div>
     </aside>
   );

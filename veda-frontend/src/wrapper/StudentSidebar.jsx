@@ -8,6 +8,7 @@ import {
   FiChevronDown,
   FiSettings,
 } from "react-icons/fi";
+import SidebarProfile from "../components/common/SidebarProfile";
 
 const MODULES = [
   {
@@ -125,17 +126,7 @@ export default function StudentSidebar() {
     </div>
   )}
 
-  <div className="mt-4">
-    <div className="p-3 bg-gray-50 rounded-lg">
-      <div className="text-sm font-medium">
-        Student
-      </div>
-
-      <div className="text-xs text-gray-500">
-        VEDAED ERP
-      </div>
-    </div>
-  </div>
+  <SidebarProfile isSidebarOpen={true} role="student" />
 </div>
     </aside>
   );

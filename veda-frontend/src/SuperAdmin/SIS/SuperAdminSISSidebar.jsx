@@ -1,18 +1,14 @@
-import { getStoredUser } from "../../utils/authStorage";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FiHome,
   FiUsers,
-  FiUser,
   FiFileText,
   FiMenu,
   FiSettings,
 } from "react-icons/fi";
 import { FiBook, FiCheckSquare } from "react-icons/fi";
 import { useEffect, useState } from "react";
-import ProfileAvatar, {
-  resolveProfileImage,
-} from "../../components/ProfileAvatar";
+import SidebarProfile from "../../components/common/SidebarProfile";
 
 export default function SuperAdminSISSidebar({
   searchQuery = "",
@@ -23,16 +19,8 @@ export default function SuperAdminSISSidebar({
   const [settingsOpen, setSettingsOpen] = useState(false);
 const navigate = useNavigate();
   // Current logged-in user
-  const currentUser = (() => {
-    try {
-      return getStoredUser() || {};
-    } catch {
-      return {};
-    }
-  })();
 
-  const userName = currentUser?.name || "Super Admin";
-  const userImage = resolveProfileImage(currentUser);
+
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -178,40 +166,7 @@ const navigate = useNavigate();
           </div>
         )}
 
-        {/* SUPER ADMIN BLOCK */}
-        <div className="mt-3">
-          {isSidebarOpen ? (
-            <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
-              <ProfileAvatar
-                name={userName}
-                imageSrc={userImage}
-                sizeClassName="w-8 h-8"
-                textClassName="text-xs"
-                className="ring-0"
-              />
-
-              <div>
-                <div className="text-sm font-medium">
-                  {userName}
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  Super Admin
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-center py-2">
-              <ProfileAvatar
-                name={userName}
-                imageSrc={userImage}
-                sizeClassName="w-8 h-8"
-                textClassName="text-xs"
-                className="ring-0"
-              />
-            </div>
-          )}
-        </div>
+        <SidebarProfile isSidebarOpen={isSidebarOpen} role="superadmin" />
       </div>
     </div>
   );
